@@ -1142,3 +1142,72 @@ async fn the_webgpu_adapter_names_the_gpu_of_the_webgl_renderer() {
     assert_eq!(linux["adapter"], json!(false), "{linux}");
     lab.close().await;
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_apis_a_persona_lacks_are_gone_and_nothing_is_added() {
+    let lab = lab().await;
+    let names = "(() => ({ \
+        navigator: Object.getOwnPropertyNames(Navigator.prototype), \
+        window: Object.getOwnPropertyNames(window) }))()";
+    let before = lab.eval(names).await;
+    let host_has_hid = lab.eval("'hid' in navigator").await;
+    let share_before = lab.eval("typeof navigator.share").await;
+
+    lab.install(&Fingerprint::android_mobile(), &["api_presence"])
+        .await;
+
+    let after = lab.eval(names).await;
+    let gone: Vec<String> = ["navigator", "window"]
+        .iter()
+        .flat_map(|scope| {
+            let list = |value: &Value| -> HashSet<String> {
+                value[*scope]
+                    .as_array()
+                    .expect("a list of names")
+                    .iter()
+                    .filter_map(|name| name.as_str().map(str::to_owned))
+                    .collect()
+            };
+            let (was, is) = (list(&before), list(&after));
+            assert!(
+                is.is_subset(&was),
+                "{scope}: the provider added {:?}",
+                is.difference(&was).collect::<Vec<_>>()
+            );
+            was.difference(&is).cloned().collect::<Vec<_>>()
+        })
+        .collect();
+    let allowed = [
+        "hid",
+        "serial",
+        "windowControlsOverlay",
+        "contacts",
+        "share",
+        "canShare",
+        "EyeDropper",
+        "documentPictureInPicture",
+        "BarcodeDetector",
+    ];
+    for name in &gone {
+        assert!(
+            allowed.contains(&name.as_str()),
+            "{name} is not an OS API the provider may remove"
+        );
+    }
+    if host_has_hid == json!(true) {
+        assert_eq!(lab.eval("'hid' in navigator").await, json!(false));
+    }
+    assert_eq!(
+        lab.eval("'EyeDropper' in window").await,
+        json!(false),
+        "a phone has no EyeDropper"
+    );
+    assert_eq!(
+        lab.eval("typeof navigator.share").await,
+        share_before,
+        "Chrome on Android has Web Share, so the provider leaves it"
+    );
+    lab.close().await;
+}

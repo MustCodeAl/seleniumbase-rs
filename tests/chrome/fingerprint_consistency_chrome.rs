@@ -57,6 +57,7 @@ const CLOSED: &[&str] = &[
     "touch_vs_device",
     "media_query_lie",
     "color_gamut_vs_os",
+    "api_present_vs_persona",
 ];
 
 /// The gaps the evasions leave open today, by rule, each with the rank it has
@@ -75,10 +76,6 @@ const OPEN: &[(&str, &str)] = &[
         "host: touch emulation gives a phone `pointer: coarse` and `hover: none`, but `any-pointer: fine` stays true for the host's mouse and no protocol command sets it",
     ),
     ("fonts_vs_os", "host: the host's fonts"),
-    (
-        "api_present_vs_persona",
-        "step 10: the host's APIs a persona never has",
-    ),
     (
         "api_missing_vs_persona",
         "host: an API the host's Chrome lacks cannot be added honestly",

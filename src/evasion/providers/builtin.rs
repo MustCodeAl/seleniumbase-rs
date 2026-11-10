@@ -18,7 +18,7 @@
 //!   before.
 
 use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
-use crate::evasion::fingerprint::TASKBAR_HEIGHT;
+use crate::evasion::fingerprint::{api_expected, BrowserType, TASKBAR_HEIGHT};
 
 use crate::evasion::fingerprint::{
     gpu_architecture, gpu_maker, languages_for_locale, AudioNoise, CanvasNoise, Dimension,
@@ -72,6 +72,7 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(NavigatorPropsProvider),
         Box::new(PermissionsProvider),
         Box::new(PluginsProvider),
+        Box::new(ApiPresenceProvider),
         Box::new(WindowGeometryProvider),
         Box::new(WebglProvider),
         Box::new(WebGpuProvider),
@@ -505,6 +506,74 @@ impl EvasionProvider for PluginsProvider {
   try { sb.getter(proto, 'mimeTypes', function () { return mimes || (mimes = makeMimes()); }); } catch (e) {}
 })();"##,
             &[],
+        ))
+    }
+}
+
+/// The operating-system APIs of Chromium the [`ApiPresenceProvider`] may
+/// remove: the key of the API table the consistency rules use, and the name a
+/// page reads (`navigator.` or `window.`).
+const REMOVABLE: [(&str, &str); 9] = [
+    ("hid", "navigator.hid"),
+    ("serial", "navigator.serial"),
+    ("windowControlsOverlay", "navigator.windowControlsOverlay"),
+    ("contacts", "navigator.contacts"),
+    ("share", "navigator.share"),
+    ("share", "navigator.canShare"),
+    ("eyeDropper", "window.EyeDropper"),
+    (
+        "documentPictureInPicture",
+        "window.documentPictureInPicture",
+    ),
+    ("barcodeDetector", "window.BarcodeDetector"),
+];
+
+/// Removes the APIs Chrome on the persona's system does not have
+/// (`navigator.hid` for a phone, `BarcodeDetector` for Windows and Linux, ...),
+/// from the object that owns each one. It never adds an API: a stub a page can
+/// call is a lie the call reveals.
+///
+/// Which APIs go is decided by the same table the consistency checker uses
+/// (`api_expected`), so what the provider removes is what the checker reports
+/// as present on a persona that never has it. A persona with no user agent of
+/// its own is the host's browser, and a Firefox or Safari persona is left
+/// alone: its engine-level APIs cannot be removed honestly.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ApiPresenceProvider;
+
+impl EvasionProvider for ApiPresenceProvider {
+    fn name(&self) -> &str {
+        "api_presence"
+    }
+    fn priority(&self) -> i32 {
+        42
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.browser_type() == BrowserType::Chromium && fp.user_agent().is_value()
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let fp = ctx.fingerprint;
+        let gone: Vec<String> = REMOVABLE
+            .iter()
+            .filter(|(key, _)| {
+                api_expected(fp.browser_type(), fp.os_type(), fp.core_version(), key) == Some(false)
+            })
+            .map(|(_, name)| quoted(name))
+            .collect();
+        Some(render(
+            r##"(function () {
+  const names = [@NAMES@];
+  names.forEach(function (path) {
+    try {
+      const dot = path.indexOf('.');
+      const key = path.slice(dot + 1);
+      let owner = path.slice(0, dot) === 'navigator' ? navigator : window;
+      while (owner && !Object.prototype.hasOwnProperty.call(owner, key)) { owner = Object.getPrototypeOf(owner); }
+      if (owner) { delete owner[key]; }
+    } catch (e) {}
+  });
+})();"##,
+            &[("NAMES", &gone.join(", "))],
         ))
     }
 }
@@ -2050,9 +2119,75 @@ mod tests {
     }
 
     #[test]
+    fn a_phone_persona_loses_the_desktop_only_apis() {
+        let fp = Fingerprint::android_mobile();
+
+        let script = ApiPresenceProvider.script(&ctx_for(&fp)).unwrap();
+
+        for gone in [
+            "navigator.hid",
+            "window.EyeDropper",
+            "window.documentPictureInPicture",
+            "navigator.windowControlsOverlay",
+        ] {
+            assert!(script.contains(gone), "{gone} in {script}");
+        }
+        assert!(
+            !script.contains("navigator.share") && !script.contains("navigator.canShare"),
+            "Chrome on Android has Web Share: {script}"
+        );
+        assert!(ApiPresenceProvider.applies(&fp));
+    }
+
+    #[test]
+    fn a_windows_persona_loses_the_barcode_detector() {
+        let fp = Fingerprint::windows_desktop();
+
+        let script = ApiPresenceProvider.script(&ctx_for(&fp)).unwrap();
+
+        assert!(script.contains("window.BarcodeDetector"), "{script}");
+        assert!(!script.contains("navigator.hid"), "a desktop has WebHID");
+    }
+
+    #[test]
+    fn a_firefox_persona_is_left_alone() {
+        let firefox = built(
+            Fingerprint::builder()
+                .browser_type(BrowserType::Firefox)
+                .os_type(OsType::Linux)
+                .user_agent(
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0",
+                ),
+        );
+        let no_user_agent = built(Fingerprint::builder().os_type(OsType::Android));
+
+        assert!(!ApiPresenceProvider.applies(&firefox));
+        assert!(
+            !ApiPresenceProvider.applies(&no_user_agent),
+            "without a user agent the persona is the host's own"
+        );
+    }
+
+    #[test]
+    fn the_provider_removes_and_never_adds() {
+        let script = ApiPresenceProvider
+            .script(&ctx_for(&Fingerprint::android_mobile()))
+            .unwrap();
+
+        assert!(script.contains("delete "), "{script}");
+        assert!(
+            !regex::Regex::new(r"(?:navigator|window)\.\w+\s*=[^=]")
+                .unwrap()
+                .is_match(&script),
+            "no API is defined: {script}"
+        );
+    }
+
+    #[test]
+
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 30);
+        assert_eq!(providers.len(), 31);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());

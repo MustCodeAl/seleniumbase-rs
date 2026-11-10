@@ -994,10 +994,15 @@ fn fonts(persona: &Persona, readings: &Map<String, Value>, findings: &mut Findin
 ///
 /// From MDN's browser compatibility data (read 2026-11-06) for Chrome 128 and
 /// later, Safari on iOS and desktop Firefox.
-fn api_expected(persona: &Persona, api: &str) -> Option<bool> {
+pub(crate) fn api_expected(
+    browser: BrowserType,
+    os: OsType,
+    chrome_major: Option<u32>,
+    api: &str,
+) -> Option<bool> {
     use BrowserType::{Chromium, Firefox, MobileSafari};
     use OsType::{Android, Ios, Linux, Macos, Windows};
-    let (browser, os) = (persona.browser, persona.os);
+
     match (api, browser, os) {
         // Engine-level APIs: what the family has or lacks everywhere.
         (
@@ -1041,7 +1046,7 @@ fn api_expected(persona: &Persona, api: &str) -> Option<bool> {
         ("share", MobileSafari, _) => Some(true),
         ("share", Firefox, _) => Some(false),
         // Serial reached Android Chrome in 148.
-        ("serial", Chromium, Android) => persona.chrome_major.map(|major| major >= 148),
+        ("serial", Chromium, Android) => chrome_major.map(|major| major >= 148),
         ("serial", Chromium, _) => Some(true),
         ("serial", _, _) => Some(false),
         ("notification", MobileSafari, Ios) => Some(false),
@@ -1050,7 +1055,7 @@ fn api_expected(persona: &Persona, api: &str) -> Option<bool> {
     }
 }
 
-const APIS: [(&str, &str); 22] = [
+pub(crate) const APIS: [(&str, &str); 22] = [
     ("chrome", "window.chrome"),
     ("userAgentData", "navigator.userAgentData"),
     ("deviceMemory", "navigator.deviceMemory"),
@@ -1085,7 +1090,7 @@ fn apis(persona: &Persona, readings: &Map<String, Value>, findings: &mut Finding
     for (key, surface) in APIS {
         let (Some(found), Some(expected)) = (
             features.get(key).and_then(Value::as_bool),
-            api_expected(persona, key),
+            api_expected(persona.browser, persona.os, persona.chrome_major, key),
         ) else {
             continue;
         };
@@ -1641,6 +1646,53 @@ fn engine(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// MDN's browser compatibility data (`api/Navigator.json`, read 2026-11-10)
+    /// for `Navigator.share` in Chrome: `[{ "version_added": "128" },
+    /// { "version_added": "89", "version_removed": "128", "notes": "Only
+    /// supported on ChromeOS and Windows" }]`. From 128 on it is on every
+    /// desktop, Linux included, so the table does not say it is missing there
+    /// (the inventory note's expectation of the opposite is not in the data).
+    #[test]
+    fn web_share_is_on_every_desktop_chrome_since_128() {
+        use BrowserType::Chromium;
+
+        for os in [
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+        ] {
+            assert_eq!(
+                api_expected(Chromium, os, Some(157), "share"),
+                Some(true),
+                "{os:?}"
+            );
+        }
+        assert_eq!(
+            api_expected(BrowserType::Firefox, OsType::Linux, None, "share"),
+            Some(false)
+        );
+    }
+
+    #[test]
+    fn the_api_table_is_what_the_provider_reads() {
+        // The provider removes what `api_expected` says a system never has.
+        assert_eq!(
+            api_expected(BrowserType::Chromium, OsType::Android, Some(157), "hid"),
+            Some(false)
+        );
+        assert_eq!(
+            api_expected(
+                BrowserType::Chromium,
+                OsType::Windows,
+                Some(157),
+                "barcodeDetector"
+            ),
+            Some(false)
+        );
+        assert!(APIS.iter().any(|(key, _)| *key == "barcodeDetector"));
+    }
 
     /// A Windows preset applied in JavaScript alone to a headless Chrome on a
     /// Mac: every surface the settings reach says Windows, every other one

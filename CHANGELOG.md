@@ -18,6 +18,9 @@ work, `docs/parity.md` the per-API status).
   `reduced_transparency`, `contrast`, `forced_colors`); `ColorScheme` moved to
   `evasion::settings` and is still `sb_cdp::ColorScheme`.
 
+- The `api_presence` provider removes the APIs Chrome on the persona's system does not have
+  (`navigator.hid` on a phone, `BarcodeDetector` on Windows and Linux, ...), and adds none.
+
 - A phone persona turns touch emulation on, so touch events, the touch points and a coarse
   pointer that cannot hover agree.
 

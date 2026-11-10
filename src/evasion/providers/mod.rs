@@ -452,7 +452,7 @@ mod tests {
             (
                 "user_agent",
                 |b| b.user_agent("Mozilla/5.0"),
-                &["navigator_props"],
+                &["navigator_props", "api_presence"],
             ),
             (
                 "hardware_concurrency",
@@ -768,6 +768,8 @@ mod tests {
         chrome_runtime_passes_the_audit => "chrome_runtime",
         navigator_props_passes_the_audit => "navigator_props",
         permissions_passes_the_audit => "permissions",
+        api_presence_passes_the_audit => "api_presence",
+
         window_geometry_passes_the_audit => "window_geometry",
         webgl_passes_the_audit => "webgl",
         webgpu_passes_the_audit => "webgpu",
