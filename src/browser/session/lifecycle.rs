@@ -6,10 +6,10 @@ use std::time::Duration;
 use tracing::{info, instrument};
 
 use crate::browser::config::BrowserConfig;
+use crate::browser::devtools::CdpClient;
 use crate::browser::proxy_auth;
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 
 use super::emulation::{ad_block_commands, mobile_commands};
 use super::launch::connect_driver;
@@ -106,9 +106,7 @@ impl BrowserSession {
             previous.kill();
         }
         self.cdp = if config.is_cdp_enabled() {
-            Some(CdpClient::from_handle(
-                self.driver.as_ref().unwrap().handle().clone(),
-            ))
+            self.driver.as_ref().map(CdpClient::new)
         } else {
             None
         };

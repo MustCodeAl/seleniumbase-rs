@@ -153,8 +153,8 @@ impl BrowserSession {
     /// # Errors
     ///
     /// [`SeleniumBaseError::InvalidSelector`] for an empty selector, or one that
-    /// crosses a shadow root and cannot be cut; the driver's `no such element`
-    /// error if nothing matches.
+    /// crosses a shadow root and cannot be cut; [`SeleniumBaseError::ElementNotFound`],
+    /// naming the selector, if nothing matches.
     pub async fn find(
         &self,
         selector: impl Into<SelectorBuf>,
@@ -162,7 +162,9 @@ impl BrowserSession {
         let driver = self.webdriver()?;
         let selector = selector.into();
         let by = shadow_find::by_of(&selector)?;
-        let found = shadow_find::find(driver, by).await?;
+        let found = shadow_find::find(driver, by)
+            .await
+            .map_err(|error| error.naming_selector(&selector.to_string()))?;
         Ok(Element::new(found, driver.clone(), selector))
     }
 
@@ -180,7 +182,9 @@ impl BrowserSession {
         let driver = self.webdriver()?;
         let selector = selector.into();
         let by = shadow_find::by_of(&selector)?;
-        let found = shadow_find::find_all(driver, by).await?;
+        let found = shadow_find::find_all(driver, by)
+            .await
+            .map_err(|error| error.naming_selector(&selector.to_string()))?;
         Ok(found
             .into_iter()
             .map(|inner| Element::new(inner, driver.clone(), selector.clone()))

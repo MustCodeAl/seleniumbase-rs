@@ -79,11 +79,36 @@ pub fn color_allowed(is_terminal: bool, no_color: Option<&OsStr>, term: Option<&
 /// ```
 #[must_use]
 pub fn use_color(stream: &impl IsTerminal) -> bool {
+    let no_color = std::env::var_os("NO_COLOR");
+    if no_color.as_deref().is_some_and(|v| !v.is_empty()) {
+        return false;
+    }
+    // The `anstream` rules: CLICOLOR_FORCE (not "0") forces colour on, CLICOLOR=0 turns it off.
+    if std::env::var_os("CLICOLOR_FORCE").is_some_and(|v| !v.is_empty() && v != "0") {
+        return true;
+    }
+    if std::env::var_os("CLICOLOR").is_some_and(|v| v == "0") {
+        return false;
+    }
     color_allowed(
         stream.is_terminal(),
-        std::env::var_os("NO_COLOR").as_deref(),
+        no_color.as_deref(),
         std::env::var_os("TERM").as_deref(),
     )
+}
+
+/// Whether text written to standard error may be coloured, by the rules of
+/// `anstream`: a terminal, `NO_COLOR`, `CLICOLOR`, `CLICOLOR_FORCE`, `TERM`.
+#[must_use]
+pub fn stderr_color() -> bool {
+    anstream::AutoStream::choice(&std::io::stderr()) != anstream::ColorChoice::Never
+}
+
+/// Whether text written to standard output may be coloured, by the rules of
+/// `anstream` (see [`stderr_color`]).
+#[must_use]
+pub fn stdout_color() -> bool {
+    anstream::AutoStream::choice(&std::io::stdout()) != anstream::ColorChoice::Never
 }
 
 /// Replaces every control character except newline and tab with U+FFFD.
@@ -374,6 +399,20 @@ mod tests {
     }
 
     #[test]
+    fn a_message_line_is_styled_when_forced_and_plain_otherwise() {
+        let line = |on| {
+            format!(
+                "{} {}",
+                palette::ERROR.paint("error:", on),
+                palette::PATH.paint("x.rs", on)
+            )
+        };
+        assert_eq!(line(true), "\x1b[1;31merror:\x1b[0m \x1b[36mx.rs\x1b[0m");
+        assert_eq!(line(false), "error: x.rs");
+    }
+
+    #[test]
+
     fn a_style_is_one_escape_sequence_with_the_attributes_first() {
         assert_eq!(palette::BANNER_LABEL.escape(), "\x1b[34;106m");
         assert_eq!(palette::BANNER_FILE.escape(), "\x1b[31;103m");

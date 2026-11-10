@@ -111,11 +111,7 @@ impl BaseCase {
             return Ok(());
         }
         self.session
-            .devtools()?
-            .execute_with_params(
-                "Page.addScriptToEvaluateOnNewDocument",
-                serde_json::json!({ "source": crate::api::recorder::recorder_injection() }),
-            )
+            .devtools()?.execute("Page.addScriptToEvaluateOnNewDocument", serde_json::json!({ "source": crate::api::recorder::recorder_injection() }))
             .await?;
         Ok(())
     }
@@ -670,9 +666,7 @@ mod tests_recorder_mode {
         let mut config = config(&driver);
         config.browser.kind = crate::browser::config::Browser::Firefox;
         let error = BaseCase::new(config)
-            .await
-            .err()
-            .expect("Firefox cannot record");
+            .await.expect_err("Firefox cannot record");
         let text = error.to_string();
         assert!(
             text.contains("Recorder Mode ONLY supports Chrome and Edge!"),

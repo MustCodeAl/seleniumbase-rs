@@ -64,7 +64,8 @@ Build a cookie with `Cookie::new(name, value)`, then `domain`, `path`, `expires`
 | `locale(locale)` | Locale, such as `"en-US"`. |
 | `geolocation(latitude, longitude, accuracy)` | Geolocation, each an `f64`. |
 | `user_agent(user_agent, platform)` | User-agent string. `platform` is `Option<&str>`. |
-| `offline(offline)` | `true` simulates a lost network. `false` restores it. |
+| `offline(offline)` | `true` simulates a lost network. `false` restores it. The same as `network_throttle` with a throttle that only sets `offline`. |
+| `network_throttle(&throttle)` | Slows the tab's network down, cuts it off, or restores it, as the `NetworkThrottle` says. It sends `Network.enable`, then `Network.emulateNetworkConditions`. The throttle belongs to this tab. |
 | `device_metrics(metrics, mobile)` | A screen of `metrics` CSS pixels. With `mobile`, the page is laid out as on a phone. Touch and the phone user agent are separate: `touch` and `user_agent`, or `LaunchOptionsBuilder::mobile` at launch. |
 | `clear_device_metrics()` | Drops that screen. The tab follows its window again. |
 | `touch(enabled)` | Touch emulation. On means five touch points, so `navigator.maxTouchPoints` and touch events follow a phone. |
@@ -73,6 +74,24 @@ Build a cookie with `Cookie::new(name, value)`, then `domain`, `path`, `expires`
 `ColorScheme` is `Light`, `Dark` or `NoPreference`. `NoPreference` removes the override so the browser's own setting decides. This is not `LaunchOptionsBuilder::dark_mode`, which forces Chrome's dark theme on web pages.
 
 `DeviceMetrics` is `seleniumbase_rs::browser::options::DeviceMetrics`. `DeviceMetrics::new(width, height, pixel_ratio)` is a screen of `width` by `height` CSS pixels (`u32`) at `pixel_ratio` device pixels per CSS pixel (`f64`).
+
+`NetworkThrottle` is `seleniumbase_rs::NetworkThrottle`, the same type `BaseCase::set_network_throttle` takes. Its fields are `offline` (`bool`, every request fails at once), `latency` (a `Duration` added before each response starts to arrive, in whole milliseconds), and `download` and `upload` (`Option<u32>`: the most bytes per second the page may receive and send, `None` for no limit). `NetworkThrottle::default()` changes nothing, so it puts the connection back:
+
+```rust
+use std::time::Duration;
+
+use seleniumbase_rs::NetworkThrottle;
+
+page.emulation()
+    .network_throttle(&NetworkThrottle {
+        latency: Duration::from_millis(400),
+        download: Some(200_000),
+        ..NetworkThrottle::default()
+    })
+    .await?;
+// ... load the page, then put the connection back.
+page.emulation().network_throttle(&NetworkThrottle::default()).await?;
+```
 
 ## StealthPlan
 

@@ -132,15 +132,15 @@ is worse than a refusal.
 
 ```rust
 use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 
 fn demo() -> Result<(), WireMeasurementError> {
-    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
     assert_eq!(chrome.major, 155);
 
     // A system nobody measured is an error, never a nearby guess.
-    let windows = measurement::get(BrowserKind::Chrome, OsType::Windows);
+    let windows = measurement::get(Browser::Chrome, OsType::Windows);
     assert!(matches!(windows, Err(WireMeasurementError::NotMeasured { .. })));
     Ok(())
 }

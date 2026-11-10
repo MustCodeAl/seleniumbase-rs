@@ -27,9 +27,9 @@ use serde_json::{json, Map, Value};
 use thirtyfour::WebDriver;
 
 use crate::browser::config::{Browser, BrowserConfig};
+use crate::browser::devtools::CdpClient;
 use crate::browser::options::{FirefoxOptions, FirefoxPreference};
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 use crate::evasion::options::without_credentials;
 use crate::plugin_host::{convert, guard};
 use crate::sb_cdp::sync::locked;
@@ -701,7 +701,7 @@ impl BrowserHandle for DriverBrowser<'_> {
     async fn send(&self, method: &str, params: Value) -> PluginResult<Value> {
         guard::refuse_interception(method)?;
         devtools(self.driver, self.family)?
-            .execute_with_params(method, params)
+            .execute(method, params)
             .await
             .map_err(|error| refused(&error))
     }
@@ -735,7 +735,7 @@ impl PageHandle for DriverPage<'_> {
             params
         };
         devtools(self.driver, self.family)?
-            .execute_with_params(method, params)
+            .execute(method, params)
             .await
             .map_err(|error| refused(&error))
     }
@@ -748,7 +748,7 @@ impl PageHandle for DriverPage<'_> {
     async fn add_init_script(&self, source: &str) -> PluginResult<()> {
         if self.family == BrowserFamily::Chromium {
             let cdp = devtools(self.driver, self.family)?;
-            cdp.execute_with_params(
+            cdp.execute(
                 "Page.addScriptToEvaluateOnNewDocument",
                 json!({ "source": source }),
             )
@@ -756,7 +756,7 @@ impl PageHandle for DriverPage<'_> {
             .map_err(|error| refused(&error))?;
             // The document already loaded gets it too.
             let response = cdp
-                .execute_with_params("Runtime.evaluate", json!({ "expression": source }))
+                .execute("Runtime.evaluate", json!({ "expression": source }))
                 .await
                 .map_err(|error| refused(&error))?;
             return match response.get("exceptionDetails") {
@@ -788,7 +788,7 @@ impl PageHandle for DriverPage<'_> {
 /// For Firefox and Safari, which have none through WebDriver.
 fn devtools(driver: &WebDriver, family: BrowserFamily) -> PluginResult<CdpClient> {
     if family == BrowserFamily::Chromium {
-        return Ok(CdpClient::from_handle(driver.handle().clone()));
+        return Ok(CdpClient::new(driver));
     }
     let name = match family {
         BrowserFamily::Firefox => "Firefox",

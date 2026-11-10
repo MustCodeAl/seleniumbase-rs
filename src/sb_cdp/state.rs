@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use super::page::Page;
-use crate::browser::options::DeviceMetrics;
+use crate::browser::options::{DeviceMetrics, NetworkThrottle};
 use crate::cookie::Cookie;
 
 use crate::error::SeleniumBaseError;
@@ -528,18 +528,29 @@ impl Emulation {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
     pub async fn offline(&self, offline: bool) -> Result<(), SeleniumBaseError> {
-        self.page.execute("Network.enable", json!({})).await?;
-        self.page
-            .execute(
-                "Network.emulateNetworkConditions",
-                json!({
-                    "offline": offline,
-                    "latency": 0,
-                    "downloadThroughput": -1,
-                    "uploadThroughput": -1,
-                }),
-            )
-            .await?;
+        self.network_throttle(&NetworkThrottle {
+            offline,
+            ..NetworkThrottle::default()
+        })
+        .await
+    }
+
+    /// Cuts the tab off from the network, slows it down, or lets it through as it is,
+    /// as `throttle` says (`Network.emulateNetworkConditions`). The default
+    /// [`NetworkThrottle`] puts the connection back.
+    ///
+    /// The throttle belongs to this tab, as the rest of its emulation does.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
+    pub async fn network_throttle(
+        &self,
+        throttle: &NetworkThrottle,
+    ) -> Result<(), SeleniumBaseError> {
+        for (method, params) in throttle.commands() {
+            self.page.execute(method, params).await?;
+        }
         Ok(())
     }
 }

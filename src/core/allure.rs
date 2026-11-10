@@ -81,10 +81,10 @@ pub const FRAMEWORK: &str = "seleniumbase-rs";
 /// The file with the run's environment, in the results folder.
 pub const ENVIRONMENT_FILE: &str = "environment.properties";
 
-/// Where a sink reads the time: milliseconds since the Unix epoch.
+/// Where a sink reads the time: milliseconds since the Unix epoch. A boxed closure, because the sink stores it.
 pub type Clock = Arc<dyn Fn() -> i64 + Send + Sync>;
 
-/// Where a sink gets the uuid of each result.
+/// Where a sink gets the uuid of each result. A boxed closure, because the sink stores it.
 pub type IdSource = Arc<dyn Fn() -> String + Send + Sync>;
 
 // ---------------------------------------------------------------------------

@@ -78,6 +78,7 @@ async fn a_yes_and_a_no_are_recorded_and_the_run_is_archived() {
     let _guard = BROWSER_LOCK.lock().await;
     let root = tempfile::tempdir().expect("a temporary folder");
     // FIXME: Audit that the environment access only happens in single-threaded code.
+    // SAFETY: BROWSER_LOCK is held, so no other env-touching chrome test runs at the same time.
     unsafe { std::env::set_var("SB_REPORT_ROOT", root.path()) };
     let sb = watched_case(PAGE).await;
     sb.execute_script(THE_PERSON)
@@ -126,6 +127,7 @@ async fn a_yes_and_a_no_are_recorded_and_the_run_is_archived() {
 
     sb.quit().await.expect("quit");
     // FIXME: Audit that the environment access only happens in single-threaded code.
+    // SAFETY: BROWSER_LOCK is still held, so no other env-touching chrome test runs at the same time.
     unsafe { std::env::remove_var("SB_REPORT_ROOT") };
 }
 
@@ -136,6 +138,7 @@ async fn a_page_that_forbids_scripts_is_asked_with_the_browsers_own_confirm() {
     let _guard = BROWSER_LOCK.lock().await;
     let root = tempfile::tempdir().expect("a temporary folder");
     // FIXME: Audit that the environment access only happens in single-threaded code.
+    // SAFETY: BROWSER_LOCK is held, so no other env-touching chrome test runs at the same time.
     unsafe { std::env::set_var("SB_REPORT_ROOT", root.path()) };
     let sb = watched_case(LOCKED_PAGE).await;
     // A native box cannot be clicked from the page, so `confirm` is answered
@@ -153,5 +156,6 @@ async fn a_page_that_forbids_scripts_is_asked_with_the_browsers_own_confirm() {
     assert_eq!((report.checks, report.passed, report.failed), (1, 0, 1));
     sb.quit().await.expect("quit");
     // FIXME: Audit that the environment access only happens in single-threaded code.
+    // SAFETY: BROWSER_LOCK is still held, so no other env-touching chrome test runs at the same time.
     unsafe { std::env::remove_var("SB_REPORT_ROOT") };
 }

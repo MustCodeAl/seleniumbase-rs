@@ -176,7 +176,7 @@ pub enum Started {
 /// A locked view of the running session.
 ///
 /// Holding it keeps other tool calls waiting, which is what a single shared
-/// browser needs: two clicks must not interleave.
+/// browser needs: two clicks must not interleave. It dereferences to the session; the guard type behind it is Tokio's and may change.
 pub type Session<S> = OwnedMappedMutexGuard<Option<S>, S>;
 
 /// What a tool handler gets: the shared session slot, the settings, and the

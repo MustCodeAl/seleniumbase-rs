@@ -650,8 +650,7 @@ impl BaseCase {
         );
         self.session.webdriver()?
             .execute(&script, vec![result.clone()])
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .await?;
         let selector = SelectorBuf::css(format!("[{}='1']", mark_attr));
         match self.session.find(selector).await {
             Ok(el) => {
@@ -960,8 +959,7 @@ impl BaseCase {
     pub async fn get_all_window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
         let handles = self.session.webdriver()?
             .windows()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .await?;
         Ok(handles.into_iter().map(|h| h.to_string()).collect())
     }
 
@@ -969,8 +967,7 @@ impl BaseCase {
     pub async fn get_current_window_handle(&self) -> Result<String, SeleniumBaseError> {
         let handle = self.session.webdriver()?
             .window()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .await?;
         Ok(handle.to_string())
     }
 
@@ -999,8 +996,7 @@ impl BaseCase {
     pub(crate) async fn focus_window(&self) -> Result<(), SeleniumBaseError> {
         self.session.webdriver()?
             .execute("window.focus();", vec![])
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .await?;
         Ok(())
     }
 
@@ -1556,7 +1552,7 @@ impl BaseCase {
         } else {
             chain.click()
         };
-        chain.perform().await.map_err(SeleniumBaseError::WebDriver)?;
+        chain.perform().await?;
         self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
@@ -1597,8 +1593,7 @@ impl BaseCase {
             .action_chain()
             .drag_and_drop_element_by_offset(element.as_webdriver_element(), x, y)
             .perform()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .await?;
         self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
@@ -1613,7 +1608,7 @@ impl BaseCase {
                 .move_to_element_center(element.as_webdriver_element())
                 .click();
         }
-        chain.perform().await.map_err(SeleniumBaseError::WebDriver)
+        chain.perform().await.map_err(SeleniumBaseError::from)
     }
 
     // ========================================================================

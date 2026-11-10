@@ -33,6 +33,7 @@ impl Root {
         let lock = ROOT_LOCK.lock().await;
         let dir = tempfile::tempdir().expect("a temporary folder");
         // FIXME: Audit that the environment access only happens in single-threaded code.
+        // SAFETY: ROOT_LOCK is held, so no other test reads or writes the environment meanwhile.
         unsafe { std::env::set_var(REPORT_ROOT_VARIABLE, dir.path()) };
         Self { dir, _lock: lock }
     }
@@ -45,6 +46,7 @@ impl Root {
 impl Drop for Root {
     fn drop(&mut self) {
         // FIXME: Audit that the environment access only happens in single-threaded code.
+        // SAFETY: the ROOT_LOCK guard is a field dropped after this body, so the lock is still held.
         unsafe { std::env::remove_var(REPORT_ROOT_VARIABLE) };
     }
 }

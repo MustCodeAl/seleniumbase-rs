@@ -246,13 +246,12 @@ Why the policy stopped.
 pub struct MitigationPolicy {
     pub max_challenge_attempts: u32,
     pub backoff: RetryPolicy,
-    pub rotate_proxy_after: u32,
-    pub rotate_fingerprint_after: u32,
+    pub solve: SolveOptions,
     pub block_cooldown_secs: u64,
 }
 ```
 
-The thresholds of the decision table.
+The thresholds of the decision table. `solve` is the core's `SolveOptions`: how a challenge in the browser is solved (presses, rounds, cooldown, clearance cookie), and the thresholds of the rotations. The core's solver only carries `rotate_proxy_after` and `rotate_fingerprint_after`; the policy applies them, asking `proxy_rotation_due` and `fingerprint_rotation_due` for the challenges in a row. The defaults rotate the proxy after 2 and the fingerprint after 3. The policy is no longer `Copy`.
 
 ### `MitigationPolicy` methods
 

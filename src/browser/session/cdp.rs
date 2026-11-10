@@ -2,22 +2,14 @@
 //! through it, the undetected mode, and the pure CDP page of an external
 //! attachment.
 
-// thirtyfour deprecates its `NetworkConditions`, which `set_network_conditions`
-// still takes.
-#![expect(
-    deprecated,
-    reason = "thirtyfour has deprecated NetworkConditions, which this API still takes"
-)]
-
 use serde_json::{json, Value};
-use thirtyfour::extensions::cdp::NetworkConditions;
 
 use crate::browser::config::BrowserConfig;
-use crate::browser::options::CdpEvent;
+use crate::browser::devtools::CdpClient;
+use crate::browser::options::{CdpEvent, NetworkThrottle};
 use crate::browser::proxy_auth;
 use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 use crate::evasion::uc;
 use crate::sb_cdp::DevToolsEndpoint;
 
@@ -26,6 +18,10 @@ use super::BrowserSession;
 /// How long [`BrowserSession::devtools_endpoint`] waits for a driver's browser
 /// to answer its `/json/version` probe.
 const DEVTOOLS_PROBE_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// What the drivers of the browsers that have no DevTools channel report as their
+/// `browserName`, compared as lower-case prefixes (Safari Technology Preview is a Safari).
+const BROWSERS_WITHOUT_DEVTOOLS: [&str; 3] = ["firefox", "safari", "internet explorer"];
 
 impl BrowserSession {
     /// A DevTools Protocol client for this session, whatever its
@@ -40,12 +36,13 @@ impl BrowserSession {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::Unsupported`] for a session that is not
-    /// connected.
+    /// connected. A command the browser refuses through the client is
+    /// [`SeleniumBaseError::CdpDriver`].
     pub fn devtools(&self) -> Result<CdpClient, SeleniumBaseError> {
         let driver = self.driver.as_ref().ok_or_else(|| {
             SeleniumBaseError::Unsupported("the session has no browser driver".to_owned())
         })?;
-        Ok(CdpClient::from_handle(driver.handle().clone()))
+        Ok(CdpClient::new(driver))
     }
 
     /// The DevTools endpoint of the browser this session drives: the addresses
@@ -114,7 +111,7 @@ impl BrowserSession {
     /// The Runtime domain stays off on purpose: enabling it is a well-known
     /// bot-detection tell. See [`CdpClient::enable_default_domains`].
     ///
-    /// [`CdpClient::enable_default_domains`]: crate::evasion::cdp::CdpClient::enable_default_domains
+    /// [`CdpClient::enable_default_domains`]: crate::browser::devtools::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         if let Some(page) = &self.external_page {
             for method in crate::evasion::cdp::DEFAULT_DOMAIN_COMMANDS {
@@ -123,9 +120,7 @@ impl BrowserSession {
             return Ok(());
         }
         let cdp = self.cdp_client()?;
-        cdp.enable_default_domains()
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
+        cdp.enable_default_domains().await?;
         Ok(())
     }
 
@@ -135,7 +130,7 @@ impl BrowserSession {
             return self.execute_cdp_with_params(method, json!({})).await;
         }
         let cdp = self.cdp_client()?;
-        cdp.execute(method).await
+        cdp.execute(method, json!({})).await
     }
 
     /// Executes a CDP command with JSON parameters.
@@ -148,7 +143,7 @@ impl BrowserSession {
             return page.execute(method, params).await;
         }
         let cdp = self.cdp_client()?;
-        cdp.execute_with_params(method, params).await
+        cdp.execute(method, params).await
     }
 
     /// Clears the browser cache via CDP.
@@ -168,7 +163,7 @@ impl BrowserSession {
         self.webdriver()?
             .delete_all_cookies()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// Returns the cookies of the current page, the same [`Cookie`] in both modes.
@@ -195,11 +190,7 @@ impl BrowserSession {
             })?;
             return Ok(cookies.iter().map(Cookie::from_protocol).collect());
         }
-        let cookies = self
-            .webdriver()?
-            .get_all_cookies()
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        let cookies = self.webdriver()?.get_all_cookies().await?;
         Ok(cookies.iter().map(Cookie::from_webdriver).collect())
     }
 
@@ -234,13 +225,55 @@ impl BrowserSession {
         cdp.keyboard_insert_text(text).await
     }
 
-    /// Configures network throttling via CDP.
-    pub async fn set_network_conditions(
+    /// Slows the network of the window the session is on, cuts it off, or puts it back, as
+    /// `throttle` says. The default [`NetworkThrottle`] changes nothing, so it ends a throttle.
+    ///
+    /// It works in every [`DriverMode`](crate::browser::config::DriverMode), the plain WebDriver
+    /// mode included, on a Chromium browser: `Network.enable` and then
+    /// `Network.emulateNetworkConditions` go through the driver's `/goog/cdp/execute`
+    /// passthrough ([`devtools`](Self::devtools)), so no mode has to be switched on. A session
+    /// attached over CDP sends them to its own tab. The throttle belongs to the window it was
+    /// set on, as the rest of the DevTools emulation does: the session does not repeat it for a
+    /// window it switches to.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::Unsupported`], naming the browser, for Firefox, Safari and Internet
+    /// Explorer, whose drivers have no DevTools channel.
+    /// [`SeleniumBaseError::CdpDriver`] if the browser refuses a command.
+    /// [`SeleniumBaseError::SessionNotStarted`] after [`quit`](Self::quit).
+    pub async fn set_network_throttle(
         &self,
-        conditions: &NetworkConditions,
+        throttle: &NetworkThrottle,
     ) -> Result<(), SeleniumBaseError> {
-        let cdp = self.cdp_client()?;
-        cdp.set_network_conditions(conditions.clone()).await
+        if let Some(page) = &self.external_page {
+            return page.emulation().network_throttle(throttle).await;
+        }
+        self.require_devtools_channel()?;
+        let cdp = self.devtools()?;
+        for (method, params) in throttle.commands() {
+            cdp.execute(method, params).await?;
+        }
+        Ok(())
+    }
+
+    /// Refuses a session whose driver has no DevTools channel (Firefox, Safari, Internet
+    /// Explorer), naming the browser the driver reported.
+    fn require_devtools_channel(&self) -> Result<(), SeleniumBaseError> {
+        let capabilities =
+            serde_json::to_value(self.webdriver()?.handle().capabilities()).unwrap_or(Value::Null);
+        let name = capabilities["browserName"].as_str().unwrap_or_default();
+        let lowered = name.to_ascii_lowercase();
+        if BROWSERS_WITHOUT_DEVTOOLS
+            .iter()
+            .any(|prefix| lowered.starts_with(prefix))
+        {
+            return Err(SeleniumBaseError::Unsupported(format!(
+                "{name} has no DevTools channel through WebDriver, so the network of its \
+                     window cannot be throttled; use a Chromium browser"
+            )));
+        }
+        Ok(())
     }
 
     /// Sets the browser geolocation via CDP.
@@ -263,14 +296,12 @@ impl BrowserSession {
     /// Applies UC stealth patches and user-agent overrides.
     pub async fn enable_uc_mode(&self, config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
         let cdp = self.cdp_client()?;
-        cdp.enable_default_domains()
-            .await
-            .map_err(|e| crate::error::SeleniumBaseError::Unsupported(e.to_string()))?;
+        cdp.enable_default_domains().await?;
         uc::apply_uc_stealth(cdp).await?;
         if let Some(user_agent) = config.browser.user_agent.as_deref() {
             uc::override_user_agent(cdp, user_agent, config.browser.lang.as_deref()).await?;
         } else {
-            if let Ok(version_info) = cdp.execute("Browser.getVersion").await
+            if let Ok(version_info) = cdp.execute("Browser.getVersion", json!({})).await
                 && let Some(ua) = version_info["userAgent"].as_str()
                 && ua.contains("HeadlessChrome")
             {
@@ -349,6 +380,213 @@ mod endpoint_tests {
         let session = BrowserSession::disconnected();
 
         let error = session.devtools_endpoint().await.expect_err("no session");
+
+        assert!(
+            matches!(error, SeleniumBaseError::SessionNotStarted),
+            "{error:?}"
+        );
+    }
+}
+
+/// `set_network_throttle` against the mock WebDriver in `webdriver_support` (no
+/// browser): which DevTools commands a session sends, in which modes, and what
+/// it answers when it cannot send them.
+#[cfg(test)]
+mod network_throttle_tests {
+    use std::time::Duration;
+
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+    use crate::browser::config::DriverMode;
+    use crate::browser::options::NetworkThrottle;
+    use crate::sb_cdp::Browser;
+
+    fn slow() -> NetworkThrottle {
+        NetworkThrottle {
+            offline: false,
+            latency: Duration::from_millis(400),
+            download: Some(200_000),
+            upload: Some(94_000),
+        }
+    }
+
+    fn slow_params() -> Value {
+        json!({
+            "offline": false,
+            "latency": 400,
+            "downloadThroughput": 200_000,
+            "uploadThroughput": 94_000,
+        })
+    }
+
+    /// A driver of the browser called `browser_name` that answers every command.
+    fn driver_of(browser_name: &str) -> MockWebDriver {
+        MockWebDriver::start(json!({ "browserName": browser_name }), |_| {
+            Reply::Value(json!({}))
+        })
+    }
+
+    /// A session on `driver` that starts no driver of its own.
+    fn config_for(driver: &MockWebDriver) -> BrowserConfig {
+        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        config.session.auto_start_driver = false;
+        config
+    }
+
+    /// The bodies of the commands the driver's DevTools channel was sent.
+    fn devtools_commands(driver: &MockWebDriver) -> Vec<Value> {
+        driver
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .map(|request| request.body)
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn plain_webdriver_mode_throttles_through_the_drivers_devtools_channel() {
+        let driver = driver_of("chrome");
+        let config = config_for(&driver).with_mode(DriverMode::WebDriver);
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+
+        session
+            .set_network_throttle(&slow())
+            .await
+            .expect("the commands are sent without CDP mode");
+
+        assert_eq!(
+            devtools_commands(&driver),
+            [
+                json!({ "cmd": "Network.enable", "params": {} }),
+                json!({ "cmd": "Network.emulateNetworkConditions", "params": slow_params() }),
+            ]
+        );
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn the_cdp_mode_sends_the_same_command() {
+        let driver = driver_of("chrome");
+        let config = config_for(&driver).with_mode(DriverMode::Cdp);
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+
+        session
+            .set_network_throttle(&slow())
+            .await
+            .expect("the commands are sent");
+
+        let emulated: Vec<_> = devtools_commands(&driver)
+            .into_iter()
+            .filter(|command| command["cmd"] == "Network.emulateNetworkConditions")
+            .collect();
+        assert_eq!(
+            emulated,
+            [json!({ "cmd": "Network.emulateNetworkConditions", "params": slow_params() })]
+        );
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn every_chromium_driver_is_sent_the_commands() {
+        for browser_name in ["chrome", "msedge", "chromium"] {
+            let driver = driver_of(browser_name);
+            let mut session = BrowserSession::connect(config_for(&driver))
+                .await
+                .expect("connects");
+
+            session
+                .set_network_throttle(&NetworkThrottle::default())
+                .await
+                .unwrap_or_else(|error| panic!("{browser_name}: {error:?}"));
+
+            assert_eq!(devtools_commands(&driver).len(), 2, "{browser_name}");
+            session.quit().await.expect("quits");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_command_the_browser_refuses_is_a_cdp_driver_error() {
+        let driver = MockWebDriver::start(json!({ "browserName": "chrome" }), |request| {
+            if request.path == "/goog/cdp/execute"
+                && request.body["cmd"] == "Network.emulateNetworkConditions"
+            {
+                Reply::Error(500, "unknown error")
+            } else {
+                Reply::Value(json!({}))
+            }
+        });
+        let mut session = BrowserSession::connect(config_for(&driver))
+            .await
+            .expect("connects");
+
+        let error = session
+            .set_network_throttle(&slow())
+            .await
+            .expect_err("the browser refuses");
+
+        assert!(
+            matches!(error, SeleniumBaseError::CdpDriver(_)),
+            "{error:?}"
+        );
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn a_browser_without_a_devtools_channel_is_refused_by_name_and_sent_nothing() {
+        for browser_name in ["firefox", "Safari", "internet explorer"] {
+            let driver = driver_of(browser_name);
+            let mut session = BrowserSession::connect(config_for(&driver))
+                .await
+                .expect("connects");
+
+            let error = session
+                .set_network_throttle(&slow())
+                .await
+                .expect_err("no DevTools channel");
+
+            assert!(
+                matches!(&error, SeleniumBaseError::Unsupported(reason) if reason.contains(browser_name)),
+                "{browser_name}: {error:?}"
+            );
+            assert!(devtools_commands(&driver).is_empty(), "{browser_name}");
+            session.quit().await.expect("quits");
+        }
+    }
+
+    #[tokio::test]
+    async fn a_direct_attachment_throttles_its_own_tab() {
+        let (browser, mock) = Browser::new_mocked();
+        let page = browser.default_page().await.expect("a page on the mock");
+        let mut session = BrowserSession::disconnected();
+        session.external_page = Some(page);
+
+        session
+            .set_network_throttle(&slow())
+            .await
+            .expect("the tab takes it");
+
+        let sent: Vec<_> = mock
+            .calls()
+            .into_iter()
+            .filter(|call| call.method.starts_with("Network."))
+            .map(|call| (call.method, call.params))
+            .collect();
+        assert_eq!(
+            sent,
+            [
+                ("Network.enable".to_owned(), json!({})),
+                ("Network.emulateNetworkConditions".to_owned(), slow_params()),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_session_that_is_not_connected_is_not_started() {
+        let session = BrowserSession::disconnected();
+
+        let error = session
+            .set_network_throttle(&slow())
+            .await
+            .expect_err("no session");
 
         assert!(
             matches!(error, SeleniumBaseError::SessionNotStarted),

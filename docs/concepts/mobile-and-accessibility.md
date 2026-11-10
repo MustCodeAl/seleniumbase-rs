@@ -119,7 +119,7 @@ word is the signal most servers look for:
 
 ```text
 Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko)
-Chrome/156.0.0.0 Mobile Safari/537.36
+Chrome/157.0.0.0 Mobile Safari/537.36
 ```
 
 Other settings usually go with it: network and CPU throttling, a geolocation, an

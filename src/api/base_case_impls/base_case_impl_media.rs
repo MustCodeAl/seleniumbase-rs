@@ -42,8 +42,7 @@ impl BaseCase {
         element
             .as_webdriver_element()
             .screenshot(&path)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .await?;
         Ok(path)
     }
 

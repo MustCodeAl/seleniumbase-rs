@@ -113,7 +113,7 @@ async fn the_switches_are_on_the_command_line_chrome_started_with() {
     let config = test_config()
         .with_dark_mode(true)
         .with_incognito(true)
-        .with_disable_ws(true)
+        .with_disable_web_security(true)
         .with_chromium_arg("mute-audio,disable-features=Translate")
         .with_disable_features(["MediaRouter"])
         .with_host_resolver_rules("MAP blocked.test 127.0.0.1")

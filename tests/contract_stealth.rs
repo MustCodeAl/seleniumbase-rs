@@ -226,12 +226,19 @@ mod calls {
 
     use serde_json::{json, Value};
 
+    use seleniumbase_rs::config::proxy_list::{
+        ProxyEntry, ProxyList, ProxyOutcome, RotationStrategy,
+    };
     use seleniumbase_rs::evasion::behavior::Behavior;
+    use seleniumbase_rs::evasion::fingerprint::Geolocation;
     use seleniumbase_rs::evasion::fingerprint::{
         BrandVersion, BrowserType, ClientHints, Fingerprint, FingerprintError, OsType, ProxyConfig,
     };
     use seleniumbase_rs::evasion::humanize::Rng;
     use seleniumbase_rs::evasion::randomize::chromium_hints;
+    use seleniumbase_rs::evasion::randomize::{Locale, LOCALES};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
     use seleniumbase_rs::sb_cdp::{
         Browser, BrowserContext, Captcha, CdpEvent, ContextOptions, Cookie, LaunchOptions, Page,
         Proxy, SameSite, Session, SessionStore, SolveOptions,
@@ -335,6 +342,162 @@ mod calls {
             })
             .build();
         assert!(proxied.is_ok());
+    }
+
+    /// crates/codec/src/header_spec.rs (`ClientHeaders::from_fingerprint`), crates/wire/src/client.rs
+    /// (`WireFormat::from_fingerprint`) and crates/scrape/src/passport/identity.rs: what the
+    /// stealth crates read of a core fingerprint, and what they need it to implement.
+    #[test]
+    fn the_fingerprint_is_read_for_the_wire_format_and_kept_in_an_identity() {
+        fn is_serde<T: serde::Serialize + serde::de::DeserializeOwned>() {}
+        is_serde::<Fingerprint>();
+        is_serde::<Cookie>();
+
+        let fingerprint: Fingerprint = Fingerprint::randomized_with_major(OsType::Windows, 7, 120);
+        let _: BrowserType = fingerprint.browser_type();
+        let _: bool = fingerprint.browser_type() != BrowserType::Chromium;
+        let _: OsType = fingerprint.os_type();
+        let _: bool = fingerprint.os_type().is_mobile();
+        let _: Option<&str> = fingerprint.user_agent().as_str();
+        let _: Option<&str> = fingerprint.accept_languages().as_str();
+        let _: Option<&str> = fingerprint.languages().as_str();
+        let _: bool = fingerprint.client_hints().is_off();
+        let _: Option<&ClientHints> = fingerprint.client_hints().value();
+        let _: bool = fingerprint.proxy().is_set();
+        let _: Vec<String> = fingerprint.validate().errors;
+
+        let mut computed: ClientHints = chromium_hints(120);
+        "Windows".clone_into(&mut computed.platform);
+        computed.mobile = false;
+    }
+
+    /// crates/scrape/src/egress/geo.rs: a fingerprint moved to a locale and a position, and the
+    /// place a geo answer holds.
+    #[test]
+    fn a_fingerprint_is_moved_to_a_locale_and_a_position_as_the_scraper_does() {
+        let locale: &Locale = &LOCALES[0];
+        let _: (&str, &str, &str) = (locale.tag, locale.country, locale.timezone);
+        let _: (f64, f64) = (locale.latitude, locale.longitude);
+        let languages: String = locale.accept_language();
+
+        let place: Geolocation = Geolocation::new(locale.latitude, locale.longitude).accuracy(40.0);
+        assert_eq!(
+            place,
+            Geolocation::new(locale.latitude, locale.longitude).accuracy(40.0)
+        );
+        is_debug_clone_eq::<Geolocation>();
+
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 7);
+        let _: bool = fingerprint.geolocation().is_off();
+        let moved: Result<Fingerprint, FingerprintError> = fingerprint
+            .to_builder()
+            .locale(locale.tag)
+            .languages(languages.clone())
+            .accept_languages(languages)
+            .timezone(locale.timezone)
+            .geolocation(place)
+            .build();
+        assert!(moved.is_ok());
+    }
+
+    /// crates/wire/src/http_session/page.rs: the `Accept-Language` of the raw list a page
+    /// reports, which the wire crate no longer writes itself.
+    #[test]
+    fn the_accept_language_of_a_raw_list_is_written_as_core_writes_it() {
+        let _: fn(&[String]) -> Option<String> = Locale::accept_language_list::<String>;
+        let reported: Vec<String> = ["de-DE", " de ", "de", "en-US"]
+            .iter()
+            .map(|language| (*language).to_owned())
+            .collect();
+        assert_eq!(
+            Locale::accept_language_list(&reported).as_deref(),
+            Some("de-DE,de;q=0.9,en-US;q=0.8")
+        );
+        assert_eq!(Locale::accept_language_list::<String>(&[]), None);
+        assert_eq!(Locale::accept_language_list(&["fr"]).as_deref(), Some("fr"));
+    }
+
+    /// crates/scrape/src/challenge/mitigation.rs, runtime/cdp.rs and
+    /// crates/wire/src/stealth_session/browser.rs: what the policy sets on the solver, and reads
+    /// back to decide a rotation and to bound the wait for a result.
+    #[test]
+    fn the_solver_options_the_scrapers_set_and_read() {
+        is_debug_clone_eq::<SolveOptions>();
+        let options: SolveOptions = SolveOptions::new()
+            .locate_timeout(Duration::from_secs(6))
+            .interstitial_timeout(Duration::from_secs(20))
+            .verify_timeout(Duration::from_secs(30))
+            .attempts(3)
+            .backoff(Duration::from_millis(600))
+            .retry_policy(RetryPolicy::network())
+            .rounds(2)
+            .cooldown(Duration::from_secs(5))
+            .rotate_proxy_after(2)
+            .rotate_fingerprint_after(3)
+            .clearance_cookie("cf_clearance")
+            .success_marker("document.title");
+        let _: u32 = options.attempts_allowed();
+        let _: u32 = options.rounds_allowed();
+        let _: Duration = options.cooldown_between_rounds();
+        let _: Duration = options.verify_timeout_allowed();
+        let _: bool = options.proxy_rotation_due(2);
+        let _: bool = options.fingerprint_rotation_due(3);
+        assert_eq!(options.verify_timeout_allowed(), Duration::from_secs(30));
+        let _: Duration = RetryPolicy::network().delay_for_attempt(2);
+    }
+
+    /// crates/scrape/src/passport/identity.rs and runtime/cdp.rs: a session as an identity holds
+    /// it, and writes it to a file and back.
+    #[test]
+    fn a_session_is_kept_in_an_identity_and_read_back_field_by_field() {
+        let held: Session = Session::default();
+        assert_eq!(held, Session::new(Vec::new()));
+        let storage: std::collections::BTreeMap<String, String> =
+            [("theme".to_owned(), "dark".to_owned())].into();
+        let session: Session = Session::new(vec![a_cdp_cookie(None)])
+            .with_local_storage("https://shop.example", storage.clone());
+        let _: &[Cookie] = session.cookies();
+        let _: Option<&str> = session.origin();
+        let _: &std::collections::BTreeMap<String, String> = session.local_storage();
+        assert_eq!(session.local_storage(), &storage);
+        is_debug_clone_eq::<Session>();
+    }
+
+    /// crates/scrape/src/egress/pool.rs: the proxy pool keeps core's `ProxyList` and drives it
+    /// with the clock it holds (Unix seconds), so the forms that take the time are what it calls.
+    #[test]
+    fn the_proxy_list_picks_and_reports_at_the_time_the_pool_gives() {
+        fn is_send_sync<T: Send + Sync>() {}
+        is_send_sync::<ProxyList>();
+
+        let mut list: ProxyList = ProxyList::new();
+        list.insert(Some("de"), "http://de.example:8080")
+            .expect("a proxy");
+        list.insert(Some("fr"), "http://fr.example:8080")
+            .expect("a proxy");
+        let list = list
+            .with_rotation(RotationStrategy::Random { seed: Some(7) })
+            .with_quarantine(3, Duration::from_secs(600));
+        let now: SystemTime = UNIX_EPOCH + Duration::from_secs(1_000);
+
+        let picked: Option<&ProxyEntry> = list.pick_at(Some("shop.example"), now);
+        let picked = picked.expect("a proxy");
+        let _: Option<&str> = picked.name();
+        let _: &str = picked.server();
+        let _: &str = picked.spec();
+        let _: Option<&ProxyEntry> = list.pick_other_at(picked, None, now);
+        let _: Option<&ProxyEntry> =
+            list.pick_where_at(|entry: &ProxyEntry| entry.name() == Some("de"), None, now);
+        list.report_at(picked, ProxyOutcome::Challenged, now);
+        list.report_at(picked, ProxyOutcome::Success, now);
+        for strategy in [
+            RotationStrategy::RoundRobin,
+            RotationStrategy::LeastFailures,
+            RotationStrategy::StickyPerSite,
+        ] {
+            let _ = strategy;
+        }
+        let _: usize = seleniumbase_rs::config::proxy_list::MAX_STICKY_SITES;
     }
 
     /// crates/wire/src/capture_h2/browser.rs: the launch options a measured browser gets.

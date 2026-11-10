@@ -150,7 +150,7 @@ work.
 | `with_extension_archive(a)` | `--extension-zip`, `--crx` | Load a `.zip` or `.crx` extension (Chromium). |
 | `with_automation_extension(bool)`, `with_recorder_extension(bool)` | `--use-auto-ext`, `recorder_ext` | Keep Chrome's automation extension; load the Recorder. |
 | `with_esc_end(bool)` | `--esc-end`, `--esc_end`, `--ee` | End the test when ESC is pressed in the browser (see below). |
-| `with_rec_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](/tutorials/recorder_mode#pure-cdp-code---rec-sb-cdp)). |
+| `with_recording_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](/tutorials/recorder_mode#pure-cdp-code---rec-sb-cdp)). |
 | `with_firefox_options(o)` | `--firefox-arg`, `--firefox-pref` | Firefox arguments and preferences. |
 | `with_capabilities(c)` | `--cap-string`, `--cap-file` | Merge extra capabilities into the session's. |
 | `with_driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
@@ -389,7 +389,7 @@ Common flags:
 | `--headless` / `--headed` | Run the browser without or with a visible window. |
 | `--mobile` | Emulate a mobile device (see `with_mobile`). |
 | `--esc-end` / `--esc_end` / `--ee` | End the test when ESC is pressed in the browser (see `with_esc_end`). |
-| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `with_rec_sb_cdp`); `sbrs run-scenario` then saves a pure CDP program. |
+| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `with_recording_sb_cdp`); `sbrs run-scenario` then saves a pure CDP program. |
 | `--proxy HOST:PORT` | Route traffic through a proxy (`scheme://host:port` also works). |
 | `--proxy-list FILE` | Choose from a file of proxies: a random one, or the entry named by `--proxy`. |
 | `--proxy-pac-url URL` | Use a PAC file for proxy configuration. |

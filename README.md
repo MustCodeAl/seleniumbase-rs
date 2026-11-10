@@ -116,7 +116,7 @@ See [Install without a checkout](./docs/building.md#install-without-a-checkout)
 
 **The library:** add the crate from GitHub (it is not on crates.io). It carries no
 command-line code; `sbrs` is the separate package above. It is the only dependency
-the examples need: the Tokio runtime (`seleniumbase_rs::tokio`), the WebDriver types
+the examples need: the Tokio runtime (`seleniumbase_rs::tokio`), the raw WebDriver types of the escape hatches
 (`seleniumbase_rs::drivers`), JSON values (`seleniumbase_rs::json`) and the test
 attributes (`seleniumbase_rs::testing`) are re-exported, so a `use` line in this
 documentation names `seleniumbase_rs` and never another crate. The
@@ -312,7 +312,7 @@ See [CLI Usage](./docs/tutorials/cli_usage.md) for every command and option.
 | PDF parsing | `cargo run --example pdf_example` |
 | Cookies & storage | `cargo run --example cookies_storage` |
 | JS execution | `cargo run --example js_execution` |
-| Network conditions | `cargo run --example network_conditions` |
+| Network throttle | `cargo run --example network_throttle` |
 | GUI automation | `cargo run --example gui_automation --features gui` |
 | Native dialogs | `cargo run --example dialog --features gui` |
 | HTML inspector | `cargo run --example html_inspector` |

@@ -27,7 +27,7 @@ impl BaseCase {
             FrameRef::Index(index) => {
                 return match driver.enter_frame(*index).await {
                     Ok(()) => Ok(true),
-                    Err(error) => Err(SeleniumBaseError::WebDriver(error)),
+                    Err(error) => Err(error.into()),
                 };
             }
             FrameRef::Locator(locator) => locator,
@@ -52,7 +52,7 @@ impl BaseCase {
                         Err(error) => refusal = Some(error),
                     }
                 }
-        refusal.map_or(Ok(false), |error| Err(SeleniumBaseError::WebDriver(error)))
+        refusal.map_or(Ok(false), |error| Err(error.into()))
     }
 
     /// The Python-shaped `switch_to_frame`: waits for `frame`, then enters it.

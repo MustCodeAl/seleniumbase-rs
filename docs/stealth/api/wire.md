@@ -88,7 +88,7 @@ repository's root `Cargo.toml`, `wire` enables `scrape`, and `scrape` enables `c
 |---|---|
 | `WireFormat::client_builder`, `WireFormatBuilder`, `WireFormatError`, `WireFormat`, `WireProtocol` | `client` |
 | `HttpError`, `HttpSessionOptions`, `HttpResponse`, `HttpRequest`, `HttpSession`, `Method`, `WireProtocol` | `http_session` |
-| `HttpAttempt`, `HttpFetched`, `HttpRules`, `HttpVerdict`, `ReplyHeaders` | `http_session`'s `Attempt`, `Fetched`, `Rules`, `Verdict` and `Headers` |
+| `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `HttpResponse`, `ResponseHeaders`, `HttpRequest` | `http_session` |
 | `MitmError`, `MitmOptions`, `MitmProxy`, `MitmStats` | `mitm` |
 | `StealthError`, `StealthFetch`, `StealthSession`, `StealthSessionBuilder` | `stealth_session` |
 | `CaOptions`, `EphemeralCa`, `Leaf`, `TlsServerError` | `tls_server` |

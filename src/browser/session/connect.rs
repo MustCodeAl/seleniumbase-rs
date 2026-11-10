@@ -6,12 +6,12 @@ use thirtyfour::prelude::WebDriver;
 use tracing::{info, instrument};
 
 use crate::browser::config::BrowserConfig;
+use crate::browser::devtools::CdpClient;
 use crate::browser::options::LaunchSwitch;
 use crate::browser::proxy_auth::{self, ProxyAuthSidecar};
 use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 
 use super::emulation::{ad_block_commands, mobile_commands};
 use super::launch::{
@@ -59,7 +59,7 @@ impl BrowserSession {
             connect_driver(&config, virtual_display.as_ref().map(XvfbProcess::display)).await?;
         place_window(&driver, &config).await?;
         let cdp = if config.is_cdp_enabled() {
-            Some(CdpClient::from_handle(driver.handle().clone()))
+            Some(CdpClient::new(&driver))
         } else {
             None
         };
@@ -103,9 +103,7 @@ impl BrowserSession {
                 return Err(error);
             }
         };
-        let cdp = config
-            .is_cdp_enabled()
-            .then(|| CdpClient::from_handle(driver.handle().clone()));
+        let cdp = config.is_cdp_enabled().then(|| CdpClient::new(&driver));
         Ok(Self {
             driver: Some(driver),
             cdp,
