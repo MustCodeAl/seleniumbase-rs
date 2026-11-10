@@ -175,7 +175,7 @@ impl Contrast {
 /// The colour scheme a page's `prefers-color-scheme` media query reports.
 ///
 /// Chrome's own setting decides it unless
-/// [`Emulation::color_scheme`](crate::sb_cdp::Emulation::color_scheme) or a
+/// `Emulation::color_scheme` of the `sb_cdp` engine or a
 /// fingerprint's [`MediaFeatures`] overrides it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]

@@ -131,7 +131,7 @@ The fields can be read. Change a policy with the method of the same name (it tak
 | `native_spoofing` | `false` | Deliver claims through CDP and launch arguments where the browser can. |
 | `native_tostring` | `true` | Mask `Function.prototype.toString`. |
 | `chrome_runtime` | `false` | Install `window.chrome` runtime, app, `csi` and `loadTimes` stubs. |
-| `headless_fixes` | `false` | `matchMedia`, permissions consistency, page visibility and the hairline media query. |
+| `headless_fixes` | `false` | Permissions consistency, page visibility and the hairline media query. |
 | `grant_permissions` | `false` | Grant common permissions at start. |
 | `block_trackers` | `false` | Block tracker hosts. |
 | `blocked_trackers` | empty | Hosts to block. Empty means the crate's default list. |

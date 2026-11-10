@@ -347,7 +347,7 @@ conditions), for the values the fingerprint holds:
 * Client Hints (`navigator.userAgentData`), when `client_hints` is a value and the
   page is a secure context; `Off` removes it, as it removes `getBattery`,
   `navigator.connection`, `navigator.bluetooth` and WebRTC
-* `matchMedia` answers and page visibility, `canPlayType` for MP4/AAC/MP3, and
+* the media features (`color-gamut`, the colour scheme, reduced motion, reduced transparency, contrast and forced colours) through `Emulation.setEmulatedMedia`, so `matchMedia` and `@media` rules agree, page visibility, `canPlayType` for MP4/AAC/MP3, and
   `attachShadow` roots forced open
 * STUN and TURN servers dropped from `RTCPeerConnection` configs, and Chrome's
   WebRTC IP-handling flag

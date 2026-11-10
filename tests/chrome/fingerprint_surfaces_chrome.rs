@@ -20,7 +20,9 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::thread;
 
+use seleniumbase_rs::evasion::fingerprint::{ColorGamut, ColorScheme, MediaFeatures};
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
+
 use seleniumbase_rs::Fingerprint;
 use serde_json::{json, Value};
 
@@ -193,4 +195,57 @@ async fn a_phone_persona_has_a_coarse_pointer_that_cannot_hover_and_fires_touch_
             "{key} follows touch emulation: {seen}"
         );
     }
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_media_features_of_a_persona_reach_match_media_and_style_sheets() {
+    let persona = Fingerprint::windows_desktop()
+        .to_builder()
+        .media_features(MediaFeatures {
+            color_scheme: ColorScheme::Dark,
+            reduced_motion: true,
+            ..MediaFeatures::new(ColorGamut::Srgb)
+        })
+        .build()
+        .expect("a valid fingerprint");
+    let (browser, page) = open(&persona).await;
+
+    let seen = page
+        .evaluate(
+            "(() => { \
+               const style = document.createElement('style'); \
+               style.textContent = '#probe { width: 1px } \
+                 @media (prefers-color-scheme: dark) { #probe { width: 2px } } \
+                 @media (prefers-reduced-motion: reduce) { #probe { height: 3px } } \
+                 @media (color-gamut: p3) { #probe { min-width: 9px } }'; \
+               document.head.appendChild(style); \
+               const probe = document.createElement('div'); probe.id = 'probe'; \
+               document.body.appendChild(probe); \
+               const css = getComputedStyle(probe); \
+               return { \
+                 mqDark: matchMedia('(prefers-color-scheme: dark)').matches, \
+                 mqReduce: matchMedia('(prefers-reduced-motion: reduce)').matches, \
+                 mqP3: matchMedia('(color-gamut: p3)').matches, \
+                 mqSrgb: matchMedia('(color-gamut: srgb)').matches, \
+                 cssDark: css.width === '2px', \
+                 cssReduce: css.height === '3px', \
+                 cssP3: css.minWidth === '9px' }; })()",
+        )
+        .await
+        .expect("the window answers");
+    browser.close().await.expect("Chrome closes");
+
+    assert_eq!(seen["mqDark"], json!(true), "{seen}");
+    assert_eq!(
+        seen["cssDark"],
+        json!(true),
+        "@media agrees with matchMedia: {seen}"
+    );
+    assert_eq!(seen["mqReduce"], json!(true), "{seen}");
+    assert_eq!(seen["cssReduce"], json!(true), "{seen}");
+    assert_eq!(seen["mqP3"], json!(false), "{seen}");
+    assert_eq!(seen["cssP3"], json!(false), "{seen}");
+    assert_eq!(seen["mqSrgb"], json!(true), "{seen}");
 }

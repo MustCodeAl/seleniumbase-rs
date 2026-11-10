@@ -443,6 +443,16 @@ pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Val
         );
     }
 
+    // The display's gamut and the user's preferences: one command that
+    // `matchMedia` and `@media` rules both obey. A script patch could change
+    // only `matchMedia`, which is a contradiction of its own.
+    if let Some(features) = fp.media_features().value() {
+        map.insert(
+            "Emulation.setEmulatedMedia".to_owned(),
+            serde_json::json!({ "features": features.emulated() }),
+        );
+    }
+
     if let Some(ua) = fp.user_agent().value() {
         let platform = fp
             .platform()
@@ -1117,6 +1127,38 @@ mod tests {
     }
 
     #[test]
+    fn media_features_are_one_emulated_media_override() {
+        let map = raw_overrides(&Fingerprint::macos_desktop());
+
+        let media = map
+            .get("Emulation.setEmulatedMedia")
+            .expect("the display and preferences are one override");
+        let features: Vec<(&str, &str)> = media["features"]
+            .as_array()
+            .expect("a features array")
+            .iter()
+            .map(|f| (f["name"].as_str().unwrap(), f["value"].as_str().unwrap()))
+            .collect();
+        assert_eq!(
+            features,
+            [
+                ("color-gamut", "p3"),
+                ("prefers-color-scheme", "light"),
+                ("prefers-reduced-motion", "no-preference"),
+                ("prefers-reduced-transparency", "no-preference"),
+                ("prefers-contrast", "no-preference"),
+                ("forced-colors", "none"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_fingerprint_without_media_features_sends_no_emulated_media() {
+        assert!(!raw_overrides(&Fingerprint::default()).contains_key("Emulation.setEmulatedMedia"));
+    }
+
+    #[test]
+
     fn a_phone_persona_turns_touch_emulation_on_with_its_touch_points() {
         let phone = Fingerprint::android_mobile();
         let map = raw_overrides(&phone);

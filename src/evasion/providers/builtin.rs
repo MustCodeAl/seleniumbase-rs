@@ -1364,7 +1364,7 @@ impl EvasionProvider for BluetoothProvider {
     }
 }
 
-/// Fixes headless-mode signals: `matchMedia` answers and page visibility.
+/// Fixes the headless-mode signal of page visibility. It leaves `matchMedia` to the browser: a patched `matchMedia` next to unpatched `@media` rules is a contradiction, and `media_features` goes through `Emulation.setEmulatedMedia`, which both obey.
 ///
 /// It does not touch `window.outerWidth` or `outerHeight`; the
 /// [window geometry](WindowGeometryProvider) provider owns those.
@@ -1385,19 +1385,7 @@ impl EvasionProvider for HeadlessProvider {
         Some(render(
             r##"(function () {
   @SB@
-  const original = window.matchMedia;
-  if (original) {
-    const answer = function (query, matches) {
-      return { matches: matches, media: query, onchange: null, addListener: function () {}, removeListener: function () {},
-        addEventListener: function () {}, removeEventListener: function () {}, dispatchEvent: function () { return false; } };
-    };
-    window.matchMedia = sb.native(function matchMedia(query) {
-      const list = original.apply(this, arguments);
-      if (query === '(prefers-reduced-motion: reduce)' || query === '(prefers-color-scheme: dark)') { return answer(query, false); }
-      if (query === '(any-pointer: fine)') { return answer(query, true); }
-      return list;
-    }, 'matchMedia', original);
-  }
+  // The media features belong to the protocol (Emulation.setEmulatedMedia), which @media rules obey too.
   if (typeof Document !== 'undefined') {
     try { sb.getter(Document.prototype, 'hidden', function () { return false; }); } catch (e) {}
     try { sb.getter(Document.prototype, 'visibilityState', function () { return 'visible'; }); } catch (e) {}
@@ -2293,6 +2281,17 @@ mod tests {
     }
 
     #[test]
+    fn the_headless_fixes_leave_match_media_to_the_browser() {
+        // A patched `matchMedia` next to `@media` rules that answer the truth is
+        // the `media_query_lie`: the media features go through the protocol.
+        let fp = Fingerprint::windows_desktop();
+        let script = HeadlessProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(!script.contains("matchMedia"), "{script}");
+        assert!(script.contains("visibilityState"), "{script}");
+    }
+
+    #[test]
+
     fn headless_leaves_the_outer_window_size_to_window_geometry() {
         let fp = Fingerprint::windows_desktop();
         let script = HeadlessProvider.script(&ctx_for(&fp)).unwrap();

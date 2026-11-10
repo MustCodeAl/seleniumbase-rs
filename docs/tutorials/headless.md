@@ -341,7 +341,7 @@ crate deal with these signs:
   apart from a real one.
 - **Permissions.** `navigator.permissions.query` and `Notification.permission`
   give different answers for notifications.
-- **Media queries and visibility.** The answers of `matchMedia`, and
+- **Media queries and visibility.** The media features a page reads, and
   `document.hidden` and `visibilityState`.
 - **The hairline check** that Modernizr runs.
 
@@ -350,7 +350,7 @@ The stealth layer changes these:
 | Layer | What it does about headless |
 |---|---|
 | UC mode (`DriverMode::Uc`) | If you set no user agent and Chrome reports `HeadlessChrome`, it overrides the user agent to say `Chrome` over CDP. |
-| A `Fingerprint` whose policy has `headless_fixes` on (`StealthPolicy::balanced()`, which every preset uses) | Runs the `headless`, `permissions` and `hairline` evasions and turns on `Emulation.setFocusEmulationEnabled`. `matchMedia` then reports no reduced motion, no dark color scheme and a fine pointer, `document.hidden` is `false`, `visibilityState` is `visible`, and the two permission answers agree. The outer window size is left to the `window_geometry` evasion. |
+| A `Fingerprint` whose policy has `headless_fixes` on (`StealthPolicy::balanced()`, which every preset uses) | Runs the `headless`, `permissions` and `hairline` evasions and turns on `Emulation.setFocusEmulationEnabled`. The fingerprint's `media_features` (no reduced motion and the light color scheme in a preset) reach `matchMedia` and `@media` rules alike through `Emulation.setEmulatedMedia`, `document.hidden` is `false`, `visibilityState` is `visible`, and the two permission answers agree. The outer window size is left to the `window_geometry` evasion. |
 | A user agent from `with_user_agent`, `LaunchOptionsBuilder::user_agent` or a fingerprint | Replaces the `HeadlessChrome` user agent at launch. |
 | `native_spoofing` on a WebDriver session (Chrome, Chromium, Edge) | Runs a patched copy of Chrome (`EnginePatch::chrome_binary()`), which also overwrites the `HeadlessChrome` marker in the binary. |
 | Pure CDP engine without a user agent or fingerprint | Changes nothing: the user agent still says `HeadlessChrome`. |

@@ -55,6 +55,8 @@ const CLOSED: &[&str] = &[
     "viewport_is_screen",
     "no_taskbar",
     "touch_vs_device",
+    "media_query_lie",
+    "color_gamut_vs_os",
 ];
 
 /// The gaps the evasions leave open today, by rule, each with the rank it has
@@ -69,14 +71,9 @@ const OPEN: &[(&str, &str)] = &[
         "step 2 sends the core count, which Chrome applies to the page and not to workers; the worker lane: a worker reports the real cores, memory, platform and GPU",
     ),
     (
-        "media_query_lie",
-        "step 7: matchMedia is patched and the @media rules are not",
-    ),
-    (
         "media_pointer_vs_device",
         "host: touch emulation gives a phone `pointer: coarse` and `hover: none`, but `any-pointer: fine` stays true for the host's mouse and no protocol command sets it",
     ),
-    ("color_gamut_vs_os", "step 6: the host's display"),
     ("fonts_vs_os", "host: the host's fonts"),
     (
         "api_present_vs_persona",

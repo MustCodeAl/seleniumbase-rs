@@ -111,7 +111,7 @@ the Playwright session use.
 | 76 | `fonts` | `fonts` is a non-empty list | Limits `document.fonts.check`, `load` and `FontFace` to the configured fonts. |
 | 78 | `speech` | Speech is on | `speechSynthesis.getVoices()` from the voices; `Off` lists none. |
 | 80 | `bluetooth` | Bluetooth is on | A `navigator.bluetooth` stub whose `getAvailability` answers the value, only if the browser has none; `Off` removes `navigator.bluetooth`. |
-| 85 | `headless` | the policy's `headless_fixes` is on | `matchMedia` answers (`prefers-reduced-motion: reduce` and `prefers-color-scheme: dark` false, `any-pointer: fine` true) and `document.hidden` / `visibilityState`. |
+| 85 | `headless` | the policy's `headless_fixes` is on | `document.hidden` / `visibilityState`. It leaves `matchMedia` to the browser: the display and the preferences come from the `media_features` setting through `Emulation.setEmulatedMedia`, which `@media` rules obey too. |
 | 87 | `prepare_stack_trace` | never | Reserved name. It emits no script. |
 | 88 | `client_hints` | ClientHints is on, and not `native_spoofing` | `navigator.userAgentData`, including `getHighEntropyValues`, but only in a secure context (`window.isSecureContext`): that is the only place Chrome has the property, so on a plain `http:` page there is none to read and none is added. `localhost` and `127.0.0.1` are secure contexts. `Off` removes `userAgentData`. |
 | 89 | `media_codecs` | always | `canPlayType` answers for MP4, AAC and MP3 types when the browser says it cannot play them. WebM and everything else stay the browser's own. |

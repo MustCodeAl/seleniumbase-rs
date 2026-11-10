@@ -505,7 +505,7 @@ pub enum Dimension {
     Bluetooth,
     /// The `window.chrome` stubs.
     ChromeRuntime,
-    /// The headless fixes (permissions, matchMedia, hairline).
+    /// The headless fixes (permissions, page visibility, hairline).
     Headless,
     /// `Function.prototype.toString` masking.
     NativeToString,

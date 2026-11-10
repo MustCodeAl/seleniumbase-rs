@@ -25,6 +25,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed
 
+- The `headless` provider no longer patches `matchMedia`; `media_features` goes through
+  `Emulation.setEmulatedMedia`, which `@media` rules see too (`media_query_lie` and
+  `color_gamut_vs_os` are closed). `capture_fingerprint` reads `media_features` back.
+
 - **Chrome version data moved to the current stable, 157.0.8103.38** (Chrome for Testing
   last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new

@@ -1294,7 +1294,7 @@
         },
         "headless_fixes": {
           "default": false,
-          "description": "Apply the headless fixes: `matchMedia`, permissions consistency, page visibility and the hairline media query.",
+          "description": "Apply the headless fixes: permissions consistency, page visibility and the hairline media query.",
           "type": "boolean"
         },
         "native_spoofing": {

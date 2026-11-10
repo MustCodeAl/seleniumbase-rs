@@ -626,7 +626,9 @@ impl Emulation {
 
     /// Makes the page's `prefers-color-scheme` media query report `scheme`
     /// (`Emulation.setEmulatedMedia`); [`ColorScheme::NoPreference`] removes
-    /// the override.
+    /// the override. One `Emulation.setEmulatedMedia` holds every media feature, so this
+    /// also replaces the ones a fingerprint set (see
+    /// [`MediaFeatures`](crate::evasion::fingerprint::MediaFeatures)): it sends the one feature.
     ///
     /// # Errors
     ///
