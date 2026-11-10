@@ -120,7 +120,12 @@ pub fn stdout_color() -> bool {
 /// # Errors
 ///
 /// Returns the error of `raw`.
-pub fn write_colored<W>(raw: W, choice: anstream::ColorChoice, text: impl Display) -> io::Result<()>
+#[cfg(test)]
+pub(crate) fn write_colored<W>(
+    raw: W,
+    choice: anstream::ColorChoice,
+    text: impl Display,
+) -> io::Result<()>
 where
     W: anstream::stream::RawStream + anstream::stream::AsLockedWrite,
 {
@@ -300,7 +305,7 @@ impl Style {
     /// The same style as an [`owo_colors::Style`], which does the writing of
     /// the escape sequences. `"text".style(style.owo())` is the styled text.
     #[must_use]
-    pub fn owo(self) -> owo_colors::Style {
+    pub(crate) fn owo(self) -> owo_colors::Style {
         let mut style = owo_colors::Style::new();
         if self.bold {
             style = style.bold();

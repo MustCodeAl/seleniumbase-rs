@@ -38,8 +38,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 - Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
-  dependencies: `owo-colors` writes every style (`common::color::Style::owo` gives the
-  `owo_colors::Style`; a style puts its colours before its attributes, as in `ESC[31;1m`), and
+  dependencies: `owo-colors` writes every style (a style puts its colours before its
+  attributes, as in `ESC[31;1m`), and
   the `rich_helper` printers write through `anstream`, which strips the escape codes when the
   stream is piped or `NO_COLOR` is set.
 
