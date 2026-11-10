@@ -18,7 +18,9 @@ use super::fingerprint::{
     BatteryProfile, BrandVersion, BrowserType, ClientHints, ConnectionProfile, OsType, SpeechVoice,
 };
 use super::humanize::Rng;
-use super::settings::{MediaDevices, WebGl, WebRtcAddresses};
+use super::settings::{
+    ColorGamut, ColorScheme, MediaDevices, MediaFeatures, WebGl, WebRtcAddresses,
+};
 
 /// The Chromium major versions a generated identity may claim: the recent
 /// stable releases. Refresh with each Chromium release, together with
@@ -1224,6 +1226,16 @@ fn system_fonts(os: OsType) -> &'static [&'static str] {
     }
 }
 
+/// The display and preferences a preset of `os` claims: a P3 display on a
+/// Mac and an iPhone, sRGB elsewhere, and the light scheme.
+#[must_use]
+pub(super) const fn media_features_for(os: OsType) -> MediaFeatures {
+    MediaFeatures::new(match os {
+        OsType::Macos | OsType::Ios => ColorGamut::P3,
+        OsType::Windows | OsType::Linux | OsType::Android => ColorGamut::Srgb,
+    })
+}
+
 /// The voices `speechSynthesis.getVoices()` lists on `os`.
 #[must_use]
 pub(super) fn speech_voices_for(os: OsType) -> Vec<SpeechVoice> {
@@ -1365,6 +1377,22 @@ impl Draw {
             OsType::Linux => rng.chance(0.3),
             OsType::Ios => false,
         })
+    }
+
+    /// The display of the machine and its user's preferences: the gamut of
+    /// [`media_features_for`], the dark scheme three times in ten, reduced
+    /// motion two times in a hundred, nothing else. Stream 7.
+    pub(super) fn media_features(&self) -> MediaFeatures {
+        let mut rng = self.stream(7);
+        MediaFeatures {
+            color_scheme: if rng.chance(0.3) {
+                ColorScheme::Dark
+            } else {
+                ColorScheme::Light
+            },
+            reduced_motion: rng.chance(0.02),
+            ..media_features_for(self.os)
+        }
     }
 }
 
@@ -1704,6 +1732,40 @@ mod tests {
 
     fn pair(brand: &str, version: &str) -> (String, String) {
         (brand.to_owned(), version.to_owned())
+    }
+
+    #[test]
+    fn a_drawn_display_follows_the_system() {
+        use super::super::fingerprint::Fingerprint;
+
+        for os in [
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+            OsType::Ios,
+        ] {
+            for seed in 0..100 {
+                let fp = Fingerprint::randomized(os, seed);
+                let features = fp
+                    .media_features()
+                    .value()
+                    .copied()
+                    .unwrap_or_else(|| panic!("{os:?} {seed}: a drawn persona has a display"));
+                let gamut = if matches!(os, OsType::Macos | OsType::Ios) {
+                    ColorGamut::P3
+                } else {
+                    ColorGamut::Srgb
+                };
+                assert_eq!(features.color_gamut, gamut, "{os:?} {seed}");
+                assert!(!features.forced_colors, "{os:?} {seed}");
+                assert!(!features.reduced_transparency, "{os:?} {seed}");
+                assert_eq!(
+                    features.contrast,
+                    super::super::settings::Contrast::NoPreference
+                );
+            }
+        }
     }
 
     #[test]

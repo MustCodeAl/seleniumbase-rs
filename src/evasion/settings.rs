@@ -57,6 +57,151 @@ impl From<(u32, u32)> for Spoof<ScreenSize> {
     }
 }
 
+/// What `matchMedia` and `@media` rules report about the display and the
+/// user's preferences. The pointer and hover features belong to the device:
+/// a phone persona's touch emulation gives them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(default, deny_unknown_fields)]
+pub struct MediaFeatures {
+    /// `color-gamut`: the widest gamut the display covers.
+    pub color_gamut: ColorGamut,
+    /// `prefers-color-scheme`.
+    pub color_scheme: ColorScheme,
+    /// `prefers-reduced-motion: reduce`.
+    pub reduced_motion: bool,
+    /// `prefers-reduced-transparency: reduce`.
+    pub reduced_transparency: bool,
+    /// `prefers-contrast`.
+    pub contrast: Contrast,
+    /// `forced-colors: active`, Windows high contrast.
+    pub forced_colors: bool,
+}
+
+impl Default for MediaFeatures {
+    fn default() -> Self {
+        Self::new(ColorGamut::Srgb)
+    }
+}
+
+impl MediaFeatures {
+    /// The features of a display that covers `color_gamut`, with no preference set.
+    #[must_use]
+    pub const fn new(color_gamut: ColorGamut) -> Self {
+        Self {
+            color_gamut,
+            color_scheme: ColorScheme::Light,
+            reduced_motion: false,
+            reduced_transparency: false,
+            contrast: Contrast::NoPreference,
+            forced_colors: false,
+        }
+    }
+
+    /// The `features` array of `Emulation.setEmulatedMedia` for these values,
+    /// one `{ "name", "value" }` per feature, in the order of the fields.
+    pub(crate) fn emulated(&self) -> serde_json::Value {
+        let reduce = |on: bool| if on { "reduce" } else { "no-preference" };
+        serde_json::json!([
+            { "name": "color-gamut", "value": self.color_gamut.media_value() },
+            { "name": "prefers-color-scheme", "value": self.color_scheme.media_value() },
+            { "name": "prefers-reduced-motion", "value": reduce(self.reduced_motion) },
+            {
+                "name": "prefers-reduced-transparency",
+                "value": reduce(self.reduced_transparency)
+            },
+            { "name": "prefers-contrast", "value": self.contrast.media_value() },
+            {
+                "name": "forced-colors",
+                "value": if self.forced_colors { "active" } else { "none" }
+            },
+        ])
+    }
+}
+
+/// The `color-gamut` a display covers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ColorGamut {
+    /// `srgb`: the gamut of an ordinary desktop display.
+    #[default]
+    Srgb,
+    /// `p3`: a Retina Mac or a recent phone.
+    P3,
+    /// `rec2020`.
+    Rec2020,
+}
+
+impl ColorGamut {
+    /// The value `Emulation.setEmulatedMedia` takes for `color-gamut`.
+    pub(crate) const fn media_value(self) -> &'static str {
+        match self {
+            Self::Srgb => "srgb",
+            Self::P3 => "p3",
+            Self::Rec2020 => "rec2020",
+        }
+    }
+}
+
+/// `prefers-contrast`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum Contrast {
+    /// No preference.
+    #[default]
+    NoPreference,
+    /// `more`.
+    More,
+    /// `less`.
+    Less,
+    /// `custom`.
+    Custom,
+}
+
+impl Contrast {
+    /// The value `Emulation.setEmulatedMedia` takes for `prefers-contrast`.
+    pub(crate) const fn media_value(self) -> &'static str {
+        match self {
+            Self::NoPreference => "no-preference",
+            Self::More => "more",
+            Self::Less => "less",
+            Self::Custom => "custom",
+        }
+    }
+}
+
+/// The colour scheme a page's `prefers-color-scheme` media query reports.
+///
+/// Chrome's own setting decides it unless
+/// [`Emulation::color_scheme`](crate::sb_cdp::Emulation::color_scheme) or a
+/// fingerprint's [`MediaFeatures`] overrides it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum ColorScheme {
+    /// `(prefers-color-scheme: light)` matches.
+    Light,
+    /// `(prefers-color-scheme: dark)` matches.
+    Dark,
+    /// No override: the browser's own setting decides again.
+    NoPreference,
+}
+
+impl ColorScheme {
+    /// The value `Emulation.setEmulatedMedia` takes for the feature. An empty
+    /// value clears the override.
+    pub(crate) const fn media_value(self) -> &'static str {
+        match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+            Self::NoPreference => "",
+        }
+    }
+}
+
 /// The position `navigator.geolocation` reports.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -293,6 +438,53 @@ impl From<Vec<MediaDeviceSpec>> for Spoof<MediaDevices> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn media_features_serialize_with_their_css_words() {
+        let features = MediaFeatures {
+            color_scheme: ColorScheme::Dark,
+            contrast: Contrast::NoPreference,
+            ..MediaFeatures::new(ColorGamut::P3)
+        };
+
+        let json = serde_json::to_value(features).unwrap();
+
+        assert_eq!(json["color_gamut"], "p3");
+        assert_eq!(json["color_scheme"], "dark");
+        assert_eq!(json["contrast"], "no-preference");
+        let again: MediaFeatures = serde_json::from_value(json).unwrap();
+        assert_eq!(again, features);
+    }
+
+    #[test]
+    fn media_features_become_one_emulated_media_array_in_field_order() {
+        let features = MediaFeatures {
+            reduced_motion: true,
+            forced_colors: true,
+            contrast: Contrast::More,
+            ..MediaFeatures::new(ColorGamut::Rec2020)
+        };
+
+        let emulated = features.emulated();
+
+        let pairs: Vec<(&str, &str)> = emulated
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| (f["name"].as_str().unwrap(), f["value"].as_str().unwrap()))
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                ("color-gamut", "rec2020"),
+                ("prefers-color-scheme", "light"),
+                ("prefers-reduced-motion", "reduce"),
+                ("prefers-reduced-transparency", "no-preference"),
+                ("prefers-contrast", "more"),
+                ("forced-colors", "active"),
+            ]
+        );
+    }
 
     #[test]
     fn a_tuple_is_the_value_of_the_setting_it_names() {

@@ -61,7 +61,7 @@ assert!(Spoof::<String>::Off.is_off());
 | `policy()`, `humanize()` | The delivery policy and the humanized input timing. |
 | `tracker_hosts()` | The policy's host list, or the crate's default list when that list is empty. |
 
-Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`.
+Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`.
 
 `Off` is meaningful for media devices, geolocation, WebRTC, battery, connection, speech voices, Bluetooth and Client Hints. `Random` on a setting that has nothing to draw (`oscpu`, `build_id`, `proxy`) fails `build`.
 
@@ -103,6 +103,8 @@ Each setting method takes `impl Into<Spoof<T>>`. Calls can come in any order. A 
 | `screen(width, height)` | Screen size in CSS pixels (`Spoof::Value`). |
 | `screen_spoof(spoof)` | Screen size from any `Spoof<ScreenSize>`, including `Random`. |
 | `avail_screen`, `pixel_ratio`, `color_depth` | Available screen, device pixel ratio, colour depth. |
+| `media_features(MediaFeatures)` | What `matchMedia` and `@media` report about the display and the preferences: `color_gamut` (`ColorGamut`), `color_scheme` (`ColorScheme`), `reduced_motion`, `reduced_transparency`, `contrast` (`Contrast`), `forced_colors`. `MediaFeatures::new(ColorGamut::P3)` starts from a display with no preference set. No `Off`. `Dimension::MediaFeatures` is on when it is set. |
+
 | `webgl` | Unmasked vendor and renderer. A `(vendor, renderer)` pair works. |
 | `media_devices` / `media_device_counts(audio_in, audio_out, video_in)` | What `enumerateDevices()` lists. `Off` lists none. |
 | `geolocation` | Position `navigator.geolocation` reports. `(latitude, longitude)` works. `Off` denies it. |

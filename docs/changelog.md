@@ -39,6 +39,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
   dependencies.
+- The `media_features` setting (`MediaFeatures`: `color_gamut`, `color_scheme`, `reduced_motion`,
+  `reduced_transparency`, `contrast`, `forced_colors`); `ColorScheme` moved to
+  `evasion::settings` and is still `sb_cdp::ColorScheme`.
+
 - A phone persona turns touch emulation on, so touch events, the touch points and a coarse
   pointer that cannot hover agree.
 

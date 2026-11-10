@@ -64,7 +64,10 @@ use super::humanize::Rng;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
 use super::randomize;
 pub(crate) use super::settings::TASKBAR_HEIGHT;
-pub use super::settings::{Geolocation, MediaDevices, ScreenSize, WebGl, WebRtcAddresses};
+pub use super::settings::{
+    ColorGamut, ColorScheme, Contrast, Geolocation, MediaDevices, MediaFeatures, ScreenSize, WebGl,
+    WebRtcAddresses,
+};
 pub use super::spoof::Spoof;
 
 /// Browser persona requested by a profile.
@@ -467,6 +470,9 @@ pub enum Dimension {
     Timezone,
     /// `screen.*`, the window size and the device pixel ratio.
     Screen,
+    /// The colour gamut and the preferences `matchMedia` and `@media` report.
+    MediaFeatures,
+
     /// The WebGL vendor and renderer.
     Graphics,
     /// The installed fonts.
@@ -589,6 +595,10 @@ struct Fields {
     /// `screen.colorDepth`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     color_depth: Spoof<u32>,
+    /// The display's colour gamut and the user's preferences, as `matchMedia`
+    /// and `@media` report them.
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    media_features: Spoof<MediaFeatures>,
 
     // Everything else a page can probe
     /// The unmasked WebGL vendor and renderer.
@@ -669,6 +679,8 @@ impl Default for Fields {
             avail_screen: Spoof::Natural,
             pixel_ratio: Spoof::Natural,
             color_depth: Spoof::Natural,
+            media_features: Spoof::Natural,
+
             webgl: Spoof::Natural,
             media_devices: Spoof::Natural,
             geolocation: Spoof::Natural,
@@ -851,6 +863,10 @@ impl Fingerprint {
         pixel_ratio: Spoof<f64>;
         /// `screen.colorDepth`.
         color_depth: Spoof<u32>;
+        /// What `matchMedia` and `@media` report about the display and the
+        /// user's preferences.
+        media_features: Spoof<MediaFeatures>;
+
         /// The unmasked WebGL vendor and renderer.
         webgl: Spoof<WebGl>;
         /// What `enumerateDevices()` lists. `Off` lists none.
@@ -952,6 +968,8 @@ impl Fingerprint {
                     || f.pixel_ratio.is_set()
                     || f.color_depth.is_set()
             }
+            Dimension::MediaFeatures => f.media_features.is_set(),
+
             Dimension::Graphics => f.webgl.is_set(),
             Dimension::Fonts => f.fonts.is_set(),
             Dimension::MediaDevices => f.media_devices.is_set(),
@@ -1069,11 +1087,34 @@ impl Fingerprint {
                 .push("screen dimensions must be non-zero".to_owned());
         }
 
+        self.check_media_features(&mut report);
+
         self.check_graphics(&mut report);
         self.check_browser_persona(ua, &mut report);
         self.check_place(&mut report);
 
         report
+    }
+
+    /// The display and preferences against the operating system: a Windows or
+    /// Linux desktop is sRGB, and forced colours are Windows high contrast.
+    fn check_media_features(&self, report: &mut CoherenceReport) {
+        let Some(features) = self.0.media_features.value() else {
+            return;
+        };
+        let os = self.0.os();
+        if features.color_gamut != ColorGamut::Srgb && matches!(os, OsType::Windows | OsType::Linux)
+        {
+            report.warnings.push(format!(
+                "color-gamut '{}' on a {os:?} persona, whose displays are sRGB",
+                features.color_gamut.media_value()
+            ));
+        }
+        if features.forced_colors && os != OsType::Windows {
+            report.warnings.push(format!(
+                "forced-colors is Windows high contrast, and the persona is {os:?}"
+            ));
+        }
     }
 
     /// The WebGL strings against the operating system: each graphics API is
@@ -1239,6 +1280,7 @@ impl Fingerprint {
             .screen_spoof(Spoof::Random)
             .pixel_ratio(Spoof::Random)
             .color_depth(Spoof::Random)
+            .media_features(Spoof::Random)
             .webgl(Spoof::Random)
             .client_hints(Spoof::Random)
             .battery(Spoof::Random)
@@ -1259,6 +1301,7 @@ impl Fingerprint {
                 .battery(Spoof::Off)
                 .connection(Spoof::Off)
                 .bluetooth(Spoof::Off)
+                .media_features(randomize::media_features_for(os))
                 .speech_voices(randomize::speech_voices_for(os));
         }
         builder
@@ -1266,6 +1309,7 @@ impl Fingerprint {
             .connection(ConnectionProfile::default())
             .speech_voices(randomize::speech_voices_for(os))
             .bluetooth(matches!(os, OsType::Android | OsType::Macos))
+            .media_features(randomize::media_features_for(os))
     }
 
     /// Quick preset for a Windows desktop Chrome profile.
@@ -1565,6 +1609,8 @@ impl FingerprintBuilder {
         demote(&mut f.avail_screen);
         demote(&mut f.pixel_ratio);
         demote(&mut f.color_depth);
+        demote(&mut f.media_features);
+
         demote(&mut f.webgl);
         demote(&mut f.media_devices);
         demote(&mut f.geolocation);
@@ -1649,6 +1695,10 @@ impl FingerprintBuilder {
         pixel_ratio: f64;
         /// Sets the colour depth.
         color_depth: u32;
+        /// Sets what `matchMedia` and `@media` report about the display and the
+        /// user's preferences. It has no `Off`.
+        media_features: MediaFeatures;
+
         /// Sets the WebGL vendor and renderer. `(vendor, renderer)` works.
         webgl: WebGl;
         /// Sets what `enumerateDevices()` lists. `(audio_in, audio_out, video_in)`
@@ -1916,6 +1966,7 @@ fn refuse_useless_off(f: &Fields) -> Result<(), FingerprintError> {
         ("avail_screen", f.avail_screen.is_off()),
         ("pixel_ratio", f.pixel_ratio.is_off()),
         ("color_depth", f.color_depth.is_off()),
+        ("media_features", f.media_features.is_off()),
         ("webgl", f.webgl.is_off()),
         ("fonts", f.fonts.is_off()),
         ("proxy", f.proxy.is_off()),
@@ -1972,6 +2023,7 @@ fn has_random(f: &Fields) -> bool {
         f.avail_screen.is_random(),
         f.pixel_ratio.is_random(),
         f.color_depth.is_random(),
+        f.media_features.is_random(),
         f.webgl.is_random(),
         f.media_devices.is_random(),
         f.geolocation.is_random(),
@@ -2144,6 +2196,9 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
     if f.color_depth.is_random() {
         f.color_depth = Spoof::Value(profile.color_depth);
     }
+    if f.media_features.is_random() {
+        f.media_features = Spoof::Value(draw.media_features());
+    }
     if f.webgl.is_random() {
         f.webgl = Spoof::Value(profile.graphics.clone());
     }
@@ -2282,7 +2337,8 @@ mod tests {
     }
 
     /// Every dimension.
-    const EVERY_DIMENSION: [Dimension; 22] = [
+    const EVERY_DIMENSION: [Dimension; 23] = [
+        Dimension::MediaFeatures,
         Dimension::Navigator,
         Dimension::Localization,
         Dimension::Timezone,
@@ -2643,6 +2699,86 @@ mod tests {
     }
 
     #[test]
+    fn media_features_round_trip_through_the_builder_and_the_file() {
+        let features = MediaFeatures {
+            color_scheme: ColorScheme::Dark,
+            reduced_motion: true,
+            contrast: Contrast::More,
+            ..MediaFeatures::new(ColorGamut::P3)
+        };
+        let fp = built(
+            Fingerprint::builder()
+                .os_type(OsType::Macos)
+                .media_features(features),
+        );
+
+        assert_eq!(fp.media_features().value(), Some(&features));
+        let text = serde_json::to_string(&fp).unwrap();
+        assert!(text.contains(r#""color_gamut":"p3""#), "{text}");
+        assert!(text.contains(r#""contrast":"more""#), "{text}");
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(again, fp);
+        assert!(
+            Fingerprint::default().media_features().is_natural(),
+            "the browser's own display and preferences by default"
+        );
+    }
+
+    #[test]
+    fn media_features_have_no_off() {
+        let error = Fingerprint::builder()
+            .media_features(Spoof::Off)
+            .build()
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            FingerprintError::OffNotAvailable {
+                setting: "media_features"
+            }
+        );
+    }
+
+    #[test]
+    fn a_wide_gamut_on_a_windows_persona_is_a_coherence_warning() {
+        let wide = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .media_features(MediaFeatures::new(ColorGamut::P3)),
+        );
+        let narrow = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .media_features(MediaFeatures::new(ColorGamut::Srgb)),
+        );
+        let forced = built(
+            Fingerprint::builder()
+                .os_type(OsType::Macos)
+                .media_features(MediaFeatures {
+                    forced_colors: true,
+                    ..MediaFeatures::new(ColorGamut::P3)
+                }),
+        );
+
+        assert!(
+            wide.validate().warnings.iter().any(|w| w.contains("gamut")),
+            "{:?}",
+            wide.validate().warnings
+        );
+        assert!(narrow.validate().warnings.is_empty());
+        assert!(
+            forced
+                .validate()
+                .warnings
+                .iter()
+                .any(|w| w.contains("forced-colors")),
+            "{:?}",
+            forced.validate().warnings
+        );
+    }
+
+    #[test]
+
     fn off_where_it_means_nothing_names_the_setting() {
         let refused = |builder: FingerprintBuilder| builder.build().unwrap_err();
         let off: [(&str, FingerprintBuilder); 12] = [

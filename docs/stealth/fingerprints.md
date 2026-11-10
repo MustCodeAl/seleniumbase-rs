@@ -216,6 +216,8 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 | `locale`, `languages`, `accept_languages` | The place's locale and language list. | no `Off` | `Localization` | The `localization` provider, `--lang`, `Emulation.setLocaleOverride`, and the `Accept-Language` of the user agent override. |
 | `timezone` | The place's time zone. | no `Off` | `Timezone` | The `timezone` provider and `Emulation.setTimezoneOverride`. |
 | `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth` | The machine's screen. | no `Off` | `Screen` | The `window_geometry` provider, `--window-size` (a desktop's maximized browser window: the available screen less the tab strip and toolbar; a phone's screen) and `Emulation.setDeviceMetricsOverride`. |
+| `media_features` | The display's gamut (P3 on a Mac or an iPhone, sRGB elsewhere) and a light or dark scheme, with reduced motion, reduced transparency, contrast and forced colours. | no `Off` | `MediaFeatures` | `Emulation.setEmulatedMedia`. |
+
 | `webgl` | An adapter the operating system reports. | no `Off` | `Graphics` | The `webgl` and `webgpu` providers: the WebGPU adapter names the same GPU. |
 | `fonts` | The system's fonts, with a few of the less common left out. | no `Off` | `Fonts` | The `fonts` provider. |
 | `media_devices` | A microphone, a speaker and, usually, a camera. | No device is listed. | `MediaDevices` | The `media_devices` provider. |
