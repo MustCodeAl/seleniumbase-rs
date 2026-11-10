@@ -741,6 +741,7 @@ Anti-detection layer:
 <LayoutFile name="evasions.rs" note="launch flags for the evasion layer" />
 <LayoutDir name="fingerprint" open note="parts of fingerprint.rs">
 <LayoutFile name="compare.rs" note="compares two fingerprints" />
+<LayoutFile name="consistency.rs" note="the rules behind CapturedFingerprint::contradictions" />
 <LayoutFile name="file.rs" note="reads and writes a fingerprint file" />
 <LayoutFile name="schema.rs" note="the fingerprint JSON schema" />
 </LayoutDir>
