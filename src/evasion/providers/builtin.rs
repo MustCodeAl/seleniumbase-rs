@@ -1813,6 +1813,41 @@ impl EvasionProvider for LocalizationProvider {
   const proto = Object.getPrototypeOf(navigator);
   try { sb.getter(proto, 'language', function () { return @PRIMARY@; }); } catch (e) {}
   try { sb.getter(proto, 'languages', function () { return languages; }); } catch (e) {}
+  // Intl follows `navigator.language`, as `Emulation.setLocaleOverride` makes it
+  // natively: a caller that names no locale gets the first language.
+  const first = @PRIMARY@;
+  function withLocale(args, at) {
+    if (args[at] === undefined) { args[at] = first; }
+    return args;
+  }
+  ['Collator', 'NumberFormat', 'PluralRules', 'RelativeTimeFormat', 'ListFormat', 'DateTimeFormat',
+   'DisplayNames', 'Segmenter'].forEach(function (name) {
+    try {
+      const Original = Intl[name];
+      if (typeof Original !== 'function') { return; }
+      const Patched = new Proxy(Original, {
+        apply: function (target, thisArg, args) { return Reflect.apply(target, thisArg, withLocale(Array.from(args), 0)); },
+        construct: function (target, args, newTarget) { return Reflect.construct(target, withLocale(Array.from(args), 0), newTarget); }
+      });
+      sb.ctor(Patched, name);
+      Object.defineProperty(Original.prototype, 'constructor', { value: Patched, writable: true, configurable: true });
+      Intl[name] = Patched;
+    } catch (e) {}
+  });
+  [[Date.prototype, 'toLocaleString', 0], [Date.prototype, 'toLocaleDateString', 0],
+   [Date.prototype, 'toLocaleTimeString', 0], [Number.prototype, 'toLocaleString', 0],
+   [Array.prototype, 'toLocaleString', 0], [String.prototype, 'localeCompare', 1],
+   [typeof BigInt === 'function' ? BigInt.prototype : null, 'toLocaleString', 0]].forEach(function (entry) {
+    try {
+      const owner = entry[0], name = entry[1], at = entry[2];
+      if (!owner) { return; }
+      const original = owner[name];
+      owner[name] = sb.native(function () {
+        return original.apply(this, withLocale(Array.from(arguments), at));
+      }, name, original);
+    } catch (e) {}
+  });
+
 })();"##,
             &[("LANGUAGES", &array), ("PRIMARY", &quoted(primary))],
         ))
@@ -2119,6 +2154,40 @@ mod tests {
     }
 
     #[test]
+    fn localization_makes_every_intl_constructor_default_to_the_language() {
+        let fp = built(
+            Fingerprint::builder()
+                .locale("ja-JP")
+                .languages("ja-JP,ja;q=0.9"),
+        );
+
+        let script = LocalizationProvider.script(&ctx_for(&fp)).unwrap();
+
+        for name in [
+            "Collator",
+            "NumberFormat",
+            "PluralRules",
+            "RelativeTimeFormat",
+            "ListFormat",
+            "DateTimeFormat",
+            "DisplayNames",
+            "Segmenter",
+        ] {
+            assert!(script.contains(&format!("'{name}'")), "{name}: {script}");
+        }
+        for method in [
+            "toLocaleString",
+            "toLocaleDateString",
+            "toLocaleTimeString",
+            "localeCompare",
+        ] {
+            assert!(script.contains(method), "{method}: {script}");
+        }
+        assert!(script.contains("const first = 'ja-JP';"), "{script}");
+    }
+
+    #[test]
+
     fn a_phone_persona_loses_the_desktop_only_apis() {
         let fp = Fingerprint::android_mobile();
 

@@ -1211,3 +1211,78 @@ async fn the_apis_a_persona_lacks_are_gone_and_nothing_is_added() {
     );
     lab.close().await;
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_language_reaches_intl_in_the_script_mode() {
+    use seleniumbase_rs::evasion::fingerprint::StealthPolicy;
+
+    let lab = lab().await;
+    // No native spoofing: the protocol does not set the locale, so the script must.
+    let ja = persona_with(|b| {
+        b.locale("ja-JP")
+            .languages("ja-JP,ja")
+            .policy(StealthPolicy::default())
+    });
+    assert!(!ja.policy().native_spoofing);
+    lab.install(&ja, &["localization", "timezone"]).await;
+
+    let seen = lab
+        .eval(
+            r##"(() => ({
+        language: navigator.language,
+        dateTimeFormat: Intl.DateTimeFormat().resolvedOptions().locale,
+        numberFormat: new Intl.NumberFormat().resolvedOptions().locale,
+        collator: new Intl.Collator().resolvedOptions().locale === new Intl.Collator('ja-JP').resolvedOptions().locale,
+        pluralRules: new Intl.PluralRules().resolvedOptions().locale === new Intl.PluralRules('ja-JP').resolvedOptions().locale,
+        relativeTimeFormat: new Intl.RelativeTimeFormat().resolvedOptions().locale,
+        segmenter: new Intl.Segmenter().resolvedOptions().locale,
+        number: (1234.5).toLocaleString() === (1234.5).toLocaleString('ja-JP'),
+        date: new Date(0).toLocaleDateString() === new Date(0).toLocaleDateString('ja-JP'),
+        explicit: new Intl.NumberFormat('de-DE').resolvedOptions().locale,
+        instance: new Intl.NumberFormat() instanceof Intl.NumberFormat,
+        looksNative: Intl.NumberFormat.toString().includes('[native code]'),
+    }))()"##,
+        )
+        .await;
+    let captured = lab
+        .page
+        .capture_fingerprint()
+        .await
+        .expect("the capture runs");
+    lab.close().await;
+
+    for key in [
+        "language",
+        "dateTimeFormat",
+        "numberFormat",
+        "relativeTimeFormat",
+        "segmenter",
+    ] {
+        assert_eq!(seen[key], json!("ja-JP"), "{key}: {seen}");
+    }
+    assert_eq!(seen["number"], json!(true), "{seen}");
+    // Chrome has no `ja-JP` data for these two and resolves it to `ja`: the same as it
+    // does for the explicit name, which is what the default must equal.
+    assert_eq!(seen["collator"], json!(true), "{seen}");
+    assert_eq!(seen["pluralRules"], json!(true), "{seen}");
+
+    assert_eq!(seen["date"], json!(true), "{seen}");
+    assert_eq!(
+        seen["explicit"],
+        json!("de-DE"),
+        "a locale the caller names stands: {seen}"
+    );
+    assert_eq!(seen["instance"], json!(true), "{seen}");
+    assert_eq!(seen["looksNative"], json!(true), "{seen}");
+    let intl: Vec<_> = captured
+        .contradictions()
+        .into_iter()
+        .filter(|c| c.rule == "intl_vs_language")
+        .collect();
+    assert!(
+        intl.is_empty(),
+        "the capture finds Intl contradicting the language: {intl:?}"
+    );
+}

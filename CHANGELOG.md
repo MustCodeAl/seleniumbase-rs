@@ -46,6 +46,11 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- Without native spoofing, Intl followed the machine's locale while `navigator.language` said
+  the persona's; every Intl constructor and `toLocale*String` now default to the persona's
+  language (the `localization` provider).
+
+
 - A WebDriver session given a desktop fingerprint keeps its window's viewport; the
   device-metrics override made it the size of the screen. Both engines now send the desktop form
   (`width` and `height` `0`, the screen in `screenWidth` and `screenHeight`).
