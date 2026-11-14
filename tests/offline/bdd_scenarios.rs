@@ -176,6 +176,11 @@ fn evidence_folder() -> PathBuf {
 
 #[test]
 fn a_failing_step_leaves_the_evidence_and_closes_the_browser() {
+    // The test runs a step that panics and checks the evidence the fixture saved.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test checks the evidence a panicking step leaves"
+    )]
     let failed = std::panic::catch_unwind(a_step_fails);
     assert!(failed.is_err(), "the scenario fails");
 

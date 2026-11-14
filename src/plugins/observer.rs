@@ -646,6 +646,11 @@ mod tests {
     async fn a_panicking_cdp_test_is_reported_and_then_panics_again() {
         use futures_util::FutureExt;
         let recorder = Recorder::default();
+        // The test raises a panic and checks that the plugins recorded it before it is raised again.
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the test checks that a panic is reported and then raised again"
+        )]
         let raised = std::panic::AssertUnwindSafe(cdp_run(&recorder, async |_: &Page| {
             panic!("assert failed in the test")
         }))

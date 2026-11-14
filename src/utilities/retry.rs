@@ -321,10 +321,7 @@ impl RateLimiter {
     fn reserve_at(&self, now: Instant) -> Duration {
         // A poisoned lock only means another thread panicked between pushes;
         // the queue is still a valid list of times.
-        let mut starts = self
-            .starts
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut starts = crate::common::poison::locked(&self.starts);
         let start = if starts.len() < self.max_calls {
             now
         } else {

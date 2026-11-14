@@ -74,7 +74,7 @@
 //! next one sees. Python closes the shared browser when pytest ends, and the
 //! class's browser when the next class starts; here the idle timeout does both.
 
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
@@ -122,7 +122,7 @@ static CRUMBS: Mutex<Option<bool>> = Mutex::new(None);
 /// tests, which is Python's `--crumbs`. It is a setting of the process, like
 /// [`set_idle_timeout`], and takes precedence over [`CRUMBS_VAR`].
 pub fn set_crumbs(on: bool) {
-    *CRUMBS.lock().unwrap_or_else(PoisonError::into_inner) = Some(on);
+    *crate::common::poison::locked(&CRUMBS) = Some(on);
 }
 
 /// Whether a browser that is reused has its cookies deleted between tests
@@ -131,7 +131,7 @@ pub fn set_crumbs(on: bool) {
 /// and the page and its storage are reset either way.
 #[must_use]
 pub fn crumbs() -> bool {
-    let set = *CRUMBS.lock().unwrap_or_else(PoisonError::into_inner);
+    let set = *crate::common::poison::locked(&CRUMBS);
     set.unwrap_or_else(|| {
         static FROM_ENV: OnceLock<bool> = OnceLock::new();
         *FROM_ENV.get_or_init(|| {
@@ -369,7 +369,7 @@ fn registry() -> MutexGuard<'static, Registry> {
 
 fn lock(registry: &Mutex<Registry>) -> MutexGuard<'_, Registry> {
     // A panic while the registry was held cannot leave it half changed.
-    registry.lock().unwrap_or_else(PoisonError::into_inner)
+    crate::common::poison::locked(registry)
 }
 
 /// The idle timeout set with [`set_idle_timeout`], if one was.
@@ -378,7 +378,7 @@ static IDLE_TIMEOUT: Mutex<Option<Duration>> = Mutex::new(None);
 /// Sets how long a reused browser that no test holds stays open, for the whole
 /// process. It overrides [`IDLE_TIMEOUT_VAR`].
 pub fn set_idle_timeout(timeout: Duration) {
-    *IDLE_TIMEOUT.lock().unwrap_or_else(PoisonError::into_inner) = Some(timeout);
+    *crate::common::poison::locked(&IDLE_TIMEOUT) = Some(timeout);
 }
 
 /// How long a reused browser that no test holds stays open: what
@@ -386,7 +386,7 @@ pub fn set_idle_timeout(timeout: Duration) {
 /// [`DEFAULT_IDLE_TIMEOUT`].
 #[must_use]
 pub fn idle_timeout() -> Duration {
-    let set = *IDLE_TIMEOUT.lock().unwrap_or_else(PoisonError::into_inner);
+    let set = *crate::common::poison::locked(&IDLE_TIMEOUT);
     set.unwrap_or_else(|| {
         static FROM_ENV: OnceLock<Duration> = OnceLock::new();
         *FROM_ENV.get_or_init(|| {

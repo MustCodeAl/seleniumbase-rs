@@ -309,9 +309,7 @@ static CLEANUPS: Mutex<Vec<JoinHandle<()>>> = Mutex::new(Vec::new());
 
 fn cleanups() -> MutexGuard<'static, Vec<JoinHandle<()>>> {
     // A panic while holding the list cannot leave it in a bad state.
-    CLEANUPS
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner)
+    crate::common::poison::locked(&CLEANUPS)
 }
 
 /// Starts `cleanup` in the background and remembers it, for use in `Drop`.

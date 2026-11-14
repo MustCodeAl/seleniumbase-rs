@@ -49,7 +49,7 @@ use std::fmt;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::ThreadId;
 use std::time::{Duration, Instant};
 
@@ -783,17 +783,11 @@ impl TestRun {
 
     /// Hears about every test that starts or ends from now on.
     pub fn add_sink(&self, sink: Arc<dyn RunSink>) {
-        self.sinks
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(sink);
+        crate::common::poison::locked(&self.sinks).push(sink);
     }
 
     fn sinks(&self) -> Vec<Arc<dyn RunSink>> {
-        self.sinks
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
+        crate::common::poison::locked(&self.sinks).clone()
     }
 
     fn joins(&self, run: &RunFile) -> bool {
@@ -1524,11 +1518,7 @@ impl RunFinalizer {
         if matches!(end.outcome, Outcome::Failed(_)) && end.attempt < end.attempts {
             return;
         }
-        let begun = self
-            .recorder
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take();
+        let begun = crate::common::poison::locked(&self.recorder).take();
         let Some(mut recorder) = begun.or_else(|| {
             let mut recorder = self.start()?;
             // The attempt took `end.duration`; the recorder only just started.
@@ -1568,7 +1558,7 @@ impl RunFinalizer {
 impl crate::testing::Finalizer for RunFinalizer {
     async fn begin(&self, _test_id: &str) {
         let recorder = self.start();
-        let mut slot = self.recorder.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut slot = crate::common::poison::locked(&self.recorder);
         // A handle that runs its test twice starts it again. The recorder of
         // the first run, if it is still here, is recorded as unreported.
         if let Some(previous) = slot.take()

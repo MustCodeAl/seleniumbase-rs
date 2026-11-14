@@ -32,6 +32,11 @@ work, `docs/parity.md` the per-API status).
   cancel it). With no runtime, the drop still waits until the process is reaped, so a session that
   failed to start does not leave the driver running.
 
+- A poisoned mutex is recovered in one place, `common::poison::locked`. The cleanup list, a reused
+  session, the test logs, the proxy list and the report attempts still answer after a panic held
+  their lock. Clippy disallows `std::panic::catch_unwind`, `FutureExt::catch_unwind` and
+  `PoisonError::into_inner` unless the call carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+
 
 ### Breaking
 

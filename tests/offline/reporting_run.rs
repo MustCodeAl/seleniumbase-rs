@@ -411,6 +411,11 @@ fn a_dropped_recorder_writes_nothing_and_abandon_records_unreported() {
     let root = tempfile::tempdir().unwrap();
     let run = open(root.path(), "A");
 
+    // The test drops a recorder during a panic and checks that the drop writes nothing.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test drops a recorder while a panic is unwinding"
+    )]
     let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let _recorder = run.start(TestId::named("p::boom")).unwrap();
         panic!("the test body panicked");
