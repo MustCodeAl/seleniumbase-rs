@@ -26,8 +26,22 @@ work, `docs/parity.md` the per-API status).
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
   constant `CURRENT_STABLE_MAJOR` and a test that fails when the table is older.
 
+- Dropping a `DriverProcess` or an `XvfbProcess` no longer waits on the thread that drops it when a
+  Tokio runtime is current. The process is still killed, and `Child::wait` runs on the runtime's
+  blocking pool (`Handle::spawn_blocking`; dropping the join handle detaches the wait, it does not
+  cancel it). With no runtime, the drop still waits until the process is reaped, so a session that
+  failed to start does not leave the driver running.
+
 
 ### Breaking
+
+- **Breaking: dropping a `TestRecorder` no longer writes the result.** A panic used to be recorded
+  as failed (`the test panicked`, and `basic_test_info.txt` was written) and a plain drop as
+  unreported (`the test did not finish`). Call `TestRecorder::finish` with the outcome, or
+  `TestRecorder::abandon` when the test never reached one. `abandon` records unreported and does
+  not write `basic_test_info.txt`. `TestRun::finalize` still records a started test that has no end
+  as unreported. A second `test_started` on the reports plugin abandons the previous recorder
+  before it starts the next one.
 
 - **Breaking: the getters of `BaseCase` have no `get_` prefix** (rule C-GETTER of the API
   guidelines: a Rust getter is named after what it returns). `get_text` is `text`, `get_title` is

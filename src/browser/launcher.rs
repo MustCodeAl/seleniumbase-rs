@@ -32,9 +32,13 @@ use crate::evasion::patcher::find_system_chrome;
 /// start does not leave it running, on every system. On Unix the driver and the
 /// browser it starts also end with this program when the program is killed
 /// without quitting them.
+/// With no Tokio runtime current, dropping waits until the process is reaped.
+/// On a runtime, the wait runs on the blocking pool, so a worker is not stalled.
 pub struct DriverProcess {
     pub url: String,
-    child: Child,
+    /// Taken when the process is reaped, so `kill` can move it onto the blocking pool.
+    child: Option<Child>,
+    pid: u32,
     _guard: OrphanGuard,
 }
 
@@ -42,13 +46,18 @@ impl DriverProcess {
     /// The operating system's id of the driver process.
     #[must_use]
     pub fn id(&self) -> u32 {
-        self.child.id()
+        self.pid
     }
 
-    /// Best-effort kill of the underlying driver process.
+    /// Ends the driver.
+    ///
+    /// `Child::wait` blocks. A current Tokio runtime reaps the process on its
+    /// blocking pool, so a worker is not stalled. With no runtime, this thread
+    /// waits.
     pub fn kill(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        if let Some(child) = self.child.take() {
+            reap_child(child);
+        }
     }
 }
 
@@ -56,6 +65,61 @@ impl Drop for DriverProcess {
     fn drop(&mut self) {
         // Ending an exited process again only returns an error, ignored here.
         self.kill();
+    }
+}
+
+/// Ends `child` and reaps it.
+///
+/// `Child::wait` blocks. A current Tokio runtime reaps on its blocking pool, so a
+/// worker is not stalled. With no runtime, this thread waits, and dropping the
+/// handle still ends the process before it returns.
+pub(crate) fn reap_child(mut child: Child) {
+    let _ = child.kill();
+    hand_off(move || {
+        let _ = child.wait();
+    });
+}
+
+/// Runs `wait` now, or on the runtime's blocking pool when one is current.
+///
+/// `tokio::task::spawn_blocking` panics outside a runtime. [`Handle::try_current`]
+/// returns that absence, so a drop with no runtime still reaps before it returns.
+/// Dropping the [`JoinHandle`] detaches the wait. It is not cancelled, and a
+/// `spawn_blocking` task cannot be aborted once it has started.
+///
+/// [`Handle::try_current`]: tokio::runtime::Handle::try_current
+/// [`JoinHandle`]: tokio::task::JoinHandle
+fn hand_off(wait: impl FnOnce() + Send + 'static) {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => drop(handle.spawn_blocking(wait)),
+        Err(_outside_a_runtime) => wait(),
+    }
+}
+
+#[cfg(test)]
+mod hand_off_tests {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    use super::hand_off;
+
+    /// On a current runtime the wait must still be blocked when `hand_off` returns.
+    #[tokio::test(flavor = "current_thread")]
+    async fn a_wait_on_a_runtime_is_not_finished_when_hand_off_returns() {
+        let (gate_tx, gate_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        hand_off(move || {
+            let _ = gate_rx.recv_timeout(Duration::from_millis(500));
+            let _ = done_tx.send(());
+        });
+        assert!(
+            done_rx.try_recv().is_err(),
+            "the wait finished before hand_off returned"
+        );
+        let _ = gate_tx.send(());
+        done_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("the blocking pool never finished the wait");
     }
 }
 
@@ -82,7 +146,8 @@ mod driver_process_tests {
         let pid = child.id();
         let driver = DriverProcess {
             url: "http://127.0.0.1:1".to_owned(),
-            child,
+            child: Some(child),
+            pid,
             // A watcher with nothing enrolled, so only the drop can end `sleep`.
             _guard: OrphanGuard::start(),
         };
@@ -157,10 +222,14 @@ pub async fn launch_chromedriver_at(
         }
     }
 
-    Ok(DriverProcess {
-        url,
-        child,
-        _guard: guard,
+    Ok({
+        let pid = child.id();
+        DriverProcess {
+            url,
+            child: Some(child),
+            pid,
+            _guard: guard,
+        }
     })
 }
 
@@ -727,10 +796,14 @@ async fn launch_driver_binary(
             }
         }
     }
-    Ok(DriverProcess {
-        url,
-        child,
-        _guard: guard,
+    Ok({
+        let pid = child.id();
+        DriverProcess {
+            url,
+            child: Some(child),
+            pid,
+            _guard: guard,
+        }
     })
 }
 

@@ -228,6 +228,9 @@ impl RunReporterPlugin {
 #[async_trait]
 impl TestPlugin for RunReporterPlugin {
     async fn test_started(&mut self, test: &str) -> Result<()> {
+        if let Some(previous) = self.recorder.take() {
+            previous.abandon()?;
+        }
         self.recorder = Some(self.run.start(TestId::named(test))?);
         Ok(())
     }

@@ -36,9 +36,12 @@ pub fn first_free_display(taken: &dyn Fn(u32) -> bool) -> Option<u32> {
 }
 
 /// A running `Xvfb`, stopped when this value is dropped.
+///
+/// `Child::wait` blocks. A current Tokio runtime reaps the process on its
+/// blocking pool, so a worker is not stalled. With no runtime, this thread waits.
 #[derive(Debug)]
 pub struct XvfbProcess {
-    child: Child,
+    child: Option<Child>,
     display: String,
 }
 
@@ -126,7 +129,7 @@ impl XvfbProcess {
             std::thread::sleep(Duration::from_millis(25));
         }
         Ok(Self {
-            child,
+            child: Some(child),
             display: format!(":{number}"),
         })
     }
@@ -138,9 +141,13 @@ impl XvfbProcess {
     }
 
     /// Stops the server. It is also stopped when the value is dropped.
+    ///
+    /// The wait is [`reap_child`](crate::browser::launcher::reap_child): on a
+    /// Tokio runtime it runs on the blocking pool.
     pub fn stop(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        if let Some(child) = self.child.take() {
+            crate::browser::launcher::reap_child(child);
+        }
     }
 }
 
@@ -203,13 +210,25 @@ mod tests {
                 .unwrap();
         assert_eq!(process.display(), ":101");
         assert!(sockets.join("X101").exists());
-        assert!(process.child.try_wait().unwrap().is_none(), "it is running");
+        let pid = process.child.as_ref().expect("started").id();
+        assert!(
+            process
+                .child
+                .as_mut()
+                .expect("started")
+                .try_wait()
+                .expect("try_wait")
+                .is_none(),
+            "it is running"
+        );
 
         process.stop();
-        assert!(
-            process.child.try_wait().unwrap().is_some(),
-            "it was stopped"
-        );
+        let still_running = std::process::Command::new("kill")
+            .args(["-0", &pid.to_string()])
+            .stderr(Stdio::null())
+            .status()
+            .is_ok_and(|status| status.success());
+        assert!(!still_running, "it was stopped");
     }
 
     #[cfg(unix)]

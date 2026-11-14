@@ -186,7 +186,7 @@ async fn a_test_that_never_reports_is_broken() {
     let run = run_with_allure(root.path(), "allure-results");
 
     let recorder = run.start(TestId::named("shop::killed")).unwrap();
-    drop(recorder);
+    recorder.abandon().unwrap();
 
     let all = results(&root.path().join("allure-results"));
     let broken = result_of(&all, "shop::killed");
