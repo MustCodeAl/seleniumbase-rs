@@ -42,6 +42,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   attributes, as in `ESC[31;1m`), and
   the `rich_helper` printers write through `anstream`, which strips the escape codes when the
   stream is piped or `NO_COLOR` is set.
+- **`BaseCase` runs on a direct DevTools attachment** (`BrowserConfig::with_cdp_url`,
+  `with_cdp_discovery`: the stealthy browser, a Tauri or Electron window), as Python's CDP Mode
+  gives `sb.cdp` the methods of `sb`. Navigation, finding and clicking, typing, the waits and
+  assertions, text and attributes, frames, windows and tabs (a handle is the target id), cookies,
+  scripts (also `execute_async_script`), screenshots, alerts (a `Page.javascriptDialogOpening`
+  listener answers `accept_alert`, `dismiss_alert`, `switch_to_alert` and the rest), the mouse
+  (`hover`, `double_click`, `context_click`, the clicks at an offset, `drag_and_drop_with_offset`,
+  `click_chain`) and the downloads folder all go through the pure CDP engine. A method that
+  needs a driver (`cdp_events`, `chromedriver_version`, `install_addon`, Recorder Mode) answers
+  `SeleniumBaseError::Unsupported`, naming the method and the alternative. The design is
+  `docs/design/basecase_over_cdp.md`; `tests/chrome/basecase_cdp_chrome.rs` runs it against a
+  headless Chrome.
+
 
 
 ### Changed
@@ -53,6 +66,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 
 ### Breaking
+
+- **Breaking: `Element` runs on either engine.** On a direct DevTools attachment it wraps a
+  `sb_cdp::Locator`, which looks again on every use, so it is never stale. `as_webdriver_element`
+  and `into_webdriver_element` answer `Option` (`None` on that engine), and
+  `BrowserSession::webdriver()` keeps answering `Unsupported` for such a session.
 
 - **Breaking: the getters of `BaseCase` have no `get_` prefix** (rule C-GETTER of the API
   guidelines: a Rust getter is named after what it returns). `get_text` is `text`, `get_title` is

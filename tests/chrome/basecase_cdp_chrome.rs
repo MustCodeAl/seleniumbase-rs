@@ -23,15 +23,29 @@ use seleniumbase_rs::{BaseCase, BrowserConfig, Cookie, Result};
 
 const PAGE: &str = include_str!("../fixtures/basecase_cdp.html");
 
-/// Answers one connection with the page, whatever the path.
+/// The file `/report.csv` answers with, as an attachment.
+const REPORT: &str = "a,b\n1,2\n";
+
+/// Answers one connection with the page, or with the file for `/report.csv`.
 fn answer(mut stream: TcpStream) {
     let mut buffer = [0_u8; 4096];
-    let _ = stream.read(&mut buffer);
-    let response = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\
-         Content-Length: {}\r\nConnection: close\r\n\r\n{PAGE}",
-        PAGE.len()
-    );
+    let read = stream.read(&mut buffer).unwrap_or(0);
+    let request = String::from_utf8_lossy(&buffer[..read]);
+    let response = if request.starts_with("GET /report.csv") {
+        // A file the browser saves instead of showing.
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/csv\r\n\
+             Content-Disposition: attachment; filename=\"report.csv\"\r\n\
+             Content-Length: {}\r\nConnection: close\r\n\r\n{REPORT}",
+            REPORT.len()
+        )
+    } else {
+        format!(
+            "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\n\
+             Content-Length: {}\r\nConnection: close\r\n\r\n{PAGE}",
+            PAGE.len()
+        )
+    };
     let _ = stream.write_all(response.as_bytes());
 }
 
@@ -299,6 +313,54 @@ async fn a_case_runs_scripts_takes_a_screenshot_and_uses_the_mouse() -> Result<(
         sb.assert_text("double clicked", "#hover-box").await?;
         sb.context_click("#hover-box").await?;
         sb.assert_text("context menu", "#hover-box").await?;
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+#[ignore = "real headless Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_case_has_the_browser_save_a_download_and_finds_it() -> Result<()> {
+    run(async |sb, url| {
+        sb.open(url).await?;
+        sb.delete_downloaded_file("report.csv")?;
+
+        // The browser itself saves the file, in a tab of its own; the case is back on its page.
+        let saved = sb
+            .download_file_in_browser(&format!("{url}report.csv"), "report.csv", 10)
+            .await?;
+        assert_eq!(std::fs::read_to_string(&saved)?, "a,b\n1,2\n");
+        assert_eq!(sb.title().await?, "BaseCase over CDP");
+        sb.assert_downloaded_file("report.csv").await?;
+        assert!(sb.downloaded_files()?.contains(&saved));
+        sb.delete_downloaded_file("report.csv")?;
+        assert!(!saved.exists());
+
+        // A plain request for the same file, into a folder of the test's own.
+        let folder =
+            std::env::temp_dir().join(format!("sbrs-cdp-chrome-dl-{}", std::process::id()));
+        let copy = sb
+            .download_file(&format!("{url}report.csv"))
+            .destination_folder(&folder)
+            .await?;
+        assert_eq!(std::fs::read_to_string(&copy)?, "a,b\n1,2\n");
+        let _ = std::fs::remove_dir_all(&folder);
+        Ok(())
+    })
+    .await
+}
+
+#[tokio::test]
+#[ignore = "real headless Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_case_highlights_elements_and_shows_messages() -> Result<()> {
+    run(async |sb, url| {
+        sb.open(url).await?;
+        // The demo helpers are page scripts that find an element first: they run unchanged.
+        sb.post_message_and_highlight("Found it", "#title").await?;
+        sb.highlight_click("#reveal").await?;
+        sb.assert_text("Now shown", "#hidden").await?;
         Ok(())
     })
     .await

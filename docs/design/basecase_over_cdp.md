@@ -87,3 +87,16 @@ A direct attachment is a `BrowserSession` with `external_page: Option<sb_cdp::Pa
 ## 7. What the code found
 
 Filled in with each group (see the commit messages) and at the end of the lane.
+
+- Files and downloads needed no new code: `Browser::launch` already tells an attached browser to save
+  downloads into `downloaded_files` (`Browser.setDownloadBehavior`), and `download_file_in_browser`,
+  `assert_downloaded_file`, `downloaded_files` and `delete_downloaded_file` work on the folder and on
+  the window methods of the windows group. `download_file` is a plain HTTP request and never needed the
+  driver. `tests/chrome/basecase_cdp_chrome.rs` proves it with an attachment served from a loopback
+  port.
+- Mouse: `hover`, `double_click`, `context_click`, the offset clicks, `drag_and_drop_with_offset` and
+  `click_chain` have a CDP form; `click_chain` clicks each element in turn, as the DevTools engine has
+  no action chain.
+- Refused, naming the alternative: Recorder Mode (the config is refused at connect), `cdp_events`,
+  `chromedriver_version` (`browser_version` answers), `install_addon` and `uninstall_addon` (Firefox
+  only).
