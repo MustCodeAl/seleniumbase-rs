@@ -133,7 +133,7 @@ impl BaseCase {
     }
 
     /// Returns the `attribute` of the first link with exact `text`.
-    pub async fn get_link_attribute(
+    pub async fn link_attribute(
         &mut self,
         text: &str,
         attribute: &str,
@@ -142,17 +142,17 @@ impl BaseCase {
         el.attr(attribute).await.map_err(SeleniumBaseError::from)
     }
 
-    /// Alias for `get_link_attribute`.
-    pub async fn get_link_text_attribute(
+    /// Alias for `link_attribute`.
+    pub async fn link_text_attribute(
         &mut self,
         text: &str,
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        self.get_link_attribute(text, attribute).await
+        self.link_attribute(text, attribute).await
     }
 
     /// Returns the `attribute` of the first link containing `text`.
-    pub async fn get_partial_link_text_attribute(
+    pub async fn partial_link_text_attribute(
         &mut self,
         text: &str,
         attribute: &str,
@@ -162,8 +162,8 @@ impl BaseCase {
     }
 
     /// Returns the `href` of the first link with exact `text`.
-    pub async fn get_href_from_link_text(&mut self, text: &str) -> Result<String, SeleniumBaseError> {
-        self.get_link_attribute(text, "href")
+    pub async fn href_from_link_text(&mut self, text: &str) -> Result<String, SeleniumBaseError> {
+        self.link_attribute(text, "href")
             .await?
             .ok_or_else(|| SeleniumBaseError::AssertionFailed(format!("Link '{}' has no href", text)))
     }
@@ -176,7 +176,7 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::Network`] if the request gets no answer.
-    pub async fn get_link_status_code(&self, url: &str) -> Result<u16, SeleniumBaseError> {
+    pub async fn link_status_code(&self, url: &str) -> Result<u16, SeleniumBaseError> {
         http_status_code(url).await
     }
 
@@ -211,7 +211,7 @@ impl BaseCase {
     /// `javascript:` and the like) have no status; they are listed after the
     /// others as `link -> skipped (not an HTTP link)`.
     pub async fn print_unique_links_with_status_codes(&self) -> Result<(), SeleniumBaseError> {
-        let (http, other): (Vec<String>, Vec<String>) = unique_links(self.get_all_links().await?)
+        let (http, other): (Vec<String>, Vec<String>) = unique_links(self.all_links().await?)
             .into_iter()
             .partition(|link| is_http_link(link));
         for (link, status) in check_links(http).await {
@@ -226,7 +226,7 @@ impl BaseCase {
     /// Returns all `href` values from `<a>` tags on the current page.
     ///
     /// Anchors without an `href` attribute are left out.
-    pub async fn get_all_links(&self) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn all_links(&self) -> Result<Vec<String>, SeleniumBaseError> {
         let result = self
             .execute_script(
                 "return Array.from(document.querySelectorAll('a[href]')).map(a => a.href);",

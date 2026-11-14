@@ -41,7 +41,7 @@ async fn demo(sb: &mut BaseCase, url: String, landing: String) -> Result<()> {
     sb.open(&url).await?;
 
     // Window introspection.
-    let (x, y, width, height) = sb.get_window_rect().await?;
+    let (x, y, width, height) = sb.window_rect().await?;
     println!("Window: x={x}, y={y}, width={width}, height={height}");
 
     // Page artifacts land in `latest_logs/`; the names must be plain file names.
@@ -61,9 +61,9 @@ async fn demo(sb: &mut BaseCase, url: String, landing: String) -> Result<()> {
     // it and clicks the link, so the destination is reached by a real
     // click-through and receives the start page as its `Referer`.
     sb.generate_referral(&url, &landing, None).await?;
-    println!("Referral led to {}", sb.get_current_url().await?);
+    println!("Referral led to {}", sb.current_url().await?);
     ensure(
-        sb.get_current_url().await? == landing,
+        sb.current_url().await? == landing,
         "the click led to the landing page",
     )?;
     sb.assert_exact_text("You arrived.", "#landed").await?;
@@ -75,7 +75,7 @@ async fn demo(sb: &mut BaseCase, url: String, landing: String) -> Result<()> {
     sb.execute_script("console.log('from the page')").await?;
     sb.console_log_script("document.title").await?; // logs the value of a JS expression
     sb.console_log_string("Manual log entry").await?; // logs a string
-    let logs = sb.get_recorded_console_logs().await?;
+    let logs = sb.recorded_console_logs().await?;
     println!("Console logs: {logs:?}");
     ensure(
         logs == ["from the page", "Web Testing Page", "Manual log entry"],

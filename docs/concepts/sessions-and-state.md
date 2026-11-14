@@ -417,10 +417,10 @@ A WebDriver session is one browser started by the driver, with one profile.
 `sb.quit()` ends it. `--reuse-session` (`SB_REUSE_SESSION`) shares browsers
 between the tests of a run, so later tests start where earlier ones left off.
 
-Cookies and storage have their own methods: `get_cookie` (`None` when the page
-has no such cookie), `get_cookies`, `add_cookie`, `delete_cookie`,
+Cookies and storage have their own methods: `cookie` (`None` when the page
+has no such cookie), `cookies`, `add_cookie`, `delete_cookie`,
 `save_cookies` and `load_cookies` to a file, and
-`get_local_storage_item`, `set_local_storage_item` and their session-storage
+`local_storage_item`, `set_local_storage_item` and their session-storage
 twins. The cookies are `seleniumbase_rs::Cookie` values, the same type as the
 pure CDP engine's, so a cookie read from one engine can be set on the other.
 See [Cookies and storage](/api/cookies-storage).
@@ -503,8 +503,8 @@ profile folder that is removed when it closes.
 
 `BaseCase` computes the code for you:
 
-- `get_totp_code(secret)` returns the current six-digit code for a Base32 secret.
-  `get_mfa_code` and `get_google_auth_code` are aliases of it. The code
+- `totp_code(secret)` returns the current six-digit code for a Base32 secret.
+  `mfa_code` and `google_auth_code` are aliases of it. The code
   generator is checked against the RFC 6238 test vectors, ignores spaces, dashes and
   letter case in the secret, and refuses text that is not Base32.
 - `enter_totp_code(css, secret)` generates the code, types it into the element
@@ -531,7 +531,7 @@ sb.enter_totp_code("#otp", &secret).await?;
   domain are given the current page's domain, and their expiry is dropped, so they
   last for the browser session; `load_cookies_with(name, CookieExpiry)` changes
   that. `load_cookies_from_path(path)` reads from a file.
-- `get_saved_cookies(name)` reads the file without a browser,
+- `saved_cookies(name)` reads the file without a browser,
   `delete_saved_cookies(name)` removes it, and `add_cookies(map)` adds cookies
   from a map of names to values.
 

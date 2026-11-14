@@ -257,6 +257,13 @@ impl DriverError {
     }
 
     /// A driver error of `kind` that says `message`, with no WebDriver library error behind it.
+    #[cfg_attr(
+        all(not(feature = "mcp-server"), not(test)),
+        expect(
+            dead_code,
+            reason = "only the dev MCP server builds a DriverError by hand"
+        )
+    )]
     pub(crate) fn new(kind: DriverErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
@@ -1882,7 +1889,7 @@ mod tests {
         let hint = error.hint().expect("a hint");
         assert_eq!(
             error.debug_with_color(true),
-            format!("\x1b[1;31m{error}\x1b[0m\n\x1b[1;33mhint:\x1b[0m \x1b[2m{hint}\x1b[0m")
+            format!("\x1b[31;1m{error}\x1b[0m\n\x1b[33;1mhint:\x1b[0m \x1b[2m{hint}\x1b[0m")
         );
         assert_eq!(
             error.debug_with_color(false),

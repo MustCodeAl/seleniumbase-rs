@@ -74,7 +74,7 @@ async fn snippets(sb: &mut BaseCase, site: &Site) -> Result<()> {
     // ------------------------------------------------------------------
     sb.select("#country", "Germany").await?;
     sb.select_option_by_value("#language", "de").await?;
-    println!("country now: {}", sb.get_value("#country").await?);
+    println!("country now: {}", sb.value("#country").await?);
 
     // ------------------------------------------------------------------
     // 7. Run JavaScript
@@ -88,7 +88,7 @@ async fn snippets(sb: &mut BaseCase, site: &Site) -> Result<()> {
     // Cookies need a real origin, which is why the page is served over HTTP.
     sb.add_cookie(&seleniumbase_rs::Cookie::new("session", "abc123"))
         .await?;
-    if let Some(session) = sb.get_cookie("session").await? {
+    if let Some(session) = sb.cookie("session").await? {
         println!("session cookie: {}={}", session.name, session.value);
     }
 

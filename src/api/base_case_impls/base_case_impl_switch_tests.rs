@@ -536,7 +536,7 @@ mod tests_switching {
 
         sb.switch_to_window("w2").await.expect("a &str handle");
         assert_eq!(current_window(&fake), "w2");
-        let handles = sb.get_all_window_handles().await.unwrap();
+        let handles = sb.all_window_handles().await.unwrap();
         sb.switch_to_window(&handles[2]).await.expect("a &String handle");
         assert_eq!(current_window(&fake), "w3");
         sb.switch_to_window(handles[0].clone()).await.expect("a String handle");
@@ -656,7 +656,7 @@ mod tests_switching {
         let sb = driver.base_case().await;
 
         assert!(sb.is_alert_present().await.unwrap());
-        assert_eq!(sb.get_alert_text().await.unwrap(), "Sure?");
+        assert_eq!(sb.alert_text().await.unwrap(), "Sure?");
         let alert = sb.wait_for_and_switch_to_alert(1).await.unwrap();
         assert_eq!(alert.text().await.unwrap(), "Sure?");
         sb.accept_alert().await.unwrap();

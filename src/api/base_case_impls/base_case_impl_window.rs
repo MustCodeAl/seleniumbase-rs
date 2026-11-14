@@ -16,17 +16,16 @@ impl BaseCase {
     }
 
     /// Returns the browser window rectangle as `(x, y, width, height)`.
-    pub async fn get_window_rect(&self) -> Result<(i64, i64, i64, i64), SeleniumBaseError> {
-        let rect = self.session.webdriver()?
-            .get_window_rect()
+    pub async fn window_rect(&self) -> Result<(i64, i64, i64, i64), SeleniumBaseError> {
+        let rect = self.session.webdriver()?.get_window_rect()
             .await?;
         Ok((rect.x, rect.y, rect.width, rect.height))
     }
 
     /// Returns the screen rectangle as `(width, height)`.
-    pub async fn get_screen_rect(&self) -> Result<(i64, i64), SeleniumBaseError> {
-        let w = self.get_screen_width().await?;
-        let h = self.get_screen_height().await?;
+    pub async fn screen_rect(&self) -> Result<(i64, i64), SeleniumBaseError> {
+        let w = self.screen_width().await?;
+        let h = self.screen_height().await?;
         Ok((w, h))
     }
 

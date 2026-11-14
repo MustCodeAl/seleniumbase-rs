@@ -215,7 +215,7 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the element is missing or the page script fails.
-    pub async fn get_gui_element_rect(
+    pub async fn gui_element_rect(
         &mut self,
         css: &str,
     ) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
@@ -230,16 +230,16 @@ impl BaseCase {
 
     /// The centre of the element in screen coordinates. Corresponds to
     /// Python's `get_gui_element_center`; see
-    /// [`get_gui_element_rect`](Self::get_gui_element_rect).
+    /// [`gui_element_rect`](Self::gui_element_rect).
     ///
     /// # Errors
     ///
-    /// See [`get_gui_element_rect`](Self::get_gui_element_rect).
-    pub async fn get_gui_element_center(
+    /// See [`gui_element_rect`](Self::gui_element_rect).
+    pub async fn gui_element_center(
         &mut self,
         css: &str,
     ) -> Result<crate::sb_cdp::Point, SeleniumBaseError> {
-        let rect = self.get_gui_element_rect(css).await?;
+        let rect = self.gui_element_rect(css).await?;
         Ok(crate::sb_cdp::Point {
             x: rect.x + rect.width / 2.0,
             y: rect.y + rect.height / 2.0,
@@ -407,7 +407,7 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is not a usable
     /// file name or the file is missing or is not JSON.
-    pub fn get_saved_cookies(&self, name: &str) -> Result<serde_json::Value, SeleniumBaseError> {
+    pub fn saved_cookies(&self, name: &str) -> Result<serde_json::Value, SeleniumBaseError> {
         read_saved_cookies(&saved_cookies_path(&std::env::current_dir()?, name)?)
     }
 

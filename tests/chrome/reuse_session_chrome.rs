@@ -90,7 +90,7 @@ async fn a_first_test_leaves_its_browser_open_with_a_cookie() {
     .await
     .expect("set a cookie and a stored item");
     let cookie = sb
-        .get_cookie("left")
+        .cookie("left")
         .await
         .expect("the cookie is read")
         .expect("the cookie is set");
@@ -144,7 +144,7 @@ async fn a_second_test_gets_the_same_browser_cleaned_and_the_reaper_closes_it() 
         "the second test attached to the first test's browser"
     );
     assert_eq!(reused_sessions().len(), 1, "no second browser was started");
-    assert_eq!(sb.get_current_url().await.unwrap(), "about:blank");
+    assert_eq!(sb.current_url().await.unwrap(), "about:blank");
 
     sb.open(&first.page)
         .await

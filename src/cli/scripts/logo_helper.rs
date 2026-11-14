@@ -61,7 +61,7 @@ mod tests {
     #[test]
     fn the_coloured_logo_is_the_constant_between_style_codes() {
         let coloured = logo(true);
-        assert!(coloured.starts_with("\x1b[1;32m"), "{coloured:?}");
+        assert!(coloured.starts_with("\x1b[32;1m"), "{coloured:?}");
         assert!(coloured.ends_with("\x1b[0m"), "{coloured:?}");
         assert!(coloured.contains(LOGO));
     }

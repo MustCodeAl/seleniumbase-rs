@@ -365,10 +365,10 @@ mod tests {
         });
         let expected = concat!(
             "\x1b[2m12:34:56\x1b[0m ",
-            "\x1b[1;32m INFO\x1b[0m ",
+            "\x1b[32;1m INFO\x1b[0m ",
             "\x1b[2mplugins::screen_shots:\x1b[0m",
             " saved a failure screenshot",
-            " \x1b[2mtest=\x1b[0m\x1b[1;35mlogin\x1b[0m",
+            " \x1b[2mtest=\x1b[0m\x1b[35;1mlogin\x1b[0m",
             " \x1b[2mpath=\x1b[0m\x1b[36m/tmp/fail.png\x1b[0m",
             "\n"
         );
@@ -385,10 +385,10 @@ mod tests {
             tracing::trace!("t");
         });
         for (level, code) in [
-            ("ERROR", "\x1b[1;31m"),
-            (" WARN", "\x1b[1;33m"),
-            (" INFO", "\x1b[1;32m"),
-            ("DEBUG", "\x1b[1;34m"),
+            ("ERROR", "\x1b[31;1m"),
+            (" WARN", "\x1b[33;1m"),
+            (" INFO", "\x1b[32;1m"),
+            ("DEBUG", "\x1b[34;1m"),
             ("TRACE", "\x1b[35m"),
         ] {
             assert!(

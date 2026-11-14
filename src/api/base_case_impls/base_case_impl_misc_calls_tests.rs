@@ -362,8 +362,8 @@ mod tests_misc_calls {
         let sb = without_driver();
         // The code changes every 30 seconds; try again if a step fell between.
         let same = (0..3).any(|_| {
-            sb.get_google_auth_password("JBSWY3DPEHPK3PXP").unwrap()
-                == sb.get_mfa_code("JBSWY3DPEHPK3PXP").unwrap()
+            sb.google_auth_password("JBSWY3DPEHPK3PXP").unwrap()
+                == sb.mfa_code("JBSWY3DPEHPK3PXP").unwrap()
         });
         assert!(same);
     }

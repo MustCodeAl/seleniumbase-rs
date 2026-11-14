@@ -119,7 +119,7 @@ async fn sign_in(sb: &mut BaseCase, url: String, secret: String) -> Result<()> {
     sb.open(&url).await?;
     sb.type_text("#username", "alice").await?;
 
-    let code = sb.get_totp_code(&secret)?;
+    let code = sb.totp_code(&secret)?;
     println!("Generated TOTP: {code}");
     ensure(
         code.len() == 6 && code.chars().all(|c| c.is_ascii_digit()),

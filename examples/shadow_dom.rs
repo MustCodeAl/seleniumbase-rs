@@ -75,7 +75,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.type_text("my-app::shadow #name", "SeleniumBase").await?;
     sb.click("my-app::shadow button#submit").await?;
 
-    let greeting = sb.get_text("my-app::shadow .greeting").await?;
+    let greeting = sb.text("my-app::shadow .greeting").await?;
     println!("greeting: {greeting}");
     ensure(
         greeting == "Hello, SeleniumBase!",
@@ -85,11 +85,9 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
         .await?;
 
     // Two roots deep.
-    let badge = sb
-        .get_text("my-app::shadow user-card::shadow .badge")
-        .await?;
+    let badge = sb.text("my-app::shadow user-card::shadow .badge").await?;
     let role = sb
-        .get_attribute("my-app::shadow user-card::shadow .badge", "data-role")
+        .attribute("my-app::shadow user-card::shadow .badge", "data-role")
         .await?;
     println!("badge: {badge} (role {role:?})");
     ensure(

@@ -99,7 +99,7 @@ impl PageEvidence for BaseCase {
     }
 
     async fn page_source(&self) -> Result<String> {
-        self.get_page_source().await
+        self.page_source().await
     }
 
     // `get_current_url` and `get_title` need `&mut self`; asking the page

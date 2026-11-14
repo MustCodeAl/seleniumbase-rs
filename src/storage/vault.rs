@@ -417,7 +417,7 @@ fn unb64(text: &str) -> Result<Vec<u8>> {
 }
 
 fn blob(row: &turso::Row, idx: usize) -> Result<Vec<u8>> {
-    match row.get_value(idx)? {
+    match row.value(idx)? {
         turso::Value::Blob(bytes) => Ok(bytes),
         _ => Err(SeleniumBaseError::Database(format!(
             "column {idx} should be a blob"

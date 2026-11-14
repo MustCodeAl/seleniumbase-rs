@@ -215,7 +215,7 @@ impl Element {
     /// lacks it.
     ///
     /// Like [`Locator::attribute`](crate::sb_cdp::Locator::attribute). It is
-    /// not what [`BaseCase::get_attribute`](crate::BaseCase::get_attribute)
+    /// not what [`BaseCase::attribute`](crate::BaseCase::attribute)
     /// answers, which follows Selenium and prefers the DOM property: use
     /// [`property`](Self::property) for what a field holds now.
     ///

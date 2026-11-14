@@ -104,10 +104,10 @@ impl fmt::Display for FrameRef {
 /// `sb.switch_to_window(-1)` the newest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WindowRef {
-    /// A window handle, as [`BaseCase::get_current_window_handle`] and
-    /// [`BaseCase::get_all_window_handles`] give them.
+    /// A window handle, as [`BaseCase::current_window_handle`] and
+    /// [`BaseCase::all_window_handles`] give them.
     Handle(String),
-    /// The position of the window in [`BaseCase::get_all_window_handles`],
+    /// The position of the window in [`BaseCase::all_window_handles`],
     /// counting from 0. A negative number counts from the end, as a Python
     /// list index does: `-1` is the newest window, `-2` the one before.
     Index(i32),
@@ -273,7 +273,7 @@ impl<'a> FrameSwitch<'a> {
     /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     /// let heading = sb
     ///     .frame_switch("iframe#content")
-    ///     .run(async |sb| sb.get_text("h1").await)
+    ///     .run(async |sb| sb.text("h1").await)
     ///     .await?;
     /// // Back in the page that holds the frame.
     /// sb.assert_text("Welcome", "#top").await?;

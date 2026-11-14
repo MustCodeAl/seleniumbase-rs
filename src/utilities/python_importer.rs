@@ -528,9 +528,9 @@ fn render_action(action: &Action) -> String {
         Action::AssertTitleContains(title) => {
             format!("sb.assert_title_contains({title:?}).await?;")
         }
-        Action::GetText(css) => format!("let _text = sb.get_text({css:?}).await?;"),
+        Action::GetText(css) => format!("let _text = sb.text({css:?}).await?;"),
         Action::GetAttribute(css, attr) => {
-            format!("let _value = sb.get_attribute({css:?}, {attr:?}).await?;")
+            format!("let _value = sb.attribute({css:?}, {attr:?}).await?;")
         }
         Action::Maximize => "sb.maximize_window().await?;".to_owned(),
         Action::Back => "sb.go_back().await?;".to_owned(),
@@ -715,7 +715,7 @@ mod tests {
             &result,
             &[
                 "sb.wait_for_element(\"#a\").timeout(std::time::Duration::from_secs(3)).await?;",
-                "sb.get_select_options(\"#s\").attribute(\"value\").await?;",
+                "sb.select_options(\"#s\").attribute(\"value\").await?;",
             ],
         );
     }
@@ -999,7 +999,7 @@ async fn login_test(sb: Sb) -> Result<()> {
                 "sb.open(&format!(\"{}/login\", base)).await?;",
                 "sb.open(&format!(\"{}/home\", base)).await?;",
                 "sb.click(&format!(\"a[href*=\\\"{}\\\"]\", checkbox)).await?;",
-                "let title = sb.get_title().await?;",
+                "let title = sb.title().await?;",
                 "title.to_lowercase().contains(\"login\")",
             ],
         );
@@ -1356,10 +1356,8 @@ _ = header.get_attribute("data-id")
 "##;
         let result = import_python(source, &ImportOptions::default());
         assert!(result.is_complete());
-        assert!(result.rust.contains("sb.get_text(\"h1\")"));
-        assert!(result
-            .rust
-            .contains("sb.get_attribute(\"h1\", \"data-id\")"));
+        assert!(result.rust.contains("sb.text(\"h1\")"));
+        assert!(result.rust.contains("sb.attribute(\"h1\", \"data-id\")"));
     }
 
     /// The Rust the importer writes for the SeleniumBase statements `source`.

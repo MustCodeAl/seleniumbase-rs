@@ -473,7 +473,7 @@ impl<'a> IntoFuture for WaitForElement<'a> {
 /// timeout=None)`: the options of a `<select>`, each as its text or as one of
 /// its attributes.
 ///
-/// It comes from [`BaseCase::get_select_options`]. The keywords are
+/// It comes from [`BaseCase::select_options`]. The keywords are
 /// [`attribute`](Self::attribute) (`"text"` by default, or `"value"` or
 /// `"index"`) and [`timeout`](Self::timeout) (default: the case's timeout).
 #[must_use = "nothing happens until the call is awaited"]
@@ -653,7 +653,7 @@ impl<'a> IntoFuture for OpenNewTab<'a> {
 }
 
 /// Python's `add_cookie(cookie_dict, expiry=False)`: add a [`Cookie`], such as one that
-/// [`BaseCase::get_cookies`] returned. A W3C cookie object, as Python takes it, reads as a
+/// [`BaseCase::cookies`] returned. A W3C cookie object, as Python takes it, reads as a
 /// cookie with `seleniumbase_rs::json::from_value` (`name` and `value`, and optionally `path`,
 /// `domain`, `secure`, `httpOnly`, `expiry` and `sameSite`).
 ///

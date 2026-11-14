@@ -1178,7 +1178,7 @@ mod tests {
             // Number in cyan, keyword, string and comment in their colours.
             "\x1b[36m   1\x1b[0m     \x1b[94mlet\x1b[0m x = \x1b[32m\"hi\"\x1b[0m; \x1b[90m// note\x1b[0m",
             // The marked line is one bar: white on blue, bold, padded to the widest line.
-            "\x1b[36m   2\x1b[0m  \x1b[1;97;44m-> go();                \x1b[0m",
+            "\x1b[36m   2\x1b[0m  \x1b[97;44;1m-> go();                \x1b[0m",
             "",
         ]
         .join("\n");
@@ -1201,7 +1201,7 @@ mod tests {
 
         let text = render_listing(&source, &view, PromptKind::PostMortem, true);
 
-        assert!(text.contains("\x1b[1;97;41m-> boom();\x1b[0m"), "{text:?}");
+        assert!(text.contains("\x1b[97;41;1m-> boom();\x1b[0m"), "{text:?}");
     }
 
     #[test]

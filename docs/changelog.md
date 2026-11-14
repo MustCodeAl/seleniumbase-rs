@@ -38,7 +38,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 - Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
-  dependencies.
+  dependencies: `owo-colors` writes every style (a style puts its colours before its
+  attributes, as in `ESC[31;1m`), and
+  the `rich_helper` printers write through `anstream`, which strips the escape codes when the
+  stream is piped or `NO_COLOR` is set.
 
 
 ### Changed
@@ -50,6 +53,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 
 ### Breaking
+
+- **Breaking: the getters of `BaseCase` have no `get_` prefix** (rule C-GETTER of the API
+  guidelines: a Rust getter is named after what it returns). `get_text` is `text`, `get_title` is
+  `title`, `get_current_url` is `current_url`, and so on for the 78 `get_*` methods of `BaseCase`,
+  its capability traits (`BrowserApi::title` and `url`, `ElementApi::text` and `attribute`) and
+  `CdpPage` (`get_all_links` is `all_links`, `get_cookies` is `cookies`, `get_jqc_text_input` is
+  `jqc_text_input`, `get_new_driver` is `new_driver`). Kept: `get_browser` (it returns a
+  `BrowserConfig` copy and is redesigned apart), `html::get_text` and `get_attribute`, and the
+  names of the MCP tools. The Python names are unchanged and stay findable through
+  `parity/api.toml`, the Python importer and the `find_api` and `parity_lookup` tools. Where
+  the plain name was taken, the old private helper was dropped (`current_window_handle` of the
+  recorder was the same call). Rename the calls; the behaviour is the same.
+
 
 - **Breaking: the `BrowserConfig` setters spell their words out.** `with_rec_sb_cdp`, `with_rec_print`,
   `with_rec_behave` and `with_rec_sb_mgr` are now `with_recording_sb_cdp`, `with_recording_print`,

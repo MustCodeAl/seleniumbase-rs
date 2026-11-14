@@ -216,7 +216,7 @@ started, and each test attaches with a client of its own.
   browser is held gets a browser of its own, kept for reuse too, so a run with
   four test threads ends up with up to four browsers. A browser that no longer
   answers is closed and replaced.
-- `get_new_driver` browsers are never shared.
+- `new_driver` browsers are never shared.
 - `BaseCase::session_id()` tells which browser a test has.
 
 `with_reuse_module_session(true)` (`--rcs`, `--reuse-class-session`,

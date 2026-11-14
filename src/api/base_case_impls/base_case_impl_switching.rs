@@ -110,7 +110,7 @@ impl BaseCase {
             self.wait_secs(timeout),
             format!("Window {{{window}}} was not present"),
             || async move {
-                let handles = self.get_all_window_handles().await?;
+                let handles = self.all_window_handles().await?;
                 Ok(match window.pick(&handles) {
                     Some(handle) => Polled::Found(handle),
                     None => Polled::Pending {

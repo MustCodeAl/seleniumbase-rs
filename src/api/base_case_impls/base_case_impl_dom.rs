@@ -55,13 +55,13 @@ fn opens_in_a_tab(src: &str) -> bool {
 
 impl BaseCase {
     /// Returns the current page source.
-    pub async fn get_html(&self) -> Result<String, SeleniumBaseError> {
-        self.get_page_source().await
+    pub async fn html(&self) -> Result<String, SeleniumBaseError> {
+        self.page_source().await
     }
 
     /// Saves the current page source to the logs directory.
     pub async fn save_page_source(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
-        let source = self.get_page_source().await?;
+        let source = self.page_source().await?;
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
         fs::write(&path, source)?;
@@ -122,18 +122,16 @@ impl BaseCase {
     pub async fn set_content_to_frame(&mut self, frame: &str) -> Result<(), SeleniumBaseError> {
         let selector = self.frame_selector(frame).await?;
         let iframe = shadow_find::checked(&selector)?;
-        let url = self.get_current_url().await?;
-        let window = self.get_current_window_handle().await?;
-        let source = self.get_page_source().await?;
+        let url = self.current_url().await?;
+        let window = self.current_window_handle().await?;
+        let source = self.page_source().await?;
         self.session.switch_to_frame(iframe.clone()).await?;
-        let frame_source = self.get_page_source().await;
+        let frame_source = self.page_source().await;
         // Leave the frame whether or not its source could be read.
         self.session.switch_to_default_content().await?;
         let frame_source = frame_source?;
         self.wait_for_ready_state_complete().await?;
-        let src = self
-            .session
-            .get_property(iframe, "src")
+        let src = self.session.get_property(iframe, "src")
             .await?
             .unwrap_or_default();
         if opens_in_a_tab(&src) {
@@ -183,12 +181,12 @@ impl BaseCase {
     /// Brings `past` back: its tab if it is still open, then its content, or a
     /// refresh if the tab has been somewhere else since.
     async fn restore_swapped_page(&mut self, past: &SwappedPage) -> Result<(), SeleniumBaseError> {
-        if self.get_current_window_handle().await? != past.window
-            && self.get_all_window_handles().await?.contains(&past.window)
+        if self.current_window_handle().await? != past.window
+            && self.all_window_handles().await?.contains(&past.window)
         {
             self.session.switch_to_window(&past.window).await?;
         }
-        if self.get_current_url().await? == past.url {
+        if self.current_url().await? == past.url {
             self.execute_script(&replace_document_script(&past.source))
                 .await?;
             Ok(())
@@ -252,7 +250,7 @@ impl BaseCase {
             self.execute_script(FRAME_SWAP_DOWN_SCRIPT).await?;
             let past = self.swapped_pages.pop();
             match past {
-                Some(past) if self.get_current_url().await? == past.url => {
+                Some(past) if self.current_url().await? == past.url => {
                     self.execute_script(&replace_document_script(&past.source))
                         .await?;
                 }
@@ -260,7 +258,7 @@ impl BaseCase {
             }
         } else if tabs > 0 {
             match self.swapped_pages.pop() {
-                Some(past) if self.get_all_window_handles().await?.contains(&past.window) => {
+                Some(past) if self.all_window_handles().await?.contains(&past.window) => {
                     self.session.switch_to_window(&past.window).await?;
                 }
                 _ => refresh = true,
@@ -442,7 +440,7 @@ impl BaseCase {
     /// Returns the element at the given viewport coordinates, or `None` if there is
     /// none. The [`Element`] is called `element at (x, y)`, which its `Display` and a
     /// [`SeleniumBaseError::StaleElement`] show.
-    pub async fn get_element_at_x_y(
+    pub async fn element_at_x_y(
         &mut self,
         x: i64,
         y: i64,
@@ -455,7 +453,7 @@ impl BaseCase {
 
     /// Returns the parent element of `css`, or `None` if there is none. The [`Element`]
     /// is called `<css> >> ..`, as [`Element::parent`] calls its result.
-    pub async fn get_parent(&mut self, css: &str) -> Result<Option<Element>, SeleniumBaseError> {
+    pub async fn parent(&mut self, css: &str) -> Result<Option<Element>, SeleniumBaseError> {
         let script = format!(
             "return document.querySelector({})?.parentElement;",
             quote(css)
@@ -474,8 +472,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the current URL cannot be read or parsed.
-    pub async fn get_origin(&mut self) -> Result<String, SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+    pub async fn origin(&mut self) -> Result<String, SeleniumBaseError> {
+        let url = self.current_url().await?;
         origin_of_url(&url)
     }
 

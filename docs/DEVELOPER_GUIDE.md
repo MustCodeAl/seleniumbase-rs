@@ -1508,7 +1508,7 @@ Python parameters of `parity/upstream-api.json`
 writes it again). A test checks every entry against the real signature (argument
 count and kinds, `async`, `Result`, call builders and their methods) and against
 the parity row, so a `BaseCase` change that breaks a mapping fails a test. The
-`FIX-ASSERTS` shapes of `assert_in`, `wait_for_element` and `get_select_options`
+`FIX-ASSERTS` shapes of `assert_in`, `wait_for_element` and `select_options`
 are in the table; adjust the table, not the translator, when a signature moves.
 
 `tests/golden/import_python/` holds the Python examples of
