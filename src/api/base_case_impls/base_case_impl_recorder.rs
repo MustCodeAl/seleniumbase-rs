@@ -517,7 +517,7 @@ impl BaseCase {
             .target
             .clone()
             .unwrap_or_else(RecordingTarget::from_environment);
-        let format = if self.config.rec_sb_cdp() {
+        let format = if self.config.recording_sb_cdp() {
             RecordingFormat::Cdp
         } else if self.config.rec_sb_mgr() {
             RecordingFormat::Script

@@ -420,7 +420,7 @@ impl AllureSink {
     ///
     /// Returns an error if the folder or the environment file cannot be
     /// written.
-    pub fn new(dir: impl Into<PathBuf>) -> io::Result<Self> {
+    pub fn try_new(dir: impl Into<PathBuf>) -> io::Result<Self> {
         Self::with_sources(dir, Arc::new(now_ms), Arc::new(random_uuid))
     }
 

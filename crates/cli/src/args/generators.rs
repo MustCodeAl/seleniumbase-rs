@@ -174,7 +174,7 @@ impl MkfileArgs {
 
     /// The test file the arguments describe, once [`check`](Self::check) has passed.
     pub(crate) fn test_file(&self) -> Result<TestFile, ScaffoldError> {
-        let mut file = TestFile::new(&self.file)?.basic(self.basic);
+        let mut file = TestFile::try_new(&self.file)?.basic(self.basic);
         if let Some(url) = &self.url {
             file = file.url(url)?;
         }

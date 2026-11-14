@@ -170,7 +170,7 @@ impl Suite {
     /// letters, digits, `_`, `-` and `.`.
     pub fn try_new(name: &str) -> Result<Self, ScaffoldError> {
         Ok(Self {
-            name: RelativeName::new(name)?,
+            name: RelativeName::try_new(name)?,
             basic: false,
             gha: false,
             bdd: false,

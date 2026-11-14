@@ -235,7 +235,7 @@ impl TestFile {
     ///
     /// [`ScaffoldError::InvalidName`] when `name` is not a relative name made of
     /// letters, digits, `_`, `-` and `.`, or has an extension other than `.rs`.
-    pub fn new(name: &str) -> Result<Self, ScaffoldError> {
+    pub fn try_new(name: &str) -> Result<Self, ScaffoldError> {
         Ok(Self {
             name: RelativeName::try_new(name)?.with_extension_or_default("rs")?,
             url: None,
@@ -641,7 +641,7 @@ mod tests {
     ];
 
     fn file(name: &str) -> TestFile {
-        TestFile::new(name).unwrap()
+        TestFile::try_new(name).unwrap()
     }
 
     #[test]
@@ -755,9 +755,12 @@ mod tests {
         assert_eq!(test.name().to_string(), "tests/My-Login.v2.rs");
         assert!(test.render().contains("async fn my_login_v2("));
         assert_eq!(file("tests/Login").name().to_string(), "tests/Login.rs");
-        assert!(TestFile::new("t.py").is_err());
-        assert!(TestFile::new("My-Login.v2").is_err(), "'.v2' is not '.rs'");
-        assert!(TestFile::new("../t").is_err());
+        assert!(TestFile::try_new("t.py").is_err());
+        assert!(
+            TestFile::try_new("My-Login.v2").is_err(),
+            "'.v2' is not '.rs'"
+        );
+        assert!(TestFile::try_new("../t").is_err());
     }
 
     #[test]

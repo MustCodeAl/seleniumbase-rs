@@ -124,7 +124,7 @@ impl Layer {
         if !config.browser.kind.is_chromium_based() {
             tracing::warn!(
                 "the pure CDP engine drives Chromium browsers only; {} is not used",
-                config.browser.kind.name()
+                config.browser.kind.as_str()
             );
         }
         Self {

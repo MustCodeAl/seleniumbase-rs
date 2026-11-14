@@ -195,7 +195,7 @@ async fn scaffold(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
         );
         (suite.files(), next)
     } else {
-        let mut file = TestFile::new(name).map_err(bad)?.basic(basic);
+        let mut file = TestFile::try_new(name).map_err(bad)?.basic(basic);
         if let Some(url) = url {
             file = file.url(url).map_err(bad)?;
         }
@@ -336,7 +336,7 @@ mod tests {
             .unwrap();
 
         let text = answer.as_text().unwrap();
-        let expected = TestFile::new("tests/login").unwrap().render();
+        let expected = TestFile::try_new("tests/login").unwrap().render();
         assert!(text.contains("=== tests/login.rs ==="), "{text}");
         assert!(text.contains(&expected), "{text}");
         assert!(text.contains("Nothing was written"), "{text}");
