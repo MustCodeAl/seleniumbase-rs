@@ -246,7 +246,7 @@ impl PresentationFile {
     /// letters, digits, `_`, `-` and `.`, or has an extension other than `.rs`.
     pub fn new(name: &str) -> Result<Self, ScaffoldError> {
         Ok(Self {
-            name: RelativeName::new(name)?.with_extension_or_default("rs")?,
+            name: RelativeName::try_new(name)?.with_extension_or_default("rs")?,
             language: Language::English,
         })
     }

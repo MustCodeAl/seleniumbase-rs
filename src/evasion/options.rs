@@ -979,8 +979,8 @@ mod tests {
         std::fs::write(&crx, b"crx bytes").unwrap();
 
         let config = BrowserConfig::default()
-            .with_extension_archive(ExtensionArchive::new(&crx).unwrap())
-            .with_extension_archive(ExtensionArchive::new(&crx).unwrap());
+            .with_extension_archive(ExtensionArchive::try_new(&crx).unwrap())
+            .with_extension_archive(ExtensionArchive::try_new(&crx).unwrap());
         let options = chrome_options(&options_for(&config));
         let encoded = base64::engine::general_purpose::STANDARD.encode(b"crx bytes");
         assert_eq!(
@@ -1010,7 +1010,7 @@ mod tests {
     #[test]
     fn a_missing_extension_file_fails_the_session_before_it_starts() {
         let config = BrowserConfig::default()
-            .with_extension_archive(ExtensionArchive::new("/no/such/extension.zip").unwrap());
+            .with_extension_archive(ExtensionArchive::try_new("/no/such/extension.zip").unwrap());
         let error = options_for(&config).args().unwrap_err();
         assert!(
             error.to_string().contains("/no/such/extension.zip"),

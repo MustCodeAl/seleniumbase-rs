@@ -186,7 +186,7 @@ async fn scaffold(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
                 "only a test (kind test) takes a URL",
             ));
         }
-        let suite = Suite::new(name).map_err(bad)?.basic(basic);
+        let suite = Suite::try_new(name).map_err(bad)?.basic(basic);
         let next = format!(
             "Run it with `cargo test --test {}` (a folder directly inside tests/ is one test \
              target; the README says how to register it elsewhere). It needs Chrome and a \
@@ -356,7 +356,7 @@ mod tests {
         .unwrap();
 
         let full = full.as_text().unwrap();
-        for (path, content) in Suite::new("tests/ui").unwrap().files() {
+        for (path, content) in Suite::try_new("tests/ui").unwrap().files() {
             assert!(full.contains(&format!("=== {path} ===")), "{path}");
             assert!(full.contains(&content), "{path}");
         }

@@ -56,7 +56,7 @@ pub(crate) struct MkchartArgs {
 impl MkchartArgs {
     /// The test file the arguments describe.
     pub(crate) fn chart_file(&self) -> Result<ChartFile, ScaffoldError> {
-        let file = ChartFile::new(&self.file)?;
+        let file = ChartFile::try_new(&self.file)?;
         Ok(match self.language {
             Some(language) => file.language(language.language()),
             None => file,

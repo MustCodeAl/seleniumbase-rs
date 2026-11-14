@@ -102,7 +102,7 @@ pub(crate) struct MkdirArgs {
 impl MkdirArgs {
     /// The suite the arguments describe.
     pub(crate) fn suite(&self) -> Result<Suite, ScaffoldError> {
-        Ok(Suite::new(&self.dir)?
+        Ok(Suite::try_new(&self.dir)?
             .basic(self.basic)
             .gha(self.gha)
             .bdd(self.bdd))
