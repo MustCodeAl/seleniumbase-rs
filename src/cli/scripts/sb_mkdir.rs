@@ -145,7 +145,7 @@ jobs:
 /// use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
-/// let suite = Suite::new("tests/ui")?;
+/// let suite = Suite::try_new("tests/ui")?;
 /// let names: Vec<String> = suite.files().iter().map(|(name, _)| name.to_string()).collect();
 /// assert_eq!(names[0], "tests/ui/README.md");
 /// assert!(names.contains(&"tests/ui/main.rs".to_owned()));
