@@ -105,10 +105,10 @@ impl fmt::Display for FrameRef {
 /// `sb.switch_to_window(-1)` the newest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WindowRef {
-    /// A window handle, as [`BaseCase::get_current_window_handle`] and
-    /// [`BaseCase::get_all_window_handles`] give them.
+    /// A window handle, as [`BaseCase::current_window_handle`] and
+    /// [`BaseCase::all_window_handles`] give them.
     Handle(String),
-    /// The position of the window in [`BaseCase::get_all_window_handles`],
+    /// The position of the window in [`BaseCase::all_window_handles`],
     /// counting from 0. A negative number counts from the end, as a Python
     /// list index does: `-1` is the newest window, `-2` the one before.
     Index(i32),
@@ -274,7 +274,7 @@ impl<'a> FrameSwitch<'a> {
     /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     /// let heading = sb
     ///     .frame_switch("iframe#content")
-    ///     .run(async |sb| sb.get_text("h1").await)
+    ///     .run(async |sb| sb.text("h1").await)
     ///     .await?;
     /// // Back in the page that holds the frame.
     /// sb.assert_text("Welcome", "#top").await?;
@@ -425,13 +425,13 @@ impl Alert {
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no alert is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn text(&self) -> Result<String, SeleniumBaseError> {
         match &self.backend {
             Backend::WebDriver(driver) => driver
                 .get_alert_text()
                 .await
-                .map_err(SeleniumBaseError::WebDriver),
+                .map_err(SeleniumBaseError::from),
             Backend::Cdp(dialogs) => dialogs.text(),
         }
     }
@@ -440,14 +440,13 @@ impl Alert {
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no alert is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn accept(&self) -> Result<(), SeleniumBaseError> {
         self.record("accept_alert", None);
         match &self.backend {
-            Backend::WebDriver(driver) => driver
-                .accept_alert()
-                .await
-                .map_err(SeleniumBaseError::WebDriver),
+            Backend::WebDriver(driver) => {
+                driver.accept_alert().await.map_err(SeleniumBaseError::from)
+            }
             Backend::Cdp(dialogs) => dialogs.accept().await,
         }
     }
@@ -456,14 +455,14 @@ impl Alert {
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no alert is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn dismiss(&self) -> Result<(), SeleniumBaseError> {
         self.record("dismiss_alert", None);
         match &self.backend {
             Backend::WebDriver(driver) => driver
                 .dismiss_alert()
                 .await
-                .map_err(SeleniumBaseError::WebDriver),
+                .map_err(SeleniumBaseError::from),
             Backend::Cdp(dialogs) => dialogs.dismiss().await,
         }
     }
@@ -472,14 +471,14 @@ impl Alert {
     ///
     /// # Errors
     ///
-    /// Returns the driver's error if no prompt is open.
+    /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no prompt is open.
     pub async fn send_keys(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("type_alert_text", Some(text));
         match &self.backend {
             Backend::WebDriver(driver) => driver
                 .send_alert_text(text)
                 .await
-                .map_err(SeleniumBaseError::WebDriver),
+                .map_err(SeleniumBaseError::from),
             Backend::Cdp(dialogs) => dialogs.send_text(text),
         }
     }

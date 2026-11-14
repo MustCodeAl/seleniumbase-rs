@@ -108,6 +108,30 @@ The standard names its errors, and you will see these constantly:
 | `invalid session id` | The session is gone: the browser crashed or the session was already deleted. |
 | `session not created` | The driver could not start the browser, often because of a driver and browser version mismatch. |
 
+This crate tells these answers apart without naming the library that carries them. A failed
+command is a `SeleniumBaseError::WebDriver`, and its `DriverError::kind()` is a
+`DriverErrorKind` in this crate's words: `ElementNotFound` (`no such element`), `StaleElement`,
+`ElementNotInteractable` (both `element not interactable` and `element click intercepted`),
+`TimedOut`, `BrowserLaunch` (`session not created`) and more, such as `AlertNotFound`,
+`WindowNotFound` and `FrameNotFound`. Two answers have a variant of their own, because they
+need no context: `invalid session id` is `BrowserDisconnected` and `invalid selector` is
+`InvalidSelector`. Where the call knows the selector, the error names it: a lookup that finds
+nothing (`BrowserSession::find`, `Element::find`) is `ElementNotFound`, and an `Element`
+method the driver refuses as not interactable is `ElementNotInteractable`.
+
+```rust
+use seleniumbase_rs::{DriverErrorKind, SeleniumBaseError};
+
+/// Whether a failed call only found that no alert was open.
+fn no_alert_was_open(error: &SeleniumBaseError) -> bool {
+    matches!(
+        error,
+        SeleniumBaseError::WebDriver(driver) if driver.kind() == DriverErrorKind::AlertNotFound
+    )
+}
+```
+
+
 ## One command, end to end
 
 ```mermaid

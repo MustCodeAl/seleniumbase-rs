@@ -31,8 +31,7 @@ impl crate::sb_cdp::CaptchaSurface for BaseCase {
     }
 
     async fn cookie_names(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        Ok(self
-            .get_cookies()
+        Ok(self.cookies()
             .await?
             .into_iter()
             .map(|cookie| cookie.name)
@@ -241,9 +240,9 @@ impl BaseCase {
     /// root of the page: write `.//td`),
     /// [`SeleniumBaseError::ElementNotFound`] if either element is
     /// missing, [`SeleniumBaseError::StaleElement`] if the page replaced the
-    /// parent or the child before the click, or the driver's error
-    /// ([`SeleniumBaseError::WebDriver`]) if the click fails otherwise, as when
-    /// another element intercepts it.
+    /// parent or the child before the click, [`SeleniumBaseError::ElementNotInteractable`]
+    /// if the driver refuses the click, as when another element intercepts it, and
+    /// [`SeleniumBaseError::WebDriver`] for any other failure of the driver.
     pub async fn nested_click(
         &mut self,
         parent_css: &str,

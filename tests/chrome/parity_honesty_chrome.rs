@@ -48,7 +48,7 @@ async fn a_start_page_is_opened_when_the_test_case_starts() {
 
     let mut sb = BaseCase::new(config).await.expect("connect to browser");
 
-    assert_eq!(sb.get_title().await.expect("title"), "Form");
+    assert_eq!(sb.title().await.expect("title"), "Form");
     sb.quit().await.expect("quit");
 }
 
@@ -60,14 +60,14 @@ async fn press_keys_types_text_into_the_element_and_presses_enter_for_a_trailing
     let mut sb = open(FORM_PAGE).await;
 
     sb.press_keys("#q", "rust").await.expect("type into #q");
-    assert_eq!(sb.get_value("#q").await.expect("value"), "rust");
-    assert_eq!(sb.get_title().await.expect("title"), "Form", "no Enter yet");
+    assert_eq!(sb.value("#q").await.expect("value"), "rust");
+    assert_eq!(sb.title().await.expect("title"), "Form", "no Enter yet");
 
     sb.press_keys("#q", "!\n")
         .await
         .expect("type and press Enter");
-    assert_eq!(sb.get_value("#q").await.expect("value"), "rust!");
-    assert_eq!(sb.get_title().await.expect("title"), "submitted");
+    assert_eq!(sb.value("#q").await.expect("value"), "rust!");
+    assert_eq!(sb.title().await.expect("title"), "submitted");
 
     sb.press_key("tab").await.expect("a named key still works");
     assert!(sb.press_key("nonsense").await.is_err());
@@ -97,12 +97,12 @@ async fn set_text_sets_the_value_of_fields_and_the_text_of_other_elements() {
     sb.set_text("#q", "ann").await.expect("input");
     sb.set_text("#t", "two\nlines").await.expect("textarea");
     sb.set_text("#d", "new").await.expect("div");
-    assert_eq!(sb.get_value("#q").await.expect("value"), "ann");
-    assert_eq!(sb.get_value("#t").await.expect("value"), "two\nlines");
-    assert_eq!(sb.get_text("#d").await.expect("text"), "new");
+    assert_eq!(sb.value("#q").await.expect("value"), "ann");
+    assert_eq!(sb.value("#t").await.expect("value"), "two\nlines");
+    assert_eq!(sb.text("#d").await.expect("text"), "new");
 
     sb.set_text_content("#q", "bob").await.expect("alias");
-    assert_eq!(sb.get_value("#q").await.expect("value"), "bob");
+    assert_eq!(sb.value("#q").await.expect("value"), "bob");
 
     sb.set_timeout(1).await.expect("shorten the wait");
     assert!(
@@ -182,12 +182,12 @@ async fn switch_to_frame_of_element_enters_the_frame_that_holds_the_element() {
         .await
         .expect("the button is in the iframe");
     assert_eq!(frame.as_deref(), Some("f"));
-    assert_eq!(sb.get_text("#b").await.expect("text"), "inside");
+    assert_eq!(sb.text("#b").await.expect("text"), "inside");
     sb.switch_to_default_content().await.expect("back out");
 
     sb.set_timeout(1).await.expect("shorten the wait");
     assert!(sb.switch_to_frame_of_element("#nowhere").await.is_err());
-    assert_eq!(sb.get_text("#here").await.expect("still at the top"), "top");
+    assert_eq!(sb.text("#here").await.expect("still at the top"), "top");
     sb.quit().await.expect("quit");
 }
 
@@ -206,7 +206,7 @@ async fn select_option_by_index_fires_change_and_refuses_a_missing_option() {
     sb.set_timeout(1).await.expect("shorten the wait");
     assert!(sb.select_option_by_index("#s", 99).await.is_err());
     assert_eq!(
-        sb.get_title().await.expect("title"),
+        sb.title().await.expect("title"),
         "",
         "no change event for a miss"
     );
@@ -214,7 +214,7 @@ async fn select_option_by_index_fires_change_and_refuses_a_missing_option() {
     sb.select_option_by_index("#s", 2)
         .await
         .expect("a real option");
-    assert_eq!(sb.get_title().await.expect("title"), "changed 2");
+    assert_eq!(sb.title().await.expect("title"), "changed 2");
     sb.quit().await.expect("quit");
 }
 

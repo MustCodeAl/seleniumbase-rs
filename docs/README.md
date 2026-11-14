@@ -261,8 +261,8 @@ way BeautifulSoup does in Python:
 
 ```rust
 sb.print_to_pdf("page.pdf").await?;
-let text = sb.get_pdf_text("page.pdf")?;
-let soup = sb.get_beautiful_soup_object().await?;
+let text = sb.pdf_text("page.pdf")?;
+let soup = sb.beautiful_soup_object().await?;
 ```
 
 See [PDF Parsing](/tutorials/pdf_parsing).

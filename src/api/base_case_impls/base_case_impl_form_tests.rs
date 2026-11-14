@@ -432,16 +432,14 @@ mod tests_form_attributes {
         let driver = options_page();
         let mut sb = driver.base_case().await;
 
-        let texts = sb.get_select_options("#pick").await.unwrap();
+        let texts = sb.select_options("#pick").await.unwrap();
         assert_eq!(texts, ["One", "Two", "Three"]);
-        let values = sb
-            .get_select_options("#pick")
+        let values = sb.select_options("#pick")
             .attribute("value")
             .await
             .unwrap();
         assert_eq!(values, ["v1", "v2", "v3"]);
-        let indexes = sb
-            .get_select_options("#pick")
+        let indexes = sb.select_options("#pick")
             .attribute("index")
             .await
             .unwrap();
@@ -453,8 +451,7 @@ mod tests_form_attributes {
         let driver = options_page();
         let mut sb = driver.base_case().await;
 
-        let error = sb
-            .get_select_options("#pick")
+        let error = sb.select_options("#pick")
             .attribute("title")
             .await
             .unwrap_err();
@@ -488,7 +485,7 @@ mod tests_form_attributes {
         let driver = select_page();
         let mut sb = driver.base_case().await;
 
-        let value = sb.get_attribute("#pick", "value").await.unwrap();
+        let value = sb.attribute("#pick", "value").await.unwrap();
         assert_eq!(value.as_deref(), Some("v2"));
         sb.assert_attribute("#pick", "value", "v2").await.unwrap();
         assert_eq!(attribute_reads(&driver), [json!("value"), json!("value")]);
@@ -503,7 +500,7 @@ mod tests_form_attributes {
         let driver = typed_page();
         let mut sb = driver.base_case().await;
 
-        let value = sb.get_attribute("#name", "value").await.unwrap();
+        let value = sb.attribute("#name", "value").await.unwrap();
         assert_eq!(value.as_deref(), Some("typed"));
         sb.assert_attribute("#name", "value", "typed").await.unwrap();
         assert!(driver.requests("/element/name/attribute/value").is_empty());
@@ -517,7 +514,7 @@ mod tests_form_attributes {
             let driver = select_page();
             let mut sb = driver.base_case().await;
 
-            let id = sb.get_attribute("#pick", "id").await.unwrap();
+            let id = sb.attribute("#pick", "id").await.unwrap();
             assert_eq!(id.as_deref(), Some("pick"));
             assert_eq!(attribute_reads(&driver), [json!("id")]);
         }

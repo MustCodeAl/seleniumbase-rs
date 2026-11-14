@@ -85,11 +85,11 @@ use thirtyfour::session::http::{Body, HttpClient};
 use tracing::{debug, info, warn};
 
 use crate::browser::config::BrowserConfig;
+use crate::browser::devtools::CdpClient;
 use crate::browser::launcher::DriverProcess;
 use crate::browser::session::BrowserSession;
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 
 /// The environment variable that sets [`idle_timeout`], in whole seconds.
 pub const IDLE_TIMEOUT_VAR: &str = "SB_REUSE_IDLE_SECS";
@@ -736,10 +736,7 @@ async fn reset(
     // if DevTools refuses, WebDriver deletes those of the open page.
     let cleared = !crumbs
         || (config.browser.kind.is_chromium_based()
-            && CdpClient::from_handle(driver.handle().clone())
-                .clear_cookies()
-                .await
-                .is_ok());
+            && CdpClient::new(driver).clear_cookies().await.is_ok());
     if !cleared {
         driver.delete_all_cookies().await?;
     }
@@ -1441,7 +1438,7 @@ mod tests_with_a_driver {
         let driver = mock_with_windows(&["w1"]);
         let config = reusing(&driver);
         let mut sb = BaseCase::new(config.clone()).await.unwrap();
-        sb.get_new_driver().await.unwrap();
+        sb.new_driver().await.unwrap();
         sb.quit().await.unwrap();
         assert_eq!(
             ended_sessions(&driver),

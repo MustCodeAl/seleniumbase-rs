@@ -68,7 +68,7 @@ A direct attachment is a `BrowserSession` with `external_page: Option<sb_cdp::Pa
 
 ## 5. Names and style
 
-- `BaseCase` keeps Python's `get_*` names (the owner's decision); nothing is renamed.
+- `BaseCase` has no `get_` prefix since the API audit (`text`, `title`, `current_url`, `attribute`, `cookies`, `page_source`, `window_rect`, ...); the tables in section 4 name methods as Python SeleniumBase does (`get_text`, `get_title`), which the Rust names `text` and `title` answer.
 - `Element` keeps its method names; its two engines are an enum private to the module.
 - An error for a method with no CDP form is `SeleniumBaseError::Unsupported`, and the text begins with
   the method, says it needs the WebDriver engine, and names the alternative.

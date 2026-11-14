@@ -89,13 +89,13 @@ pub enum ScrapeEvent {
             /// Why.
             reason: Escalation,
         },
-    EgressRotated {
+    ProxyRotated {
             /// The egress it left, `None` for the direct connection.
             from: Option<ProxyKey>,
             /// The egress it entered, `None` for the direct connection.
             to: Option<ProxyKey>,
         },
-    ProfileRotated {
+    FingerprintRotated {
             /// The noise seed of the profile it left.
             from_seed: u64,
             /// The noise seed of the profile it entered.
@@ -214,7 +214,7 @@ pub struct SiteRecord {
     pub last_seen: u64,
     pub cooldown_until: Option<u64>,
     pub preferred_kind: Option<FetchKind>,
-    pub last_egress: Option<ProxyKey>,
+    pub last_proxy: Option<ProxyKey>,
 }
 ```
 
@@ -237,12 +237,12 @@ pub fn in_cooldown(&self, now: u64) -> bool
 - `start_cooldown`: Leaves the site alone until `until`. A cooldown that is already longer stays.
 - `in_cooldown`: Whether the site is to be left alone at time `now`.
 
-### `StateError`
+### `LedgerError`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum StateError {
+pub enum LedgerError {
     Io {
             /// The state file.
             path: PathBuf,
@@ -267,7 +267,7 @@ pub enum StateError {
 }
 ```
 
-Why a state store failed.
+Why a ledger failed.
 
 ### `Ledger`
 
@@ -284,10 +284,10 @@ Where per-site state lives between requests.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-async fn get(&self, site: &str) -> Result<Option<SiteRecord>, StateError>
-async fn put(&self, state: SiteRecord) -> Result<(), StateError>
-async fn remove(&self, site: &str) -> Result<(), StateError>
-async fn sites(&self) -> Result<Vec<String>, StateError>
+async fn get(&self, site: &str) -> Result<Option<SiteRecord>, LedgerError>
+async fn put(&self, state: SiteRecord) -> Result<(), LedgerError>
+async fn remove(&self, site: &str) -> Result<(), LedgerError>
+async fn sites(&self) -> Result<Vec<String>, LedgerError>
 ```
 
 

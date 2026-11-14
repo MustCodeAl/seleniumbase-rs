@@ -119,7 +119,7 @@ writes it into the `latest_logs` folder of the working directory.
 there. The JSON is the action array above, so `sbrs replay
 latest_logs/recorded.json` plays it back.
 
-With `--rec-sb-cdp` (`BrowserConfig::with_rec_sb_cdp(true)`, `SB_REC_SB_CDP=true`)
+With `--rec-sb-cdp` (`BrowserConfig::with_recording_sb_cdp(true)`, `SB_REC_SB_CDP=true`)
 the Rust program that `export_recording_as_rust` and `save_recording_to_logs`
 write calls the pure CDP engine (`Page` and `Locator`) instead of `BaseCase`;
 `sbrs --rec-sb-cdp run-scenario --file scenario.json` saves such a program. See

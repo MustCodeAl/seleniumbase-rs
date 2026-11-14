@@ -6,7 +6,7 @@ description: "HttpSession: plain HTTP that continues a browser session with the 
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
 
-`HttpSession` sends plain HTTP that looks like the measured Chrome on the wire and carries a browser's cookies. `from_page` is async and copies a `Page`. `from_identity` is synchronous. `get` and `request` send; `fetch` also judges the reply. At the crate root, `Attempt`, `Fetched`, `Rules`, `Verdict` and `Headers` are `HttpAttempt`, `HttpFetched`, `HttpRules`, `HttpVerdict` and `ReplyHeaders`.
+`HttpSession` sends plain HTTP that looks like the measured Chrome on the wire and carries a browser's cookies. `from_page` is async and copies a `Page`. `from_identity` is synchronous. `get` and `request` send; `fetch` also judges the reply. The types of the module are exported under one name, in the module and at the crate root: `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `HttpResponse`, `ResponseHeaders` and `HttpRequest`.
 
 The guide is [HttpSession](/scraping/stealthy/http-session). `HttpSessionOptions::new` uses a 30 second timeout, a 64 MiB body, and 10 redirects. `validate` refuses a timeout above one hour, a body limit above 1 GiB, or more than 30 redirects.
 
@@ -81,29 +81,29 @@ pub fn from_identity(
     ) -> Result<Self, HttpError>
 pub fn request(&self, method: Method, url: &str) -> HttpRequest<'_>
 pub async fn get(&self, url: &str) -> Result<HttpResponse, HttpError>
-pub fn profile(&self) -> &WireFormat
-pub fn egress(&self) -> Option<&ProxyKey>
+pub fn wire_format(&self) -> &WireFormat
+pub fn proxy_route(&self) -> Option<&ProxyKey>
 pub fn cookie_count(&self) -> usize
 pub fn assess(
         &self,
         reply: &HttpResponse,
-        attempt: &Attempt,
-        rules: &Rules,
+        attempt: &HttpAttempt,
+        rules: &HttpRules,
         identity: &Identity,
-    ) -> Verdict
+    ) -> HttpVerdict
 pub async fn fetch(
         &self,
         url: &str,
-        attempt: &Attempt,
-        rules: &Rules,
+        attempt: &HttpAttempt,
+        rules: &HttpRules,
         identity: &Identity,
-    ) -> Result<Fetched, HttpError>
+    ) -> Result<HttpFetch, HttpError>
 pub fn preflight(
         &self,
         url: &str,
         identity: &Identity,
         state: Option<&SiteRecord>,
-        rules: &Rules,
+        rules: &HttpRules,
     ) -> Result<Escalation, HttpError>
 pub fn export_identity(&self, base: &Identity) -> Identity
 pub async fn from_page(
@@ -118,8 +118,8 @@ pub async fn sync_cookies_back(&self, page: &Page) -> Result<usize, HttpError>
 - `from_identity`: A session for an identity: its fingerprint becomes the user agent, client hints and languages of the requests, and its cookies fill the jar.
 - `request`: Starts a request with an explicit method.
 - `get`: Sends a `GET` request.
-- `profile`: The profile the requests are made with.
-- `egress`: The exit the requests leave through; `None` for a direct connection. It carries no credentials.
+- `wire_format`: The profile the requests are made with.
+- `proxy_route`: The exit the requests leave through; `None` for a direct connection. It carries no credentials.
 - `cookie_count`: How many cookies the jar holds.
 - `assess`: Judges a reply: detects a challenge, asks the mitigation policy what to do, and asks the session policy whether that changes the mode. Emits `ChallengeDetected` and `ActionChosen` events.
 - `fetch`: Fetches `url` with a `GET` and judges the reply; see `assess`.
@@ -136,7 +136,7 @@ pub async fn sync_cookies_back(&self, page: &Page) -> Result<usize, HttpError>
 
 ```rust
 pub enum HttpError {
-    Impersonate(WireFormatError),
+    WireFormat(WireFormatError),
     VersionMismatch {
             /// The major version the browser or identity claims.
             browser: u32,
@@ -210,7 +210,7 @@ pub fn max_body_bytes(mut self, limit: usize) -> Self
 pub fn max_request_bytes(mut self, limit: usize) -> Self
 pub fn max_redirects(mut self, limit: usize) -> Self
 pub fn follow_redirects(mut self, follow: bool) -> Self
-pub fn pacing(mut self, calls: usize, window: Duration) -> Self
+pub fn rate_limit(mut self, calls: usize, window: Duration) -> Self
 pub fn event_sink(mut self, sink: Arc<dyn EventSink>) -> Self
 pub fn trust(mut self, store: CertStore) -> Self
 pub fn resolve(mut self, host: impl Into<String>, addr: SocketAddr) -> Self
@@ -229,7 +229,7 @@ pub fn validate(&self) -> Result<(), HttpError>
 - `max_request_bytes`: The largest request body a request may carry.
 - `max_redirects`: How many redirects one request follows before it fails with [`HttpError::TooManyRedirects`].
 - `follow_redirects`: Whether redirects are followed. Off, a `3xx` answer is the reply (its `Set-Cookie` is still stored).
-- `pacing`: At most `calls` requests to one site (a registrable domain) in `window`, every redirect hop counted. The limit is per site, not global.
+- `rate_limit`: At most `calls` requests to one site (a registrable domain) in `window`, every redirect hop counted. The limit is per site, not global.
 - `event_sink`: Where the events of the session go.
 - `trust`: The certificate roots the server must chain to, in place of the system roots, as a `wreq::tls::trust::CertStore`. Verification stays on: this is how a private root is trusted.
 - `resolve`: Resolves `host` to `addr` without asking DNS, as `curl --resolve` does. The TLS server name stays `host`.
@@ -241,12 +241,12 @@ pub fn validate(&self) -> Result<(), HttpError>
 
 ## `http_session::outcome`
 
-### `Attempt`
+### `HttpAttempt`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct Attempt {
+pub struct HttpAttempt {
     pub number: u32,
     pub previous_challenges: u32,
     pub can_rotate_proxy: bool,
@@ -256,25 +256,25 @@ pub struct Attempt {
 
 Where a fetch stands, as the mitigation policy needs to know it.
 
-### `Rules`
+### `HttpRules`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct Rules {
+pub struct HttpRules {
     pub mitigation: MitigationPolicy,
-    pub session: EscalationPolicy,
+    pub escalation: EscalationPolicy,
 }
 ```
 
 The two policies that judge a reply.
 
-### `Verdict`
+### `HttpVerdict`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct Verdict {
+pub struct HttpVerdict {
     pub detection: Detection,
     pub action: Mitigation,
     pub escalation: Escalation,
@@ -283,7 +283,7 @@ pub struct Verdict {
 
 What a reply means for the session.
 
-### `Verdict` methods
+### `HttpVerdict` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -294,14 +294,14 @@ pub fn is_clear(&self) -> bool
 
 - `is_clear`: Whether the reply is a real answer: it is not a challenge, a block or a rate limit.
 
-### `Fetched`
+### `HttpFetch`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct Fetched {
+pub struct HttpFetch {
     pub reply: HttpResponse,
-    pub verdict: Verdict,
+    pub verdict: HttpVerdict,
 }
 ```
 
@@ -309,17 +309,17 @@ A reply and the verdict on it.
 
 ## `http_session::reply`
 
-### `Headers`
+### `ResponseHeaders`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct Headers(Vec<(String, String)>);
+pub struct ResponseHeaders(Vec<(String, String)>);
 ```
 
 The headers of a response, in the order received, with lower-case names.
 
-### `Headers` methods
+### `ResponseHeaders` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -372,7 +372,7 @@ pub fn status(&self) -> u16
 pub fn is_success(&self) -> bool
 pub fn redacted_url(&self) -> RedactedUrl
 pub fn url(&self) -> &Url
-pub fn headers(&self) -> &Headers
+pub fn headers(&self) -> &ResponseHeaders
 pub fn bytes(&self) -> &[u8]
 pub fn text(&self) -> Result<&str, HttpError>
 pub fn json<T: DeserializeOwned>(&self) -> Result<T, HttpError>

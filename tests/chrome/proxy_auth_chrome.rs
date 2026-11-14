@@ -170,7 +170,7 @@ fn config(port: u16) -> BrowserConfig {
 async fn title_becomes(sb: &mut BaseCase, want: &str) -> Result<(), String> {
     let mut last = String::new();
     for _ in 0..50 {
-        last = sb.get_title().await.unwrap_or_default();
+        last = sb.title().await.unwrap_or_default();
         if last == want {
             return Ok(());
         }
@@ -192,7 +192,7 @@ async fn a_page_loads_through_a_proxy_that_asks_for_a_password() {
     sb.open(&format!("http://{SITE}/"))
         .await
         .expect("the page opens");
-    let title = sb.get_title().await.expect("a title");
+    let title = sb.title().await.expect("a title");
     sb.quit().await.expect("quit");
     proxy.abort();
 
@@ -218,7 +218,7 @@ async fn a_new_window_loads_through_the_proxy_too() {
     sb.open(&format!("http://{SITE}/second"))
         .await
         .expect("the second page opens");
-    let title = sb.get_title().await.expect("a title");
+    let title = sb.title().await.expect("a title");
     sb.quit().await.expect("quit");
     proxy.abort();
 
@@ -299,10 +299,7 @@ async fn the_browsers_command_line_has_no_password() {
     sb.open("chrome://version")
         .await
         .expect("the version page opens");
-    let command_line = sb
-        .get_text("#command_line")
-        .await
-        .expect("the command line");
+    let command_line = sb.text("#command_line").await.expect("the command line");
     sb.quit().await.expect("quit");
     proxy.abort();
 

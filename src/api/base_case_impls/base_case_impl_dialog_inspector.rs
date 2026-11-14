@@ -43,7 +43,7 @@ impl BaseCase {
 
     /// Inspects the current page source for common HTML issues.
     pub async fn inspect_html(&self) -> Result<HtmlInspection, SeleniumBaseError> {
-        let source = self.get_page_source().await?;
+        let source = self.page_source().await?;
         HtmlInspector::inspect(&source)
     }
 

@@ -31,7 +31,7 @@ with every item written in terms of this crate's API.
 
 <Visibility for="agents">
 
-Summary for AI exports: write each browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`), or `sb_cdp: SbCdp` with `sb_cdp.run(async |page| { .. })` for the pure CDP engine; never start a browser by hand in a test body. Import only from `seleniumbase_rs`. Use stable selectors (`#id`, `[data-testid="x"]`, `link=Text`). Never sleep: actions wait, and `wait_for_element_visible`, `wait_for_text`, `wait_for_element_absent` or `locator.wait_for(State::Absent)` cover the rest. Assert with the retrying assertions (`assert_text(text, selector)` takes the text first, `locator.expect().to_have_text(..)`), not `get_text` plus `assert_eq!`. A selector or `Locator` acts on the first match: scope it, and use `locator.strict()` (pure CDP) or `expect().to_have_count(1)` when there must be exactly one. Do not keep an `Element` across a page change. Cleanup: the fixture and `run_browser_test` close the browser; a `Browser` you launch is closed on both paths. Evidence is `latest_logs/<test id>/`; add to it with `save_screenshot_to_logs` and `save_page_source_to_logs`, never print page source. One fixture test, one `BrowserPool` lease or one `BrowserContext` per concurrent flow. CI runs `SB_HEADLESS=true cargo test`. Raw protocol calls (`Page::execute`, `Browser::execute`, `BaseCase::execute_cdp_cmd`) live in one helper behind a feature of the test crate. Test code that drives pages without Chrome through `Browser::new_mocked()` (feature `test-util`). Credentials and data come from `sb.account()`, `sb.data()`, `sb.variables()`, never from the file.
+Summary for AI exports: write each browser test as `#[rstest] #[tokio::test] async fn name(sb: Sb) -> Result<()> { sb.run(async |sb| { .. }).await }` (feature `testing`), or `sb_cdp: SbCdp` with `sb_cdp.run(async |page| { .. })` for the pure CDP engine; never start a browser by hand in a test body. Import only from `seleniumbase_rs`. Use stable selectors (`#id`, `[data-testid="x"]`, `link=Text`). Never sleep: actions wait, and `wait_for_element_visible`, `wait_for_text`, `wait_for_element_absent` or `locator.wait_for(State::Absent)` cover the rest. Assert with the retrying assertions (`assert_text(text, selector)` takes the text first, `locator.expect().to_have_text(..)`), not `text` plus `assert_eq!`. A selector or `Locator` acts on the first match: scope it, and use `locator.strict()` (pure CDP) or `expect().to_have_count(1)` when there must be exactly one. Do not keep an `Element` across a page change. Cleanup: the fixture and `run_browser_test` close the browser; a `Browser` you launch is closed on both paths. Evidence is `latest_logs/<test id>/`; add to it with `save_screenshot_to_logs` and `save_page_source_to_logs`, never print page source. One fixture test, one `BrowserPool` lease or one `BrowserContext` per concurrent flow. CI runs `SB_HEADLESS=true cargo test`. Raw protocol calls (`Page::execute`, `Browser::execute`, `BaseCase::execute_cdp_cmd`) live in one helper behind a feature of the test crate. Test code that drives pages without Chrome through `Browser::new_mocked()` (feature `test-util`). Credentials and data come from `sb.account()`, `sb.data()`, `sb.variables()`, never from the file.
 
 </Visibility>
 
@@ -475,7 +475,7 @@ page.locator("#status").expect().to_have_text("Saved").await?;
 ```
 
 ```rust Avoid
-let status = sb.get_text("#status").await?; // reads once, at whatever moment it runs
+let status = sb.text("#status").await?; // reads once, at whatever moment it runs
 assert_eq!(status, "Saved");
 ```
 
@@ -619,7 +619,7 @@ let recorder = page
 ```
 
 ```rust Avoid
-println!("{}", sb.get_page_source().await?); // thousands of lines in a CI log
+println!("{}", sb.page_source().await?); // thousands of lines in a CI log
 ```
 
 </CodeGroup>

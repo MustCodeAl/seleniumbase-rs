@@ -730,7 +730,7 @@ impl<'a> std::future::IntoFuture for ExportTour<'a> {
             }
             let url = match self.url {
                 Some(url) if !url.is_empty() => url.to_owned(),
-                _ => self.sb.get_current_url().await?,
+                _ => self.sb.current_url().await?,
             };
             self.sb
                 .write_tour_export(Path::new(tours::EXPORT_FOLDER), name, filename, &url)
@@ -1100,7 +1100,7 @@ mod tests_tours {
         let path = tempfile::tempdir().unwrap();
         // The folder is a relative one; build the file in a temporary folder
         // through the same code, and ask for the url the way the call does.
-        let url = sb.get_current_url().await.unwrap();
+        let url = sb.current_url().await.unwrap();
         assert_eq!(url, "https://example.test/start?x=1");
         let written = sb
             .write_tour_export(&path.path().join(tours::EXPORT_FOLDER), "default", tours::DEFAULT_FILENAME, &url)

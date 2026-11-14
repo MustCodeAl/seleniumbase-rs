@@ -148,20 +148,18 @@ let config = BrowserConfig::default()
 
 <Tab title="StealthOptions" icon="sliders">
 
-Or apply them through `StealthOptions`:
+Or apply them through `StealthOptions`, whose `args()` is the launch it builds:
 
 ```rust
 use seleniumbase_rs::evasion::options::StealthOptions;
 use seleniumbase_rs::engine_spoofing_args;
-use seleniumbase_rs::drivers::{BrowserCapabilitiesHelper, DesiredCapabilities};
 
 fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let mut opts = StealthOptions::default();
     opts.extra_args = engine_spoofing_args();
-
-    let mut caps = DesiredCapabilities::chrome();
-    opts.apply_to(&mut caps)?;
-    assert!(caps.args().contains(&"--disable-blink-features=AutomationControlled".into()));
+    assert!(opts
+        .args()?
+        .contains(&"--disable-blink-features=AutomationControlled".to_owned()));
     Ok(())
 }
 ```

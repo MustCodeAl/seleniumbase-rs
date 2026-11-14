@@ -85,9 +85,15 @@ async fn a_headless_firefox_session_takes_its_options() {
         .goto("data:text/html,<title>firefox%20driver%20ok</title><p>hi</p>")
         .await
         .expect("the page opens");
-    let title = session.driver().title().await.expect("the title is read");
+    let title = session
+        .webdriver()
+        .expect("the session has a driver")
+        .title()
+        .await
+        .expect("the title is read");
     let seen = session
-        .driver()
+        .webdriver()
+        .expect("the session has a driver")
         .execute(
             "return [navigator.userAgent, navigator.language, navigator.webdriver]",
             Vec::new(),

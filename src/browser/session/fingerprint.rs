@@ -25,7 +25,7 @@ impl BrowserSession {
         if let Ok(cdp) = self.cdp_client() {
             cdp.add_init_script(&script).await?;
             for (method, params) in fingerprint_overrides(fp) {
-                cdp.execute_with_params(&method, params).await.ok();
+                cdp.execute(&method, params).await.ok();
             }
         } else {
             let _ = self.webdriver()?.execute(&script, Vec::new()).await?;

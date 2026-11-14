@@ -20,7 +20,7 @@ manual intervention.
 
 <Card color="#1a85d4" title="Quick reference" icon="key">
 
-`get_totp_code(secret)` returns the code. Its aliases are `get_mfa_code` and `get_google_auth_code`.
+`totp_code(secret)` returns the code. Its aliases are `mfa_code` and `google_auth_code`.
 
 `enter_totp_code(css, secret)` types the code into a field and presses Enter. Its alias is `enter_mfa_code`.
 
@@ -30,19 +30,19 @@ RFC 6238 with HMAC-SHA1, a 30 second step and 6 digits.
 
 <Visibility for="agents">
 
-Summary for AI exports: `sb.get_totp_code("BASE32SECRET")?` is a plain method, not an `async` one; it reads the clock and returns a 6 digit code (RFC 6238, HMAC-SHA1, 30 second step) with no browser call. `sb.enter_totp_code(css, secret).await?` types the code into the field and presses Enter. `get_mfa_code` and `get_google_auth_code` are aliases of `get_totp_code`, and `enter_mfa_code` of `enter_totp_code`. Load secrets from environment variables or a secrets manager, never from source code.
+Summary for AI exports: `sb.totp_code("BASE32SECRET")?` is a plain method, not an `async` one; it reads the clock and returns a 6 digit code (RFC 6238, HMAC-SHA1, 30 second step) with no browser call. `sb.enter_totp_code(css, secret).await?` types the code into the field and presses Enter. `mfa_code` and `google_auth_code` are aliases of `totp_code`, and `enter_mfa_code` of `enter_totp_code`. Load secrets from environment variables or a secrets manager, never from source code.
 
 </Visibility>
 
 ## Generate a TOTP code
 
-`get_totp_code` is a plain method, not an `async` one: it reads the clock and
+`totp_code` is a plain method, not an `async` one: it reads the clock and
 computes the code, with no browser call.
 
 ```rust,no_run
 use seleniumbase_rs::BaseCase;
 fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
+    let code = sb.totp_code("JBSWY3DPEHPK3PXP")?;
     println!("TOTP code: {code}");
     Ok(())
 }
@@ -51,7 +51,7 @@ fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 The secret is the base32-encoded shared secret provided by the service when
 enabling MFA. It is often shown as a QR code or a plain string during enrollment.
 Spaces and dashes in the secret are ignored, and case does not matter.
-`get_mfa_code` and `get_google_auth_code` are aliases of `get_totp_code`.
+`mfa_code` and `google_auth_code` are aliases of `totp_code`.
 
 ## Use in a login flow
 
@@ -66,7 +66,7 @@ async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseErro
     sb.type_text("#password", "secret_pass").await?;
     sb.click("#login").await?;
 
-    let code = sb.get_totp_code("JBSWY3DPEHPK3PXP")?;
+    let code = sb.totp_code("JBSWY3DPEHPK3PXP")?;
     sb.type_text("#otp", &code).await?;
     sb.click("#verify-otp").await?;
     Ok(())

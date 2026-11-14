@@ -18,12 +18,11 @@ use std::fmt;
 use serde_json::{json, Value};
 use thirtyfour::common::keys::Key as WireKey;
 use thirtyfour::components::SelectElement;
-use thirtyfour::error::WebDriverErrorInner;
 use thirtyfour::prelude::{By, WebDriver, WebElement};
 
 use crate::browser::session::shown_text;
 use crate::browser::shadow_find;
-use crate::error::SeleniumBaseError;
+use crate::error::{DriverErrorKind, SeleniumBaseError};
 use crate::sb_cdp::{Key, Locator, Rect, SelectBy};
 use crate::utils::selectors::{xpath_root_branch, SelectorBuf, CHAIN_SEPARATOR};
 
@@ -105,21 +104,24 @@ impl DriverElement {
     }
 
     /// The error for a failed command on this element: the driver's
-    /// stale-reference answer becomes [`SeleniumBaseError::StaleElement`]
-    /// naming the selector, which the raw error cannot name, and any other
+    /// stale-reference answer becomes [`SeleniumBaseError::StaleElement`] and its
+    /// not-interactable answers become [`SeleniumBaseError::ElementNotInteractable`],
+    /// both naming the selector, which the raw error cannot name, and any other
     /// error is passed on.
     fn failed(&self, error: impl Into<SeleniumBaseError>) -> SeleniumBaseError {
         match error.into() {
-            SeleniumBaseError::WebDriver(inner)
-                if matches!(
-                    inner.as_inner(),
-                    WebDriverErrorInner::StaleElementReference(_)
-                ) =>
-            {
-                SeleniumBaseError::StaleElement {
+            SeleniumBaseError::WebDriver(driver) => match driver.kind() {
+                DriverErrorKind::StaleElement => SeleniumBaseError::StaleElement {
                     selector: self.selector.to_string(),
+                },
+                DriverErrorKind::ElementNotInteractable => {
+                    SeleniumBaseError::element_not_interactable(
+                        self.selector.to_string(),
+                        driver.summary(),
+                    )
                 }
-            }
+                _ => SeleniumBaseError::WebDriver(driver),
+            },
             other => other,
         }
     }
@@ -171,7 +173,7 @@ impl DriverElement {
     }
 
     /// The text the driver renders for the element, which is what
-    /// `BaseCase::get_text_content` returns. It is empty for an element that is
+    /// `BaseCase::text_content` returns. It is empty for an element that is
     /// not displayed, where Python's `get_text_content` reads the `textContent`
     /// property (the markup's text, shown or not), and for an `<input>`, whose
     /// value [`text`](Self::text) reads.
@@ -217,7 +219,7 @@ impl DriverElement {
     /// lacks it.
     ///
     /// Like [`Locator::attribute`](crate::sb_cdp::Locator::attribute). It is
-    /// not what [`BaseCase::get_attribute`](crate::BaseCase::get_attribute)
+    /// not what [`BaseCase::attribute`](crate::BaseCase::attribute)
     /// answers, which follows Selenium and prefers the DOM property: use
     /// [`property`](Self::property) for what a field holds now.
     ///
@@ -347,8 +349,8 @@ fn wire_key(key: Key) -> WireKey {
 ///
 /// None of them waits for the element to be ready, since an `Element` is
 /// already found: an element that is covered, hidden or disabled fails with
-/// the driver's error. [`BaseCase`](crate::BaseCase) methods by selector wait
-/// first.
+/// [`SeleniumBaseError::ElementNotInteractable`]. [`BaseCase`](crate::BaseCase) methods by
+/// selector wait first.
 impl DriverElement {
     /// Clicks the element.
     ///
@@ -358,7 +360,8 @@ impl DriverElement {
     /// # Errors
     ///
     /// [`SeleniumBaseError::StaleElement`] if the page replaced the element,
-    /// or the driver's error, such as a click another element intercepts.
+    /// [`SeleniumBaseError::ElementNotInteractable`] if the driver refuses the click, as when
+    /// another element intercepts it, or the driver's error.
     pub async fn click(&self) -> Result<(), SeleniumBaseError> {
         self.inner.click().await.map_err(|error| self.failed(error))
     }
@@ -615,7 +618,7 @@ impl DriverElement {
     ///
     /// # Errors
     ///
-    /// The driver's `no such element` error if nothing matches,
+    /// [`SeleniumBaseError::ElementNotFound`] naming the chain (`#cart >> .row`) if nothing matches,
     /// [`SeleniumBaseError::InvalidSelector`] for an empty selector, an XPath
     /// that starts at the root of the page, or one that crosses a shadow root,
     /// and
@@ -626,12 +629,13 @@ impl DriverElement {
     ) -> Result<DriverElement, SeleniumBaseError> {
         let selector = selector.into();
         let by = Self::lookup(&selector)?;
+        let name = self.below(&selector);
         let found = self
             .inner
             .find(by)
             .await
-            .map_err(|error| self.failed(error))?;
-        Ok(Self::new(found, self.driver.clone(), self.below(&selector)))
+            .map_err(|error| self.failed(error).naming_selector(&name.to_string()))?;
+        Ok(Self::new(found, self.driver.clone(), name))
     }
 
     /// Every match of `selector` inside this element, possibly none.
@@ -927,7 +931,7 @@ impl Element {
     }
 
     /// The text the browser renders for the element, which is what
-    /// `BaseCase::get_text_content` returns. It is empty for an element that is
+    /// `BaseCase::text_content` returns. It is empty for an element that is
     /// not displayed (WebDriver), and for an `<input>`, whose value
     /// [`text`](Self::text) reads.
     ///
@@ -971,7 +975,7 @@ impl Element {
     /// lacks it.
     ///
     /// Like [`Locator::attribute`](crate::sb_cdp::Locator::attribute). It is
-    /// not what [`BaseCase::get_attribute`](crate::BaseCase::get_attribute)
+    /// not what [`BaseCase::attribute`](crate::BaseCase::attribute)
     /// answers, which follows Selenium and prefers the DOM property: use
     /// [`property`](Self::property) for what a field holds now.
     ///
@@ -1602,10 +1606,10 @@ mod tests {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;
 
-        // Nothing matches, and the driver's error is passed on.
+        // Nothing matches, and the error names the chain.
         let error = cart.find(".//td").await.unwrap_err();
         assert!(
-            matches!(error, SeleniumBaseError::WebDriver(_)),
+            matches!(&error, SeleniumBaseError::ElementNotFound { selector, .. } if selector == "#a >> .//td"),
             "{error:?}"
         );
         cart.find("link=Edit").await.unwrap_err();
@@ -1726,7 +1730,7 @@ mod tests {
             // The mock finds nothing; what matters is that the driver is asked.
             let error = cart.find(selector.clone()).await.unwrap_err();
             assert!(
-                matches!(error, SeleniumBaseError::WebDriver(_)),
+                matches!(error, SeleniumBaseError::ElementNotFound { .. }),
                 "{selector}: {error:?}"
             );
             let all = cart.find_all(selector.clone()).await.unwrap();
@@ -2182,6 +2186,7 @@ mod tests {
                 ("POST", "/element") => Reply::Value(element("e1")),
                 ("GET", "/element/e1/displayed") => Reply::Error(404, "stale element reference"),
                 ("GET", "/element/e1/enabled") => Reply::Error(404, "element not interactable"),
+                ("GET", "/element/e1/selected") => Reply::Error(500, "javascript error"),
                 _ => Reply::Value(Value::Null),
             }
         });
@@ -2191,9 +2196,16 @@ mod tests {
             Err(SeleniumBaseError::StaleElement { selector }) => assert_eq!(selector, "#a"),
             other => panic!("expected StaleElement, got {other:?}"),
         }
+        // A refusal as not interactable is told apart, and names the selector too.
+        match link.is_enabled().await {
+            Err(SeleniumBaseError::ElementNotInteractable { selector, .. }) => {
+                assert_eq!(selector, "#a")
+            }
+            other => panic!("expected ElementNotInteractable, got {other:?}"),
+        }
         // Any other driver error is passed on as it is.
         assert!(matches!(
-            link.is_enabled().await,
+            link.is_selected().await,
             Err(SeleniumBaseError::WebDriver(_))
         ));
     }

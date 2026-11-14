@@ -16,7 +16,7 @@ use crate::error::SeleniumBaseError;
 /// Python SeleniumBase names a Pixel 7 XL here; this crate keeps its own
 /// Android agent on both engines, so a mobile session looks the same whichever
 /// engine runs it.
-pub const MOBILE_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Mobile Safari/537.36";
+pub const MOBILE_USER_AGENT: &str = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Mobile Safari/537.36";
 
 /// The screen of the phone that Chrome emulates.
 ///

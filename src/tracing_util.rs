@@ -359,7 +359,7 @@ mod tests {
             || tracing::warn!("slow"),
         );
         let text = capture.text();
-        assert!(text.contains("\x1b[1;33m WARN\x1b[0m"), "{text:?}");
+        assert!(text.contains("\x1b[33;1m WARN\x1b[0m"), "{text:?}");
         assert!(text.contains("\x1b[2m"), "the time is dim: {text:?}");
     }
 

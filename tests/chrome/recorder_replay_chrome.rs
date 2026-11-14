@@ -133,7 +133,7 @@ async fn a_saved_recording_replays_every_step_in_a_real_browser() {
         let second = RecorderSession::replay(&mut sb, &loaded[home_steps..])
             .await
             .expect("the second half replays");
-        let url = sb.get_current_url().await.expect("a current url");
+        let url = sb.current_url().await.expect("a current url");
         sb.quit().await.expect("Chrome quits");
 
         let failures: Vec<_> = first

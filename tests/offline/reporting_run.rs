@@ -19,11 +19,11 @@ use seleniumbase_rs::{Result, SeleniumBaseError};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\nfake";
 
-fn open(root: &Path, key: &str) -> Arc<TestRun> {
+fn open(root: &Path, key: &str) -> TestRun {
     TestRun::open(root, ReportSettings::default(), RunKey::new(key)).unwrap()
 }
 
-fn open_with(root: &Path, key: &str, settings: ReportSettings) -> Arc<TestRun> {
+fn open_with(root: &Path, key: &str, settings: ReportSettings) -> TestRun {
     TestRun::open(root, settings, RunKey::new(key)).unwrap()
 }
 

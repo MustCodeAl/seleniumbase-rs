@@ -455,10 +455,10 @@ mod tests_get_text {
         let mut sb = driver.base_case().await;
         sb.set_timeout(1).await.unwrap();
 
-        assert_eq!(sb.get_text("#name").await.unwrap(), "Ada Lovelace");
-        assert_eq!(sb.get_text("#bio").await.unwrap(), "Typed since");
+        assert_eq!(sb.text("#name").await.unwrap(), "Ada Lovelace");
+        assert_eq!(sb.text("#bio").await.unwrap(), "Typed since");
         // The alias reads the same.
-        assert_eq!(sb.get_text_of_element("#name").await.unwrap(), "Ada Lovelace");
+        assert_eq!(sb.text_of_element("#name").await.unwrap(), "Ada Lovelace");
     }
 
     #[tokio::test]
@@ -466,7 +466,7 @@ mod tests_get_text {
         let driver = form();
         let sb = driver.base_case().await;
 
-        assert_eq!(sb.get_text("#title").await.unwrap(), "Order form");
+        assert_eq!(sb.text("#title").await.unwrap(), "Order form");
         // The value of a `div` is not asked for.
         assert!(
             driver.requests("/element/title/property/value").is_empty(),

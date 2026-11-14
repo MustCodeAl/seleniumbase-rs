@@ -42,8 +42,8 @@ browser processes do not leak when a test fails.
 | `go_back()` | Browser back. |
 | `go_forward()` | Browser forward. |
 | `refresh_page()` | Reloads the page. |
-| `get_current_url()` | Returns the current URL. |
-| `get_title()` | Returns the page title. |
-| `get_page_source()` | Returns the full page source. |
+| `current_url()` | Returns the current URL. |
+| `title()` | Returns the page title. |
+| `page_source()` | Returns the full page source. |
 | `open_new_window()` | Opens a new browser window. |
 | `open_new_tab()` | Opens a new browser tab. |

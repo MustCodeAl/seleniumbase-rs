@@ -148,7 +148,7 @@ impl CapabilityOverrides {
 
     /// Merges these capabilities into `caps`, as the type's documentation
     /// describes.
-    pub fn apply_to(&self, caps: &mut Capabilities) {
+    pub(crate) fn apply_to(&self, caps: &mut Capabilities) {
         for (key, value) in &self.0 {
             match caps.get_mut(key) {
                 Some(existing) => merge_value(existing, value),

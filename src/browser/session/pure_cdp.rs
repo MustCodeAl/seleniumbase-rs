@@ -315,7 +315,7 @@ impl BrowserSession {
                 .clone()
                 .enter_frame()
                 .await
-                .map_err(SeleniumBaseError::WebDriver);
+                .map_err(SeleniumBaseError::from);
         }
         let tag = element.tag().await?;
         let Some(locator) = element

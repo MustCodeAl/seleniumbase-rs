@@ -127,7 +127,7 @@ async fn the_sidecar_is_on_the_tab_of_its_target_and_leaves_the_browser_running(
     let mut sb = BaseCase::new(BrowserConfig::default().with_cdp_url(browser.http_url()))
         .await
         .expect("a case attaches to the running browser");
-    let case_url = sb.get_current_url().await.expect("the case's URL");
+    let case_url = sb.current_url().await.expect("the case's URL");
     let beside_case = PlaywrightSidecar::attach(&sb)
         .await
         .expect("rustwright attaches to the case's tab");

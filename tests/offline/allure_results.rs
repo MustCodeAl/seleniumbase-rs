@@ -50,7 +50,7 @@ impl PageEvidence for Page {
     }
 }
 
-fn run_with_allure(root: &Path, folder: impl Into<PathBuf>) -> Arc<TestRun> {
+fn run_with_allure(root: &Path, folder: impl Into<PathBuf>) -> TestRun {
     let settings = ReportSettings {
         allure_dir: Some(folder.into()),
         ..ReportSettings::default()

@@ -170,7 +170,7 @@ fn count_in(dashboard: &str, label: &str) -> usize {
         .unwrap()
 }
 
-fn run_three(run: &std::sync::Arc<TestRun>) {
+fn run_three(run: &TestRun) {
     run.start(TestId::named("suite_a::tests::passes"))
         .unwrap()
         .finish(&Ok(()))

@@ -188,9 +188,9 @@ mod tests_pure_cdp {
         let (mut sb, mock) = case().await;
         Page::one().script(&mock);
 
-        assert_eq!(sb.get_text("#go").await.unwrap(), "Hello");
+        assert_eq!(sb.text("#go").await.unwrap(), "Hello");
         assert_eq!(
-            sb.get_attribute("#go", "href").await.unwrap().as_deref(),
+            sb.attribute("#go", "href").await.unwrap().as_deref(),
             Some("attribute-value")
         );
         assert!(sb.is_element_visible("#go").await.unwrap());
@@ -303,8 +303,8 @@ mod tests_pure_cdp {
         let (sb, mock) = case().await;
         two_tabs(&mock);
 
-        assert_eq!(sb.get_all_window_handles().await.unwrap(), ["T1", "T2"]);
-        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T1");
+        assert_eq!(sb.all_window_handles().await.unwrap(), ["T1", "T2"]);
+        assert_eq!(sb.current_window_handle().await.unwrap(), "T1");
     }
 
     #[tokio::test]
@@ -314,7 +314,7 @@ mod tests_pure_cdp {
 
         sb.switch_to_window("T2").await.unwrap();
 
-        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T2");
+        assert_eq!(sb.current_window_handle().await.unwrap(), "T2");
         assert!(
             !mock.calls_to("Page.bringToFront").is_empty(),
             "the tab is brought to the front"
@@ -331,7 +331,7 @@ mod tests_pure_cdp {
         let created = mock.calls_to("Target.createTarget");
         assert_eq!(created.len(), 1);
         assert_eq!(created[0].params["newWindow"], json!(false));
-        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T2");
+        assert_eq!(sb.current_window_handle().await.unwrap(), "T2");
     }
 
     #[tokio::test]
@@ -342,7 +342,7 @@ mod tests_pure_cdp {
         sb.open_new_tab().switch_to(false).await.unwrap();
 
         assert_eq!(mock.calls_to("Target.createTarget").len(), 1);
-        assert_eq!(sb.get_current_window_handle().await.unwrap(), "T1");
+        assert_eq!(sb.current_window_handle().await.unwrap(), "T1");
     }
 
     #[tokio::test]
@@ -355,8 +355,8 @@ mod tests_pure_cdp {
             }}),
         );
 
-        assert_eq!(sb.get_window_rect().await.unwrap(), (10, 20, 800, 600));
-        assert_eq!(sb.get_window_position().await.unwrap(), (10, 20));
+        assert_eq!(sb.window_rect().await.unwrap(), (10, 20, 800, 600));
+        assert_eq!(sb.window_position().await.unwrap(), (10, 20));
         sb.set_window_size(1024, 768).await.unwrap();
         sb.maximize().await.unwrap();
 
@@ -400,7 +400,7 @@ mod tests_pure_cdp {
         Page::one().script(&mock);
         one_cookie(&mock);
 
-        let cookies = sb.get_cookies().await.unwrap();
+        let cookies = sb.cookies().await.unwrap();
 
         assert_eq!(cookies.len(), 1);
         assert_eq!((cookies[0].name.as_str(), cookies[0].value.as_str()), ("sid", "abc"));
@@ -408,9 +408,9 @@ mod tests_pure_cdp {
         assert_eq!(cookies[0].expires, None, "a session cookie has no expiry");
         let asked = mock.calls_to("Network.getCookies");
         assert_eq!(asked[0].params["urls"], json!(["https://example.com/app"]));
-        assert_eq!(sb.get_cookie("sid").await.unwrap().unwrap().value, "abc");
-        assert!(sb.get_cookie("other").await.unwrap().is_none());
-        assert_eq!(sb.get_cookie_string().await.unwrap(), "sid=abc");
+        assert_eq!(sb.cookie("sid").await.unwrap().unwrap().value, "abc");
+        assert!(sb.cookie("other").await.unwrap().is_none());
+        assert_eq!(sb.cookie_string().await.unwrap(), "sid=abc");
     }
 
     #[tokio::test]

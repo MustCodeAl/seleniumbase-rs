@@ -244,7 +244,7 @@ mod tests_page_scripts {
                 "window.localStorage.setItem(S, S);",
                 &[&key, text],
             );
-            sb.get_local_storage_item(&key).await.unwrap();
+            sb.local_storage_item(&key).await.unwrap();
             assert_inert(
                 &last_script(&driver),
                 "return window.localStorage.getItem(S);",
@@ -353,7 +353,7 @@ mod tests_page_scripts {
                 "window.sessionStorage.setItem(S, S);",
                 &[&key, text],
             );
-            sb.get_session_storage_item(&key).await.unwrap();
+            sb.session_storage_item(&key).await.unwrap();
             assert_inert(
                 &last_script(&driver),
                 "return window.sessionStorage.getItem(S);",
@@ -436,7 +436,7 @@ mod tests_page_scripts {
         assert_script!(
             driver,
             css,
-            sb.get_parent(css),
+            sb.parent(css),
             "return document.querySelector(S)?.parentElement;",
             [css]
         );
@@ -789,6 +789,79 @@ mod tests_wait_errors {
     }
 }
 
+/// What a failure the driver reports becomes in the calls that know more than
+/// the driver does: the selector that found nothing, and a browser that is gone.
+mod tests_driver_errors {
+    use super::webdriver_support::{MockWebDriver, Reply};
+    use super::*;
+    use serde_json::{json, Value};
+
+    /// A driver that answers every lookup with the W3C error `code`.
+    fn failing_lookups(status: u16, code: &'static str) -> MockWebDriver {
+        MockWebDriver::start(json!({}), move |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element" | "/elements") => Reply::Error(status, code),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn a_lookup_that_finds_nothing_is_an_element_not_found_naming_the_selector() {
+        let driver = failing_lookups(404, "no such element");
+        let sb = driver.base_case().await;
+
+        let error = sb
+            .session
+            .find("#missing")
+            .await
+            .expect_err("nothing matches");
+
+        assert!(
+            matches!(&error, SeleniumBaseError::ElementNotFound { selector, .. } if selector == "#missing"),
+            "{error:?}"
+        );
+        assert!(error.is_element_error());
+        assert_eq!(error.exit_code(), 3);
+    }
+
+    #[tokio::test]
+    async fn a_wait_ends_at_once_when_the_driver_says_the_session_is_gone() {
+        let driver = failing_lookups(404, "invalid session id");
+        let sb = driver.base_case().await;
+
+        let waited = tokio::time::timeout(
+            Duration::from_secs(5),
+            sb.wait_for_any_of_elements_present(&["#a"], 30),
+        )
+        .await
+        .expect("a session that is gone is not worth waiting 30 seconds for");
+
+        assert!(
+            matches!(waited, Err(SeleniumBaseError::BrowserDisconnected { .. })),
+            "{waited:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_wait_ends_at_once_when_the_browser_refuses_the_selector() {
+        let driver = failing_lookups(400, "invalid selector");
+        let sb = driver.base_case().await;
+
+        let waited = tokio::time::timeout(
+            Duration::from_secs(5),
+            sb.wait_for_any_of_elements_present(&["p["], 30),
+        )
+        .await
+        .expect("a selector the browser refuses is not worth waiting 30 seconds for");
+
+        assert!(
+            matches!(waited, Err(SeleniumBaseError::InvalidSelector(_))),
+            "{waited:?}"
+        );
+    }
+}
+
 mod tests_element_names {
     use super::webdriver_support::{element, MockWebDriver, Reply};
     use super::*;
@@ -812,9 +885,8 @@ mod tests_element_names {
         let driver = driver();
         let mut sb = driver.base_case().await;
 
-        let parent = sb.get_parent("#a").await.unwrap().expect("a parent");
-        let at_point = sb
-            .get_element_at_x_y(10, 20)
+        let parent = sb.parent("#a").await.unwrap().expect("a parent");
+        let at_point = sb.element_at_x_y(10, 20)
             .await
             .unwrap()
             .expect("an element");
@@ -837,7 +909,7 @@ mod tests_element_names {
         let driver = driver();
         let mut sb = driver.base_case().await;
 
-        sb.get_parent("#a").await.unwrap().expect("a parent");
+        sb.parent("#a").await.unwrap().expect("a parent");
 
         let scripts: Vec<String> = driver
             .requests("/execute/sync")

@@ -66,17 +66,17 @@ async fn get_text_of_an_input_and_a_textarea_is_what_they_hold() -> Result<()> {
         // What the markup says first, then what was typed: the rendered text of an
         // `input` is empty, and a `textarea`'s own text is the markup's, so only the
         // value is what Python's `get_text` gives.
-        assert_eq!(sb.get_text("#name").await?, "Ada Lovelace");
-        assert_eq!(sb.get_text("#notes").await?, "First note");
+        assert_eq!(sb.text("#name").await?, "Ada Lovelace");
+        assert_eq!(sb.text("#notes").await?, "First note");
         sb.type_text("#name", "Grace Hopper").await?;
         sb.type_text("#notes", "Typed note").await?;
-        assert_eq!(sb.get_text("#name").await?, "Grace Hopper");
-        assert_eq!(sb.get_text("#notes").await?, "Typed note");
-        assert_eq!(sb.get_text_of_element("#name").await?, "Grace Hopper");
+        assert_eq!(sb.text("#name").await?, "Grace Hopper");
+        assert_eq!(sb.text("#notes").await?, "Typed note");
+        assert_eq!(sb.text_of_element("#name").await?, "Grace Hopper");
 
         // Anything else gives its rendered text.
-        assert_eq!(sb.get_text("h1").await?, "Order");
-        assert_eq!(sb.get_text("#inside").await?, "Save");
+        assert_eq!(sb.text("h1").await?, "Order");
+        assert_eq!(sb.text("#inside").await?, "Save");
         Ok(())
     })
     .await

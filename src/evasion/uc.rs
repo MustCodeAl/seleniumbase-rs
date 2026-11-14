@@ -1,7 +1,7 @@
 use serde_json::json;
 
+use crate::browser::devtools::CdpClient;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 
 /// Comprehensive undetected-chrome (UC) stealth script injected into every new document.
 ///
@@ -233,8 +233,7 @@ pub async fn override_user_agent(
     if let Some(locale_value) = locale {
         params["acceptLanguage"] = json!(locale_value);
     }
-    cdp.execute_with_params("Network.setUserAgentOverride", params)
-        .await?;
+    cdp.execute("Network.setUserAgentOverride", params).await?;
     Ok(())
 }
 
@@ -243,7 +242,7 @@ pub async fn override_timezone(
     cdp: &CdpClient,
     timezone_id: &str,
 ) -> Result<(), SeleniumBaseError> {
-    cdp.execute_with_params(
+    cdp.execute(
         "Emulation.setTimezoneOverride",
         json!({ "timezoneId": timezone_id }),
     )
@@ -258,7 +257,7 @@ pub async fn override_geolocation(
     longitude: f64,
     accuracy: f64,
 ) -> Result<(), SeleniumBaseError> {
-    cdp.execute_with_params(
+    cdp.execute(
         "Emulation.setGeolocationOverride",
         json!({ "latitude": latitude, "longitude": longitude, "accuracy": accuracy }),
     )
@@ -282,7 +281,7 @@ pub async fn clear_cdc_properties(cdp: &CdpClient) -> Result<(), SeleniumBaseErr
     // Inside a function: a top-level `let` stays declared in the page, so the
     // second call would throw "Identifier 'o' has already been declared".
     let response = cdp
-        .execute_with_params(
+        .execute(
             "Runtime.evaluate",
             json!({ "expression": CLEAR_CDC_SCRIPT, "returnByValue": true }),
         )

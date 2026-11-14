@@ -123,7 +123,7 @@ So a test that should accept a confirm accepts first, then clicks:
 ```rust Accept a confirm
 sb.accept_alert().await?;                 // the answer for the next confirm
 sb.click("#delete").await?;               // confirm(...) returns true at once
-assert_eq!(sb.get_alert_text().await?, "Delete the profile?");
+assert_eq!(sb.alert_text().await?, "Delete the profile?");
 sb.accept_alert().await?;                 // clears the record
 ```
 

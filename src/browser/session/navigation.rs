@@ -108,7 +108,7 @@ impl BrowserSession {
         self.webdriver()?
             .maximize_window()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// WebDriver interaction: `set_window_size`.
@@ -132,10 +132,7 @@ impl BrowserSession {
             return self.switch_to_tab(tab).await;
         }
         let h = thirtyfour::common::types::WindowHandle::from(handle.to_string());
-        self.webdriver()?
-            .switch_to_window(h)
-            .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+        self.webdriver()?.switch_to_window(h).await?;
         self.apply_mobile_emulation().await?;
         self.apply_ad_block().await
     }
@@ -155,11 +152,11 @@ impl BrowserSession {
             .webdriver()?
             .new_window()
             .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .map_err(SeleniumBaseError::from)?;
         self.webdriver()?
             .switch_to_window(handle)
             .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .map_err(SeleniumBaseError::from)?;
         self.apply_ad_block().await?;
         self.apply_mobile_emulation().await?;
         #[cfg(feature = "plugins")]

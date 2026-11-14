@@ -73,7 +73,7 @@ async fn wait_for_downloaded_name(
 
 impl BaseCase {
     /// Returns the path to the browser downloads folder.
-    pub fn get_downloads_folder(&self) -> PathBuf {
+    pub fn downloads_folder(&self) -> PathBuf {
         default_download_dir()
     }
 
@@ -84,13 +84,13 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` is not a plain
     /// file name (no directory part, no `..`), so it cannot reach a file
     /// outside the downloads folder.
-    pub fn get_path_of_downloaded_file(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
+    pub fn path_of_downloaded_file(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
         crate::artifacts::confined_path(&default_download_dir(), filename)
     }
 
     /// Returns true if `filename` exists in the downloads folder.
     pub fn is_downloaded_file_present(&self, filename: &str) -> bool {
-        self.get_path_of_downloaded_file(filename)
+        self.path_of_downloaded_file(filename)
             .is_ok_and(|path| path.exists())
     }
 
@@ -100,8 +100,8 @@ impl BaseCase {
     }
 
     /// Reads the contents of `filename` from the downloads folder.
-    pub fn get_data_from_downloaded_file(&self, filename: &str) -> Result<String, SeleniumBaseError> {
-        let path = self.get_path_of_downloaded_file(filename)?;
+    pub fn data_from_downloaded_file(&self, filename: &str) -> Result<String, SeleniumBaseError> {
+        let path = self.path_of_downloaded_file(filename)?;
         Ok(fs::read_to_string(&path)?)
     }
 
@@ -142,7 +142,7 @@ impl BaseCase {
 
     /// Deletes `filename` from the downloads folder if it exists.
     pub fn delete_downloaded_file_if_present(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        let path = self.get_path_of_downloaded_file(filename)?;
+        let path = self.path_of_downloaded_file(filename)?;
         if path.exists() {
             fs::remove_file(&path)?;
         }

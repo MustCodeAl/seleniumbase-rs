@@ -3,7 +3,7 @@
 
 impl BaseCase {
     /// Whether recordings are written as pure CDP code
-    /// ([`BrowserConfig::with_rec_sb_cdp`]).
+    /// ([`BrowserConfig::with_recording_sb_cdp`]).
     #[must_use]
     pub fn rec_sb_cdp(&self) -> bool {
         self.config.rec_sb_cdp()
@@ -49,7 +49,7 @@ mod tests_rec_sb_cdp {
         });
         let mut config = BrowserConfig::default()
             .with_webdriver_url(driver.url().to_owned())
-            .with_rec_sb_cdp(rec_sb_cdp);
+            .with_recording_sb_cdp(rec_sb_cdp);
         config.session.auto_start_driver = false;
         let mut sb = BaseCase::new(config)
             .await

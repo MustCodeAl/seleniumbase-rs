@@ -194,13 +194,13 @@ pub async fn start(
 pub fn prime_url(&self) -> String
 pub fn port(&self) -> u16
 pub fn local_addr(&self) -> SocketAddr
-pub fn proxy_spec(&self) -> Secret
+pub fn proxy_url(&self) -> Secret
 pub fn browser_proxy(&self) -> Proxy
-pub fn chrome_args(&self) -> Vec<String>
+pub fn launch_args(&self) -> Vec<String>
 pub fn configure_launch(&self, options: LaunchOptions) -> Result<LaunchOptions, SeleniumBaseError>
 pub fn stats(&self) -> MitmStats
-pub fn egress(&self) -> Option<ProxyKey>
-pub fn swap_upstream(&self, egress: Option<ProxyRoute>) -> Result<(), MitmError>
+pub fn proxy_route(&self) -> Option<ProxyKey>
+pub fn swap_proxy(&self, egress: Option<ProxyRoute>) -> Result<(), MitmError>
 pub fn swap_wire_format(&self, profile: WireFormat) -> Result<(), MitmError>
 pub async fn shutdown(self, grace: Duration)
 ```
@@ -210,13 +210,13 @@ pub async fn shutdown(self, grace: Duration)
 - `prime_url`: The address of the proxy's priming page: `https://` [`PRIME_HOST`] and a path of 128 random bits drawn when the proxy started.
 - `port`: The loopback port the proxy listens on.
 - `local_addr`: The loopback address the proxy listens on; its IP is always `127.0.0.1`.
-- `proxy_spec`: `http://sb:&lt;token&gt;@127.0.0.1:&lt;port&gt;`, for a launch or a client that sets its own proxy. It holds the token: pass it on, never print it.
+- `proxy_url`: `http://sb:&lt;token&gt;@127.0.0.1:&lt;port&gt;`, for a launch or a client that sets its own proxy. It holds the token: pass it on, never print it.
 - `browser_proxy`: The proxy for a browser context (`ContextOptions::proxy`). Its `Debug` hides the token.
-- `chrome_args`: The Chrome switches the proxy needs besides `--proxy-server`: the leaf pin (never the CA pin), [`PROXY_EVERYTHING_ARG`] and [`DISABLE_QUIC_ARG`].
-- `configure_launch`: Points a Chrome launch at this proxy: the proxy with its token (answered over `Fetch.authRequired`, never put on the command line), [`MitmProxy::chrome_args`], and [`MitmProxy::prime_url`] as the start page, so that the browser holds the proxy's credentials before any WebSocket.
+- `launch_args`: The Chrome switches the proxy needs besides `--proxy-server`: the leaf pin (never the CA pin), [`PROXY_EVERYTHING_ARG`] and [`DISABLE_QUIC_ARG`].
+- `configure_launch`: Points a Chrome launch (built `LaunchOptions`) at this proxy: the proxy with its token (answered over `Fetch.authRequired`, never put on the command line), [`MitmProxy::launch_args`], and [`MitmProxy::prime_url`] as the start page, so that the browser holds the proxy's credentials before any WebSocket.
 - `stats`: The counts so far.
-- `egress`: The egress requests leave through now, `None` for a direct connection.
-- `swap_upstream`: Sends the next requests through `egress` (or directly with `None`).
+- `proxy_route`: The proxy requests leave through now, `None` for a direct connection.
+- `swap_proxy`: Sends the next requests through `egress` (or directly with `None`).
 - `swap_wire_format`: Sends the next requests with `profile`'s fingerprint, through the same egress.
 - `shutdown`: Stops accepting, lets requests under way finish for up to `grace`, then aborts what is left. Every clone stops with it.
 

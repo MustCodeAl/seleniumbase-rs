@@ -522,6 +522,38 @@ let entry = proxies.pick(Some("shop.example")).expect("a proxy that is not resti
 proxies.report(entry, ProxyOutcome::ConnectFailed);
 ```
 
+A proxy rests until a moment that the list reads from the clock. A caller that keeps
+its own clock (a proxy pool that holds Unix seconds, or a test that moves time by
+hand) uses the forms that take the time as a `std::time::SystemTime`, the last
+argument: `pick_at(site, now)`, `pick_other_at(current, site, now)` and
+`report_at(entry, outcome, now)`. `pick`, `pick_other` and `report` are the same
+calls with the time of the clock. `pick_where(accept, site)` and
+`pick_where_at(accept, site, now)` choose only among the proxies a closure over the
+entry allows (the proxies named for one country, say), and a site that stuck to a
+proxy the closure refuses moves to one it allows. The list stays `Send + Sync`, so
+one list serves threads whichever clock drives it:
+
+```rust
+use std::time::{Duration, UNIX_EPOCH};
+use seleniumbase_rs::config::proxy_list::{ProxyList, ProxyOutcome};
+
+let proxies = ProxyList::parse("de = de.proxy.example:8080\nfr = fr.proxy.example:8080\n")?
+    .with_quarantine(1, Duration::from_secs(600));
+let at = |seconds| UNIX_EPOCH + Duration::from_secs(seconds);
+
+let german = proxies
+    .pick_where_at(|entry| entry.name() == Some("de"), None, at(1_000))
+    .expect("a German proxy");
+proxies.report_at(german, ProxyOutcome::Blocked, at(1_000));
+// It rests until second 1,600; the French proxy serves meanwhile.
+assert!(proxies.pick_where_at(|entry| entry.name() == Some("de"), None, at(1_599)).is_none());
+assert!(proxies.pick_where_at(|entry| entry.name() == Some("de"), None, at(1_600)).is_some());
+```
+
+The turn is a position in the list, so a proxy that starts to rest in the middle of a
+cycle leaves a gap and the others keep their order. A rest is held to a hundred years.
+
+
 
 `AdBlockList` is a set of hosts to refuse, with their subdomains.
 `AdBlockList::builtin()` is the crate's starter list of advertising and

@@ -31,7 +31,7 @@ impl BaseCase {
             FrameRef::Index(index) => {
                 return match driver.enter_frame(*index).await {
                     Ok(()) => Ok(true),
-                    Err(error) => Err(SeleniumBaseError::WebDriver(error)),
+                    Err(error) => Err(error.into()),
                 };
             }
             FrameRef::Locator(locator) => locator,
@@ -56,7 +56,7 @@ impl BaseCase {
                         Err(error) => refusal = Some(error),
                     }
                 }
-        refusal.map_or(Ok(false), |error| Err(SeleniumBaseError::WebDriver(error)))
+        refusal.map_or(Ok(false), |error| Err(error.into()))
     }
 
     /// [`try_enter_frame`](Self::try_enter_frame) on a direct CDP attachment:
@@ -160,7 +160,7 @@ impl BaseCase {
             self.wait_secs(timeout),
             format!("Window {{{window}}} was not present"),
             || async move {
-                let handles = self.get_all_window_handles().await?;
+                let handles = self.all_window_handles().await?;
                 Ok(match window.pick(&handles) {
                     Some(handle) => Polled::Found(handle),
                     None => Polled::Pending {

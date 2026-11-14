@@ -30,7 +30,7 @@ SRC = ROOT / "src"
 # Python names that map onto a differently named Rust item.
 BASECASE_COMPOSED = {
     "type": ("BaseCase::type_text", "One canonical name: Rust has type_text only."),
-    "get_google_auth_password": ("BaseCase::get_mfa_code", "Same TOTP computation."),
+    "get_google_auth_password": ("BaseCase::mfa_code", "Same TOTP computation."),
     "skip": (
         "BaseCase::skip_test",
         "Returns Err(SeleniumBaseError::Skipped); run_browser_test counts that as a pass and logs the reason.",
@@ -181,7 +181,7 @@ CDP_COMPOSED.update({
     "download_file": "Browser::set_download_dir",
     "get_path_of_downloaded_file": "Browser::set_download_dir",
     "assert_downloaded_file": "Browser::set_download_dir",
-    "get_mfa_code": "BaseCase::get_mfa_code",
+    "get_mfa_code": "BaseCase::mfa_code",
     "enter_mfa_code": "BaseCase::enter_mfa_code",
     "gui_click_x_y": "Gui::click", "gui_click_with_offset": "Gui::click",
     "gui_click_element": "Gui::click", "gui_click_and_hold": "Gui::mouse_down",

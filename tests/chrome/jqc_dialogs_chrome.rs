@@ -105,7 +105,7 @@ async fn a_clicked_button_is_the_answer() {
     arm_the_person(&sb, CLICK_SECOND).await;
 
     let answer = sb
-        .get_jqc_button_input("Pick <b>one</b>", [("First", "green"), ("Second", "red")])
+        .jqc_button_input("Pick <b>one</b>", [("First", "green"), ("Second", "red")])
         .await
         .expect("the dialog is answered");
 
@@ -128,7 +128,7 @@ async fn a_key_clicks_the_button_it_belongs_to() {
     arm_the_person(&sb, PRESS_N).await;
 
     let answer = sb
-        .get_jqc_button_input("Sure?", ["Yes", "No"])
+        .jqc_button_input("Sure?", ["Yes", "No"])
         .await
         .expect("the dialog is answered");
 
@@ -145,7 +145,7 @@ async fn the_text_of_the_input_is_the_answer_and_the_form_submits() {
     arm_the_person(&sb, TYPE_AND_SUBMIT).await;
 
     let text = sb
-        .get_jqc_text_input("Your name?")
+        .jqc_text_input("Your name?")
         .await
         .expect("the dialog is answered");
 
@@ -162,7 +162,7 @@ async fn a_form_answers_with_the_text_and_the_button() {
     arm_the_person(&sb, TYPE_AND_CLICK_SECOND).await;
 
     let (text, button) = sb
-        .get_jqc_form_inputs("Why?", [("Send", "green"), ("Cancel", "red")])
+        .jqc_form_inputs("Why?", [("Send", "green"), ("Cancel", "red")])
         .await
         .expect("the dialog is answered");
 
@@ -180,7 +180,7 @@ async fn the_stored_theme_and_a_calls_own_options_style_the_box() {
         .expect("a valid theme");
     arm_the_person(&sb, CLICK_SECOND).await;
 
-    sb.get_jqc_button_input("Styled", ["One", "Two"])
+    sb.jqc_button_input("Styled", ["One", "Two"])
         .await
         .expect("the dialog is answered");
     let stored = seen(&sb).await;
@@ -192,7 +192,7 @@ async fn the_stored_theme_and_a_calls_own_options_style_the_box() {
     // The options of one call win for that call, and the next call is back to
     // the stored theme.
     arm_the_person(&sb, CLICK_SECOND).await;
-    sb.get_jqc_button_input("Own", ["One", "Two"])
+    sb.jqc_button_input("Own", ["One", "Two"])
         .theme(JqcTheme::Modern)
         .color(JqcColor::Green)
         .options([("width", "450")])
@@ -206,7 +206,7 @@ async fn the_stored_theme_and_a_calls_own_options_style_the_box() {
 
     sb.reset_jqc_theme();
     arm_the_person(&sb, CLICK_SECOND).await;
-    sb.get_jqc_button_input("Reset", ["One", "Two"])
+    sb.jqc_button_input("Reset", ["One", "Two"])
         .await
         .expect("the dialog is answered");
     let reset = seen(&sb).await;
@@ -226,7 +226,7 @@ async fn nobody_answering_ends_with_the_time_limit() {
     sb.set_time_limit(1).expect("set the limit");
 
     let error = sb
-        .get_jqc_button_input("Anyone there?", ["OK"])
+        .jqc_button_input("Anyone there?", ["OK"])
         .await
         .expect_err("nobody answers, so the time limit ends the wait");
 
@@ -249,13 +249,13 @@ async fn in_a_headless_browser_the_dialogs_do_not_open() {
     sb.open(PAGE).await.expect("open the page");
 
     let button = sb
-        .get_jqc_button_input("Sure?", ["First", "Last"])
+        .jqc_button_input("Sure?", ["First", "Last"])
         .await
         .expect("answered at once");
     assert_eq!(button, "Last");
-    assert_eq!(sb.get_jqc_text_input("Name?").await.unwrap(), "");
+    assert_eq!(sb.jqc_text_input("Name?").await.unwrap(), "");
     assert_eq!(
-        sb.get_jqc_form_inputs("Why?", ["A", "B"]).await.unwrap(),
+        sb.jqc_form_inputs("Why?", ["A", "B"]).await.unwrap(),
         (String::new(), "B".to_owned())
     );
     // Not even the library was loaded into the page.

@@ -42,12 +42,12 @@ async fn test_shadow_dom(sb: Sb) -> Result<()> {
         sb.type_text(search_input, "sbase").await?;
         // TODO(source line 63): 'file_name_1' is not defined because its assignment was not converted
         //     self.assert_text(file_name_1, file_link)
-        let text = sb.get_text(file_link).await?;
+        let text = sb.text(file_link).await?;
         println!("{}", format!("\n  Download 1: {}", text));
         sb.type_text(search_input, "seleniumbase").await?;
         // TODO(source line 66): 'file_name_2' is not defined because its assignment was not converted
         //     self.assert_text(file_name_2, file_link)
-        let text_2 = sb.get_text(file_link).await?;
+        let text_2 = sb.text(file_link).await?;
         println!("{}", format!("  Download 2: {}", text_2));
         sb.click(clear_search_icon).await?;
         sb.type_text(search_input, "fake-file.zzz").await?;

@@ -67,7 +67,7 @@ async fn drive(browser: &Browser, url: &str) -> seleniumbase_rs::Result<()> {
 
     // This project's API: open the page, read it, check the stealth, take a screenshot.
     page.open(url).await?;
-    println!("Page heading: {}", page.get_text("h1").await?);
+    println!("Page heading: {}", page.text("h1").await?);
     println!(
         "Flagged as automated (navigator.webdriver === true): {}",
         page.evaluate("navigator.webdriver === true").await?

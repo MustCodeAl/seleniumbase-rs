@@ -1474,7 +1474,7 @@ mod tests {
             "",
             // The label is the colorama pair of the recorder's breakpoint.
             "\x1b[34;106m[BREAKPOINT]\x1b[0m: Paused at login page setup.",
-            "  \x1b[2mtest:\x1b[0m  \x1b[1;35mlogin.valid_login\x1b[0m   page: \x1b[36mhttps://example.com/login\x1b[0m  \x1b[2m\"Login\"\x1b[0m",
+            "  \x1b[2mtest:\x1b[0m  \x1b[35;1mlogin.valid_login\x1b[0m   page: \x1b[36mhttps://example.com/login\x1b[0m  \x1b[2m\"Login\"\x1b[0m",
             "Perform your manual actions in the browser now.",
             "\x1b[2mCommands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help\x1b[0m",
             "Type 'c' and press [ENTER] to continue execution: ",
@@ -1540,11 +1540,11 @@ mod tests {
         .await;
 
         assert!(
-            text.contains("\x1b[1;97;41m[POST MORTEM]\x1b[0m: "),
+            text.contains("\x1b[97;41;1m[POST MORTEM]\x1b[0m: "),
             "white on red: {text:?}"
         );
         assert!(
-            text.contains("\x1b[1;31mnavigation to 'https://example.com/gone' failed: net::ERR_NAME_NOT_RESOLVED\x1b[0m"),
+            text.contains("\x1b[31;1mnavigation to 'https://example.com/gone' failed: net::ERR_NAME_NOT_RESOLVED\x1b[0m"),
             "the error is bold red: {text:?}"
         );
         assert!(

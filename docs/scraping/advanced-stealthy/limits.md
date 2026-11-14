@@ -156,7 +156,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::VersionMismatch`, `StealthError::Impersonate`" icon="code-compare">
+<Accordion title="`HttpError::VersionMismatch`, `StealthError::WireFormat`" icon="code-compare">
 
 **Likely cause.** The page, the identity or the installed Chrome is another major than the measured one.
 
@@ -164,7 +164,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::Impersonate` for a page" icon="user-secret">
+<Accordion title="`HttpError::WireFormat` for a page" icon="user-secret">
 
 **Likely cause.** The page announces itself as `HeadlessChrome`, is not Chrome, or runs on a system that was not measured.
 

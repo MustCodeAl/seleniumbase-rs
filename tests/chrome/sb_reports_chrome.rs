@@ -3,8 +3,6 @@
 //! one binary at a time. The mock runs of `tests/sb_reports.rs` cover the rest.
 #![cfg(feature = "testing")]
 
-use std::sync::Arc;
-
 use seleniumbase_rs::core::report_helper::TestStatus;
 use seleniumbase_rs::core::test_run::{ReportSettings, RunKey, TestRun};
 use seleniumbase_rs::testing::SbCdp;
@@ -35,9 +33,9 @@ async fn a_failing_cdp_test_is_on_the_dashboard_with_the_evidence_of_a_real_page
         },
         ..Settings::default()
     })
-    .report_to(Arc::clone(&run));
+    .report_to(run.clone());
     let id = fixture.test_id().to_owned();
-    let live = Arc::clone(&run);
+    let live = run.clone();
 
     let result = fixture
         .run(async |page| {

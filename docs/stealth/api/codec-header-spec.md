@@ -41,10 +41,10 @@ fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecE
 ```rust The measured priority table
 use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::measurement;
-use seleniumbase_rs_stealth::codec::BrowserKind;
+use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let chrome = measurement::get(BrowserKind::Chrome, OsType::Macos)?;
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
     println!("{:?}", chrome.headers.priority_for("document"));
     println!("{:?}", chrome.headers.priority_for("empty"));
     Ok(())
@@ -280,8 +280,12 @@ impl ClientHeaders {
     ) -> Self;
     pub fn with_cookie(mut self, value: impl Into<String>) -> Self;
     pub fn with_override(mut self, name: impl Into<String>, value: impl Into<String>) -> Self;
+    pub fn with_client_hints_from(self, hints: &ClientHints) -> Self;
     pub fn from_captured<N: AsRef<str>, V: AsRef<str>>(headers: &[(N, V)]) -> Option<Self>;
+    pub fn from_fingerprint(fingerprint: &Fingerprint) -> Option<Self>;
 }
+
+pub fn chrome_major(user_agent: &str) -> Option<u32>;
 ```
 
 The caller's values for the placeholders of a `HeaderSpec`. The cookie is a
@@ -310,7 +314,19 @@ last one given wins.
 `new` makes an identity with a user agent and nothing else. `with_client_hints`
 sets the three client-hint headers a browser sends on every request.
 `from_captured` reads the identity a captured header list shows, or `None` when it
-has no `User-Agent`.
+has no `User-Agent`: the values a real browser sent.
+
+`from_fingerprint` reads the identity a core `Fingerprint` claims: its user agent,
+its languages (`accept_languages`, else `languages`) and its client hints, or
+`None` when the fingerprint has no user agent. The client hints are the
+fingerprint's own when it sets them. Otherwise they are the ones Chrome sends for the
+major its user agent claims, as core computes them (`chromium_hints`), on the
+fingerprint's operating system; a fingerprint that turns client hints off, or whose
+user agent names no Chrome, gets none. This is the default way to fill them, so
+that an HTTP client claims what the browser tab claims; `from_captured` is the
+other way. `with_client_hints_from` sets the three client-hint headers from core's
+`ClientHints` (the brand list, whether it is mobile, and the platform), and
+`chrome_major` reads the Chrome major a user agent names.
 
 ## `RequestShape`
 

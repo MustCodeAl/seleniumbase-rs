@@ -155,7 +155,7 @@ async fn an_interstitial_clears_to_the_real_page_with_a_clearance_cookie() {
         .await,
         "the real page did not load"
     );
-    let cookies = sb.get_cookies().await.expect("cookies");
+    let cookies = sb.cookies().await.expect("cookies");
     assert!(
         cookies.iter().any(|cookie| cookie.name == "cf_clearance"),
         "{cookies:?}"

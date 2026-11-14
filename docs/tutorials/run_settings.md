@@ -343,7 +343,7 @@ times longer. Keep them off unless a person is watching.
   config file or `Settings`. The `sbrs` CLI and the MCP servers do not set them.
   Use a helper like the one above.
 - **One `BaseCase`.** The settings belong to the `BaseCase` you called
-  `set_run_settings` on. The extra browsers that `get_new_driver` opens belong to
+  `set_run_settings` on. The extra browsers that `new_driver` opens belong to
   that same `BaseCase` and share its settings; another `BaseCase` starts from the
   defaults.
 - **WebDriver engine only.** The pure CDP engine (`sb_cdp`) has no `RunSettings`.

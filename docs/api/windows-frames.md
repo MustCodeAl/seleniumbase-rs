@@ -32,9 +32,9 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `set_window_size(w, h)` | Resizes window. |
 | `set_window_position(x, y)` | Moves window. |
 | `set_window_rect(x, y, w, h)` | Sets position and size. |
-| `get_window_rect()` | Returns `(x, y, width, height)`. |
-| `get_screen_rect()` | Returns `(width, height)`. |
-| `get_new_driver()` / `get_new_driver_with(config)` | Opens a new browser with the current configuration (or `config`), makes it active and returns its `DriverId`. The browser that was active stays open. |
+| `window_rect()` | Returns `(x, y, width, height)`. |
+| `screen_rect()` | Returns `(width, height)`. |
+| `new_driver()` / `new_driver_with(config)` | Opens a new browser with the current configuration (or `config`), makes it active and returns its `DriverId`. The browser that was active stays open. |
 | `switch_to_driver(id)` | Makes the browser `id` the active one. Repeating the call changes nothing. An id that does not exist or was quit returns `InvalidConfig` and changes nothing. |
 | `switch_to_default_driver()` | Makes the browser the case started with (`DriverId::DEFAULT`) the active one, however many others were opened. |
 | `quit_extra_driver(id)` | Quits the browser `id`. When it is the active one, the case switches to the default browser. The default browser itself is quit with `quit()`. |

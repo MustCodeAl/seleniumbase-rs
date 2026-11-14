@@ -126,7 +126,7 @@ impl std::fmt::Display for ResourceError {
 
 impl std::error::Error for ResourceError {}
 
-/// The future a resource reader returns.
+/// The future a resource reader returns. A boxed future, because readers are stored as trait objects.
 pub type ResourceFuture = Pin<Box<dyn Future<Output = Result<ResourceBody, ResourceError>> + Send>>;
 
 type Reader<S> = Box<dyn Fn(Ctx<S>, String) -> ResourceFuture + Send + Sync>;

@@ -72,20 +72,20 @@ async fn run(test: impl AsyncFnOnce(&mut BaseCase, &str) -> Result<()>) -> Resul
 async fn a_case_reads_the_page_and_moves_through_its_history() -> Result<()> {
     run(async |sb, url| {
         sb.open(url).await?;
-        assert_eq!(sb.get_title().await?, "BaseCase over CDP");
+        assert_eq!(sb.title().await?, "BaseCase over CDP");
         sb.assert_title("BaseCase over CDP").await?;
-        assert_eq!(sb.get_text("#title").await?, "BaseCase over CDP");
-        assert_eq!(sb.get_text("#greeting").await?, "Hello world");
+        assert_eq!(sb.text("#title").await?, "BaseCase over CDP");
+        assert_eq!(sb.text("#greeting").await?, "Hello world");
         assert_eq!(
-            sb.get_text("#name").await?,
+            sb.text("#name").await?,
             "Ada",
             "an input's text is its value"
         );
         assert_eq!(
-            sb.get_attribute("#name", "data-kind").await?.as_deref(),
+            sb.attribute("#name", "data-kind").await?.as_deref(),
             Some("person")
         );
-        assert!(sb.get_page_source().await?.contains("id=\"greeting\""));
+        assert!(sb.page_source().await?.contains("id=\"greeting\""));
         sb.assert_text("Hello", "#greeting").await?;
         sb.assert_element("#docs").await?;
 
@@ -99,7 +99,7 @@ async fn a_case_reads_the_page_and_moves_through_its_history() -> Result<()> {
         // A link, the history and a reload.
         sb.click_link("Docs link").await?;
         sb.wait_for_title("Second", 5).await?;
-        assert!(sb.get_current_url().await?.ends_with("/?page=2"));
+        assert!(sb.current_url().await?.ends_with("/?page=2"));
         sb.go_back().await?;
         sb.wait_for_title("BaseCase", 5).await?;
         sb.go_forward().await?;
@@ -118,14 +118,11 @@ async fn a_case_types_selects_checks_and_submits() -> Result<()> {
     run(async |sb, url| {
         sb.open(url).await?;
         sb.type_text("#name", "Grace").await?;
-        assert_eq!(sb.get_text("#name").await?, "Grace");
+        assert_eq!(sb.text("#name").await?, "Grace");
         sb.add_text("#notes", " and more").await?;
-        assert_eq!(sb.get_text("#notes").await?, "First note and more");
+        assert_eq!(sb.text("#notes").await?, "First note and more");
         sb.select_option_by_text("#color", "Green").await?;
-        assert_eq!(
-            sb.get_attribute("#color", "value").await?.as_deref(),
-            Some("g")
-        );
+        assert_eq!(sb.attribute("#color", "value").await?.as_deref(), Some("g"));
 
         sb.check_if_unchecked("#agree").await?;
         assert!(sb.is_checked("#agree").await?);
@@ -136,9 +133,9 @@ async fn a_case_types_selects_checks_and_submits() -> Result<()> {
         sb.assert_text("submitted Grace", "#result").await?;
 
         sb.set_value("#name", "By script").await?;
-        assert_eq!(sb.get_text("#name").await?, "By script");
+        assert_eq!(sb.text("#name").await?, "By script");
         sb.press_keys("#name", "!").await?;
-        assert_eq!(sb.get_text("#name").await?, "By script!");
+        assert_eq!(sb.text("#name").await?, "By script!");
         Ok(())
     })
     .await
@@ -186,7 +183,7 @@ async fn a_case_enters_a_frame_and_leaves_it() -> Result<()> {
     run(async |sb, url| {
         sb.open(url).await?;
         sb.switch_to_frame("#frame").await?;
-        assert_eq!(sb.get_text("#inner").await?, "Inside");
+        assert_eq!(sb.text("#inner").await?, "Inside");
         sb.click("#inbtn").await?;
         sb.assert_text("clicked inside", "#inner").await?;
         // Scripts run in the frame the case is in.
@@ -197,7 +194,7 @@ async fn a_case_enters_a_frame_and_leaves_it() -> Result<()> {
         );
         sb.switch_to_default_content().await?;
         assert!(!sb.is_element_present("#inner").await?);
-        assert_eq!(sb.get_text("#title").await?, "BaseCase over CDP");
+        assert_eq!(sb.text("#title").await?, "BaseCase over CDP");
 
         sb.frame_switch("#frame")
             .run(async |sb| sb.assert_text("clicked inside", "#inner").await)
@@ -214,25 +211,25 @@ async fn a_case_enters_a_frame_and_leaves_it() -> Result<()> {
 async fn a_case_opens_switches_and_closes_tabs_and_resizes_the_window() -> Result<()> {
     run(async |sb, url| {
         sb.open(url).await?;
-        let first = sb.get_current_window_handle().await?;
+        let first = sb.current_window_handle().await?;
 
         sb.open_new_tab().await?;
-        assert_eq!(sb.get_all_window_handles().await?.len(), 2);
-        assert_ne!(sb.get_current_window_handle().await?, first);
+        assert_eq!(sb.all_window_handles().await?.len(), 2);
+        assert_ne!(sb.current_window_handle().await?, first);
         sb.open(&format!("{url}?page=2")).await?;
-        assert_eq!(sb.get_title().await?, "Second page");
+        assert_eq!(sb.title().await?, "Second page");
 
         sb.switch_to_window(first.as_str()).await?;
-        assert_eq!(sb.get_title().await?, "BaseCase over CDP");
+        assert_eq!(sb.title().await?, "BaseCase over CDP");
         sb.switch_to_newest_window().await?;
-        assert_eq!(sb.get_title().await?, "Second page");
+        assert_eq!(sb.title().await?, "Second page");
         sb.close_window().await?;
         sb.switch_to_default_window().await?;
-        assert_eq!(sb.get_all_window_handles().await?, [first]);
-        assert_eq!(sb.get_title().await?, "BaseCase over CDP");
+        assert_eq!(sb.all_window_handles().await?, [first]);
+        assert_eq!(sb.title().await?, "BaseCase over CDP");
 
         sb.set_window_size(900, 700).await?;
-        let (_, _, width, height) = sb.get_window_rect().await?;
+        let (_, _, width, height) = sb.window_rect().await?;
         assert_eq!((width, height), (900, 700));
         Ok(())
     })
@@ -245,20 +242,17 @@ async fn a_case_opens_switches_and_closes_tabs_and_resizes_the_window() -> Resul
 async fn a_case_reads_writes_and_saves_cookies() -> Result<()> {
     run(async |sb, url| {
         sb.open(url).await?;
-        let cookies = sb.get_cookies().await?;
+        let cookies = sb.cookies().await?;
         assert!(
             cookies
                 .iter()
                 .any(|cookie| cookie.name == "visited" && cookie.value == "yes"),
             "{cookies:?}"
         );
-        assert!(sb.get_cookie_string().await?.contains("visited=yes"));
+        assert!(sb.cookie_string().await?.contains("visited=yes"));
 
         sb.add_cookie(&Cookie::new("theme", "dark")).await?;
-        assert_eq!(
-            sb.get_cookie("theme").await?.expect("the cookie").value,
-            "dark"
-        );
+        assert_eq!(sb.cookie("theme").await?.expect("the cookie").value, "dark");
 
         let path = std::env::temp_dir().join(format!(
             "sbrs-cdp-chrome-cookies-{}.json",
@@ -266,17 +260,17 @@ async fn a_case_reads_writes_and_saves_cookies() -> Result<()> {
         ));
         sb.save_cookies_to_path(&path).await?;
         sb.clear_all_cookies().await?;
-        assert!(sb.get_cookie("theme").await?.is_none());
+        assert!(sb.cookie("theme").await?.is_none());
         sb.load_cookies_from_path(&path, Default::default()).await?;
         let _ = std::fs::remove_file(&path);
         assert_eq!(
-            sb.get_cookie("theme").await?.expect("loaded again").value,
+            sb.cookie("theme").await?.expect("loaded again").value,
             "dark"
         );
 
         sb.delete_cookie("theme").await?;
-        assert!(sb.get_cookie("theme").await?.is_none());
-        assert!(sb.get_cookie("visited").await?.is_some());
+        assert!(sb.cookie("theme").await?.is_none());
+        assert!(sb.cookie("visited").await?.is_some());
         Ok(())
     })
     .await

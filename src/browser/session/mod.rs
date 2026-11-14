@@ -44,6 +44,7 @@ use std::sync::Mutex;
 use serde_json::Value;
 use thirtyfour::prelude::WebDriver;
 
+use crate::browser::devtools::CdpClient;
 use crate::browser::launcher::DriverProcess;
 #[cfg(feature = "plugins")]
 use crate::browser::plugin_hooks::SessionPlugins;
@@ -51,7 +52,6 @@ use crate::browser::proxy_auth::ProxyAuthSidecar;
 use crate::browser::reuse::Lease;
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
-use crate::evasion::cdp::CdpClient;
 
 /// Owns a WebDriver session, optional CDP client, and optional auto-started driver process.
 pub struct BrowserSession {
@@ -95,25 +95,24 @@ pub struct BrowserSession {
     plugins: Option<SessionPlugins>,
 }
 
-impl BrowserSession {
-    /// WebDriver interaction: `connect`.
-    ///
-    /// # Panics
-    ///
-    /// On a direct CDP attachment (use `cdp_*` or [`pure_cdp_page`](Self::pure_cdp_page)),
-    /// after [`quit`](Self::quit), or after a [`reconnect`](Self::reconnect)
-    /// that could not start the new browser: the session then has no driver
-    /// and a new one must be started.
-    pub fn driver(&self) -> &WebDriver {
-        self.driver.as_ref().expect(
-            "the browser session has no WebDriver: it was quit, it is a direct CDP \
-                     attachment, or a reconnect could not start a new browser; \
-                     `webdriver()` returns an error instead of panicking",
-        )
+impl std::fmt::Debug for BrowserSession {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BrowserSession")
+            .field("has_driver", &self.driver.is_some())
+            .field("has_cdp", &self.cdp.is_some())
+            .field("external_page", &self.external_page.is_some())
+            .field("remote_debug", &self.remote_debug)
+            .field("reused", &self.reuse.is_some())
+            .finish_non_exhaustive()
     }
+}
 
-    /// The session's WebDriver, or an error where [`driver`](Self::driver)
-    /// panics.
+impl BrowserSession {
+    /// The session's [`WebDriver`], the raw type of the WebDriver
+    /// engine for a call that the session has no method for (Python's `self.driver`), or an
+    /// error when the session has none; it never panics.
+    /// A failed call on it is a [`WebDriverError`](crate::drivers::WebDriverError), which `?`
+    /// turns into a [`SeleniumBaseError`].
     ///
     /// Every WebDriver-backed method of the session, and of `BaseCase`, goes
     /// through this, so a session without a driver answers them with an error.

@@ -6,8 +6,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::cookie::Cookie;
-use crate::error::SeleniumBaseError;
-use thirtyfour::error::WebDriverErrorInner;
+use crate::error::{driver_kind, DriverErrorKind, SeleniumBaseError};
 
 use super::BrowserSession;
 
@@ -25,7 +24,7 @@ impl BrowserSession {
         self.webdriver()?
             .execute_async(script, vec![])
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
             .map(|ret| ret.json().clone())
     }
 
@@ -67,7 +66,7 @@ impl BrowserSession {
         self.webdriver()?
             .accept_alert()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// WebDriver interaction: `switch_to_alert_dismiss`.
@@ -78,7 +77,7 @@ impl BrowserSession {
         self.webdriver()?
             .dismiss_alert()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// WebDriver interaction: `get_alert_text`.
@@ -89,7 +88,7 @@ impl BrowserSession {
         self.webdriver()?
             .get_alert_text()
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// WebDriver interaction: `type_alert_text`.
@@ -100,7 +99,7 @@ impl BrowserSession {
         self.webdriver()?
             .send_alert_text(text)
             .await
-            .map_err(SeleniumBaseError::WebDriver)
+            .map_err(SeleniumBaseError::from)
     }
 
     /// Adds `cookie` to the browser through WebDriver, for the page the session is on.
@@ -119,7 +118,7 @@ impl BrowserSession {
         self.webdriver()?
             .add_cookie(cookie.to_webdriver())
             .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .map_err(SeleniumBaseError::from)?;
         Ok(())
     }
 
@@ -137,10 +136,8 @@ impl BrowserSession {
         match self.webdriver()?.get_named_cookie(name).await {
             Ok(cookie) => Ok(Some(Cookie::from_webdriver(&cookie))),
             // Python's `get_cookie` answers `None` for a cookie that is not there.
-            Err(error) if matches!(error.as_inner(), WebDriverErrorInner::NoSuchCookie(_)) => {
-                Ok(None)
-            }
-            Err(error) => Err(SeleniumBaseError::WebDriver(error)),
+            Err(error) if driver_kind(&error) == DriverErrorKind::CookieNotFound => Ok(None),
+            Err(error) => Err(error.into()),
         }
     }
 
@@ -155,7 +152,7 @@ impl BrowserSession {
         self.webdriver()?
             .delete_cookie(name)
             .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .map_err(SeleniumBaseError::from)?;
         Ok(())
     }
 
@@ -175,7 +172,7 @@ impl BrowserSession {
         self.webdriver()?
             .delete_all_cookies()
             .await
-            .map_err(SeleniumBaseError::WebDriver)?;
+            .map_err(SeleniumBaseError::from)?;
         Ok(())
     }
 

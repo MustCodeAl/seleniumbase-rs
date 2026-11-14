@@ -62,7 +62,7 @@ impl BaseCase {
     ///
     /// Needs the `pdf` Cargo feature.
     #[cfg(feature = "pdf")]
-    pub fn get_pdf_text(&self, filename: &str) -> Result<String, SeleniumBaseError> {
+    pub fn pdf_text(&self, filename: &str) -> Result<String, SeleniumBaseError> {
         pdf::extract_text_from_file(filename)
     }
 
@@ -71,7 +71,7 @@ impl BaseCase {
     /// Needs the `pdf` Cargo feature.
     #[cfg(feature = "pdf")]
     pub fn assert_pdf_text(&self, filename: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        let content = self.get_pdf_text(filename)?;
+        let content = self.pdf_text(filename)?;
         if !content.contains(text) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "PDF '{}' did not contain text '{}'",
@@ -82,8 +82,8 @@ impl BaseCase {
     }
 
     /// Returns a BeautifulSoup-style parser for the current page source.
-    pub async fn get_beautiful_soup_object(&self) -> Result<BeautifulSoup, SeleniumBaseError> {
-        let source = self.get_page_source().await?;
+    pub async fn beautiful_soup_object(&self) -> Result<BeautifulSoup, SeleniumBaseError> {
+        let source = self.page_source().await?;
         Ok(BeautifulSoup::parse(&source))
     }
 
@@ -96,7 +96,7 @@ impl BaseCase {
         }
 
     /// Returns the screen width via JavaScript.
-    pub async fn get_screen_width(&self) -> Result<i64, SeleniumBaseError> {
+    pub async fn screen_width(&self) -> Result<i64, SeleniumBaseError> {
         let value = self.execute_script("return window.screen.width;").await?;
         value
             .as_i64()
@@ -104,7 +104,7 @@ impl BaseCase {
     }
 
     /// Returns the screen height via JavaScript.
-    pub async fn get_screen_height(&self) -> Result<i64, SeleniumBaseError> {
+    pub async fn screen_height(&self) -> Result<i64, SeleniumBaseError> {
         let value = self.execute_script("return window.screen.height;").await?;
         value
             .as_i64()
@@ -114,7 +114,7 @@ impl BaseCase {
     /// Returns the locale the browser was configured with, if one was.
     ///
     /// `None` means no locale was set, so the browser uses its own default.
-    /// Use [`BaseCase::get_locale_code`] to ask the browser what it is using.
+    /// Use [`BaseCase::locale_code`] to ask the browser what it is using.
     pub fn configured_locale(&self) -> Option<&str> {
         self.config.browser.lang.as_deref()
     }
@@ -125,8 +125,8 @@ impl BaseCase {
     /// The `en-US` fallback is a guess, not what the browser reports: a browser
     /// started without a locale uses the operating system's. Call
     /// [`BaseCase::configured_locale`] to tell the two apart, or
-    /// [`BaseCase::get_locale_code`] for the locale the browser is using.
-    pub fn get_locale(&self) -> String {
+    /// [`BaseCase::locale_code`] for the locale the browser is using.
+    pub fn locale(&self) -> String {
         self.configured_locale().unwrap_or("en-US").to_owned()
     }
 
@@ -229,10 +229,10 @@ mod tests_pdf_html {
         let config = BrowserConfig::default();
         let sb = BaseCase::with_session(config.clone(), BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), None);
-        assert_eq!(sb.get_locale(), "en-US");
+        assert_eq!(sb.locale(), "en-US");
         let config = config.with_locale("de-DE");
         let sb = BaseCase::with_session(config, BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), Some("de-DE"));
-        assert_eq!(sb.get_locale(), "de-DE");
+        assert_eq!(sb.locale(), "de-DE");
     }
 }

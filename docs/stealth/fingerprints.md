@@ -62,7 +62,7 @@ WebGL strings, a time zone, and the policy
 | Preset | What it claims |
 |---|---|
 | `Fingerprint::windows_desktop()` | Chrome 156 on Windows 10, 1920x1080, 8 cores, 8 GB, `en-US`, `America/New_York`, an NVIDIA RTX 4070 Ti through ANGLE and Direct3D 11. |
-| `Fingerprint::edge_desktop()` | The Windows preset as Microsoft Edge 156. The user agent ends with `Edg/156.0.0.0`, and the Client Hints name `Microsoft Edge` where Chrome names itself `Google Chrome` (`randomize::edge_hints`; Edge's full versions are not in the Chrome table, so they are the frozen `156.0.0.0`). |
+| `Fingerprint::edge_desktop()` | The Windows preset as Microsoft Edge 157. The user agent ends with `Edg/157.0.0.0`, and the Client Hints name `Microsoft Edge` where Chrome names itself `Google Chrome` (`randomize::edge_hints`; Edge's full versions are not in the Chrome table, so they are the frozen `157.0.0.0`). |
 | `Fingerprint::macos_desktop()` | Chrome 156 on macOS (`Macintosh; Intel Mac OS X 10_15_7`), 1920x1080, `America/Los_Angeles`, and the WebGL strings Chrome reports on a Mac: `Google Inc. (Apple)` and `ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)`. The user agent is Chrome's, not Safari's. |
 | `Fingerprint::linux_desktop()` | Chrome 156 on Linux x86_64, 1920x1080, `America/Chicago`, an NVIDIA RTX 4070 through ANGLE over OpenGL (`Google Inc. (NVIDIA Corporation)`), worded as a generated Linux identity words it. |
 | `Fingerprint::android_mobile()` | Chrome 156 on Android, in Chrome's frozen user agent (`Linux; Android 10; K`), 412x915 at a device pixel ratio of 3, 5 touch points, Adreno 740. |
@@ -155,7 +155,7 @@ Things to know:
 - **Client Hints carry a real full version.** The user agent keeps Chrome's
   frozen `major.0.0.0`, but `uaFullVersion` and `fullVersionList` name a real
   build from `randomize::KNOWN_FULL_VERSIONS`: 154.0.8037.100 and
-  156.0.8078.35 from Google's published stable releases, and 155.0.8059.40 as
+  156.0.8078.35 and 157.0.8103.38 from Google's published stable releases, and 155.0.8059.40 as
   Chrome 155 reported it on a Mac (`tests/client_hints_chrome.rs`). A major the
   table does not list (one forced with `randomized_with_major`) falls back to
   `major.0.0.0`.

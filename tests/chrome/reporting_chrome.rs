@@ -10,7 +10,6 @@
 //! ```
 
 use std::fs;
-use std::sync::Arc;
 
 use seleniumbase_rs::core::report_helper::TestStatus;
 use seleniumbase_rs::core::test_run::{ReportSettings, RunKey, TestRun};
@@ -32,7 +31,7 @@ async fn a_failing_test_leaves_a_real_screenshot_the_source_and_the_info() {
         RunKey::new("chrome"),
     )
     .unwrap();
-    let mut plugins = Plugins::new().with(RunReporterPlugin::with_run(Arc::clone(&run)));
+    let mut plugins = Plugins::new().with(RunReporterPlugin::with_run(run.clone()));
     let options = LaunchOptions::builder()
         .headless(true)
         .no_sandbox(std::env::var_os("CI").is_some())

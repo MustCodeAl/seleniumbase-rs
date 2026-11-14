@@ -37,7 +37,7 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns the WebDriver error if the cookies cannot be read.
-    pub async fn get_cookie_string(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn cookie_string(&self) -> Result<String, SeleniumBaseError> {
         let cookies = self.session.all_cookies().await?;
         Ok(cookie_header(
             cookies

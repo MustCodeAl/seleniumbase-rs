@@ -19,7 +19,7 @@ async fn test_todomvc(sb: Sb, #[case] framework: &str) -> Result<()> {
         sb.assert_element("section.todoapp").await?;
         sb.assert_text("todos", "header h1").await?;
         sb.wait_for_ready_state_complete().await?;
-        let title = sb.get_title().await?;
+        let title = sb.title().await?;
         sb.assert_in(framework, &title.to_lowercase())?;
         let new_todo_input = "input.new-todo";
         let todo_count_span = "span.todo-count";

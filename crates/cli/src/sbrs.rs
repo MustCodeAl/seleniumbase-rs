@@ -2124,7 +2124,7 @@ async fn solve_captcha_and_expect(
         println!("The page shows '{text}'.");
     }
     if let Some(name) = expect_cookie {
-        let cookies = sb.get_cookies().await?;
+        let cookies = sb.cookies().await?;
         if !cookies.iter().any(|cookie| cookie.name == name) {
             return Err(seleniumbase_rs::SeleniumBaseError::AssertionFailed(
                 format!("the browser holds no cookie named '{name}'"),
@@ -2389,8 +2389,8 @@ impl PageEnd {
     /// Says where the browser is and saves the screenshot, as asked, and quits the browser.
     async fn finish(self, sb: &mut BaseCase) -> Result<(), Box<dyn std::error::Error>> {
         if self.now_at {
-            let url = sb.get_current_url().await?;
-            let title = sb.get_title().await?;
+            let url = sb.current_url().await?;
+            let title = sb.title().await?;
             println!("Now at: {url} ({title})");
         }
         if self.screenshot {
@@ -3844,7 +3844,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::Open { url } => {
             let mut sb = BaseCase::new(config).await?;
             sb.open(&url).await?;
-            let title = sb.get_title().await?;
+            let title = sb.title().await?;
             println!("Title: {title}");
             after.finish(&mut sb).await?;
         }
@@ -3858,7 +3858,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 sb.assert_title_contains(expected).await?;
                 println!("Assertion passed: title contains '{expected}'");
             } else {
-                println!("Loaded: {}", sb.get_title().await?);
+                println!("Loaded: {}", sb.title().await?);
             }
             after.finish(&mut sb).await?;
         }
@@ -3895,7 +3895,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         Commands::SaveSource { path } => {
             let mut sb = BaseCase::new(config).await?;
             if let Some(target_path) = path.as_deref() {
-                let source = sb.get_page_source().await?;
+                let source = sb.page_source().await?;
                 write_creating_parent(Path::new(target_path), source.as_bytes())?;
                 println!("Saved page source: {target_path}");
             } else {
@@ -3968,13 +3968,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
         Commands::GetText { css } => {
             let mut sb = BaseCase::new(config).await?;
-            let text = sb.get_text(&css).await?;
+            let text = sb.text(&css).await?;
             println!("Text for '{}': {}", css, text);
             after.finish(&mut sb).await?;
         }
         Commands::GetAttribute { css, attribute } => {
             let mut sb = BaseCase::new(config).await?;
-            let val = sb.get_attribute(&css, &attribute).await?;
+            let val = sb.attribute(&css, &attribute).await?;
             if let Some(v) = val {
                 println!("Attribute '{}' for '{}': {}", attribute, css, v);
             } else {
@@ -3984,7 +3984,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GetProperty { css, property } => {
             let mut sb = BaseCase::new(config).await?;
-            let val = sb.get_property(&css, &property).await?;
+            let val = sb.property(&css, &property).await?;
             if let Some(v) = val {
                 println!("Property '{}' for '{}': {}", property, css, v);
             } else {
@@ -3995,13 +3995,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
         Commands::GetTitle => {
             let mut sb = BaseCase::new(config).await?;
-            let title = sb.get_title().await?;
+            let title = sb.title().await?;
             println!("Title: {}", title);
             after.finish(&mut sb).await?;
         }
         Commands::GetCurrentUrl => {
             let mut sb = BaseCase::new(config).await?;
-            let url = sb.get_current_url().await?;
+            let url = sb.current_url().await?;
             println!("Current URL: {}", url);
             after.finish(&mut sb).await?;
         }
@@ -4027,7 +4027,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GetAlertText => {
             let mut sb = BaseCase::new(config).await?;
-            let text = sb.get_alert_text().await?;
+            let text = sb.alert_text().await?;
             println!("Alert text: {}", text);
             after.finish(&mut sb).await?;
         }
@@ -4045,7 +4045,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GetLocalStorageItem { key } => {
             let mut sb = BaseCase::new(config).await?;
-            let val = sb.get_local_storage_item(&key).await?;
+            let val = sb.local_storage_item(&key).await?;
             println!("Local storage item '{}': {}", key, val);
             after.finish(&mut sb).await?;
         }
@@ -4064,7 +4064,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
         Commands::GetCookies => {
             let mut sb = BaseCase::new(config).await?;
-            let cookies = sb.get_cookies().await?;
+            let cookies = sb.cookies().await?;
             println!("Cookies: {}", serde_json::to_string(&cookies)?);
             after.finish(&mut sb).await?;
         }
@@ -4132,7 +4132,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GetWindowPosition => {
             let mut sb = BaseCase::new(config).await?;
-            let (x, y) = sb.get_window_position().await?;
+            let (x, y) = sb.window_position().await?;
             println!("Window position: x={}, y={}", x, y);
             after.finish(&mut sb).await?;
         }
@@ -4214,7 +4214,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::GetValue { css } => {
             let mut sb = BaseCase::new(config).await?;
-            let value = sb.get_value(&css).await?;
+            let value = sb.value(&css).await?;
             println!("Value of '{}': {}", css, value);
             after.finish(&mut sb).await?;
         }
@@ -4551,7 +4551,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let mut sb = BaseCase::new(config).await?;
             let (path, _scratch) = resolve_pdf(&mut sb, &url, save_pdf.as_deref()).await?;
             let target = path.to_str().ok_or("PDF path is not valid UTF-8")?;
-            let text = sb.get_pdf_text(target)?;
+            let text = sb.pdf_text(target)?;
             after.finish(&mut sb).await?;
             println!("{text}");
         }
@@ -4579,7 +4579,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
             let outcome = sb.choose_file(&selector, &file).await;
             let value = match outcome {
-                Ok(()) => sb.get_value(&selector).await.unwrap_or_default(),
+                Ok(()) => sb.value(&selector).await.unwrap_or_default(),
                 Err(err) => {
                     let _ = sb.quit().await;
                     return Err(err.into());

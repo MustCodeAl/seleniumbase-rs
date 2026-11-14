@@ -490,10 +490,7 @@ async fn base_case_refuses_a_proxy_on_an_attached_app_before_it_connects() {
     let config = BrowserConfig::default()
         .with_cdp_url(&server.http)
         .with_proxy("alice:hunter2@proxy.example:3128");
-    let error = BaseCase::new(config)
-        .await
-        .err()
-        .expect("a proxy is refused");
+    let error = BaseCase::new(config).await.expect_err("a proxy is refused");
     assert!(
         matches!(error, SeleniumBaseError::InvalidConfig(_)),
         "{error:?}"
@@ -537,7 +534,7 @@ async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() 
     let server = AttachServer::start(None).await;
     let mut config = BrowserConfig::default().with_cdp_url(&server.http);
     config.browser.user_agent = Some("Custom/1.0".to_owned());
-    let error = BaseCase::new(config).await.err().expect("refused");
+    let error = BaseCase::new(config).await.expect_err("refused");
     assert!(
         matches!(error, SeleniumBaseError::InvalidConfig(_)),
         "{error:?}"
@@ -587,9 +584,9 @@ async fn a_call_that_needs_a_webdriver_on_a_cdp_attachment_is_an_error_not_a_pan
     assert_eq!(session.current_title().await.unwrap(), "Tauri window");
 
     let mut case = BaseCase::with_session(config, session);
-    let error = case.get_chromedriver_version().unwrap_err();
+    let error = case.chromedriver_version().unwrap_err();
     assert!(
-        matches!(&error, SeleniumBaseError::Unsupported(text) if text.contains("get_browser_version")),
+        matches!(&error, SeleniumBaseError::Unsupported(text) if text.contains("browser_version")),
         "the error names the alternative: {error:?}"
     );
     case.quit().await.unwrap();

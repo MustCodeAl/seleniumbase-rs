@@ -51,8 +51,8 @@ See [Recorder Mode](/tutorials/recorder_mode) for `sbrs mkrec`, the output forma
 
 | Method | Description |
 |--------|-------------|
-| `get_beautiful_soup()` | Returns a BeautifulSoup-style parser for the page. |
-| `get_beautiful_soup_object()` | Alias for `get_beautiful_soup`. |
+| `beautiful_soup()` | Returns a BeautifulSoup-style parser for the page. |
+| `beautiful_soup_object()` | Alias for `beautiful_soup`. |
 | `convert_css_to_xpath(css)` | Converts a CSS selector to an XPath expression. |
 | `convert_xpath_to_css(xpath)` | Converts a simple XPath expression (a tag with attribute tests) to a CSS selector; any other XPath is an `InvalidSelector` error. |
 | `ad_block()` | Removes the ad elements of upstream's `AD_BLOCK_LIST` from the current page. |

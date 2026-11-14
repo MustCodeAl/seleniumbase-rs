@@ -159,13 +159,13 @@ impl BaseCase {
     async fn wait_while_shown(&self, folder: &str, end_selector: Option<&str>) {
         let folder = format!("{folder}/");
         loop {
-            let Ok(handles) = self.get_all_window_handles().await else {
+            let Ok(handles) = self.all_window_handles().await else {
                 return;
             };
             if handles.is_empty() {
                 return;
             }
-            let Ok(url) = self.get_current_url().await else {
+            let Ok(url) = self.current_url().await else {
                 return;
             };
             if !url.contains(&folder) {

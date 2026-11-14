@@ -222,7 +222,7 @@ for. There is no connection to a solving service. The page for it is
 `ProxyPool` holds `(proxy, country)` pairs and picks by `RotationStrategy`
 (`RoundRobin`, `Random`, `LeastFailures`, `StickyPerSite`), quarantining a proxy
 after repeated failures. Changing egress opens a new browser context behind the
-new proxy (`ContextProxySwitch`) and drops the old one with its cookies, so the
+new proxy (core's `Browser::new_context_with` with `ContextOptions::proxy`) and drops the old one with its cookies, so the
 browser is not relaunched. That holds when the new proxy is in a country whose
 language and time zone the profile already presents; for another country the
 browser is started again, because the fingerprint is written into every
@@ -408,7 +408,7 @@ them. It is not a list of dependencies to add.
 
 | Crate | What it is |
 |---|---|
-| `seleniumbase-rs-codec` (`crates/codec`) | Pure wire formats, no I/O: a TLS `ClientHello` parser, JA3, JA4 and peetprint, the Akamai HTTP/2 fingerprint, HTTP/2 frame and HPACK reading, the TLS, HTTP/2 and header specs, and the measured browser table (`emulation`) embedded from `src/measured/*.json`. |
+| `seleniumbase-rs-codec` (`crates/codec`) | Pure wire formats, no I/O: a TLS `ClientHello` parser, JA3, JA4 and peetprint, the Akamai HTTP/2 fingerprint, HTTP/2 frame and HPACK reading, the TLS, HTTP/2 and header specs, and the measured browser table (`measurement`) embedded from `src/measured/*.json`. |
 | `seleniumbase-rs-scrape` (`crates/scrape`) | Stealth scraping without TLS spoofing, over the pure CDP engine of this crate. Pure modules for challenge detection, egress, an RFC 6265 cookie jar, the per-site ledger and the stealth identity; `runtime` holds the I/O (`BrowserScraper`, `JsonLedger`, the identity file, the capture tools). No BoringSSL. |
 | `seleniumbase-rs-wire` (`crates/wire`) | Browser-identical TLS and HTTP/2 through wreq `6.0.0-rc.31` and BoringSSL (`btls` and `tokio-btls` `0.5.6`): `WireFormat`, `HttpSession`, `MitmProxy`, `StealthSession`, `EphemeralCa` and the HTTP/2 capture tool. Needs cmake and a C/C++ toolchain. |
 

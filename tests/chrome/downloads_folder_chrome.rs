@@ -95,7 +95,7 @@ async fn a_webdriver_download_lands_in_downloaded_files() {
     let base = serve();
     let config = BrowserConfig::default();
     let mut sb = BaseCase::new(config).await.expect("start Chrome");
-    assert_eq!(sb.get_downloads_folder(), folder);
+    assert_eq!(sb.downloads_folder(), folder);
 
     let saved = sb
         .download_file_in_browser(

@@ -669,7 +669,9 @@ Launch and session plumbing:
 <LayoutFile name="chrome_for_testing.rs" note="Chrome for Testing builds" />
 <LayoutFile name="chromium_snapshots.rs" note="Chromium snapshot builds" />
 <LayoutFile name="config.rs" note="BrowserConfig, Browser and DriverMode" />
+<LayoutFile name="devtools.rs" note="CdpClient, the DevTools client of the WebDriver engine" />
 <LayoutFile name="download_progress.rs" note="progress bars for downloads, quiet when not on a terminal" />
+<LayoutFile name="devtools.rs" note="the WebDriver engine's DevTools client (CdpClient)" />
 <LayoutFile name="downloader.rs" note="downloading a browser or a driver" />
 <LayoutFile name="downloads.rs" note="the downloaded_files folder browsers save into" />
 <LayoutFile name="driver_access.rs" note="repairs and runs drivers" />
@@ -687,6 +689,7 @@ Launch and session plumbing:
 <LayoutFile name="extensions.rs" note="extensions to load" />
 <LayoutFile name="firefox.rs" note="Firefox arguments and preferences" />
 <LayoutFile name="locale.rs" note="the locale" />
+<LayoutFile name="network.rs" note="NetworkThrottle, how the network is slowed down or cut off" />
 <LayoutFile name="mod.rs" note="the options module" />
 <LayoutFile name="page_load.rs" note="how long a navigation waits" />
 <LayoutFile name="plugins.rs" note="plugins turned on for the browser" />
@@ -1505,7 +1508,7 @@ Python parameters of `parity/upstream-api.json`
 writes it again). A test checks every entry against the real signature (argument
 count and kinds, `async`, `Result`, call builders and their methods) and against
 the parity row, so a `BaseCase` change that breaks a mapping fails a test. The
-`FIX-ASSERTS` shapes of `assert_in`, `wait_for_element` and `get_select_options`
+`FIX-ASSERTS` shapes of `assert_in`, `wait_for_element` and `select_options`
 are in the table; adjust the table, not the translator, when a signature moves.
 
 `tests/golden/import_python/` holds the Python examples of

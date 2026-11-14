@@ -1240,6 +1240,20 @@ Number of parallel tests for `sbrs test`.
 
 </ParamField>
 
+## Colour
+
+`sbrs` and the library colour what they print for people only when the stream
+is a terminal. Piped, redirected and captured output stays plain text.
+
+- `NO_COLOR=1` turns colour off (an empty value does not count).
+- `CLICOLOR=0` turns colour off.
+- `CLICOLOR_FORCE=1` turns colour on even when the output is not a terminal.
+- `TERM=dumb` turns colour off.
+
+The same rules style the `Debug` text of `SeleniumBaseError` (the message, the
+`hint:` label and the hint) when a program ends with `fn main() -> Result<..>`.
+
+
 ## Troubleshooting
 
 <AccordionGroup>
