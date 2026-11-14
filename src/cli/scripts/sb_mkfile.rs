@@ -207,12 +207,12 @@ fn bare_host(text: &str) -> Option<Url> {
 /// use seleniumbase_rs::cli::scripts::sb_mkfile::{Syntax, TestFile};
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
-/// let file = TestFile::new("tests/login")?.basic(true);
+/// let file = TestFile::try_new("tests/login")?.basic(true);
 /// let source = file.render();
 /// assert!(source.contains("async fn login(sb: Sb) -> Result<()>"));
 /// assert!(source.contains("// Add your steps here."));
 ///
-/// let cdp = TestFile::new("tests/login")?.syntax(Syntax::CdpManager)?;
+/// let cdp = TestFile::try_new("tests/login")?.syntax(Syntax::CdpManager)?;
 /// assert!(cdp.render().contains("Browser::launch(options)"));
 /// # Ok(())
 /// # }

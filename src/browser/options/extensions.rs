@@ -25,7 +25,7 @@ use crate::error::SeleniumBaseError;
 ///
 /// let all = ExtensionArchive::parse_list("ublock.crx, tools/helper.zip")?;
 /// assert_eq!(all.len(), 2);
-/// assert!(ExtensionArchive::new("notes.txt").is_err());
+/// assert!(ExtensionArchive::try_new("notes.txt").is_err());
 /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 /// ```
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]

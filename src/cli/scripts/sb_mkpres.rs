@@ -222,7 +222,7 @@ pub(crate) fn create_presentation(theme: &str, transition: &str) -> String {
 /// use seleniumbase_rs::utils::translate::Language;
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
-/// let source = PresentationFile::new("tests/deck")?
+/// let source = PresentationFile::try_new("tests/deck")?
 ///     .language(Language::Spanish)
 ///     .render();
 /// assert!(source.contains("async fn deck(sb: Sb) -> Result<()>"));

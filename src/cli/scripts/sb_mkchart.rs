@@ -123,7 +123,7 @@ const fn words(language: Language) -> Words {
 /// use seleniumbase_rs::utils::translate::Language;
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
-/// let source = ChartFile::new("tests/chart")?.language(Language::French).render();
+/// let source = ChartFile::try_new("tests/chart")?.language(Language::French).render();
 /// assert!(source.contains("async fn chart(sb: Sb) -> Result<()>"));
 /// assert!(source.contains("sb.create_pie_chart()"));
 /// assert!(source.contains("sb.add_data_point(\"Objet A\", 36.0)"));

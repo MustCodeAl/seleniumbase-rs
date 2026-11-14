@@ -592,7 +592,7 @@ pub fn attach(run: &TestRun) -> Option<Arc<AllureSink>> {
     } else {
         run.root().join(dir)
     };
-    match AllureSink::new(&dir) {
+    match AllureSink::try_new(&dir) {
         Ok(sink) => {
             let sink = Arc::new(sink);
             run.add_sink(Arc::clone(&sink) as Arc<dyn RunSink>);

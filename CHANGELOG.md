@@ -29,6 +29,18 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: conversion, accessor and constructor names follow the API rules** (R2, R1 and R4
+  of the API guidelines page). The `name()` of `Browser`, `DriverMode`, the Chrome for Testing
+  artifact and the proxy scheme is `as_str()`, like the other `&'static str` names of the crate;
+  `BrowserConfig::rec_sb_cdp` is `recording_sb_cdp`; a `new` that returns a `Result` is
+  `try_new` (`ExtensionArchive`, `AllureSink`, `RunReporterPlugin`, the scaffold's `RelativeName`
+  and the file types of `sbrs mkdir`, `mkfile` (`TestFile`), `mkchart` and `mkpres`
+  (`PresentationFile`)). `Browser`, `DriverMode` and `Cookie` are `#[non_exhaustive]`: a `match`
+  outside the crate needs a `_` arm, and a `Cookie` is built with `Cookie::new` and its setters
+  (`domain`, `path`, `expires`, `http_only`, `secure`, `same_site`). Rename the calls; the
+  behaviour is the same.
+
+
 - **Breaking: the getters of `BaseCase` have no `get_` prefix** (rule C-GETTER of the API
   guidelines: a Rust getter is named after what it returns). `get_text` is `text`, `get_title` is
   `title`, `get_current_url` is `current_url`, and so on for the 78 `get_*` methods of `BaseCase`,
