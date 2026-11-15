@@ -649,18 +649,17 @@ mod calls {
         Ok(())
     }
 
-    /// crates/scrape/src/jar/store/cdp.rs: a CDP cookie, field by field.
+    /// crates/scrape/src/jar/store/cdp.rs: a CDP cookie, built with the constructor and setters.
     fn a_cdp_cookie(same_site: Option<SameSite>) -> Cookie {
-        let cookie = Cookie {
-            name: "a".to_owned(),
-            value: "b".to_owned(),
-            domain: ".example.com".to_owned(),
-            path: "/".to_owned(),
-            expires: Some(1.0),
-            http_only: true,
-            secure: true,
-            same_site,
-        };
+        let mut cookie = Cookie::new("a", "b")
+            .domain(".example.com")
+            .path("/")
+            .expires(1.0)
+            .http_only(true)
+            .secure(true);
+        if let Some(same_site) = same_site {
+            cookie = cookie.same_site(same_site);
+        }
         let _: Option<f64> = cookie.expires;
         let _: &str = cookie.domain.as_str();
         cookie

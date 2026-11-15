@@ -420,7 +420,7 @@ impl AllureSink {
     ///
     /// Returns an error if the folder or the environment file cannot be
     /// written.
-    pub fn new(dir: impl Into<PathBuf>) -> io::Result<Self> {
+    pub fn try_new(dir: impl Into<PathBuf>) -> io::Result<Self> {
         Self::with_sources(dir, Arc::new(now_ms), Arc::new(random_uuid))
     }
 
@@ -592,7 +592,7 @@ pub fn attach(run: &TestRun) -> Option<Arc<AllureSink>> {
     } else {
         run.root().join(dir)
     };
-    match AllureSink::new(&dir) {
+    match AllureSink::try_new(&dir) {
         Ok(sink) => {
             let sink = Arc::new(sink);
             run.add_sink(Arc::clone(&sink) as Arc<dyn RunSink>);

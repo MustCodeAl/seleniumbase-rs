@@ -6,7 +6,7 @@ impl BaseCase {
     /// ([`BrowserConfig::with_recording_sb_cdp`]).
     #[must_use]
     pub fn rec_sb_cdp(&self) -> bool {
-        self.config.rec_sb_cdp()
+        self.config.recording_sb_cdp()
     }
 
     /// The recording as a standalone `#[tokio::main]` program for the pure CDP

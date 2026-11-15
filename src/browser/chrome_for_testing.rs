@@ -81,7 +81,7 @@ pub enum Artifact {
 impl Artifact {
     /// The name the listings and the archive file names give it.
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::Chromedriver => "chromedriver",
             Self::Chrome => "chrome",
@@ -108,7 +108,7 @@ pub fn archive_url(artifact: Artifact, version: &str, platform: &str) -> String 
 
 /// [`archive_url`] with the address the builds live under given.
 fn archive_url_in(storage_root: &str, artifact: Artifact, version: &str, platform: &str) -> String {
-    let name = artifact.name();
+    let name = artifact.as_str();
     format!("{storage_root}/{version}/{platform}/{name}-{platform}.zip")
 }
 
@@ -259,7 +259,7 @@ async fn read_body(
 /// The URL of `artifact` for `platform` in the `downloads` object of a listing.
 fn listed_url(downloads: &Value, artifact: Artifact, platform: &str) -> Option<String> {
     downloads
-        .get(artifact.name())?
+        .get(artifact.as_str())?
         .as_array()?
         .iter()
         .find(|download| download["platform"].as_str() == Some(platform))
@@ -312,7 +312,7 @@ fn build_of(
     let url = listed_url(&entry["downloads"], artifact, platform).ok_or_else(|| {
         SeleniumBaseError::Unsupported(format!(
             "Chrome for Testing has no {} for {what} on {platform}",
-            artifact.name()
+            artifact.as_str()
         ))
     })?;
     Ok(Build {
@@ -735,7 +735,7 @@ mod tests {
     fn stable_listing_with(artifact: Artifact, version: &str, url: &str) -> Value {
         json!({
             "channels": { "Stable": { "version": version, "downloads": {
-                artifact.name(): [{ "platform": platform_label().unwrap(), "url": url }]
+                artifact.as_str(): [{ "platform": platform_label().unwrap(), "url": url }]
             } } }
         })
     }

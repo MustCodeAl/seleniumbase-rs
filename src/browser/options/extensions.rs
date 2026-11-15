@@ -25,7 +25,7 @@ use crate::error::SeleniumBaseError;
 ///
 /// let all = ExtensionArchive::parse_list("ublock.crx, tools/helper.zip")?;
 /// assert_eq!(all.len(), 2);
-/// assert!(ExtensionArchive::new("notes.txt").is_err());
+/// assert!(ExtensionArchive::try_new("notes.txt").is_err());
 /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 /// ```
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
@@ -39,7 +39,7 @@ impl ExtensionArchive {
     ///
     /// Returns an error if the file name does not end in `.zip` or `.crx`. The
     /// file itself is read when a session starts.
-    pub fn new(path: impl Into<PathBuf>) -> Result<Self, SeleniumBaseError> {
+    pub fn try_new(path: impl Into<PathBuf>) -> Result<Self, SeleniumBaseError> {
         let path = path.into();
         let packed = path
             .extension()
@@ -67,7 +67,7 @@ impl ExtensionArchive {
         text.split(',')
             .map(str::trim)
             .filter(|path| !path.is_empty())
-            .map(Self::new)
+            .map(Self::try_new)
             .collect()
     }
 
@@ -97,7 +97,7 @@ impl TryFrom<PathBuf> for ExtensionArchive {
     type Error = SeleniumBaseError;
 
     fn try_from(path: PathBuf) -> Result<Self, Self::Error> {
-        Self::new(path)
+        Self::try_new(path)
     }
 }
 
@@ -146,10 +146,10 @@ mod tests {
     #[test]
     fn only_zip_and_crx_files_are_extensions() {
         for ok in ["a.zip", "dir/b.CRX", "c.Zip"] {
-            assert!(ExtensionArchive::new(ok).is_ok(), "{ok}");
+            assert!(ExtensionArchive::try_new(ok).is_ok(), "{ok}");
         }
         for bad in ["a.txt", "a", "a.zip.bak", "", "zip"] {
-            assert!(ExtensionArchive::new(bad).is_err(), "{bad}");
+            assert!(ExtensionArchive::try_new(bad).is_err(), "{bad}");
         }
     }
 
@@ -167,13 +167,13 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("x.crx");
         std::fs::write(&path, b"Cr24 not really").unwrap();
-        let encoded = ExtensionArchive::new(&path).unwrap().encoded().unwrap();
+        let encoded = ExtensionArchive::try_new(&path).unwrap().encoded().unwrap();
         assert_eq!(STANDARD.decode(encoded).unwrap(), b"Cr24 not really");
     }
 
     #[test]
     fn a_missing_file_is_an_error_that_names_it() {
-        let error = ExtensionArchive::new("/no/such/ext.zip")
+        let error = ExtensionArchive::try_new("/no/such/ext.zip")
             .unwrap()
             .encoded()
             .unwrap_err();
@@ -182,7 +182,7 @@ mod tests {
 
     #[test]
     fn it_is_stored_as_a_plain_path() {
-        let archive = ExtensionArchive::new("a/b.zip").unwrap();
+        let archive = ExtensionArchive::try_new("a/b.zip").unwrap();
         assert_eq!(serde_json::to_string(&archive).unwrap(), r#""a/b.zip""#);
         assert!(serde_json::from_str::<ExtensionArchive>(r#""a/b.txt""#).is_err());
     }

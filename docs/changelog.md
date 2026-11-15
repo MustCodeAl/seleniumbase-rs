@@ -72,6 +72,18 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   and `into_webdriver_element` answer `Option` (`None` on that engine), and
   `BrowserSession::webdriver()` keeps answering `Unsupported` for such a session.
 
+- **Breaking: conversion, accessor and constructor names follow the API rules** (R2, R1 and R4
+  of the API guidelines page). The `name()` of `Browser`, `DriverMode`, the Chrome for Testing
+  artifact and the proxy scheme is `as_str()`, like the other `&'static str` names of the crate;
+  `BrowserConfig::rec_sb_cdp` is `recording_sb_cdp`; a `new` that returns a `Result` is
+  `try_new` (`ExtensionArchive`, `AllureSink`, `RunReporterPlugin`, the scaffold's `RelativeName`
+  and the file types of `sbrs mkdir`, `mkfile` (`TestFile`), `mkchart` and `mkpres`
+  (`PresentationFile`)). `Browser`, `DriverMode` and `Cookie` are `#[non_exhaustive]`: a `match`
+  outside the crate needs a `_` arm, and a `Cookie` is built with `Cookie::new` and its setters
+  (`domain`, `path`, `expires`, `http_only`, `secure`, `same_site`). Rename the calls; the
+  behaviour is the same.
+
+
 - **Breaking: the getters of `BaseCase` have no `get_` prefix** (rule C-GETTER of the API
   guidelines: a Rust getter is named after what it returns). `get_text` is `text`, `get_title` is
   `title`, `get_current_url` is `current_url`, and so on for the 78 `get_*` methods of `BaseCase`,
@@ -92,6 +104,11 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   flags and the `SB_*` variables keep their names. Rename the calls; the behaviour is the same.
 
 
+- **Breaking: `TestRun` is a `Clone` handle, not an `Arc`.** `TestRun::current`, `open`,
+  `open_with_console` and `resume` return a `TestRun`; `RunFinalizer::new`, the reports plugin's
+  `with_run` and `Sb::report_to`/`SbCdp::report_to` take one. Clone it to share the run. The
+  boxed closure and future aliases (`Console`, `Clock`, `IdSource`, `Installer`, `InstallFuture`,
+  `ProgressCallback`, `ResourceFuture`, `ToolFuture`) now say in their docs why they are boxed.
 - **Breaking: one rule picks among the sources of a launch setting, whatever the order of the
   calls.** `LaunchOptionsBuilder` used to apply its calls in order: `fingerprint(&fp)` filled
   only the settings that were unset when it was called, and `browser_config(&config)` replaced

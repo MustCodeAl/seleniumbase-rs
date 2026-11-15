@@ -9,6 +9,8 @@ downloaded_drivers/
 # Where a browser launched by the library saves downloads (./downloaded_files)
 downloaded_files/
 .serena/
+# JetBrains IDE (RustRover) project settings
+/.idea/
 __pycache__/
 
 # What GitLab CI keeps in the project folder for its cache: mise's folders (MISE_DATA_DIR) and

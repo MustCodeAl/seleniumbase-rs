@@ -61,6 +61,7 @@ fn root_path() -> String {
 /// ```
 #[derive(Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[non_exhaustive]
 pub struct Cookie {
     /// The cookie name.
     pub name: String,
