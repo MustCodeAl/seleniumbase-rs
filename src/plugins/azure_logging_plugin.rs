@@ -20,15 +20,55 @@ use super::object_log;
 
 /// Errors that can occur during an Azure Blob upload.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum AzureUploadError {
+    /// A required variable was missing or blank.
     #[error("missing environment variable {0}")]
     MissingEnv(&'static str),
+    /// The blob URL could not be read as a URL we build.
     #[error("invalid blob URL: {0}")]
     InvalidUrl(String),
+    /// `AZURE_BLOB_URL` was not a URL. The parser error is
+    /// [`Error::source`](std::error::Error::source).
+    #[error("invalid blob URL: {message}")]
+    MalformedUrl {
+        /// What the parser reported.
+        message: String,
+        /// The parser error.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+    /// The file could not be read.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("upload failed: {0}")]
-    Upload(String),
+    /// The store rejected the write or could not be built. The store error is
+    /// [`Error::source`](std::error::Error::source).
+    #[error("upload failed: {message}")]
+    Upload {
+        /// What the store reported.
+        message: String,
+        /// The store error.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+}
+
+impl AzureUploadError {
+    fn malformed(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        let message = error.to_string();
+        Self::MalformedUrl {
+            message,
+            source: Box::new(error),
+        }
+    }
+
+    fn upload(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        let message = error.to_string();
+        Self::Upload {
+            message,
+            source: Box::new(error),
+        }
+    }
 }
 
 /// Uploads test artifacts, such as the files the failure plugins save, to one Azure blob.
@@ -65,8 +105,9 @@ impl AzureLoggingPlugin {
     /// # Errors
     ///
     /// Returns [`AzureUploadError::MissingEnv`] when `AZURE_BLOB_URL` is unset,
-    /// and [`AzureUploadError::InvalidUrl`] when the URL has no account, container,
-    /// or blob name.
+    /// [`AzureUploadError::MalformedUrl`] when it is not a URL, and
+    /// [`AzureUploadError::InvalidUrl`] when it has no account, container, or blob
+    /// name.
     pub fn from_env() -> Result<Self, AzureUploadError> {
         Self::from_lookup(|name| std::env::var(name).ok())
     }
@@ -80,8 +121,7 @@ impl AzureLoggingPlugin {
         let url_str = lookup("AZURE_BLOB_URL")
             .filter(|value| !value.trim().is_empty())
             .ok_or(AzureUploadError::MissingEnv("AZURE_BLOB_URL"))?;
-        let url = url::Url::parse(&url_str)
-            .map_err(|error| AzureUploadError::InvalidUrl(error.to_string()))?;
+        let url = url::Url::parse(&url_str).map_err(AzureUploadError::malformed)?;
         let host = url
             .host_str()
             .ok_or_else(|| AzureUploadError::InvalidUrl("blob URL has no host".to_owned()))?;
@@ -108,7 +148,7 @@ impl AzureLoggingPlugin {
             .with_container_name(container)
             .with_sas_authorization(sas)
             .build()
-            .map_err(|error| AzureUploadError::Upload(error.to_string()))?;
+            .map_err(AzureUploadError::upload)?;
         Ok(Self {
             store: Arc::new(store),
             blob: blob.to_owned(),
@@ -125,7 +165,7 @@ impl AzureLoggingPlugin {
         let bytes = fs::read(path.as_ref()).await?;
         object_log::put_bytes(self.store.as_ref(), &self.blob, bytes)
             .await
-            .map_err(|error| AzureUploadError::Upload(error.to_string()))?;
+            .map_err(AzureUploadError::upload)?;
         Ok(())
     }
 
@@ -192,5 +232,24 @@ mod tests {
             .await
             .expect("body");
         assert_eq!(&got[..], b"hello");
+    }
+
+    #[test]
+    fn a_blob_url_that_is_not_a_url_keeps_the_parser_error() {
+        let error = AzureLoggingPlugin::from_lookup(|name| {
+            (name == "AZURE_BLOB_URL").then(|| "not a url".to_owned())
+        })
+        .unwrap_err();
+        assert!(error.to_string().starts_with("invalid blob URL:"));
+        assert!(std::error::Error::source(&error).is_some());
+    }
+
+    #[test]
+    fn an_upload_failure_keeps_the_store_error() {
+        let error =
+            AzureUploadError::upload(std::io::Error::new(std::io::ErrorKind::Other, "full"));
+        assert_eq!(error.to_string(), "upload failed: full");
+        let source = std::error::Error::source(&error).expect("the store error");
+        assert_eq!(source.to_string(), "full");
     }
 }

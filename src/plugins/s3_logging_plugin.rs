@@ -20,19 +20,58 @@ use super::object_log;
 
 /// Errors that can occur during an S3 upload.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum S3UploadError {
+    /// A required variable was missing or blank.
     #[error("missing environment variable {0}")]
     MissingEnv(&'static str),
+    /// The credentials were rejected.
     #[error("invalid credentials: {0}")]
     Credentials(String),
+    /// The region was rejected.
     #[error("invalid region: {0}")]
     Region(String),
-    #[error("failed to create bucket handle: {0}")]
-    Bucket(String),
+    /// The store could not be built. The builder error is
+    /// [`Error::source`](std::error::Error::source).
+    #[error("failed to create bucket handle: {message}")]
+    Bucket {
+        /// What the builder reported.
+        message: String,
+        /// The builder error.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+    /// The file could not be read.
     #[error("I/O error: {0}")]
     Io(#[from] std::io::Error),
-    #[error("upload failed: {0}")]
-    Upload(String),
+    /// The store rejected the write. The store error is
+    /// [`Error::source`](std::error::Error::source).
+    #[error("upload failed: {message}")]
+    Upload {
+        /// What the store reported.
+        message: String,
+        /// The store error.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+}
+
+impl S3UploadError {
+    fn bucket(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        let message = error.to_string();
+        Self::Bucket {
+            message,
+            source: Box::new(error),
+        }
+    }
+
+    fn upload(error: impl std::error::Error + Send + Sync + 'static) -> Self {
+        let message = error.to_string();
+        Self::Upload {
+            message,
+            source: Box::new(error),
+        }
+    }
 }
 
 /// Uploads test artifacts, such as the files the failure plugins save, to one S3 bucket.
@@ -98,7 +137,7 @@ impl S3LoggingPlugin {
         let bytes = fs::read(path.as_ref()).await?;
         object_log::put_bytes(self.store.as_ref(), key, bytes)
             .await
-            .map_err(|error| S3UploadError::Upload(error.to_string()))?;
+            .map_err(S3UploadError::upload)?;
         Ok(())
     }
 
@@ -120,9 +159,7 @@ impl S3LoggingPlugin {
             }
             builder = builder.with_endpoint(endpoint);
         }
-        let store = builder
-            .build()
-            .map_err(|error| S3UploadError::Bucket(error.to_string()))?;
+        let store = builder.build().map_err(S3UploadError::bucket)?;
         Ok(Self {
             store: Arc::new(store),
         })
@@ -205,5 +242,13 @@ mod tests {
         plugin.upload(&file, "shot.png").await.expect("upload");
         let saved = std::fs::read(store_dir.path().join("shot.png")).expect("read back");
         assert_eq!(saved, b"png");
+    }
+
+    #[test]
+    fn an_upload_failure_keeps_the_store_error() {
+        let error = S3UploadError::upload(std::io::Error::new(std::io::ErrorKind::Other, "full"));
+        assert_eq!(error.to_string(), "upload failed: full");
+        let source = std::error::Error::source(&error).expect("the store error");
+        assert_eq!(source.to_string(), "full");
     }
 }

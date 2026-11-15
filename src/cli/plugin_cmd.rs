@@ -641,10 +641,10 @@ fn unknown(name: &str, registry: &Registry) -> SeleniumBaseError {
 #[cfg(feature = "plugins")]
 fn as_usage_error(error: SeleniumBaseError) -> SeleniumBaseError {
     match error {
-        SeleniumBaseError::Plugin { plugin, reason } if plugin.is_empty() => {
+        SeleniumBaseError::Plugin { plugin, reason, .. } if plugin.is_empty() => {
             SeleniumBaseError::invalid_config(reason)
         }
-        SeleniumBaseError::Plugin { plugin, reason } => {
+        SeleniumBaseError::Plugin { plugin, reason, .. } => {
             SeleniumBaseError::invalid_config(format!("plugin `{plugin}`: {reason}"))
         }
         other => other,

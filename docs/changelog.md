@@ -68,6 +68,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Breaking
 
+- **Breaking: a plugin error and a database driver error keep their cause.**
+  `SeleniumBaseError::Plugin` has a `source`. `plugin()` still builds one with no
+  source, and the message is still `plugin error: {reason}`. Converting a plugin
+  error keeps it as `source()`. A `turso` error is `DatabaseDriver` (`database error:`
+  plus the driver's message, and `source()` is the driver error). `Database(String)`
+  is unchanged. `S3UploadError`, `AzureUploadError` and `GcsUploadError` are
+  `#[non_exhaustive]`. An S3 or Azure store error is `Upload` or `Bucket` with that
+  error as `source()`, and a blob URL that is not a URL is `MalformedUrl`.
 - **Breaking: `sb_context` keeps the cause.** `ResultExt` requires
   `E: Error + Send + Sync + 'static`. The error is `SeleniumBaseError::Context`.
   The message is still `{context}: {error}`, and `source()` is the original error.

@@ -21,6 +21,7 @@ use url::Url;
 
 /// Errors that can occur during a GCS upload.
 #[derive(Debug, Error)]
+#[non_exhaustive]
 pub enum GcsUploadError {
     #[error("missing environment variable {0}")]
     MissingEnv(&'static str),

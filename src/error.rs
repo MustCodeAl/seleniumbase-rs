@@ -196,6 +196,18 @@ pub enum SeleniumBaseError {
     #[error("database error: {0}")]
     Database(String),
 
+    /// The database driver failed. The text is `database error:` plus the
+    /// driver's message, and the driver error is
+    /// [`Error::source`](std::error::Error::source).
+    #[error("database error: {message}")]
+    DatabaseDriver {
+        /// What the driver reported.
+        message: String,
+        /// The driver error.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+
     /// A plugin (feature `plugins`, ADR 004) refused to go on, or one of its
     /// hooks failed, so the launch or the tab it was preparing was stopped.
     #[error("plugin error: {reason}")]
@@ -204,6 +216,9 @@ pub enum SeleniumBaseError {
         plugin: String,
         /// What went wrong, as the plugin set reported it.
         reason: String,
+        /// The plugin error, when this was converted from one.
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
     },
 
     /// An operation failed. `context` names the step, and the cause is kept
@@ -487,17 +502,25 @@ impl From<seleniumbase_rs_plugin::PluginError> for SeleniumBaseError {
             // adds later falls here too, with its message and no name.
             _ => String::new(),
         };
-        Self::plugin(plugin, error.to_string())
+        let reason = error.to_string();
+        Self::Plugin {
+            plugin,
+            reason,
+            source: Some(Box::new(error)),
+        }
     }
 }
 
 #[cfg(feature = "turso")]
 impl From<turso::Error> for SeleniumBaseError {
     fn from(error: turso::Error) -> Self {
-        Self::Database(error.to_string())
+        let message = error.to_string();
+        Self::DatabaseDriver {
+            message,
+            source: Box::new(error),
+        }
     }
 }
-
 impl SeleniumBaseError {
     // ------------------------------------------------------------------
     // Constructors
@@ -669,11 +692,13 @@ impl SeleniumBaseError {
     }
 
     /// Construct a plugin error for the plugin named `plugin` (empty when
-    /// unknown).
+    /// unknown). This value has no [`Error::source`](std::error::Error::source).
+    /// A conversion from a plugin error keeps that error as the source.
     pub fn plugin(plugin: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::Plugin {
             plugin: plugin.into(),
             reason: reason.into(),
+            source: None,
         }
     }
 
@@ -784,7 +809,7 @@ impl SeleniumBaseError {
             Self::PythonMigration(_) => "python_migration",
             Self::Skipped(_) => "skipped",
             Self::TestLifecycle(_) => "test_lifecycle",
-            Self::Database(_) => "database",
+            Self::Database(_) | Self::DatabaseDriver { .. } => "database",
             Self::Plugin { .. } => "plugin",
             Self::Context { source, .. } => source
                 .downcast_ref::<Self>()
@@ -877,7 +902,7 @@ impl SeleniumBaseError {
             | Self::Download { .. }
             | Self::Captcha { .. }
             | Self::Authentication(_) => 5,
-            Self::Io(_) | Self::Database(_) => 6,
+            Self::Io(_) | Self::Database(_) | Self::DatabaseDriver { .. } => 6,
             Self::Context { source, .. } => source
                 .downcast_ref::<Self>()
                 .map(Self::exit_code)
@@ -1046,10 +1071,12 @@ impl SeleniumBaseError {
                  each message, starting with the test's own error, since a later failure is \
                  often a consequence of the first."
                 .to_owned(),
-            Self::Database(_) => "The results or profile database could not be read or \
+            Self::Database(_) | Self::DatabaseDriver { .. } => {
+                "The results or profile database could not be read or \
                  written. Check its path (--db or SB_REPORT_DB), that no other program holds it \
                  open, and the free disk space."
-                .to_owned(),
+                .to_owned()
+            }
             Self::Plugin { plugin, .. } => plugin_hint(plugin),
             Self::Context { source, .. } => source
                 .downcast_ref::<Self>()
@@ -1971,5 +1998,45 @@ mod tests {
         assert_eq!(wrapped.category(), "wait_timeout");
         assert_eq!(wrapped.exit_code(), 3);
         assert!(wrapped.is_transient());
+    }
+
+    #[test]
+    fn a_plugin_value_without_a_cause_has_no_source() {
+        let error = SeleniumBaseError::plugin("adblock", "refused");
+        assert_eq!(error.to_string(), "plugin error: refused");
+        assert!(std::error::Error::source(&error).is_none());
+    }
+
+    #[test]
+    fn a_database_driver_error_keeps_its_cause() {
+        let cause = std::io::Error::new(std::io::ErrorKind::Other, "locked");
+        let error = SeleniumBaseError::DatabaseDriver {
+            message: cause.to_string(),
+            source: Box::new(cause),
+        };
+        assert_eq!(error.to_string(), "database error: locked");
+        assert_eq!(error.category(), "database");
+        assert_eq!(error.exit_code(), 6);
+        let source = std::error::Error::source(&error).expect("the driver error");
+        assert_eq!(source.to_string(), "locked");
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn converting_a_plugin_error_keeps_it() {
+        use seleniumbase_rs_plugin::PluginError;
+        let error = SeleniumBaseError::from(PluginError::DuplicateName("twice".to_owned()));
+        assert!(error.to_string().starts_with("plugin error:"));
+        match &error {
+            SeleniumBaseError::Plugin { plugin, source, .. } => {
+                assert_eq!(plugin, "twice");
+                assert!(source.is_some());
+            }
+            other => panic!("{other}"),
+        }
+        assert!(std::error::Error::source(&error)
+            .expect("the plugin error")
+            .downcast_ref::<PluginError>()
+            .is_some());
     }
 }

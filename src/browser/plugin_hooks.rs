@@ -1852,7 +1852,7 @@ mod session_tests {
                 .unwrap();
 
             assert!(
-                matches!(&error, SeleniumBaseError::Plugin { plugin, reason } if plugin == "probe" && reason.contains(hook)),
+                matches!(&error, SeleniumBaseError::Plugin { plugin, reason, .. } if plugin == "probe" && reason.contains(hook)),
                 "{error:?}"
             );
             assert_eq!(
