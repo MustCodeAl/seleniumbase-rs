@@ -218,7 +218,7 @@ async fn a_second_sink_on_the_same_folder_does_not_record_a_test_twice() {
     let root = tempfile::tempdir().unwrap();
     let run = run_with_allure(root.path(), "allure-results");
     let dir = root.path().join("allure-results");
-    run.add_sink(Arc::new(AllureSink::new(&dir).unwrap()) as Arc<dyn RunSink>);
+    run.add_sink(Arc::new(AllureSink::try_new(&dir).unwrap()) as Arc<dyn RunSink>);
 
     let recorder = run.start(TestId::named("shop::once")).unwrap();
     recorder.finish(&Ok(())).unwrap();

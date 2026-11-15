@@ -90,7 +90,7 @@ impl BaseCase {
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.shadow_element(selector, Ready::Present).await?;
-        self.session.attribute_or_property(element.as_webdriver_element(), attribute).await
+        self.session.attribute_or_property(&element, attribute).await
     }
 
     /// Asserts that a shadow-pierced element exists, waiting up to the case's

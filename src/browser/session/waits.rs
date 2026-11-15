@@ -27,7 +27,7 @@ impl BrowserSession {
         selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
     ) -> Result<Element, SeleniumBaseError> {
-        self.webdriver()?;
+        self.ensure_started()?;
         let selector = shadow_find::checked(selector)?;
 
         poll_until(
@@ -52,7 +52,7 @@ impl BrowserSession {
         selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
     ) -> Result<Element, SeleniumBaseError> {
-        self.webdriver()?;
+        self.ensure_started()?;
         let selector = shadow_find::checked(selector)?;
 
         poll_until(
@@ -82,7 +82,7 @@ impl BrowserSession {
         selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
     ) -> Result<Element, SeleniumBaseError> {
-        self.webdriver()?;
+        self.ensure_started()?;
         let selector = shadow_find::checked(selector)?;
 
         poll_until(
@@ -116,7 +116,7 @@ impl BrowserSession {
         selector: impl Into<SelectorBuf>,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        self.webdriver()?;
+        self.ensure_started()?;
         let selector = shadow_find::checked(selector)?;
 
         poll_until(
@@ -148,7 +148,7 @@ impl BrowserSession {
         expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
-        self.webdriver()?;
+        self.ensure_started()?;
         let selector = shadow_find::checked(selector)?;
 
         poll_until(

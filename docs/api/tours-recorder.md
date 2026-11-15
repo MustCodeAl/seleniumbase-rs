@@ -35,7 +35,7 @@ See the [Tours](/tutorials/tours) and [Charts](/tutorials/charts) pages for deta
 |--------|-------------|
 | `activate_recorder()` | Injects the browser-side action recorder. |
 | `recorded_actions()` | Returns actions captured so far. |
-| `export_recording_as_rust()` | Returns recorded actions as Rust source (pure CDP code when `rec_sb_cdp()` is on). |
+| `export_recording_as_rust()` | Returns recorded actions as Rust source (pure CDP code when `recording_sb_cdp()` is on). |
 | `export_recording_as_cdp_rust()` | Returns recorded actions as a pure CDP program (`Page` and `Locator` calls). |
 | `save_recording_to_logs()` | Saves the recording as JSON and Rust source. |
 | `save_recording_json(filename)` | Saves recorded actions to a JSON file in the logs directory. |

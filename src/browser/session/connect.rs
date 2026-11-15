@@ -1,6 +1,8 @@
 //! Starting a session: `connect`, a new browser, a leased one, and a direct
 //! CDP attachment, with the proxy login that goes with them.
 
+use std::sync::Mutex;
+
 use serde_json::Value;
 use thirtyfour::prelude::WebDriver;
 use tracing::{info, instrument};
@@ -18,7 +20,7 @@ use super::launch::{
     apply_window_rect, connect_driver, resolve_remote_debug, start_virtual_display,
     validate_mode_support,
 };
-use super::BrowserSession;
+use super::{BrowserSession, PageSlot};
 
 impl BrowserSession {
     /// Starts a browser for `config` and connects to it, or, with
@@ -67,7 +69,9 @@ impl BrowserSession {
         let mut session = Self {
             driver: Some(driver),
             cdp,
-            external_page: None,
+            external_page: PageSlot::default(),
+            frames: Mutex::new(Vec::new()),
+
             driver_process,
             virtual_display,
             mobile: mobile_commands(&config),
@@ -107,7 +111,9 @@ impl BrowserSession {
         Ok(Self {
             driver: Some(driver),
             cdp,
-            external_page: None,
+            external_page: PageSlot::default(),
+            frames: Mutex::new(Vec::new()),
+
             driver_process: None,
             virtual_display: None,
             ad_block,
@@ -196,7 +202,7 @@ impl BrowserSession {
         config.validate()?;
         if config.session.reuse || config.recorder_mode() {
             return Err(SeleniumBaseError::invalid_config(
-                "direct CDP attachment does not support WebDriver session reuse or Recorder Mode",
+                "direct CDP attachment does not support WebDriver session reuse or Recorder Mode: the recorder reads the browser through a driver, so record on a WebDriver session",
             ));
         }
         let options = crate::sb_cdp::LaunchOptions::builder()
@@ -218,8 +224,8 @@ impl BrowserSession {
                 return Err(error);
             }
         };
-        let mut session = Self::disconnected();
-        session.external_page = Some(page);
+        let session = Self::disconnected();
+        session.external_page.set(Some(page));
         Ok(session)
     }
 }

@@ -2,7 +2,7 @@
 //!
 //! [`BaseCase::find_element`](crate::BaseCase::find_element) and the other
 //! methods that hand back an element return this type, and an element has the
-//! methods of the pure CDP engine's [`Locator`](crate::sb_cdp::Locator) for
+//! methods of the pure CDP engine's [`Locator`] for
 //! the same ideas (`text`, `html`, `click`, `type_text`, ...), under the same
 //! names.
 //!
@@ -10,6 +10,8 @@
 //! and finds it again on every use. An `Element` is the node the browser found
 //! at one moment, as Python's `WebElement` is: it does not look again and it
 //! does not wait, so it goes stale when the page replaces the node.
+
+mod cdp;
 
 use std::fmt;
 
@@ -21,8 +23,10 @@ use thirtyfour::prelude::{By, WebDriver, WebElement};
 use crate::browser::session::shown_text;
 use crate::browser::shadow_find;
 use crate::error::{DriverErrorKind, SeleniumBaseError};
-use crate::sb_cdp::{Key, Rect, SelectBy};
+use crate::sb_cdp::{Key, Locator, Rect, SelectBy};
 use crate::utils::selectors::{xpath_root_branch, SelectorBuf, CHAIN_SEPARATOR};
+
+use self::cdp::CdpElement;
 
 /// The page script of [`Element::attribute`]: the attribute `arguments[1]` of
 /// the element `arguments[0]`, as the markup has it, or `null`.
@@ -57,13 +61,13 @@ const ATTRIBUTE: &str = "return arguments[0].getAttribute(arguments[1]);";
 /// println!("{}", row.text().await?);
 ///
 /// // The raw `thirtyfour` element, for a call this crate has no method for.
-/// let raw: &seleniumbase_rs::drivers::WebElement = row.as_webdriver_element();
+/// let raw: &seleniumbase_rs::drivers::WebElement = row.as_webdriver_element().expect("a WebDriver session");
 /// # let _ = raw;
 /// # Ok(())
 /// # }
 /// ```
 #[derive(Clone)]
-pub struct Element {
+struct DriverElement {
     inner: WebElement,
     /// The session's driver, for the scripts and the action chains.
     driver: WebDriver,
@@ -73,7 +77,7 @@ pub struct Element {
     selector: SelectorBuf,
 }
 
-impl fmt::Debug for Element {
+impl fmt::Debug for DriverElement {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Element")
             .field("selector", &self.selector.to_string())
@@ -82,14 +86,14 @@ impl fmt::Debug for Element {
     }
 }
 
-impl fmt::Display for Element {
+impl fmt::Display for DriverElement {
     /// The selector the element was found by.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.selector.fmt(f)
     }
 }
 
-impl Element {
+impl DriverElement {
     /// An element the session found with `selector`.
     pub(crate) fn new(inner: WebElement, driver: WebDriver, selector: SelectorBuf) -> Self {
         Self {
@@ -169,7 +173,7 @@ impl Element {
     }
 
     /// The text the driver renders for the element, which is what
-    /// `BaseCase::get_text_content` returns. It is empty for an element that is
+    /// `BaseCase::text_content` returns. It is empty for an element that is
     /// not displayed, where Python's `get_text_content` reads the `textContent`
     /// property (the markup's text, shown or not), and for an `<input>`, whose
     /// value [`text`](Self::text) reads.
@@ -347,7 +351,7 @@ fn wire_key(key: Key) -> WireKey {
 /// already found: an element that is covered, hidden or disabled fails with
 /// [`SeleniumBaseError::ElementNotInteractable`]. [`BaseCase`](crate::BaseCase) methods by
 /// selector wait first.
-impl Element {
+impl DriverElement {
     /// Clicks the element.
     ///
     /// Like [`Locator::click`](crate::sb_cdp::Locator::click), without the
@@ -537,7 +541,7 @@ impl Element {
     ///
     /// See [`click`](Self::click); a stale `target` is reported with the
     /// selector of the element being dragged.
-    pub async fn drag_to(&self, target: &Element) -> Result<(), SeleniumBaseError> {
+    pub async fn drag_to(&self, target: &DriverElement) -> Result<(), SeleniumBaseError> {
         self.driver
             .action_chain()
             .drag_and_drop_element(&self.inner, &target.inner)
@@ -555,7 +559,7 @@ impl Element {
 /// that led to them (`#cart >> .row`), as a
 /// [`Locator`](crate::sb_cdp::Locator) writes its chain, so a stale one says
 /// where it came from.
-impl Element {
+impl DriverElement {
     /// The name of what `selector` finds inside this element: the chain.
     fn below(&self, selector: &SelectorBuf) -> SelectorBuf {
         SelectorBuf::css(format!("{self}{CHAIN_SEPARATOR}{selector}"))
@@ -622,7 +626,7 @@ impl Element {
     pub async fn find(
         &self,
         selector: impl Into<SelectorBuf>,
-    ) -> Result<Element, SeleniumBaseError> {
+    ) -> Result<DriverElement, SeleniumBaseError> {
         let selector = selector.into();
         let by = Self::lookup(&selector)?;
         let name = self.below(&selector);
@@ -642,7 +646,7 @@ impl Element {
     pub async fn find_all(
         &self,
         selector: impl Into<SelectorBuf>,
-    ) -> Result<Vec<Element>, SeleniumBaseError> {
+    ) -> Result<Vec<DriverElement>, SeleniumBaseError> {
         let selector = selector.into();
         let by = Self::lookup(&selector)?;
         let found = self
@@ -666,7 +670,7 @@ impl Element {
     ///
     /// The driver's error if there is no parent, as on the document element;
     /// and see [`find`](Self::find).
-    pub async fn parent(&self) -> Result<Element, SeleniumBaseError> {
+    pub async fn parent(&self) -> Result<DriverElement, SeleniumBaseError> {
         let parent = self
             .inner
             .parent()
@@ -674,6 +678,651 @@ impl Element {
             .map_err(|error| self.failed(error))?;
         let name = self.below(&SelectorBuf::xpath(".."));
         Ok(Self::new(parent, self.driver.clone(), name))
+    }
+}
+
+impl DriverElement {
+    /// Runs `script` with this element as `arguments[0]` and `args` after it.
+    async fn run_script(&self, script: &str, args: &[Value]) -> Result<Value, SeleniumBaseError> {
+        let mut arguments = vec![self.reference()?];
+        arguments.extend_from_slice(args);
+        let returned = self
+            .driver
+            .execute(script, arguments)
+            .await
+            .map_err(|error| self.failed(error))?;
+        Ok(returned.json().clone())
+    }
+}
+
+/// One element of the page, found by the engine that drives the session.
+///
+/// [`BaseCase::find_element`](crate::BaseCase::find_element) and the other
+/// methods that hand back an element return this type, and an element has the
+/// methods of the pure CDP engine's [`Locator`] for
+/// the same ideas (`text`, `html`, `click`, `type_text`, ...), under the same
+/// names.
+///
+/// What an element is depends on the session:
+///
+/// - On a WebDriver session it is the node the browser found at one moment, as
+///   Python's `WebElement` is: it does not look again and it does not wait, so
+///   it goes stale when the page replaces the node, and its methods then fail
+///   with [`SeleniumBaseError::StaleElement`], which names the selector the
+///   element was found by.
+/// - On a direct DevTools attachment (`BrowserConfig::with_cdp_url`) it is a
+///   `Locator` under a name: it looks again on every use, so it never goes
+///   stale, and a match of a search for several is pinned to its position.
+///
+/// To work on whatever a selector matches now, on either engine, use the
+/// selector (`BaseCase::click("#go")`).
+///
+/// An element is cheap to clone, and the clone is the same element, not a new
+/// lookup.
+///
+/// For a `thirtyfour` call this type has no method for, the raw element of a
+/// WebDriver session is reachable with
+/// [`as_webdriver_element`](Self::as_webdriver_element) and
+/// [`into_webdriver_element`](Self::into_webdriver_element); a CDP element has
+/// none, and has a [`Locator`] in its place.
+///
+/// # Examples
+///
+/// ```no_run
+/// use seleniumbase_rs::{BaseCase, BrowserConfig};
+///
+/// # async fn demo() -> seleniumbase_rs::Result<()> {
+/// let mut sb = BaseCase::new(BrowserConfig::default()).await?;
+/// sb.open("https://example.com/cart").await?;
+/// let row = sb.find_element("#cart .row").await?;
+/// println!("{}", row.text().await?);
+/// # Ok(())
+/// # }
+/// ```
+#[derive(Clone)]
+pub struct Element {
+    engine: Engine,
+}
+
+/// The two engines an [`Element`] can belong to.
+#[derive(Clone)]
+enum Engine {
+    WebDriver(DriverElement),
+    Cdp(CdpElement),
+}
+
+impl From<DriverElement> for Element {
+    fn from(element: DriverElement) -> Self {
+        Self {
+            engine: Engine::WebDriver(element),
+        }
+    }
+}
+
+impl From<CdpElement> for Element {
+    fn from(element: CdpElement) -> Self {
+        Self {
+            engine: Engine::Cdp(element),
+        }
+    }
+}
+
+impl fmt::Debug for Element {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.engine {
+            Engine::WebDriver(element) => fmt::Debug::fmt(element, f),
+            Engine::Cdp(element) => fmt::Debug::fmt(element, f),
+        }
+    }
+}
+
+impl fmt::Display for Element {
+    /// The selector the element was found by.
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match &self.engine {
+            Engine::WebDriver(element) => fmt::Display::fmt(element, f),
+            Engine::Cdp(element) => fmt::Display::fmt(element, f),
+        }
+    }
+}
+
+/// The error for a request that mixes the two engines.
+fn mixed_engines() -> SeleniumBaseError {
+    SeleniumBaseError::Unsupported(
+        "the two elements belong to different engines (one WebDriver, one CDP): find both \
+         with the same session"
+            .to_owned(),
+    )
+}
+
+impl Element {
+    /// An element the WebDriver session found with `selector`.
+    pub(crate) fn new(inner: WebElement, driver: WebDriver, selector: SelectorBuf) -> Self {
+        DriverElement::new(inner, driver, selector).into()
+    }
+
+    /// An element the pure CDP engine's `locator` finds, named `selector`.
+    pub(crate) fn cdp(
+        locator: Locator,
+        selector: SelectorBuf,
+        dialogs: Option<std::sync::Arc<crate::browser::session::DialogWatch>>,
+    ) -> Self {
+        CdpElement::new(locator, selector, dialogs).into()
+    }
+
+    /// This element under `name`, for one that was found by a selector that
+    /// no longer matches anything (a temporary marker) and so cannot name it.
+    ///
+    /// The name is shown by `Display` and `Debug` and carried by
+    /// [`SeleniumBaseError::StaleElement`]; it need not be a selector (see
+    /// `utils::selectors::is_lookup_selector`).
+    pub(crate) fn named(self, name: String) -> Self {
+        match self.engine {
+            Engine::WebDriver(element) => element.named(name).into(),
+            Engine::Cdp(element) => element.named(name).into(),
+        }
+    }
+
+    /// Runs `script` with this element as `arguments[0]` and `args` after it,
+    /// and answers what the script returns: a WebDriver script command on a
+    /// WebDriver session, and on a CDP session a function the page calls with
+    /// the same arguments, in the frame the element is in.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::StaleElement`] if the page replaced the element,
+    /// or the engine's error for a script that fails.
+    pub(crate) async fn run_script(
+        &self,
+        script: &str,
+        args: &[Value],
+    ) -> Result<Value, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.run_script(script, args).await,
+            Engine::Cdp(element) => Box::pin(element.run_script(script, args)).await,
+        }
+    }
+
+    /// Presses Return in the element, as `BaseCase::set_value` does for a value
+    /// that ends with a newline: the Return key of a WebDriver session, Enter
+    /// on a CDP one.
+    pub(crate) async fn press_return(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => {
+                element.send_keys(WireKey::Return.value().to_string()).await
+            }
+            Engine::Cdp(element) => Box::pin(element.press(Key::Enter)).await,
+        }
+    }
+
+    /// Presses Enter in the element, as `BaseCase::press_keys` does for a
+    /// trailing newline: the Enter key of a WebDriver session, and a real Enter
+    /// key event on a CDP one.
+    pub(crate) async fn press_enter(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => {
+                element.send_keys(WireKey::Enter.value().to_string()).await
+            }
+            Engine::Cdp(element) => Box::pin(element.press(Key::Enter)).await,
+        }
+    }
+
+    /// A PNG of the element.
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub(crate) async fn screenshot_png(&self) -> Result<Vec<u8>, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element
+                .inner
+                .screenshot_as_png()
+                .await
+                .map_err(|error| element.failed(error)),
+            Engine::Cdp(element) => Box::pin(element.screenshot()).await,
+        }
+    }
+
+    /// The raw `thirtyfour` element of a WebDriver session, for a call this
+    /// type has no method for, or `None` for an element of a CDP session.
+    #[must_use]
+    pub fn as_webdriver_element(&self) -> Option<&WebElement> {
+        match &self.engine {
+            Engine::WebDriver(element) => Some(element.as_webdriver_element()),
+            Engine::Cdp(_) => None,
+        }
+    }
+
+    /// The raw `thirtyfour` element, owned, or `None` for an element of a CDP
+    /// session.
+    #[must_use]
+    pub fn into_webdriver_element(self) -> Option<WebElement> {
+        match self.engine {
+            Engine::WebDriver(element) => Some(element.into_webdriver_element()),
+            Engine::Cdp(_) => None,
+        }
+    }
+
+    /// The [`Locator`] of an element of a CDP session, which finds it again
+    /// on every use, or `None` for an element of a WebDriver session.
+    #[must_use]
+    pub fn as_locator(&self) -> Option<&Locator> {
+        match &self.engine {
+            Engine::WebDriver(_) => None,
+            Engine::Cdp(element) => Some(element.locator()),
+        }
+    }
+
+    /// The text the checks of Python SeleniumBase compare: the value of an
+    /// `<input>` or a `<textarea>`, whose rendered text is empty, and the
+    /// rendered text of any other element.
+    ///
+    /// Like [`Locator::text`](crate::sb_cdp::Locator::text).
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::StaleElement`] if the page replaced the element
+    /// (WebDriver), or the engine's error.
+    pub async fn text(&self) -> Result<String, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.text().await,
+            Engine::Cdp(element) => Box::pin(element.text()).await,
+        }
+    }
+
+    /// The text the browser renders for the element, which is what
+    /// `BaseCase::text_content` returns. It is empty for an element that is
+    /// not displayed (WebDriver), and for an `<input>`, whose value
+    /// [`text`](Self::text) reads.
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub(crate) async fn rendered_text(&self) -> Result<String, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.rendered_text().await,
+            Engine::Cdp(element) => Box::pin(element.rendered_text()).await,
+        }
+    }
+
+    /// The element's outer HTML.
+    ///
+    /// Like [`Locator::html`](crate::sb_cdp::Locator::html).
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn html(&self) -> Result<String, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.html().await,
+            Engine::Cdp(element) => Box::pin(element.html()).await,
+        }
+    }
+
+    /// The tag name, in lower case (`div`, `input`).
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn tag(&self) -> Result<String, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.tag().await,
+            Engine::Cdp(element) => Box::pin(element.tag()).await,
+        }
+    }
+
+    /// The attribute `name` as the markup has it, or `None` if the element
+    /// lacks it.
+    ///
+    /// Like [`Locator::attribute`](crate::sb_cdp::Locator::attribute). It is
+    /// not what [`BaseCase::attribute`](crate::BaseCase::attribute)
+    /// answers, which follows Selenium and prefers the DOM property: use
+    /// [`property`](Self::property) for what a field holds now.
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn attribute(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Option<String>, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.attribute(name).await,
+            Engine::Cdp(element) => Box::pin(element.attribute(name.as_ref())).await,
+        }
+    }
+
+    /// The DOM property `name`, as a string, or `None` if the element has no
+    /// such property. A field's `value` is what it holds now, not the
+    /// `value=""` of its markup.
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn property(
+        &self,
+        name: impl AsRef<str>,
+    ) -> Result<Option<String>, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.property(name).await,
+            Engine::Cdp(element) => Box::pin(element.property(name.as_ref())).await,
+        }
+    }
+
+    /// Position and size, relative to the document.
+    ///
+    /// Like [`Locator::bounding_box`](crate::sb_cdp::Locator::bounding_box).
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn bounding_box(&self) -> Result<Rect, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.bounding_box().await,
+            Engine::Cdp(element) => Box::pin(element.bounding_box()).await,
+        }
+    }
+
+    /// Whether the element is displayed.
+    ///
+    /// Like [`Locator::is_visible`](crate::sb_cdp::Locator::is_visible).
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn is_visible(&self) -> Result<bool, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.is_visible().await,
+            Engine::Cdp(element) => Box::pin(element.is_visible()).await,
+        }
+    }
+
+    /// Whether the element is enabled.
+    ///
+    /// Like [`Locator::is_enabled`](crate::sb_cdp::Locator::is_enabled).
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn is_enabled(&self) -> Result<bool, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.is_enabled().await,
+            Engine::Cdp(element) => Box::pin(element.is_enabled()).await,
+        }
+    }
+
+    /// Whether an `<option>`, a checkbox or a radio button is selected.
+    ///
+    /// Like [`Locator::is_selected`](crate::sb_cdp::Locator::is_selected).
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text).
+    pub async fn is_selected(&self) -> Result<bool, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.is_selected().await,
+            Engine::Cdp(element) => Box::pin(element.is_selected()).await,
+        }
+    }
+
+    /// Clicks the element.
+    ///
+    /// Like [`Locator::click`](crate::sb_cdp::Locator::click). A WebDriver
+    /// element does not wait for itself to be ready; a CDP element waits, as a
+    /// locator does.
+    ///
+    /// # Errors
+    ///
+    /// See [`text`](Self::text); and the engine's error, such as a click
+    /// another element intercepts.
+    pub async fn click(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.click().await,
+            Engine::Cdp(element) => Box::pin(element.click()).await,
+        }
+    }
+
+    /// Double-clicks the element.
+    ///
+    /// Like [`Locator::double_click`](crate::sb_cdp::Locator::double_click).
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn double_click(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.double_click().await,
+            Engine::Cdp(element) => Box::pin(element.double_click()).await,
+        }
+    }
+
+    /// Right-clicks the element (opens its context menu).
+    ///
+    /// Like [`Locator::right_click`](crate::sb_cdp::Locator::right_click).
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn right_click(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.right_click().await,
+            Engine::Cdp(element) => Box::pin(element.right_click()).await,
+        }
+    }
+
+    /// Moves the pointer over the centre of the element.
+    ///
+    /// Like [`Locator::hover`](crate::sb_cdp::Locator::hover).
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn hover(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.hover().await,
+            Engine::Cdp(element) => Box::pin(element.hover()).await,
+        }
+    }
+
+    /// Empties the field.
+    ///
+    /// Like [`Locator::clear`](crate::sb_cdp::Locator::clear).
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn clear(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.clear().await,
+            Engine::Cdp(element) => Box::pin(element.clear()).await,
+        }
+    }
+
+    /// Types `text` into the element, after what is there.
+    ///
+    /// Python's `send_keys`. Like
+    /// [`Locator::send_keys`](crate::sb_cdp::Locator::send_keys). Use
+    /// [`type_text`](Self::type_text) to replace what the field holds instead.
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn send_keys(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.send_keys(text).await,
+            Engine::Cdp(element) => Box::pin(element.send_keys(text.as_ref())).await,
+        }
+    }
+
+    /// Empties the field, then types `text` into it.
+    ///
+    /// Python's `type`. Like
+    /// [`Locator::type_text`](crate::sb_cdp::Locator::type_text).
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn type_text(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.type_text(text).await,
+            Engine::Cdp(element) => Box::pin(element.type_text(text.as_ref())).await,
+        }
+    }
+
+    /// Presses `key` with the element focused.
+    ///
+    /// Like [`Locator::press`](crate::sb_cdp::Locator::press), and it takes
+    /// the same [`Key`].
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn press(&self, key: Key) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.press(key).await,
+            Engine::Cdp(element) => Box::pin(element.press(key)).await,
+        }
+    }
+
+    /// Chooses an option of a `<select>` element.
+    ///
+    /// Like [`Locator::select_option`](crate::sb_cdp::Locator::select_option),
+    /// and it takes the same [`SelectBy`].
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] for an index above `u32::MAX`
+    /// (WebDriver), the engine's error if the `<select>` has no such option;
+    /// and see [`click`](Self::click).
+    pub async fn select_option(&self, by: SelectBy<'_>) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.select_option(by).await,
+            Engine::Cdp(element) => Box::pin(element.select_option(by)).await,
+        }
+    }
+
+    /// Submits the form that contains the element.
+    ///
+    /// Like [`Locator::submit`](crate::sb_cdp::Locator::submit).
+    ///
+    /// # Errors
+    ///
+    /// The engine's error if the element is not inside a form; and see
+    /// [`click`](Self::click).
+    pub async fn submit(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.submit().await,
+            Engine::Cdp(element) => Box::pin(element.submit()).await,
+        }
+    }
+
+    /// Scrolls the element into view.
+    ///
+    /// Like
+    /// [`Locator::scroll_into_view`](crate::sb_cdp::Locator::scroll_into_view).
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click).
+    pub async fn scroll_into_view(&self) -> Result<(), SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.scroll_into_view().await,
+            Engine::Cdp(element) => Box::pin(element.scroll_into_view()).await,
+        }
+    }
+
+    /// Drags the element onto `target`.
+    ///
+    /// Like [`Locator::drag_to`](crate::sb_cdp::Locator::drag_to).
+    ///
+    /// # Errors
+    ///
+    /// See [`click`](Self::click); a stale `target` is reported with the
+    /// selector of the element being dragged. [`SeleniumBaseError::Unsupported`]
+    /// when the two elements are of different engines.
+    pub async fn drag_to(&self, target: &Element) -> Result<(), SeleniumBaseError> {
+        match (&self.engine, &target.engine) {
+            (Engine::WebDriver(from), Engine::WebDriver(to)) => from.drag_to(to).await,
+            (Engine::Cdp(from), Engine::Cdp(to)) => Box::pin(from.drag_to(to)).await,
+            _ => Err(mixed_engines()),
+        }
+    }
+
+    /// The first match of `selector` inside this element, looked for once.
+    ///
+    /// `selector` is anything that converts to a [`SelectorBuf`]: a string,
+    /// whose kind is read as everywhere else (`.remove`, `.//td`, `link=Edit`),
+    /// or a [`SelectorBuf`] that names its kind. Like
+    /// [`Locator::locator`](crate::sb_cdp::Locator::locator), without the
+    /// laziness.
+    ///
+    /// On a WebDriver session the search stays inside this element. The
+    /// WebDriver evaluates an XPath that starts at the root of the page
+    /// (`//td`, `/html/body`, `(//td)[1]`) from the root whatever element it
+    /// is asked from, so that would match the whole page: it is refused, and
+    /// so is a union with such a branch (`.//a | //b`) or a call of `id()`,
+    /// which also searches the whole document. Write it from the element,
+    /// `.//td`, for the descendants. An `<iframe>` element holds its frame,
+    /// not the frame's document, so this finds nothing in the frame there; the
+    /// pure CDP engine searches inside it.
+    ///
+    /// # Errors
+    ///
+    /// The engine's `no such element` error if nothing matches,
+    /// [`SeleniumBaseError::InvalidSelector`] for an empty selector, a
+    /// WebDriver XPath that starts at the root of the page, or one that
+    /// crosses a shadow root, and [`SeleniumBaseError::StaleElement`] if this
+    /// element went stale (WebDriver).
+    pub async fn find(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Element, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.find(selector).await.map(Self::from),
+            Engine::Cdp(element) => Box::pin(element.find(selector.into()))
+                .await
+                .map(Self::from),
+        }
+    }
+
+    /// Every match of `selector` inside this element, possibly none.
+    ///
+    /// # Errors
+    ///
+    /// As [`find`](Self::find), except that nothing matching is an empty list.
+    pub async fn find_all(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Vec<Element>, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => Ok(element
+                .find_all(selector)
+                .await?
+                .into_iter()
+                .map(Self::from)
+                .collect()),
+            Engine::Cdp(element) => Ok(Box::pin(element.find_all(selector.into()))
+                .await?
+                .into_iter()
+                .map(Self::from)
+                .collect()),
+        }
+    }
+
+    /// The element this one is in.
+    ///
+    /// Like [`Locator::parent`](crate::sb_cdp::Locator::parent), without the
+    /// laziness.
+    ///
+    /// # Errors
+    ///
+    /// The engine's error if there is no parent, as on the document element;
+    /// and see [`find`](Self::find).
+    pub async fn parent(&self) -> Result<Element, SeleniumBaseError> {
+        match &self.engine {
+            Engine::WebDriver(element) => element.parent().await.map(Self::from),
+            Engine::Cdp(element) => Box::pin(element.parent()).await.map(Self::from),
+        }
     }
 }
 
@@ -940,7 +1589,10 @@ mod tests {
         let row = cart.find(".row").await.unwrap();
 
         assert_eq!(row.to_string(), "#a >> .row");
-        assert_eq!(row.as_webdriver_element().element_id().to_string(), "r1");
+        assert_eq!(
+            row.as_webdriver_element().unwrap().element_id().to_string(),
+            "r1"
+        );
         let asked = only_request(&driver, "/element/e1/element");
         assert_eq!(asked["using"], "css selector");
         assert_eq!(asked["value"], ".row");
@@ -1150,7 +1802,12 @@ mod tests {
         let rows = cart.find_all(".row").await.unwrap();
         let ids: Vec<_> = rows
             .iter()
-            .map(|row| row.as_webdriver_element().element_id().to_string())
+            .map(|row| {
+                row.as_webdriver_element()
+                    .expect("a WebDriver element")
+                    .element_id()
+                    .to_string()
+            })
             .collect();
         assert_eq!(ids, ["r1", "r2"]);
         assert!(rows.iter().all(|row| row.to_string() == "#a >> .row"));
@@ -1166,7 +1823,14 @@ mod tests {
         let parent = cart.parent().await.unwrap();
 
         assert_eq!(parent.to_string(), "#a >> ..");
-        assert_eq!(parent.as_webdriver_element().element_id().to_string(), "p1");
+        assert_eq!(
+            parent
+                .as_webdriver_element()
+                .unwrap()
+                .element_id()
+                .to_string(),
+            "p1"
+        );
         assert!(parent.is_visible().await.unwrap());
     }
 
@@ -1311,8 +1975,20 @@ mod tests {
         let driver = page("A", "Go", "");
         let (_session, link) = found(&driver, "#a").await;
 
-        assert_eq!(link.as_webdriver_element().element_id().to_string(), "e1");
-        assert_eq!(link.into_webdriver_element().element_id().to_string(), "e1");
+        assert_eq!(
+            link.as_webdriver_element()
+                .unwrap()
+                .element_id()
+                .to_string(),
+            "e1"
+        );
+        assert_eq!(
+            link.into_webdriver_element()
+                .unwrap()
+                .element_id()
+                .to_string(),
+            "e1"
+        );
     }
 
     #[tokio::test]

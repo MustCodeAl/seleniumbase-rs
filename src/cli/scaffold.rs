@@ -25,13 +25,13 @@
 //! let dir = tempfile::tempdir()?;
 //! let scaffold = Scaffold::new(dir.path());
 //!
-//! let name = RelativeName::new("tests/login.rs")?;
+//! let name = RelativeName::try_new("tests/login.rs")?;
 //! scaffold.write_all(&[(name, "// a test\n".to_owned())])?;
 //! assert!(dir.path().join("tests").join("login.rs").is_file());
 //!
 //! // A name that climbs out of the directory is rejected before anything is written.
-//! assert!(RelativeName::new("../outside.rs").is_err());
-//! assert!(RelativeName::new("/etc/passwd").is_err());
+//! assert!(RelativeName::try_new("../outside.rs").is_err());
+//! assert!(RelativeName::try_new("/etc/passwd").is_err());
 //! # Ok(())
 //! # }
 //! ```
@@ -136,12 +136,12 @@ impl RelativeName {
     /// ```
     /// use seleniumbase_rs::cli::scaffold::RelativeName;
     ///
-    /// assert_eq!(RelativeName::new("./tests/login.rs").unwrap().to_string(), "tests/login.rs");
+    /// assert_eq!(RelativeName::try_new("./tests/login.rs").unwrap().to_string(), "tests/login.rs");
     /// for bad in ["", "..", "a/../b", "/abs", "C:\\x", "a\\b", "a b", "-flag", ".hidden", "con.rs"] {
-    ///     assert!(RelativeName::new(bad).is_err(), "{bad}");
+    ///     assert!(RelativeName::try_new(bad).is_err(), "{bad}");
     /// }
     /// ```
-    pub fn new(raw: &str) -> Result<Self, ScaffoldError> {
+    pub fn try_new(raw: &str) -> Result<Self, ScaffoldError> {
         if raw.is_empty() {
             return Err(ScaffoldError::invalid_name(raw, "the name is empty"));
         }
@@ -216,9 +216,9 @@ impl RelativeName {
     /// ```
     /// use seleniumbase_rs::cli::scaffold::RelativeName;
     ///
-    /// let name = RelativeName::new("MyTest").unwrap().with_extension_or_default("rs").unwrap();
+    /// let name = RelativeName::try_new("MyTest").unwrap().with_extension_or_default("rs").unwrap();
     /// assert_eq!(name.to_string(), "MyTest.rs");
-    /// assert!(RelativeName::new("MyTest.py").unwrap().with_extension_or_default("rs").is_err());
+    /// assert!(RelativeName::try_new("MyTest.py").unwrap().with_extension_or_default("rs").is_err());
     /// ```
     pub fn with_extension_or_default(mut self, extension: &str) -> Result<Self, ScaffoldError> {
         match self.extension() {
@@ -257,7 +257,7 @@ impl RelativeName {
     #[must_use]
     pub(crate) fn join(&self, child: &str) -> Self {
         debug_assert!(
-            Self::new(child).is_ok(),
+            Self::try_new(child).is_ok(),
             "{child:?} is not a valid relative name"
         );
         Self {
@@ -563,7 +563,7 @@ mod tests {
     use super::*;
 
     fn name(raw: &str) -> RelativeName {
-        RelativeName::new(raw).unwrap_or_else(|e| panic!("{raw:?} should be valid: {e}"))
+        RelativeName::try_new(raw).unwrap_or_else(|e| panic!("{raw:?} should be valid: {e}"))
     }
 
     #[test]
@@ -600,7 +600,10 @@ mod tests {
             "~/x",
             "a:b",
         ] {
-            assert!(RelativeName::new(bad).is_err(), "{bad:?} must be rejected");
+            assert!(
+                RelativeName::try_new(bad).is_err(),
+                "{bad:?} must be rejected"
+            );
         }
     }
 
@@ -610,22 +613,25 @@ mod tests {
             "", ".", "./", "a//b", "a b", "a\nb", "a\0b", "-rf", "a/-x", ".hidden", "a/.env",
             "name.", "a$b", "a;b", "a`b", "a*b", "é.rs", "con", "NUL.txt", "com1.rs", "lpt9",
         ] {
-            assert!(RelativeName::new(bad).is_err(), "{bad:?} must be rejected");
+            assert!(
+                RelativeName::try_new(bad).is_err(),
+                "{bad:?} must be rejected"
+            );
         }
-        assert!(RelativeName::new(&"x".repeat(MAX_COMPONENT_LEN + 1)).is_err());
-        assert!(RelativeName::new(&"x".repeat(MAX_COMPONENT_LEN)).is_ok());
+        assert!(RelativeName::try_new(&"x".repeat(MAX_COMPONENT_LEN + 1)).is_err());
+        assert!(RelativeName::try_new(&"x".repeat(MAX_COMPONENT_LEN)).is_ok());
         // `com0` and `com10` are not device names.
-        assert!(RelativeName::new("com0").is_ok());
-        assert!(RelativeName::new("com10").is_ok());
+        assert!(RelativeName::try_new("com0").is_ok());
+        assert!(RelativeName::try_new("com10").is_ok());
     }
 
     #[test]
     fn error_messages_name_the_problem() {
-        let message = RelativeName::new("../x").unwrap_err().to_string();
+        let message = RelativeName::try_new("../x").unwrap_err().to_string();
         assert!(message.contains("'..'"), "{message}");
-        let message = RelativeName::new("/x").unwrap_err().to_string();
+        let message = RelativeName::try_new("/x").unwrap_err().to_string();
         assert!(message.contains("absolute"), "{message}");
-        let message = RelativeName::new("a b").unwrap_err().to_string();
+        let message = RelativeName::try_new("a b").unwrap_err().to_string();
         assert!(message.contains("' '"), "{message}");
     }
 

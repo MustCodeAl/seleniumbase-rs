@@ -170,6 +170,14 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::Unsupported`] if the session reports no
     /// driver version, as a Firefox session does not.
     pub fn chromedriver_version(&self) -> Result<String, SeleniumBaseError> {
+        if self.session.pure_cdp_page().is_some() {
+            return Err(SeleniumBaseError::Unsupported(
+                "chromedriver_version: a direct CDP attachment runs no driver to report a \
+                 version; ask the browser with browser_version() or chrome_version()"
+                    .to_owned(),
+            ));
+        }
+
         let capabilities = serde_json::to_value(self.session.webdriver()?.capabilities())?;
         driver_version_from_capabilities(&capabilities).ok_or_else(|| {
             SeleniumBaseError::Unsupported(

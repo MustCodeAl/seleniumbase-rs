@@ -46,7 +46,7 @@ async fn what_a_test_writes_with_an_element(element: &Element) -> seleniumbase_r
     element.find(".remove").await?.click().await?;
     element.press(Key::Enter).await?;
     element.select_option(SelectBy::Text("Two")).await?;
-    let raw: &WebElement = element.as_webdriver_element();
+    let raw: &WebElement = element.as_webdriver_element().expect("a WebDriver element");
     println!("{} is {}", element, raw.element_id());
     Ok(())
 }

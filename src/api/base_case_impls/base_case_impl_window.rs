@@ -3,24 +3,27 @@
 impl BaseCase {
     /// Maximizes the browser window.
     pub async fn maximize(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.maximize_window().await?;
-        self.demo_pause(PauseKind::Short).await;
-        Ok(())
-    }
+            self.session.maximize_window().await?;
+            self.demo_pause(PauseKind::Short).await;
+            Ok(())
+        }
 
     /// Minimizes the browser window.
     pub async fn minimize(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.minimize_window().await?;
-        self.demo_pause(PauseKind::Short).await;
-        Ok(())
-    }
+            self.session.minimize_window().await?;
+            self.demo_pause(PauseKind::Short).await;
+            Ok(())
+        }
 
     /// Returns the browser window rectangle as `(x, y, width, height)`.
     pub async fn window_rect(&self) -> Result<(i64, i64, i64, i64), SeleniumBaseError> {
-        let rect = self.session.webdriver()?.get_window_rect()
-            .await?;
-        Ok((rect.x, rect.y, rect.width, rect.height))
-    }
+            self.session.window_rect().await
+        }
+    
+
+    
+
+    
 
     /// Returns the screen rectangle as `(width, height)`.
     pub async fn screen_rect(&self) -> Result<(i64, i64), SeleniumBaseError> {

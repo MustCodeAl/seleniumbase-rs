@@ -17,6 +17,19 @@ work, `docs/parity.md` the per-API status).
   attributes, as in `ESC[31;1m`), and
   the `rich_helper` printers write through `anstream`, which strips the escape codes when the
   stream is piped or `NO_COLOR` is set.
+- **`BaseCase` runs on a direct DevTools attachment** (`BrowserConfig::with_cdp_url`,
+  `with_cdp_discovery`: the stealthy browser, a Tauri or Electron window), as Python's CDP Mode
+  gives `sb.cdp` the methods of `sb`. Navigation, finding and clicking, typing, the waits and
+  assertions, text and attributes, frames, windows and tabs (a handle is the target id), cookies,
+  scripts (also `execute_async_script`), screenshots, alerts (a `Page.javascriptDialogOpening`
+  listener answers `accept_alert`, `dismiss_alert`, `switch_to_alert` and the rest), the mouse
+  (`hover`, `double_click`, `context_click`, the clicks at an offset, `drag_and_drop_with_offset`,
+  `click_chain`) and the downloads folder all go through the pure CDP engine. A method that
+  needs a driver (`cdp_events`, `chromedriver_version`, `install_addon`, Recorder Mode) answers
+  `SeleniumBaseError::Unsupported`, naming the method and the alternative. The design is
+  `docs/design/basecase_over_cdp.md`; `tests/chrome/basecase_cdp_chrome.rs` runs it against a
+  headless Chrome.
+
 
 
 ### Changed
@@ -78,6 +91,23 @@ work, `docs/parity.md` the per-API status).
   not write `basic_test_info.txt`. `TestRun::finalize` still records a started test that has no end
   as unreported. A second `test_started` on the reports plugin abandons the previous recorder
   before it starts the next one.
+
+- **Breaking: `Element` runs on either engine.** On a direct DevTools attachment it wraps a
+  `sb_cdp::Locator`, which looks again on every use, so it is never stale. `as_webdriver_element`
+  and `into_webdriver_element` answer `Option` (`None` on that engine), and
+  `BrowserSession::webdriver()` keeps answering `Unsupported` for such a session.
+
+- **Breaking: conversion, accessor and constructor names follow the API rules** (R2, R1 and R4
+  of the API guidelines page). The `name()` of `Browser`, `DriverMode`, the Chrome for Testing
+  artifact and the proxy scheme is `as_str()`, like the other `&'static str` names of the crate;
+  `BrowserConfig::rec_sb_cdp` is `recording_sb_cdp`; a `new` that returns a `Result` is
+  `try_new` (`ExtensionArchive`, `AllureSink`, `RunReporterPlugin`, the scaffold's `RelativeName`
+  and the file types of `sbrs mkdir`, `mkfile` (`TestFile`), `mkchart` and `mkpres`
+  (`PresentationFile`)). `Browser`, `DriverMode` and `Cookie` are `#[non_exhaustive]`: a `match`
+  outside the crate needs a `_` arm, and a `Cookie` is built with `Cookie::new` and its setters
+  (`domain`, `path`, `expires`, `http_only`, `secure`, `same_site`). Rename the calls; the
+  behaviour is the same.
+
 
 - **Breaking: the getters of `BaseCase` have no `get_` prefix** (rule C-GETTER of the API
   guidelines: a Rust getter is named after what it returns). `get_text` is `text`, `get_title` is

@@ -222,7 +222,7 @@ pub(crate) fn create_presentation(theme: &str, transition: &str) -> String {
 /// use seleniumbase_rs::utils::translate::Language;
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
-/// let source = PresentationFile::new("tests/deck")?
+/// let source = PresentationFile::try_new("tests/deck")?
 ///     .language(Language::Spanish)
 ///     .render();
 /// assert!(source.contains("async fn deck(sb: Sb) -> Result<()>"));
@@ -244,9 +244,9 @@ impl PresentationFile {
     ///
     /// [`ScaffoldError::InvalidName`] when `name` is not a relative name made of
     /// letters, digits, `_`, `-` and `.`, or has an extension other than `.rs`.
-    pub fn new(name: &str) -> Result<Self, ScaffoldError> {
+    pub fn try_new(name: &str) -> Result<Self, ScaffoldError> {
         Ok(Self {
-            name: RelativeName::new(name)?.with_extension_or_default("rs")?,
+            name: RelativeName::try_new(name)?.with_extension_or_default("rs")?,
             language: Language::English,
         })
     }
@@ -338,7 +338,7 @@ mod tests {
     ];
 
     fn file(name: &str) -> PresentationFile {
-        PresentationFile::new(name).unwrap()
+        PresentationFile::try_new(name).unwrap()
     }
 
     #[test]
@@ -412,9 +412,9 @@ mod tests {
             "{source}"
         );
         assert!(source.contains("filename(\"my-deck.html\")"), "{source}");
-        assert!(PresentationFile::new("../deck").is_err());
-        assert!(PresentationFile::new("deck.py").is_err());
-        assert!(PresentationFile::new("a b").is_err());
+        assert!(PresentationFile::try_new("../deck").is_err());
+        assert!(PresentationFile::try_new("deck.py").is_err());
+        assert!(PresentationFile::try_new("a b").is_err());
     }
 
     #[test]

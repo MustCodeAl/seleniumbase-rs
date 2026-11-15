@@ -888,6 +888,7 @@
               "design/mise_drivers",
               "design/trace_viewer",
               "design/playwright_basecase",
+              "design/basecase_over_cdp",
               "design/bon_builders",
               "design/settings_v2",
               "design/element_type",

@@ -42,6 +42,7 @@ use crate::evasion::fingerprint::Fingerprint;
 /// [`FromStr`]: std::str::FromStr
 /// [`Display`]: std::fmt::Display
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize, Hash)]
+#[non_exhaustive]
 pub enum Browser {
     #[default]
     Chrome,
@@ -88,7 +89,7 @@ impl Browser {
 
     /// The name Python SeleniumBase gives the browser (`--browser=NAME`).
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::Chrome => "chrome",
             Self::Chromium => "chromium",
@@ -108,7 +109,7 @@ impl Browser {
 
 impl std::fmt::Display for Browser {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name())
+        f.write_str(self.as_str())
     }
 }
 
@@ -153,6 +154,7 @@ impl std::str::FromStr for Browser {
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "lowercase")]
 #[derive(Hash)]
+#[non_exhaustive]
 pub enum DriverMode {
     // The names in a file are lower case; the capitalized names of an older file are read too.
     #[default]
@@ -167,7 +169,7 @@ pub enum DriverMode {
 impl DriverMode {
     /// The name `Settings::mode`, `SB_MODE` and `sbrs` use for the mode.
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::WebDriver => "webdriver",
             Self::Cdp => "cdp",
@@ -178,7 +180,7 @@ impl DriverMode {
 
 impl std::fmt::Display for DriverMode {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(self.name())
+        f.write_str(self.as_str())
     }
 }
 
@@ -777,7 +779,7 @@ impl BrowserConfig {
     /// Whether recordings are written as pure CDP code
     /// ([`with_recording_sb_cdp`](Self::with_recording_sb_cdp)).
     #[must_use]
-    pub fn rec_sb_cdp(&self) -> bool {
+    pub fn recording_sb_cdp(&self) -> bool {
         self.browser.has(LaunchSwitch::RecSbCdp)
     }
 
@@ -1485,11 +1487,11 @@ mod tests {
     fn every_browser_reads_back_from_its_python_name() {
         for browser in ALL {
             assert_eq!(
-                browser.name().parse::<Browser>().unwrap(),
+                browser.as_str().parse::<Browser>().unwrap(),
                 browser,
                 "{browser:?}"
             );
-            assert_eq!(browser.to_string(), browser.name());
+            assert_eq!(browser.to_string(), browser.as_str());
         }
         // The names Python SeleniumBase takes.
         for (name, browser) in [
@@ -1802,9 +1804,9 @@ mod tests {
 
     #[test]
     fn rec_sb_cdp_is_off_until_it_is_asked_for_and_is_written_as_a_switch() {
-        assert!(!BrowserConfig::default().rec_sb_cdp());
+        assert!(!BrowserConfig::default().recording_sb_cdp());
         let on = BrowserConfig::default().with_recording_sb_cdp(true);
-        assert!(on.rec_sb_cdp());
+        assert!(on.recording_sb_cdp());
         assert!(!on.esc_end(), "the switches are independent");
         let json = serde_json::to_value(&on).unwrap();
         assert_eq!(
@@ -1812,8 +1814,8 @@ mod tests {
             serde_json::json!({"rec-sb-cdp": true})
         );
         let back: BrowserConfig = serde_json::from_value(json).unwrap();
-        assert!(back.rec_sb_cdp());
-        assert!(!on.with_recording_sb_cdp(false).rec_sb_cdp());
+        assert!(back.recording_sb_cdp());
+        assert!(!on.with_recording_sb_cdp(false).recording_sb_cdp());
     }
 
     #[test]

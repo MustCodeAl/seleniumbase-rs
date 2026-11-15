@@ -117,7 +117,7 @@ pub enum ProxyScheme {
 impl ProxyScheme {
     /// The scheme as it is written in an address.
     #[must_use]
-    pub const fn name(self) -> &'static str {
+    pub const fn as_str(self) -> &'static str {
         match self {
             Self::Http => "http",
             Self::Https => "https",
@@ -389,7 +389,7 @@ impl FromStr for ProxyAddress {
 impl fmt::Display for ProxyAddress {
     /// Writes `scheme://[user:***@]host:port`: the password is hidden.
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}://", self.scheme.name())?;
+        write!(f, "{}://", self.scheme.as_str())?;
         if let Some((user, _)) = &self.credentials {
             write!(f, "{user}:***@")?;
         }

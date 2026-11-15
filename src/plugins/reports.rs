@@ -211,7 +211,7 @@ impl RunReporterPlugin {
     ///
     /// Returns the error that made the run: the settings could not be read or
     /// the run folder could not be used.
-    pub fn new() -> Result<Self> {
+    pub fn try_new() -> Result<Self> {
         Ok(Self::with_run(TestRun::current()?))
     }
 

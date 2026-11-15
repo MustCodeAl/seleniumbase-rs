@@ -145,7 +145,7 @@ jobs:
 /// use seleniumbase_rs::cli::scripts::sb_mkdir::Suite;
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
-/// let suite = Suite::new("tests/ui")?;
+/// let suite = Suite::try_new("tests/ui")?;
 /// let names: Vec<String> = suite.files().iter().map(|(name, _)| name.to_string()).collect();
 /// assert_eq!(names[0], "tests/ui/README.md");
 /// assert!(names.contains(&"tests/ui/main.rs".to_owned()));
@@ -168,9 +168,9 @@ impl Suite {
     ///
     /// [`ScaffoldError::InvalidName`] when `name` is not a relative name made of
     /// letters, digits, `_`, `-` and `.`.
-    pub fn new(name: &str) -> Result<Self, ScaffoldError> {
+    pub fn try_new(name: &str) -> Result<Self, ScaffoldError> {
         Ok(Self {
-            name: RelativeName::new(name)?,
+            name: RelativeName::try_new(name)?,
             basic: false,
             gha: false,
             bdd: false,
@@ -432,7 +432,7 @@ mod tests {
     #[test]
     fn the_default_suite_has_three_example_tests() {
         assert_eq!(
-            names(&Suite::new("ui").unwrap()),
+            names(&Suite::try_new("ui").unwrap()),
             [
                 "ui/README.md",
                 "ui/main.rs",
@@ -445,7 +445,7 @@ mod tests {
 
     #[test]
     fn basic_leaves_out_the_examples() {
-        let suite = Suite::new("ui").unwrap().basic(true);
+        let suite = Suite::try_new("ui").unwrap().basic(true);
         assert_eq!(names(&suite), ["ui/README.md", "ui/main.rs"]);
         let files = suite.files();
         let main = contents(&files, "main.rs");
@@ -456,7 +456,7 @@ mod tests {
 
     #[test]
     fn bdd_adds_the_scenario_and_its_feature_even_to_a_basic_suite() {
-        let suite = Suite::new("tests/ui").unwrap().basic(true).bdd(true);
+        let suite = Suite::try_new("tests/ui").unwrap().basic(true).bdd(true);
         assert_eq!(
             names(&suite),
             [
@@ -483,7 +483,7 @@ mod tests {
 
     #[test]
     fn gha_writes_the_workflow_in_the_folder_it_runs_in() {
-        let suite = Suite::new("tests/ui-flows").unwrap().gha(true);
+        let suite = Suite::try_new("tests/ui-flows").unwrap().gha(true);
         let names = names(&suite);
         assert_eq!(
             names.last().map(String::as_str),
@@ -506,14 +506,15 @@ mod tests {
         assert!(workflow.contains("${{ always() }}"), "{workflow}");
         assert!(contents(&suite.files(), "README.md").contains("GitHub Actions"));
         assert!(
-            !contents(&Suite::new("x").unwrap().files(), "README.md").contains("GitHub Actions")
+            !contents(&Suite::try_new("x").unwrap().files(), "README.md")
+                .contains("GitHub Actions")
         );
     }
 
     #[test]
     fn every_rust_file_parses_and_every_module_is_declared() {
         for (basic, bdd) in [(false, false), (true, false), (false, true), (true, true)] {
-            let files = Suite::new("ui").unwrap().basic(basic).bdd(bdd).files();
+            let files = Suite::try_new("ui").unwrap().basic(basic).bdd(bdd).files();
             let main = contents(&files, "main.rs");
             for (name, source) in &files {
                 if name.extension() == Some("rs") {
@@ -533,7 +534,10 @@ mod tests {
 
     #[test]
     fn the_readme_names_the_target_and_the_path() {
-        let readme = contents(&Suite::new("tests/ui-flows").unwrap().files(), "README.md");
+        let readme = contents(
+            &Suite::try_new("tests/ui-flows").unwrap().files(),
+            "README.md",
+        );
         assert!(readme.starts_with("# tests/ui-flows\n"), "{readme}");
         assert!(readme.contains("name = \"ui-flows\""), "{readme}");
         assert!(
@@ -553,7 +557,7 @@ mod tests {
     #[test]
     fn the_example_tests_do_not_select_the_h1_example_com_no_longer_serves() {
         for bdd in [false, true] {
-            for (name, source) in Suite::new("ui").unwrap().bdd(bdd).files() {
+            for (name, source) in Suite::try_new("ui").unwrap().bdd(bdd).files() {
                 if name.extension() == Some("rs") || name.extension() == Some("feature") {
                     assert!(
                         !source.contains("\"h1\""),
@@ -562,7 +566,7 @@ mod tests {
                 }
             }
         }
-        let files = Suite::new("ui").unwrap().bdd(true).files();
+        let files = Suite::try_new("ui").unwrap().bdd(true).files();
         assert!(
             contents(&files, "my_first_test.rs")
                 .contains("assert_text(\"This domain is for use in\", \"p\")"),
@@ -576,7 +580,7 @@ mod tests {
     /// GitHub tag of this release: `version = "0.6"` cannot be resolved.
     #[test]
     fn the_readme_depends_on_the_github_tag_not_on_crates_io() {
-        let readme = contents(&Suite::new("ui").unwrap().files(), "README.md");
+        let readme = contents(&Suite::try_new("ui").unwrap().files(), "README.md");
         let tag = format!(
             "seleniumbase-rs = {{ git = \"https://github.com/MustCodeAl/seleniumbase-rs\", tag = \"v{}\"",
             env!("CARGO_PKG_VERSION")
@@ -588,7 +592,7 @@ mod tests {
     #[test]
     fn hostile_names_never_reach_the_file_system() {
         for bad in ["../x", "/tmp/x", "a/../../x", "x y", "x;rm", "..", ""] {
-            assert!(Suite::new(bad).is_err(), "{bad:?}");
+            assert!(Suite::try_new(bad).is_err(), "{bad:?}");
         }
     }
 
@@ -596,7 +600,7 @@ mod tests {
     fn creating_twice_fails_without_touching_the_first_copy() {
         let dir = tempfile::tempdir().unwrap();
         let scaffold = Scaffold::new(dir.path());
-        let suite = Suite::new("ui").unwrap();
+        let suite = Suite::try_new("ui").unwrap();
         assert_eq!(suite.create(&scaffold).unwrap().len(), 5);
 
         std::fs::write(dir.path().join("ui/main.rs"), "// edited").unwrap();
@@ -613,7 +617,7 @@ mod tests {
     fn an_existing_empty_folder_is_fine() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir(dir.path().join("ui")).unwrap();
-        assert!(Suite::new("ui")
+        assert!(Suite::try_new("ui")
             .unwrap()
             .create(&Scaffold::new(dir.path()))
             .is_ok());
@@ -622,7 +626,7 @@ mod tests {
     #[test]
     fn the_workflow_and_the_feature_are_written_in_their_folders() {
         let dir = tempfile::tempdir().unwrap();
-        let written = Suite::new("ui")
+        let written = Suite::try_new("ui")
             .unwrap()
             .bdd(true)
             .gha(true)

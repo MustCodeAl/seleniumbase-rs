@@ -63,7 +63,7 @@ impl BrowserSession {
     /// [`SeleniumBaseError::CdpDriver`] when that address does not answer or
     /// advertises no WebSocket.
     pub async fn devtools_endpoint(&self) -> Result<DevToolsEndpoint, SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             return Ok(page.browser().devtools_endpoint());
         }
         let capabilities =
@@ -102,8 +102,8 @@ impl BrowserSession {
     /// # }
     /// ```
     #[must_use]
-    pub fn pure_cdp_page(&self) -> Option<&crate::sb_cdp::Page> {
-        self.external_page.as_ref()
+    pub fn pure_cdp_page(&self) -> Option<crate::sb_cdp::Page> {
+        self.external_page.get()
     }
 
     /// Enables the Page and Network CDP domains.
@@ -113,7 +113,7 @@ impl BrowserSession {
     ///
     /// [`CdpClient::enable_default_domains`]: crate::browser::devtools::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             for method in crate::evasion::cdp::DEFAULT_DOMAIN_COMMANDS {
                 page.execute(method, json!({})).await?;
             }
@@ -139,7 +139,7 @@ impl BrowserSession {
         method: &str,
         params: Value,
     ) -> Result<Value, SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             return page.execute(method, params).await;
         }
         let cdp = self.cdp_client()?;
@@ -148,6 +148,10 @@ impl BrowserSession {
 
     /// Clears the browser cache via CDP.
     pub async fn clear_browser_cache(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            page.execute("Network.clearBrowserCache", json!({})).await?;
+            return Ok(());
+        }
         let cdp = self.cdp_client()?;
         cdp.clear_cache().await
     }
@@ -157,6 +161,9 @@ impl BrowserSession {
     /// A session without a DevTools connection (plain WebDriver mode) clears the
     /// cookies of the current domain through WebDriver instead.
     pub async fn clear_browser_cookies(&self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.cookies().clear().await;
+        }
         if let Ok(cdp) = self.cdp_client() {
             return cdp.clear_cookies().await;
         }
@@ -180,6 +187,18 @@ impl BrowserSession {
     /// [`SeleniumBaseError::WebDriver`] if the driver refuses to list the cookies, and
     /// [`SeleniumBaseError::CdpDriver`] if DevTools answers without a list of cookies.
     pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            let url = page.url().await?;
+            let response = page
+                .execute("Network.getCookies", json!({ "urls": [url] }))
+                .await?;
+            let cookies = response["cookies"].as_array().ok_or_else(|| {
+                SeleniumBaseError::CdpDriver(
+                    "Network.getCookies answered no list of cookies".to_owned(),
+                )
+            })?;
+            return Ok(cookies.iter().map(Cookie::from_protocol).collect());
+        }
         if let Ok(cdp) = self.cdp_client() {
             let url = self.webdriver()?.current_url().await?;
             let response = cdp.get_cookies(url.as_str()).await?;
@@ -206,6 +225,15 @@ impl BrowserSession {
     ///
     /// Returns the driver's error when it keeps no `performance` log.
     pub async fn cdp_events(&self) -> Result<Vec<CdpEvent>, SeleniumBaseError> {
+        if self.external_page.is_some() {
+            return Err(SeleniumBaseError::Unsupported(
+                "cdp_events reads the performance log of a driver, which a direct CDP attachment \
+                 has none of: subscribe to the tab's protocol events with `Page::events()` \
+                 (`BaseCase::devtools_endpoint()` reaches the browser)"
+                    .to_owned(),
+            ));
+        }
+
         let entries = self.webdriver()?.get_log("performance").await?;
         Ok(entries
             .iter()
@@ -215,12 +243,18 @@ impl BrowserSession {
 
     /// Dispatches a CDP mouse click at `(x, y)`.
     pub async fn cdp_mouse_click(&self, x: f64, y: f64) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.mouse().click(crate::sb_cdp::Point { x, y }).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.mouse_click(x, y).await
     }
 
     /// Inserts `text` via CDP without element focus.
     pub async fn cdp_type_text(&self, text: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.keyboard().insert_text(text).await;
+        }
         let cdp = self.cdp_client()?;
         cdp.keyboard_insert_text(text).await
     }
@@ -246,7 +280,7 @@ impl BrowserSession {
         &self,
         throttle: &NetworkThrottle,
     ) -> Result<(), SeleniumBaseError> {
-        if let Some(page) = &self.external_page {
+        if let Some(page) = self.external_page.get() {
             return page.emulation().network_throttle(throttle).await;
         }
         self.require_devtools_channel()?;
@@ -283,12 +317,21 @@ impl BrowserSession {
         longitude: f64,
         accuracy: f64,
     ) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page
+                .emulation()
+                .geolocation(latitude, longitude, accuracy)
+                .await;
+        }
         let cdp = self.cdp_client()?;
         uc::override_geolocation(cdp, latitude, longitude, accuracy).await
     }
 
     /// Sets the browser timezone via CDP.
     pub async fn set_timezone(&self, timezone_id: &str) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.external_page.get() {
+            return page.emulation().timezone(timezone_id).await;
+        }
         let cdp = self.cdp_client()?;
         uc::override_timezone(cdp, timezone_id).await
     }
@@ -362,14 +405,13 @@ mod endpoint_tests {
     async fn a_direct_attachment_answers_the_endpoint_of_its_browser() {
         let (browser, _mock) = Browser::new_mocked();
         let page = browser.default_page().await.expect("a page on the mock");
-        let mut session = BrowserSession::disconnected();
-        session.external_page = Some(page);
+        let session = BrowserSession::disconnected();
+        session.external_page.set(Some(page));
 
         let endpoint = session
             .devtools_endpoint()
             .await
             .expect("an attachment has its browser's endpoint");
-
         // What `Browser::http_url` says of the mock (`tests/offline/sb_cdp_parity_mock.rs`).
         assert_eq!(endpoint.http_url(), "http://127.0.0.1:0");
         assert_eq!(endpoint, browser.devtools_endpoint());
@@ -556,8 +598,8 @@ mod network_throttle_tests {
     async fn a_direct_attachment_throttles_its_own_tab() {
         let (browser, mock) = Browser::new_mocked();
         let page = browser.default_page().await.expect("a page on the mock");
-        let mut session = BrowserSession::disconnected();
-        session.external_page = Some(page);
+        let session = BrowserSession::disconnected();
+        session.external_page.set(Some(page));
 
         session
             .set_network_throttle(&slow())
