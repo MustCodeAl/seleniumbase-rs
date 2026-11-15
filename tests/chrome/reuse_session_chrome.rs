@@ -45,7 +45,10 @@ fn config() -> BrowserConfig {
     // The second test checks that the first one's cookie is cleaned away, which
     // is what crumbs ask for; `crumbs_chrome.rs` checks the default.
     set_crumbs(true);
-    BrowserConfig::default().with_reuse_session(true)
+    BrowserConfig::builder()
+        .reuse_session(true)
+        .build()
+        .expect("a valid config")
 }
 
 /// Serves one page on a loopback port, since cookies need an `http` origin,

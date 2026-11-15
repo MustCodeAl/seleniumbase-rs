@@ -36,7 +36,10 @@ async fn main() -> Result<()> {
     // The first argument, if there is one, is the public page to try.
     let public_url = std::env::args().nth(1);
     let url = public_url.clone().unwrap_or_else(|| site.url(DEMO_PATH));
-    let config = BrowserConfig::default().with_mode(DriverMode::Uc);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .build()
+        .expect("a valid config");
     run_browser_test(config, async |sb| demo(sb, url, public_url.is_none()).await).await
 }
 

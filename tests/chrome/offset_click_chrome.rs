@@ -23,7 +23,10 @@ const PAGE: &str = "data:text/html,<html><body style=\"margin:0\">\
     </body></html>";
 
 async fn case() -> BaseCase {
-    let config = BrowserConfig::default().with_headless(true);
+    let config = BrowserConfig::builder()
+        .headless(true)
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(PAGE).await.expect("the page opens");
     sb

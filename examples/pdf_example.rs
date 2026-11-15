@@ -27,7 +27,10 @@ use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, DriverMo
 #[tokio::main]
 async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
-    let config = BrowserConfig::default().with_mode(DriverMode::Cdp);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Cdp)
+        .build()
+        .expect("a valid config");
     run_browser_test(config, async |sb| demo(sb, url).await).await
 }
 

@@ -44,7 +44,11 @@ const FORM_PAGE: &str = "data:text/html,<html><head><title>Form</title></head><b
 #[serial_test::serial(chrome)]
 async fn a_start_page_is_opened_when_the_test_case_starts() {
     let _guard = BROWSER_LOCK.lock().await;
-    let config = test_config().with_start_page(FORM_PAGE);
+    let config = test_config()
+        .into_builder()
+        .start_page(FORM_PAGE)
+        .build()
+        .expect("a valid config");
 
     let mut sb = BaseCase::new(config).await.expect("connect to browser");
 

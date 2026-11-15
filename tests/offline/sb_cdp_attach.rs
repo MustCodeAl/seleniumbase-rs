@@ -279,10 +279,12 @@ async fn base_case_discovers_the_plugin_and_uses_the_pure_cdp_session() {
         "cdpEnabled": true, "cdpPort": port, "cdpUrl": debugger.http
     } })))
     .await;
-    let config = BrowserConfig::default()
-        .with_webdriver_url(format!("{}/app-token/", plugin.http))
-        .with_cdp_discovery(true)
-        .with_fingerprint(fingerprint());
+    let config = BrowserConfig::builder()
+        .webdriver_url(format!("{}/app-token/", plugin.http))
+        .cdp_discovery(true)
+        .fingerprint(fingerprint())
+        .build()
+        .expect("a valid config");
     let mut case = BaseCase::new(config).await.unwrap();
     assert!(case.is_cdp_mode_active());
     assert!(case.is_connected().await);
@@ -323,7 +325,11 @@ fn config_is_additive_and_passed_through_the_existing_builder() {
     old.as_object_mut().unwrap().remove("cdp_discovery");
     let old: BrowserConfig = serde_json::from_value(old).unwrap();
     assert!(old.cdp_url.is_none() && !old.cdp_discovery);
-    let config = old.with_cdp_url("ws://127.0.0.1:9222/devtools/browser/app-token");
+    let config = old
+        .into_builder()
+        .cdp_url("ws://127.0.0.1:9222/devtools/browser/app-token")
+        .build()
+        .expect("a valid config");
     let options = LaunchOptions::builder()
         .browser_config(&config)
         .build()
@@ -331,9 +337,11 @@ fn config_is_additive_and_passed_through_the_existing_builder() {
     assert_eq!(options.cdp_url(), config.cdp_url.as_deref());
     assert!(!format!("{options:?}").contains("app-token"));
     assert!(!format!("{config:?}").contains("app-token"));
-    let discovery = BrowserConfig::default()
-        .with_webdriver_url("http://127.0.0.1:4445/app-token/")
-        .with_cdp_discovery(true);
+    let discovery = BrowserConfig::builder()
+        .webdriver_url("http://127.0.0.1:4445/app-token/")
+        .cdp_discovery(true)
+        .build()
+        .expect("a valid config");
     assert!(!format!("{discovery:?}").contains("app-token"));
 }
 
@@ -487,9 +495,11 @@ fn a_proxy_cannot_be_set_on_an_attached_browser() {
 #[test_log::test(tokio::test)]
 async fn base_case_refuses_a_proxy_on_an_attached_app_before_it_connects() {
     let server = AttachServer::start(None).await;
-    let config = BrowserConfig::default()
-        .with_cdp_url(&server.http)
-        .with_proxy("alice:hunter2@proxy.example:3128");
+    let config = BrowserConfig::builder()
+        .cdp_url(&server.http)
+        .proxy("alice:hunter2@proxy.example:3128")
+        .build()
+        .expect("a valid config");
     let error = BaseCase::new(config).await.expect_err("a proxy is refused");
     assert!(
         matches!(error, SeleniumBaseError::InvalidConfig(_)),
@@ -532,7 +542,10 @@ fn a_user_agent_or_locale_needs_a_fingerprint_on_an_attached_browser() {
 #[test_log::test(tokio::test)]
 async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() {
     let server = AttachServer::start(None).await;
-    let mut config = BrowserConfig::default().with_cdp_url(&server.http);
+    let mut config = BrowserConfig::builder()
+        .cdp_url(&server.http)
+        .build()
+        .expect("a valid config");
     config.browser.user_agent = Some("Custom/1.0".to_owned());
     let error = BaseCase::new(config).await.expect_err("refused");
     assert!(
@@ -545,9 +558,11 @@ async fn base_case_refuses_a_user_agent_on_an_attached_app_before_it_connects() 
 #[test_log::test(tokio::test)]
 async fn reconnect_attaches_to_the_same_endpoint_and_starts_no_driver() {
     let server = AttachServer::start(None).await;
-    let mut config = BrowserConfig::default()
-        .with_cdp_url(&server.http)
-        .with_fingerprint(fingerprint());
+    let mut config = BrowserConfig::builder()
+        .cdp_url(&server.http)
+        .fingerprint(fingerprint())
+        .build()
+        .expect("a valid config");
     // Were a driver started, it would be a local chromedriver: not here.
     config.session.auto_start_driver = false;
     let mut case = BaseCase::new(config).await.unwrap();
@@ -567,7 +582,10 @@ async fn reconnect_attaches_to_the_same_endpoint_and_starts_no_driver() {
 #[test_log::test(tokio::test)]
 async fn a_call_that_needs_a_webdriver_on_a_cdp_attachment_is_an_error_not_a_panic() {
     let server = AttachServer::start(None).await;
-    let config = BrowserConfig::default().with_cdp_url(&server.http);
+    let config = BrowserConfig::builder()
+        .cdp_url(&server.http)
+        .build()
+        .expect("a valid config");
     let session = BrowserSession::connect(config.clone()).await.unwrap();
     // The driver itself, and the performance log only a driver keeps.
     for error in [
@@ -706,10 +724,12 @@ fn assert_second_window_is_the_only_one_touched(server: &AttachServer) {
 #[test_log::test(tokio::test)]
 async fn base_case_drives_the_window_named_in_the_configuration() {
     let server = AttachServer::start(None).await;
-    let config = BrowserConfig::default()
-        .with_cdp_url(&server.http)
-        .with_cdp_target("/settings")
-        .with_fingerprint(fingerprint());
+    let config = BrowserConfig::builder()
+        .cdp_url(&server.http)
+        .cdp_target("/settings")
+        .fingerprint(fingerprint())
+        .build()
+        .expect("a valid config");
     let mut case = BaseCase::new(config).await.unwrap();
     assert_eq!(case.cdp_get_title().await.unwrap(), "Tauri window");
     assert_second_window_is_the_only_one_touched(&server);
@@ -721,9 +741,11 @@ async fn base_case_drives_the_window_named_in_the_configuration() {
 
 #[test]
 fn the_window_to_drive_survives_a_round_trip_through_serde_and_the_builder() {
-    let config = BrowserConfig::default()
-        .with_cdp_url("http://127.0.0.1:9222")
-        .with_cdp_target("/settings");
+    let config = BrowserConfig::builder()
+        .cdp_url("http://127.0.0.1:9222")
+        .cdp_target("/settings")
+        .build()
+        .expect("a valid config");
     let again: BrowserConfig =
         serde_json::from_value(serde_json::to_value(&config).unwrap()).unwrap();
     assert_eq!(again.cdp_target.as_deref(), Some("/settings"));
@@ -806,10 +828,12 @@ mod plugins {
         let server = AttachServer::start(None).await;
         let log = Arc::new(Mutex::new(Vec::new()));
         let set = PluginSet::new().with(AttachPlugin(log.clone())).unwrap();
-        let config = BrowserConfig::default()
-            .with_cdp_url(&server.http)
-            .with_fingerprint(fingerprint())
-            .with_plugins(set);
+        let config = BrowserConfig::builder()
+            .cdp_url(&server.http)
+            .fingerprint(fingerprint())
+            .plugins(set)
+            .build()
+            .expect("a valid config");
         let mut case = BaseCase::new(config).await.unwrap();
         assert_identity(&server);
         assert_eq!(*log.lock().unwrap(), ["browser", "page"]);

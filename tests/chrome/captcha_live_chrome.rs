@@ -133,9 +133,11 @@ async fn nowsecure_passes_with_the_uc_webdriver_engine() {
     if !live_enabled() {
         return;
     }
-    let config = BrowserConfig::default()
-        .with_headless(headless())
-        .with_mode(DriverMode::Uc);
+    let config = BrowserConfig::builder()
+        .headless(headless())
+        .mode(DriverMode::Uc)
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("start Chrome");
 
     let started = Instant::now();

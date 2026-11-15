@@ -27,7 +27,10 @@ const PAGE: &str = "data:text/html,<html><head><title>start</title></head><body>
     <input id=\"box\"></body></html>";
 
 fn test_config(esc_end: bool) -> BrowserConfig {
-    let mut config = BrowserConfig::default().with_esc_end(esc_end);
+    let mut config = BrowserConfig::builder()
+        .esc_end(esc_end)
+        .build()
+        .expect("a valid config");
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
         config.session.webdriver_url = Some(url);
         config.session.auto_start_driver = false;

@@ -59,7 +59,10 @@ const MODIFIER: &str = if cfg!(target_os = "macos") {
 async fn main() -> Result<()> {
     let url = Site::serve(&[("/", PAGE)])?.url("/");
     // Native input needs a window to land in.
-    let config = BrowserConfig::default().with_headless(false);
+    let config = BrowserConfig::builder()
+        .headless(false)
+        .build()
+        .expect("a valid config");
     run_browser_test(config, async |sb| demo(sb, url).await).await
 }
 

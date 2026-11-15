@@ -11,9 +11,11 @@ use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, Seleniu
 
 /// The WebDriver engine (`BaseCase`), headless.
 pub fn headless() -> BrowserConfig {
-    BrowserConfig::default()
-        .with_headless(true)
-        .with_window_size(WindowSize::new(1440, 1880))
+    BrowserConfig::builder()
+        .headless(true)
+        .window_size(WindowSize::new(1440, 1880))
+        .build()
+        .expect("a valid config")
 }
 
 /// The pure CDP engine (`sb_cdp`), headless.

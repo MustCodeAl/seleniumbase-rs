@@ -49,9 +49,11 @@ fn cdp_options() -> LaunchOptions {
 }
 
 fn webdriver_config() -> BrowserConfig {
-    BrowserConfig::default()
-        .with_headless(true)
-        .with_window_size(WindowSize::new(1440, 1880))
+    BrowserConfig::builder()
+        .headless(true)
+        .window_size(WindowSize::new(1440, 1880))
+        .build()
+        .expect("a valid config")
 }
 
 /// `chrome://prefs-internals` shows the browser's preferences as JSON, each

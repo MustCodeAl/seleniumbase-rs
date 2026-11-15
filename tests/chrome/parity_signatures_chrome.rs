@@ -57,7 +57,10 @@ const TALL_PAGE: &str =
     "data:text/html,<html><body style=\"margin:0\"><div style=\"height:5000px\"></div></body></html>";
 
 async fn case(page: &str) -> BaseCase {
-    let config = BrowserConfig::default().with_headless(true);
+    let config = BrowserConfig::builder()
+        .headless(true)
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(page).await.expect("the page opens");
     sb
@@ -65,9 +68,16 @@ async fn case(page: &str) -> BaseCase {
 
 /// Like [`case`], in `mode` (`None` is plain WebDriver).
 async fn case_in_mode(mode: Option<DriverMode>, page: &str) -> BaseCase {
-    let mut config = BrowserConfig::default().with_headless(true);
+    let mut config = BrowserConfig::builder()
+        .headless(true)
+        .build()
+        .expect("a valid config");
     if let Some(mode) = mode {
-        config = config.with_mode(mode);
+        config = config
+            .into_builder()
+            .mode(mode)
+            .build()
+            .expect("a valid config");
     }
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(page).await.expect("the page opens");

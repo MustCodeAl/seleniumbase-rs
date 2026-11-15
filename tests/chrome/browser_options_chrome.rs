@@ -59,7 +59,14 @@ async fn probe(config: BrowserConfig) -> serde_json::Value {
 #[ignore = "requires a local Chrome/chromedriver"]
 #[serial_test::serial(chrome)]
 async fn mobile_alone_gives_the_default_phone() {
-    let seen = probe(test_config().with_mobile(true)).await;
+    let seen = probe(
+        test_config()
+            .into_builder()
+            .mobile(true)
+            .build()
+            .expect("a valid config"),
+    )
+    .await;
     assert_eq!(seen["width"], 390, "{seen}");
     assert_eq!(seen["ratio"], 3.0, "{seen}");
     assert!(seen["touch"].as_u64().unwrap() > 0, "{seen}");
@@ -73,7 +80,14 @@ async fn mobile_alone_gives_the_default_phone() {
 #[ignore = "requires a local Chrome/chromedriver"]
 #[serial_test::serial(chrome)]
 async fn metrics_choose_the_screen_and_turn_mobile_on() {
-    let seen = probe(test_config().with_device_metrics(DeviceMetrics::new(360, 640, 2.0))).await;
+    let seen = probe(
+        test_config()
+            .into_builder()
+            .device_metrics(DeviceMetrics::new(360, 640, 2.0))
+            .build()
+            .expect("a valid config"),
+    )
+    .await;
     assert_eq!(seen["width"], 360, "{seen}");
     assert_eq!(seen["ratio"], 2.0, "{seen}");
     assert!(seen["touch"].as_u64().unwrap() > 0, "{seen}");
@@ -83,7 +97,15 @@ async fn metrics_choose_the_screen_and_turn_mobile_on() {
 #[ignore = "requires a local Chrome/chromedriver"]
 #[serial_test::serial(chrome)]
 async fn the_undetected_mode_gets_the_same_phone_over_devtools() {
-    let seen = probe(test_config().with_mode(DriverMode::Uc).with_mobile(true)).await;
+    let seen = probe(
+        test_config()
+            .into_builder()
+            .mode(DriverMode::Uc)
+            .mobile(true)
+            .build()
+            .expect("a valid config"),
+    )
+    .await;
     assert_eq!(seen["width"], 390, "{seen}");
     assert_eq!(seen["ratio"], 3.0, "{seen}");
     assert!(seen["touch"].as_u64().unwrap() > 0, "{seen}");
@@ -111,13 +133,16 @@ async fn a_desktop_session_is_not_a_phone() {
 async fn the_switches_are_on_the_command_line_chrome_started_with() {
     let _guard = BROWSER_LOCK.lock().await;
     let config = test_config()
-        .with_dark_mode(true)
-        .with_incognito(true)
-        .with_disable_web_security(true)
-        .with_chromium_arg("mute-audio,disable-features=Translate")
-        .with_disable_features(["MediaRouter"])
-        .with_host_resolver_rules("MAP blocked.test 127.0.0.1")
-        .with_locale("ar_eg");
+        .into_builder()
+        .dark_mode(true)
+        .incognito(true)
+        .disable_web_security(true)
+        .chromium_arg("mute-audio,disable-features=Translate")
+        .disable_features(["MediaRouter"])
+        .host_resolver_rules("MAP blocked.test 127.0.0.1")
+        .locale("ar_eg")
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("connect to browser");
     sb.open("chrome://version")
         .await
@@ -195,7 +220,11 @@ async fn fake_proxy() -> (u16, tokio::sync::mpsc::UnboundedReceiver<String>) {
 async fn chrome_loads_a_page_through_the_proxy_and_its_command_line_has_no_login() {
     let _guard = BROWSER_LOCK.lock().await;
     let (port, mut asked) = fake_proxy().await;
-    let config = test_config().with_proxy(format!("user:secret@127.0.0.1:{port}"));
+    let config = test_config()
+        .into_builder()
+        .proxy(format!("user:secret@127.0.0.1:{port}"))
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("connect to browser");
 
     sb.open("http://sbrs-proxy-check.test/")

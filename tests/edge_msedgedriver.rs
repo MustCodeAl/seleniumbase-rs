@@ -42,10 +42,12 @@ async fn an_edge_session_runs_on_an_msedgedriver_the_crate_starts() {
     let marker = profile.path().to_str().expect("a UTF-8 path").to_owned();
     let drivers_before = processes::matching("msedgedriver --port=");
 
-    let config = BrowserConfig::default()
-        .with_browser(Browser::Edge)
-        .with_headless(true)
-        .with_user_data_dir(marker.clone());
+    let config = BrowserConfig::builder()
+        .browser(Browser::Edge)
+        .headless(true)
+        .user_data_dir(marker.clone())
+        .build()
+        .expect("a valid config");
     let mut session = BrowserSession::connect(config)
         .await
         .expect("an Edge session through a crate-started msedgedriver");

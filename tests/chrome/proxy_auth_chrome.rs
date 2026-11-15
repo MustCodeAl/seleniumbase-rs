@@ -157,8 +157,10 @@ async fn start_proxy() -> (u16, Arc<Mutex<Seen>>, tokio::task::JoinHandle<()>) {
 }
 
 fn config(port: u16) -> BrowserConfig {
-    let mut config =
-        BrowserConfig::default().with_proxy(format!("{USER}:{PASSWORD}@127.0.0.1:{port}"));
+    let mut config = BrowserConfig::builder()
+        .proxy(format!("{USER}:{PASSWORD}@127.0.0.1:{port}"))
+        .build()
+        .expect("a valid config");
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
         config.session.webdriver_url = Some(url);
         config.session.auto_start_driver = false;
@@ -319,8 +321,11 @@ async fn a_remote_grid_with_a_proxy_login_is_refused_before_anything_starts() {
         config.session.auto_start_driver = false;
         config
     }
-    .with_proxy(format!("{USER}:{PASSWORD}@proxy.test:8080"))
-    .with_webdriver_url("http://USER:KEY@hub.browserstack.com/wd/hub");
+    .into_builder()
+    .proxy(format!("{USER}:{PASSWORD}@proxy.test:8080"))
+    .webdriver_url("http://USER:KEY@hub.browserstack.com/wd/hub")
+    .build()
+    .expect("a valid config");
 
     let Err(error) = BaseCase::new(config).await else {
         panic!("a session started on a remote grid with a proxy login");

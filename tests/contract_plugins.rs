@@ -242,7 +242,10 @@ mod a_plugin_as_the_host_sees_it {
             .plugins(set.clone())
             .build()
             .expect("options with plugins build");
-        let _config: BrowserConfig = BrowserConfig::default().with_plugins(set);
+        let _config: BrowserConfig = BrowserConfig::builder()
+            .plugins(set)
+            .build()
+            .expect("a valid config");
         // The re-export is the same crate: one `PluginSet` type, not two.
         let again: seleniumbase_rs::plugin_api::PluginSet = PluginSet::new();
         let _ = again;

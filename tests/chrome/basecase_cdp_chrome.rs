@@ -72,7 +72,13 @@ async fn run(test: impl AsyncFnOnce(&mut BaseCase, &str) -> Result<()>) -> Resul
         .no_sandbox(std::env::var_os("CI").is_some())
         .build()?;
     let browser = Browser::launch(options).await?;
-    let mut sb = BaseCase::new(BrowserConfig::default().with_cdp_url(browser.http_url())).await?;
+    let mut sb = BaseCase::new(
+        BrowserConfig::builder()
+            .cdp_url(browser.http_url())
+            .build()
+            .expect("a valid config"),
+    )
+    .await?;
     sb.set_timeout(5).await?;
     let outcome = test(&mut sb, &url).await;
     let _ = sb.quit().await;

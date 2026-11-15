@@ -31,7 +31,10 @@ const CLEAR_WITHIN: Duration = Duration::from_secs(8);
 fn config() -> BrowserConfig {
     // The solver sends its pointer events over the DevTools Protocol, so the
     // session needs the CDP (or UC) mode.
-    BrowserConfig::default().with_mode(DriverMode::Cdp)
+    BrowserConfig::builder()
+        .mode(DriverMode::Cdp)
+        .build()
+        .expect("a valid config")
 }
 
 /// Whether `script` (which returns a boolean) is true within `within`.

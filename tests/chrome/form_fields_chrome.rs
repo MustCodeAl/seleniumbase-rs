@@ -51,7 +51,10 @@ fn serve() -> String {
 
 /// The WebDriver engine, headless.
 fn headless() -> BrowserConfig {
-    BrowserConfig::default().with_headless(true)
+    BrowserConfig::builder()
+        .headless(true)
+        .build()
+        .expect("a valid config")
 }
 
 /// The pure CDP engine, headless.

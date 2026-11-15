@@ -94,7 +94,10 @@ fn folder(name: &str) -> PathBuf {
 
 /// A headless Chrome with Recorder Mode on, whose recording goes to `folder`.
 async fn recording(folder: &Path) -> BaseCase {
-    let config = BrowserConfig::default().with_recorder_mode(true);
+    let config = BrowserConfig::builder()
+        .recorder_mode(true)
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.set_recording_output(
         RecordingTarget::new("session", "Session", "test_session").in_folder(folder),

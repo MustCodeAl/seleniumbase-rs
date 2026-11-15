@@ -23,7 +23,10 @@ use seleniumbase_rs::{shutdown_reused_sessions, BaseCase, BrowserConfig};
 use serde_json::Value;
 
 fn config() -> BrowserConfig {
-    BrowserConfig::default().with_reuse_session(true)
+    BrowserConfig::builder()
+        .reuse_session(true)
+        .build()
+        .expect("a valid config")
 }
 
 /// Serves one page on a loopback port, since cookies need an `http` origin,
