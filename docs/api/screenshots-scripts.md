@@ -23,10 +23,11 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 ## Script execution and DOM modification
 
 On a [direct CDP attachment](/ecosystem/tauri-api/cdp), `execute_script()` runs
-the script as a function body with `window` as `this` and returns its result.
-`is_connected()` uses that transport too. Callback-style
-`execute_async_script()` remains WebDriver-specific. For screenshots on a
-direct attachment, use `cdp_screenshot()` or the pure `Page` screenshot API.
+the script as a function body with `window` as `this` (inside the frame the case has
+switched to) and returns its result. `execute_async_script()` gives the script its
+callback as the last argument, as WebDriver does, and waits for it to be called.
+`is_connected()` uses that transport too. The screenshot methods above take the PNG
+through `Page.captureScreenshot`.
 
 | Method | Description |
 |--------|-------------|

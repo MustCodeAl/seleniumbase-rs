@@ -399,8 +399,9 @@ async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 }
 ```
 
-Direct CDP sessions use the existing `BaseCase::cdp_*` methods rather than
-WebDriver element handles. The full `Page` and `Browser` API is available through
+A direct CDP session runs the whole `BaseCase` API (`sb.click`, `sb.type_text`, `sb.text`, the
+waits and the rest) through the pure CDP engine, with elements that wrap a `Locator` instead of
+WebDriver element handles; the `BaseCase::cdp_*` methods used above work too. The full `Page` and `Browser` API is available through
 `BrowserSession::pure_cdp_page()`, or start the pure browser directly:
 
 ```rust

@@ -205,7 +205,10 @@ System WKWebView and WebKitGTK use the WebDriver bridge instead of CDP.
 | `BrowserConfig::with_cdp_target(window)` | The window `BaseCase` drives: a target id or part of its URL. Without it, the first window. |
 | `Browser::select_page(window)` | The same choice on a `Browser`: a target id, else the first window whose URL contains the text. |
 
-Use `BaseCase::cdp_*` methods for the directly attached page. Fingerprints use
+On a directly attached page the whole `BaseCase` API works (`open`, `click`, `type_text`,
+the waits, `switch_to_frame`, `cookies`, `accept_alert`, `save_screenshot`, and the rest; see
+[BaseCase over pure CDP](/design/basecase_over_cdp)); the `BaseCase::cdp_*` methods stay for
+code written against them. Fingerprints use
 the existing evasion provider registry for future documents and already-open
 contexts, plus native CDP overrides when `native_spoofing` is enabled.
 `with_plugins(...)` or `LaunchOptionsBuilder::plugins(...)` enables the existing
@@ -241,8 +244,9 @@ windows:
 - **`reconnect()` re-attaches** to the endpoint in the configuration; it does
   not start a browser or a driver.
 
-WebDriver-only helpers return `SeleniumBaseError::Unsupported` on such a
-session instead of panicking (see [CDP and UC helpers](/api/cdp-uc)).
+The helpers that need a driver (`chromedriver_version`, `cdp_events`, `install_addon`,
+Recorder Mode) return `SeleniumBaseError::Unsupported` on such a session, naming the method
+and the alternative, instead of panicking (see [CDP and UC helpers](/api/cdp-uc)).
 
 <Warning>
 

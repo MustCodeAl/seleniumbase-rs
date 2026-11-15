@@ -100,3 +100,16 @@ Filled in with each group (see the commit messages) and at the end of the lane.
 - Refused, naming the alternative: Recorder Mode (the config is refused at connect), `cdp_events`,
   `chromedriver_version` (`browser_version` answers), `install_addon` and `uninstall_addon` (Firefox
   only).
+- Tours, presentations, charts, the messenger and the jQuery Confirm dialogs needed no change: they
+  run page scripts and find through `Element`, so they work on both engines. A tour library comes
+  from a CDN, so no offline test plays one; the page-script half is covered by the highlight and
+  message test of `tests/chrome/basecase_cdp_chrome.rs`.
+- Every group has an offline test (`src/api/base_case_impls/base_case_impl_pure_cdp_tests.rs`, a
+  mocked tab) that asserts the protocol commands sent: the mouse group checks the events of
+  `hover`, `double_click`, `context_click`, the offset clicks, the offset drag and `click_chain`,
+  and one test checks that `chromedriver_version`, `cdp_events` and `install_addon` refuse by name
+  and name the alternative.
+- Not done, by design: a WebDriver-only concept with no DevTools form (the chromedriver performance
+  log, add-on installation through geckodriver) stays refused; Recorder
+  Mode reads the browser through a driver and is refused at connect.
+
