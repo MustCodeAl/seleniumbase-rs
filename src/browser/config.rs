@@ -34,6 +34,10 @@ use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
 use crate::evasion::fingerprint::Fingerprint;
 
+mod builder;
+
+pub use builder::BrowserConfigBuilder;
+
 /// Supported browser types.
 ///
 /// The names Python SeleniumBase uses for them (`--brave`, `--cft`, `--chs`,
@@ -292,6 +296,36 @@ impl Default for BrowserConfig {
 }
 
 impl BrowserConfig {
+    /// A builder that starts from the default configuration (headless, every other setting at
+    /// its default); [`BrowserConfigBuilder::build`] returns the configuration.
+    ///
+    /// ```
+    /// use seleniumbase_rs::BrowserConfig;
+    ///
+    /// let config = BrowserConfig::builder().headless(false).build()?;
+    /// assert!(!config.browser.headless);
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    pub fn builder() -> BrowserConfigBuilder {
+        BrowserConfigBuilder::new(Self::default())
+    }
+
+    /// A builder that starts from this configuration, such as one that
+    /// [`Settings::to_browser_config`](crate::Settings::to_browser_config) or
+    /// [`from_env`](Self::from_env) returned: only what a setter is called for changes.
+    ///
+    /// ```
+    /// use seleniumbase_rs::{BrowserConfig, DriverMode};
+    ///
+    /// let loaded = BrowserConfig::from_env()?;
+    /// let config = loaded.into_builder().mode(DriverMode::Uc).build()?;
+    /// assert_eq!(config.session.mode, Some(DriverMode::Uc));
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    pub fn into_builder(self) -> BrowserConfigBuilder {
+        BrowserConfigBuilder::new(self)
+    }
+
     /// Build a `BrowserConfig` from the current process environment.
     ///
     /// This is the preferred constructor for deployable applications because

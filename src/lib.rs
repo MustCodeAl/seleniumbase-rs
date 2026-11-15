@@ -208,7 +208,7 @@ pub use api::run_settings::{PauseKind, RunSettings};
 pub use api::runner::{run_browser_test, run_cdp_test};
 pub use api::tour::TourTheme;
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
-pub use browser::config::{Browser, BrowserConfig, DriverMode};
+pub use browser::config::{Browser, BrowserConfig, BrowserConfigBuilder, DriverMode};
 pub use browser::element::Element;
 pub use browser::options::NetworkThrottle;
 
