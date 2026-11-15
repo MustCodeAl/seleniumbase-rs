@@ -494,6 +494,9 @@ pub enum Dimension {
     Battery,
     /// The Network Information API.
     Connection,
+    /// The storage quota a page is told (`navigator.storage.estimate()`).
+    Storage,
+
     /// `speechSynthesis.getVoices()`.
     Speech,
     /// User-Agent Client Hints.
@@ -631,6 +634,10 @@ struct Fields {
     /// The Network Information API. `off` makes it unavailable.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     connection: Spoof<ConnectionProfile>,
+    /// The quota `navigator.storage.estimate()` reports, in bytes.
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    storage_quota: Spoof<u64>,
+
     /// `speechSynthesis.getVoices()`. `off` lists none.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     speech_voices: Spoof<Vec<SpeechVoice>>,
@@ -697,6 +704,8 @@ impl Default for Fields {
             webrtc: Spoof::Natural,
             battery: Spoof::Natural,
             connection: Spoof::Natural,
+            storage_quota: Spoof::Natural,
+
             speech_voices: Spoof::Natural,
             bluetooth: Spoof::Natural,
             client_hints: Spoof::Natural,
@@ -894,6 +903,9 @@ impl Fingerprint {
         battery: Spoof<BatteryProfile>;
         /// The Network Information API. `Off` makes it unavailable.
         connection: Spoof<ConnectionProfile>;
+        /// The quota `navigator.storage.estimate()` reports, in bytes.
+        storage_quota: Spoof<u64>;
+
         /// `speechSynthesis.getVoices()`. `Off` lists none.
         speech_voices: Spoof<Vec<SpeechVoice>>;
         /// Web Bluetooth: `Value(true)` has an adapter, `Value(false)` has none,
@@ -992,6 +1004,8 @@ impl Fingerprint {
             Dimension::Audio => f.policy.audio_noise.adds_noise(),
             Dimension::Battery => f.battery.is_set(),
             Dimension::Connection => f.connection.is_set(),
+            Dimension::Storage => f.storage_quota.is_set(),
+
             Dimension::Speech => f.speech_voices.is_set(),
             Dimension::ClientHints => f.client_hints.is_set(),
             Dimension::Proxy => f.proxy.is_value(),
@@ -1318,6 +1332,7 @@ impl Fingerprint {
             .client_hints(Spoof::Random)
             .battery(Spoof::Random)
             .connection(Spoof::Random)
+            .storage_quota(Spoof::Random)
             .speech_voices(Spoof::Random)
             .bluetooth(Spoof::Random)
             .policy(StealthPolicy::balanced())
@@ -1334,6 +1349,7 @@ impl Fingerprint {
                 .battery(Spoof::Off)
                 .connection(Spoof::Off)
                 .bluetooth(Spoof::Off)
+                .storage_quota(randomize::storage_quota_for(os))
                 .media_features(randomize::media_features_for(os))
                 .speech_voices(randomize::speech_voices_for(os));
         }
@@ -1342,6 +1358,7 @@ impl Fingerprint {
             .connection(ConnectionProfile::default())
             .speech_voices(randomize::speech_voices_for(os))
             .bluetooth(matches!(os, OsType::Android | OsType::Macos))
+            .storage_quota(randomize::storage_quota_for(os))
             .media_features(randomize::media_features_for(os))
     }
 
@@ -1654,6 +1671,8 @@ impl FingerprintBuilder {
         demote(&mut f.webrtc);
         demote(&mut f.battery);
         demote(&mut f.connection);
+        demote(&mut f.storage_quota);
+
         demote(&mut f.speech_voices);
         demote(&mut f.bluetooth);
         demote(&mut f.client_hints);
@@ -1763,6 +1782,10 @@ impl FingerprintBuilder {
         battery: BatteryProfile;
         /// Sets the Network Information API profile. `Off` makes it unavailable.
         connection: ConnectionProfile;
+        /// Sets the quota `navigator.storage.estimate()` reports, in bytes. A
+        /// `Random` quota is 60 % of a disk of the machine's kind. It has no `Off`.
+        storage_quota: u64;
+
         /// Sets the synthesized speech voices. `Off` lists none.
         speech_voices: Vec<SpeechVoice>;
         /// Sets Web Bluetooth: `true` has an adapter, `false` has none, `Off`
@@ -2017,6 +2040,7 @@ fn refuse_useless_off(f: &Fields) -> Result<(), FingerprintError> {
         ("media_features", f.media_features.is_off()),
         ("webgl", f.webgl.is_off()),
         ("fonts", f.fonts.is_off()),
+        ("storage_quota", f.storage_quota.is_off()),
         ("proxy", f.proxy.is_off()),
     ];
     match off.iter().find(|(_, is_off)| *is_off) {
@@ -2081,6 +2105,7 @@ fn has_random(f: &Fields) -> bool {
         f.webrtc.is_random(),
         f.battery.is_random(),
         f.connection.is_random(),
+        f.storage_quota.is_random(),
         f.speech_voices.is_random(),
         f.bluetooth.is_random(),
         f.client_hints.is_random(),
@@ -2284,6 +2309,10 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
     if f.connection.is_random() {
         f.connection = draw.connection().map_or(Spoof::Off, Spoof::Value);
     }
+    if f.storage_quota.is_random() {
+        f.storage_quota = Spoof::Value(draw.storage_quota());
+    }
+
     if f.speech_voices.is_random() {
         f.speech_voices = Spoof::Value(draw.speech_voices());
     }
@@ -2393,7 +2422,7 @@ mod tests {
     }
 
     /// Every dimension.
-    const EVERY_DIMENSION: [Dimension; 24] = [
+    const EVERY_DIMENSION: [Dimension; 25] = [
         Dimension::MediaFeatures,
         Dimension::Navigator,
         Dimension::Localization,
@@ -2409,6 +2438,7 @@ mod tests {
         Dimension::Audio,
         Dimension::Battery,
         Dimension::Connection,
+        Dimension::Storage,
         Dimension::Speech,
         Dimension::ClientHints,
         Dimension::Proxy,
@@ -2480,6 +2510,11 @@ mod tests {
             on(Fingerprint::builder().connection(Spoof::Off)),
             [Dimension::Connection]
         );
+        assert_eq!(
+            on(Fingerprint::builder().storage_quota(300_000_000_000_u64)),
+            [Dimension::Storage]
+        );
+
         assert_eq!(
             on(Fingerprint::builder().speech_voices(Spoof::Off)),
             [Dimension::Speech]
@@ -2895,6 +2930,67 @@ mod tests {
             FingerprintError::OffNotAvailable {
                 setting: "keyboard_layout"
             }
+        );
+    }
+
+    #[test]
+
+    fn the_storage_quota_round_trips_through_the_builder_and_the_file() {
+        let fp = built(Fingerprint::builder().storage_quota(300_000_000_000_u64));
+
+        assert_eq!(fp.storage_quota().value(), Some(&300_000_000_000));
+        let text = serde_json::to_string(&fp).unwrap();
+        assert!(text.contains(r#""storage_quota":300000000000"#), "{text}");
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(again, fp);
+        assert!(
+            Fingerprint::default().storage_quota().is_natural(),
+            "the browser's own quota by default"
+        );
+        for preset in [
+            Fingerprint::windows_desktop(),
+            Fingerprint::android_mobile(),
+            Fingerprint::ios_mobile_safari(),
+        ] {
+            assert!(preset.storage_quota().is_value());
+            assert!(preset.is_masked(Dimension::Storage));
+        }
+    }
+
+    #[test]
+    fn the_storage_quota_has_no_off() {
+        let error = Fingerprint::builder()
+            .storage_quota(Spoof::Off)
+            .build()
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            FingerprintError::OffNotAvailable {
+                setting: "storage_quota"
+            }
+        );
+    }
+
+    #[test]
+    fn a_random_quota_is_drawn_for_the_machine_and_follows_the_seed() {
+        let drawn = |os: OsType, seed: u64| {
+            built(
+                Fingerprint::builder()
+                    .os_type(os)
+                    .seed(seed)
+                    .storage_quota(Spoof::Random),
+            )
+        };
+
+        assert_eq!(
+            drawn(OsType::Windows, 3).storage_quota(),
+            drawn(OsType::Windows, 3).storage_quota()
+        );
+        assert!(drawn(OsType::Windows, 3).storage_quota().is_value());
+        assert_ne!(
+            drawn(OsType::Windows, 3).storage_quota(),
+            drawn(OsType::Windows, 4).storage_quota()
         );
     }
 

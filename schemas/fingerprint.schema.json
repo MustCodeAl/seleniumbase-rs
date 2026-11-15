@@ -874,6 +874,26 @@
           ],
           "description": "`speechSynthesis.getVoices()`. `off` lists none."
         },
+        "storage_quota": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "description": "The quota `navigator.storage.estimate()` reports, in bytes."
+        },
         "timezone": {
           "anyOf": [
             {

@@ -61,7 +61,7 @@ assert!(Spoof::<String>::Off.is_off());
 | `policy()`, `humanize()` | The delivery policy and the humanized input timing. |
 | `tracker_hosts()` | The policy's host list, or the crate's default list when that list is empty. |
 
-Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `keyboard_layout`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`.
+Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `keyboard_layout`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `storage_quota`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`.
 
 `Off` is meaningful for media devices, geolocation, WebRTC, battery, connection, speech voices, Bluetooth and Client Hints. `Random` on a setting that has nothing to draw (`oscpu`, `build_id`, `proxy`) fails `build`.
 
@@ -109,6 +109,7 @@ Each setting method takes `impl Into<Spoof<T>>`. Calls can come in any order. A 
 | `media_devices` / `media_device_counts(audio_in, audio_out, video_in)` | What `enumerateDevices()` lists. `Off` lists none. |
 | `geolocation` | Position `navigator.geolocation` reports. `(latitude, longitude)` works. `Off` denies it. |
 | `fonts`, `speech_voices`, `client_hints`, `battery`, `connection`, `bluetooth` | Those APIs. `Off` makes the API unavailable or lists nothing. |
+| `storage_quota(u64)` | The quota `navigator.storage.estimate()` reports, in bytes. A `Random` quota is 60 % of a disk of the machine's kind (what Chrome gives one origin), and a preset claims a 512 GB desktop disk or a 128 GB phone, each less 20 GiB. No `Off`. `Dimension::Storage` is on when it is set. |
 | `proxy` | Proxy the browser is launched with. No random value. An empty host fails `build`. |
 | `webrtc` | Addresses WebRTC reports. `(public_ip, local_ip)` works. `Off` makes WebRTC unavailable. |
 | `local_storage(bool)`, `save_service_worker(bool)` | Keep those between sessions of the profile. |

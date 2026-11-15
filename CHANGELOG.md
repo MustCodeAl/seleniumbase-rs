@@ -26,6 +26,8 @@ work, `docs/parity.md` the per-API status).
 - The `keyboard_layout` setting (`KeyboardLayout`: `Qwerty`, `Qwertz`, `Azerty`), filled from a
   given locale, answered by the `keyboard_layout` provider (`navigator.keyboard.getLayoutMap()`)
   and read back by the capture.
+- The `storage_quota` setting (bytes, the quota `navigator.storage.estimate()` reports): a random one
+  is 60 % of a disk of the machine's kind, and a preset claims a 512 GB desktop or a 128 GB phone.
 - A phone GPU's WebGL lists no S3TC, BPTC or RGTC texture compression (`webgl_extensions_vs_renderer`
   is closed): the `webgl` provider drops those extensions when the renderer is an Adreno, Mali or
   PowerVR.

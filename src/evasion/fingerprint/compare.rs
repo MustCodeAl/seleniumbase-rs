@@ -11,7 +11,7 @@ use crate::evasion::capture::CapturedFingerprint;
 
 /// The names of the settings, in the order of the file. A test keeps this list
 /// equal to the `Spoof` fields of the fingerprint.
-pub(super) const SETTINGS: [&str; 31] = [
+pub(super) const SETTINGS: [&str; 32] = [
     "user_agent",
     "platform",
     "hardware_concurrency",
@@ -40,6 +40,7 @@ pub(super) const SETTINGS: [&str; 31] = [
     "webrtc",
     "battery",
     "connection",
+    "storage_quota",
     "speech_voices",
     "bluetooth",
     "client_hints",

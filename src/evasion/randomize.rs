@@ -1236,6 +1236,33 @@ pub(super) const fn media_features_for(os: OsType) -> MediaFeatures {
     })
 }
 
+/// The quota Chrome gives one origin on a volume of `gigabytes` (decimal) less
+/// the `reserved` bytes the system keeps: 60 % of it.
+#[must_use]
+pub(super) const fn quota_for_disk(gigabytes: u64, reserved: u64) -> u64 {
+    (gigabytes * 1_000_000_000 - reserved) / 5 * 3
+}
+
+/// The disks of a desktop, in decimal gigabytes.
+const DESKTOP_DISKS: [u64; 4] = [256, 512, 1000, 2000];
+
+/// The disks of a phone, in decimal gigabytes.
+const PHONE_DISKS: [u64; 3] = [128, 256, 512];
+
+/// What the system keeps of a disk before the browser's share: 20 GiB in a
+/// preset, between 8 and 40 GiB in a draw.
+const GIBIBYTE: u64 = 1024 * 1024 * 1024;
+
+/// The quota a preset of `os` claims: a 512 GB desktop disk or a 128 GB phone,
+/// each less the 20 GiB the system keeps.
+#[must_use]
+pub(super) const fn storage_quota_for(os: OsType) -> u64 {
+    match os {
+        OsType::Android | OsType::Ios => quota_for_disk(128, 20 * GIBIBYTE),
+        OsType::Windows | OsType::Macos | OsType::Linux => quota_for_disk(512, 20 * GIBIBYTE),
+    }
+}
+
 /// The voices `speechSynthesis.getVoices()` lists on `os`.
 #[must_use]
 pub(super) fn speech_voices_for(os: OsType) -> Vec<SpeechVoice> {
@@ -1377,6 +1404,21 @@ impl Draw {
             OsType::Linux => rng.chance(0.3),
             OsType::Ios => false,
         })
+    }
+
+    /// A disk of the machine's kind, less between 8 and 40 GiB the system keeps
+    /// (in whole MiB), as the quota of one origin. Stream 8.
+    pub(super) fn storage_quota(&self) -> u64 {
+        let mut rng = self.stream(8);
+        let gigabytes = if self.os.is_mobile() {
+            *rng.pick(&PHONE_DISKS)
+        } else {
+            *rng.pick(&DESKTOP_DISKS)
+        };
+
+        // `range` is half-open, so this is 8 GiB up to but not including 40 GiB.
+        let reserved_mebibytes = rng.range(8.0 * 1024.0, 40.0 * 1024.0).floor() as u64;
+        quota_for_disk(gigabytes, reserved_mebibytes * 1024 * 1024)
     }
 
     /// The display of the machine and its user's preferences: the gamut of
@@ -1769,6 +1811,71 @@ mod tests {
     }
 
     #[test]
+    fn a_drawn_quota_is_sixty_percent_of_a_disk_of_the_machine_s_kind() {
+        use super::super::fingerprint::Fingerprint;
+
+        let gib = 1024_u64 * 1024 * 1024;
+        for os in [
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+            OsType::Ios,
+        ] {
+            // The smallest disk with the most the system keeps, and the largest with the least.
+            let (smallest, largest) = if os.is_mobile() {
+                (quota_for_disk(128, 40 * gib), quota_for_disk(512, 8 * gib))
+            } else {
+                (quota_for_disk(256, 40 * gib), quota_for_disk(2000, 8 * gib))
+            };
+            let mut seen = std::collections::HashSet::new();
+            for seed in 0..100 {
+                let fp = Fingerprint::randomized(os, seed);
+                let quota = *fp
+                    .storage_quota()
+                    .value()
+                    .unwrap_or_else(|| panic!("{os:?} {seed}: a drawn persona has a quota"));
+                assert!(
+                    (smallest..=largest).contains(&quota),
+                    "{os:?} {seed}: {quota} is not 60 % of a disk of its kind"
+                );
+                assert_ne!(
+                    quota % 1_000_000_000,
+                    0,
+                    "{os:?} {seed}: the system keeps some of the disk, so no round number"
+                );
+                seen.insert(quota);
+            }
+            assert!(seen.len() > 50, "{os:?}: the draw varies: {}", seen.len());
+        }
+    }
+
+    #[test]
+    fn a_preset_claims_the_quota_of_a_512_gb_desktop_and_a_128_gb_phone() {
+        let gib = 1024_u64 * 1024 * 1024;
+
+        assert_eq!(
+            storage_quota_for(OsType::Windows),
+            quota_for_disk(512, 20 * gib)
+        );
+        assert_eq!(
+            storage_quota_for(OsType::Android),
+            quota_for_disk(128, 20 * gib)
+        );
+        assert_eq!(
+            storage_quota_for(OsType::Macos),
+            storage_quota_for(OsType::Linux)
+        );
+        assert_eq!(
+            storage_quota_for(OsType::Ios),
+            storage_quota_for(OsType::Android)
+        );
+        // 60 % of (512 GB less 20 GiB), the order of magnitude Chrome reports.
+        assert_eq!(storage_quota_for(OsType::Windows), 294_315_098_112);
+    }
+
+    #[test]
+
     fn brand_lists_match_the_ones_real_chromium_builds() {
         // Brand lists that Chrome 120, 124, 130 and 131 are known to send.
         assert_eq!(

@@ -225,6 +225,7 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 | `webrtc` | A public and a local address. | `RTCPeerConnection` and the rest of WebRTC are not there. | `WebRtc` | The `webrtc` provider and `--force-webrtc-ip-handling-policy`. |
 | `battery` | A battery that is mostly charged. | `getBattery` is not there. | `Battery` | The `battery` provider. |
 | `connection` | A 4G connection. | `navigator.connection` is not there. | `Connection` | The `connection` provider. |
+| `storage_quota` | 60 % of a disk of the machine's kind (a desktop's 256 GB to 2 TB, a phone's 128 to 512 GB, less what the system keeps). | no `Off` | `Storage` | The `storage_quota` provider. |
 | `speech_voices` | The system's voices. | No voice is listed. | `Speech` | The `speech` provider. |
 | `bluetooth` (`true`: an adapter, `false`: none) | Whether an adapter is there. | `navigator.bluetooth` is not there. | `Bluetooth` | The `bluetooth` provider. |
 | `client_hints` | Client Hints built the way Chromium builds them. | `navigator.userAgentData` is not there. | `ClientHints` | The `client_hints` provider, and the metadata of the user agent override. |
