@@ -186,7 +186,7 @@ impl BrowserSession {
     /// Returns [`SeleniumBaseError::Unsupported`] if DevTools refuses the command,
     /// [`SeleniumBaseError::WebDriver`] if the driver refuses to list the cookies, and
     /// [`SeleniumBaseError::CdpDriver`] if DevTools answers without a list of cookies.
-    pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
+    pub async fn cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
         if let Some(page) = self.external_page.get() {
             let url = page.url().await?;
             let response = page

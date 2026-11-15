@@ -19,7 +19,7 @@
 //! assert_eq!(items.len(), 2);
 //! assert_eq!(items[1].text, "B");
 //! assert!(items[0].has_class("first"));
-//! assert_eq!(soup.get_text("li")?, Some("A".to_owned()));
+//! assert_eq!(soup.text("li")?, Some("A".to_owned()));
 //! # Ok(())
 //! # }
 //! ```
@@ -90,7 +90,7 @@ impl BeautifulSoup {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if `selector` is not a
     /// valid CSS selector.
-    pub fn get_text(&self, selector: &str) -> Result<Option<String>, SeleniumBaseError> {
+    pub fn text(&self, selector: &str) -> Result<Option<String>, SeleniumBaseError> {
         Ok(self.find(selector)?.map(|e| e.text))
     }
 
@@ -100,7 +100,7 @@ impl BeautifulSoup {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if `selector` is not a
     /// valid CSS selector.
-    pub fn get_attribute(
+    pub fn attribute(
         &self,
         selector: &str,
         attr: &str,
@@ -176,7 +176,7 @@ mod tests {
     fn find_elements_and_text() {
         let html = r#"<html><body><h1>Title</h1><ul><li class="item">A</li><li class="item">B</li></ul></body></html>"#;
         let soup = BeautifulSoup::parse(html);
-        assert_eq!(soup.get_text("h1").unwrap(), Some("Title".to_owned()));
+        assert_eq!(soup.text("h1").unwrap(), Some("Title".to_owned()));
         let items = soup.find_all(".item").unwrap();
         assert_eq!(items.len(), 2);
         assert_eq!(items[0].text, "A");
@@ -188,10 +188,10 @@ mod tests {
         let html = r#"<a href="https://example.com" id="link">Go</a>"#;
         let soup = BeautifulSoup::parse(html);
         assert_eq!(
-            soup.get_attribute("a", "href").unwrap(),
+            soup.attribute("a", "href").unwrap(),
             Some("https://example.com".to_owned())
         );
-        assert_eq!(soup.get_attribute("a", "missing").unwrap(), None);
+        assert_eq!(soup.attribute("a", "missing").unwrap(), None);
     }
 
     #[test]
@@ -200,8 +200,8 @@ mod tests {
         for result in [
             soup.find("p[").map(|_| ()),
             soup.find_all("p[").map(|_| ()),
-            soup.get_text("p[").map(|_| ()),
-            soup.get_attribute("p[", "id").map(|_| ()),
+            soup.text("p[").map(|_| ()),
+            soup.attribute("p[", "id").map(|_| ()),
         ] {
             let error = result.unwrap_err();
             assert!(
@@ -224,7 +224,7 @@ mod tests {
         let soup = BeautifulSoup::parse("<p>x</p>");
         assert!(soup.find("h6").unwrap().is_none());
         assert!(soup.find_all("h6").unwrap().is_empty());
-        assert_eq!(soup.get_text("h6").unwrap(), None);
+        assert_eq!(soup.text("h6").unwrap(), None);
     }
 
     #[test]

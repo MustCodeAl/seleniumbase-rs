@@ -80,8 +80,8 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::from)
     }
 
-    /// WebDriver interaction: `get_alert_text`.
-    pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
+    /// The text of the open alert. Python's `get_alert_text`.
+    pub async fn alert_text(&self) -> Result<String, SeleniumBaseError> {
         if let Some(dialogs) = self.external_page.dialogs() {
             return dialogs.text();
         }
@@ -128,9 +128,9 @@ impl BrowserSession {
     /// # Errors
     ///
     /// Returns the driver's error for any failure other than a missing cookie.
-    pub async fn get_cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
+    pub async fn cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
         if self.external_page.is_some() {
-            let cookies = self.get_cookies().await?;
+            let cookies = self.cookies().await?;
             return Ok(cookies.into_iter().find(|cookie| cookie.name == name));
         }
         match self.webdriver()?.get_named_cookie(name).await {
@@ -160,7 +160,7 @@ impl BrowserSession {
     pub async fn delete_all_cookies(&self) -> Result<(), SeleniumBaseError> {
         if let Some(page) = self.external_page.get() {
             // The cookies of the page's address, as WebDriver deletes them.
-            for cookie in self.get_cookies().await? {
+            for cookie in self.cookies().await? {
                 page.execute(
                     "Network.deleteCookies",
                     json!({ "name": cookie.name, "domain": cookie.domain, "path": cookie.path }),

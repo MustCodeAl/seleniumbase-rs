@@ -119,7 +119,7 @@ let text = sb.pdf_text("page.pdf")?;
 
 // Parse the current page source
 let soup = sb.beautiful_soup_object().await?;
-let heading = soup.get_text("h1")?;
+let heading = soup.text("h1")?;
 
 // Build a themed tour
 sb.create_tour_with_theme("Onboarding", TourTheme::Shepherd).await?;

@@ -67,6 +67,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Breaking
 
+- **Breaking: the getters of `BrowserSession` and `BeautifulSoup` drop `get_`**, as `BaseCase`'s
+  did. `BrowserSession::cookies`, `cookie`, `attribute`, `property`, `window_size` and
+  `alert_text`; `api::html::BeautifulSoup::text` and `attribute`.
+
 - **Breaking: `Element` runs on either engine.** On a direct DevTools attachment it wraps a
   `sb_cdp::Locator`, which looks again on every use, so it is never stale. `as_webdriver_element`
   and `into_webdriver_element` answer `Option` (`None` on that engine), and

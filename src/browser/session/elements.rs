@@ -207,7 +207,7 @@ impl BrowserSession {
     }
 
     /// WebDriver interaction: `get_attribute`.
-    pub async fn get_attribute(
+    pub async fn attribute(
         &mut self,
         selector: impl Into<SelectorBuf>,
         attribute_name: &str,
@@ -254,7 +254,7 @@ impl BrowserSession {
     }
 
     /// WebDriver interaction: `get_property`.
-    pub async fn get_property(
+    pub async fn property(
         &mut self,
         selector: impl Into<SelectorBuf>,
         property_name: &str,
