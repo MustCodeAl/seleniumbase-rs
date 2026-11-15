@@ -459,7 +459,16 @@ mod tests {
                 |b| b.hardware_concurrency(8),
                 &["navigator_props"],
             ),
-            ("locale", |b| b.locale("de-DE"), &["localization"]),
+            (
+                "locale",
+                |b| b.locale("de-DE"),
+                &["localization", "keyboard_layout"],
+            ),
+            (
+                "keyboard_layout",
+                |b| b.keyboard_layout(KeyboardLayout::Azerty),
+                &["keyboard_layout"],
+            ),
             ("timezone", |b| b.timezone("Europe/Berlin"), &["timezone"]),
             ("screen", |b| b.screen(1440, 900), &["window_geometry"]),
             (
@@ -596,6 +605,7 @@ mod tests {
             "webgpu",
             "window_geometry",
             "timezone",
+            "keyboard_layout",
             "battery",
             "client_hints",
         ] {
@@ -625,7 +635,7 @@ mod tests {
 
     use crate::evasion::fingerprint::{
         AudioNoise, BatteryProfile, BrandVersion, CanvasNoise, ClientHints, ConnectionProfile,
-        FingerprintBuilder, SpeechVoice, Spoof, StealthPolicy,
+        FingerprintBuilder, KeyboardLayout, SpeechVoice, Spoof, StealthPolicy,
     };
 
     /// The names a page reads to find a replaced list, flag or network report
@@ -788,6 +798,7 @@ mod tests {
         timezone_passes_the_audit => "timezone",
         localization_passes_the_audit => "localization",
         geolocation_passes_the_audit => "geolocation",
+        keyboard_layout_passes_the_audit => "keyboard_layout",
         hairline_passes_the_audit => "hairline",
         iframe_passes_the_audit => "iframe",
         attach_shadow_passes_the_audit => "attach_shadow",

@@ -49,7 +49,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 - A phone persona turns touch emulation on, so touch events, the touch points and a coarse
   pointer that cannot hover agree.
 - The `keyboard_layout` setting (`KeyboardLayout`: `Qwerty`, `Qwertz`, `Azerty`), filled from a
-  given locale.
+  given locale, answered by the `keyboard_layout` provider (`navigator.keyboard.getLayoutMap()`)
+  and read back by the capture.
 
 ### Changed
 

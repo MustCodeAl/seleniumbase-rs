@@ -24,7 +24,8 @@ work, `docs/parity.md` the per-API status).
 - A phone persona turns touch emulation on, so touch events, the touch points and a coarse
   pointer that cannot hover agree.
 - The `keyboard_layout` setting (`KeyboardLayout`: `Qwerty`, `Qwertz`, `Azerty`), filled from a
-  given locale.
+  given locale, answered by the `keyboard_layout` provider (`navigator.keyboard.getLayoutMap()`)
+  and read back by the capture.
 
 ### Changed
 

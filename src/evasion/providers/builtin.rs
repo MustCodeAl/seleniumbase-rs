@@ -92,6 +92,7 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(TimezoneProvider),
         Box::new(LocalizationProvider),
         Box::new(GeolocationProvider),
+        Box::new(KeyboardLayoutProvider),
         Box::new(HairlineProvider),
         Box::new(IframeProvider),
         Box::new(AttachShadowProvider),
@@ -1936,6 +1937,82 @@ impl EvasionProvider for GeolocationProvider {
     }
 }
 
+/// Answers `navigator.keyboard.getLayoutMap()` with the layout the fingerprint
+/// holds.
+///
+/// A page that asks the keyboard what its writing-system keys type gets the
+/// persona's answer: `KeyY` types `z` on a German machine. The methods, the
+/// iterator and the `size` getter are replaced on `KeyboardLayoutMap.prototype`
+/// and answer from a map of the 48 keys of the
+/// [`KeyboardLayout`](crate::evasion::fingerprint::KeyboardLayout), so no
+/// instance gets a property of its own. Only a Chromium persona runs it: Firefox
+/// and Safari have no `navigator.keyboard`.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct KeyboardLayoutProvider;
+
+impl EvasionProvider for KeyboardLayoutProvider {
+    fn name(&self) -> &str {
+        "keyboard_layout"
+    }
+    fn priority(&self) -> i32 {
+        100
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.keyboard_layout().is_value() && fp.browser_type() == BrowserType::Chromium
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let layout = ctx.fingerprint.keyboard_layout().value()?;
+        let pairs = layout
+            .keys()
+            .iter()
+            .map(|(code, key)| format!("[{}, {}]", quoted(code), quoted(key)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof KeyboardLayoutMap === 'undefined') { return; }
+  const proto = KeyboardLayoutMap.prototype;
+  const table = new Map([@KEYS@]);
+  // What the browser's own methods do with another receiver.
+  function brand(self) {
+    if (!(self instanceof KeyboardLayoutMap)) { throw new TypeError('Illegal invocation'); }
+  }
+  function argument(name, count) {
+    if (count < 1) {
+      throw new TypeError("Failed to execute '" + name + "' on 'KeyboardLayoutMap': 1 argument required, but only 0 present.");
+    }
+  }
+  const entries = sb.native(function entries() { brand(this); return table.entries(); }, 'entries', proto.entries);
+  proto.entries = entries;
+  // On a maplike the iterator is the very function `entries` is.
+  proto[Symbol.iterator] = entries;
+  proto.keys = sb.native(function keys() { brand(this); return table.keys(); }, 'keys', proto.keys);
+  proto.values = sb.native(function values() { brand(this); return table.values(); }, 'values', proto.values);
+  proto.get = sb.native(function get(key) {
+    brand(this); argument('get', arguments.length);
+    return table.get(String(key));
+  }, 'get', proto.get);
+  proto.has = sb.native(function has(key) {
+    brand(this); argument('has', arguments.length);
+    return table.has(String(key));
+  }, 'has', proto.has);
+  proto.forEach = sb.native(function forEach(callback) {
+    brand(this); argument('forEach', arguments.length);
+    if (typeof callback !== 'function') {
+      throw new TypeError("Failed to execute 'forEach' on 'KeyboardLayoutMap': The callback provided as parameter 1 is not a function.");
+    }
+    const thisArg = arguments[1];
+    const self = this;
+    table.forEach(function (value, key) { callback.call(thisArg, value, key, self); });
+  }, 'forEach', proto.forEach);
+  sb.getter(proto, 'size', function () { brand(this); return table.size; });
+})();"##,
+            &[("KEYS", &pairs)],
+        ))
+    }
+}
+
 /// Fixes the Modernizr hairline headless detection.
 ///
 /// It is a headless fix, so it runs when the policy's `headless_fixes` is on;
@@ -2112,7 +2189,8 @@ mod tests {
     use super::*;
     use crate::evasion::fingerprint::{
         BatteryProfile, BrandVersion, ClientHints, ConnectionProfile, Fingerprint,
-        FingerprintBuilder, Geolocation, MediaDevices, Spoof, StealthPolicy, WebRtcAddresses,
+        FingerprintBuilder, Geolocation, KeyboardLayout, MediaDevices, Spoof, StealthPolicy,
+        WebRtcAddresses,
     };
 
     fn ctx_for(fp: &Fingerprint) -> EvasionContext<'_> {
@@ -2256,7 +2334,7 @@ mod tests {
 
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 31);
+        assert_eq!(providers.len(), 32);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());
@@ -2429,6 +2507,57 @@ mod tests {
     }
 
     #[test]
+    fn the_keyboard_script_answers_the_persona_map() {
+        let pair = regex::Regex::new(r"\['[A-Za-z0-9]+', '[^']+'\]").unwrap();
+        let script_of = |fp: &Fingerprint| KeyboardLayoutProvider.script(&ctx_for(fp)).unwrap();
+
+        let german = windows_with(|b| b.locale("de-DE").keyboard_layout(KeyboardLayout::Qwertz));
+        assert!(KeyboardLayoutProvider.applies(&german));
+        let script = script_of(&german);
+        assert_eq!(pair.find_iter(&script).count(), 48, "{script}");
+        assert!(script.contains("['KeyY', 'z']"), "{script}");
+        assert!(script.contains("['KeyZ', 'y']"), "{script}");
+        assert!(script.contains("['Minus', 'ß']"), "{script}");
+        assert!(script.contains("KeyboardLayoutMap.prototype"), "{script}");
+        assert!(
+            script.contains("proto[Symbol.iterator] = entries;"),
+            "the iterator is the function `entries` is: {script}"
+        );
+
+        let french = windows_with(|b| b.keyboard_layout(KeyboardLayout::Azerty));
+        let script = script_of(&french);
+        assert!(script.contains("['KeyQ', 'a']"), "{script}");
+        assert!(
+            script.contains(r#"['Digit3', '"']"#),
+            "a double quote needs no escape in a single-quoted string: {script}"
+        );
+        let american = windows_with(|b| b.keyboard_layout(KeyboardLayout::Qwerty));
+        let script = script_of(&american);
+        assert!(script.contains(r"['Backslash', '\\']"), "{script}");
+        assert!(script.contains(r"['Quote', '\'']"), "{script}");
+    }
+
+    #[test]
+    fn the_keyboard_script_runs_for_a_chromium_persona_with_a_layout_only() {
+        assert!(KeyboardLayoutProvider.applies(&Fingerprint::windows_desktop()));
+        assert!(KeyboardLayoutProvider.applies(&Fingerprint::android_mobile()));
+
+        // No locale, so no layout to claim.
+        let natural = built(Fingerprint::builder().os_type(OsType::Windows));
+        assert!(natural.keyboard_layout().is_natural());
+        assert!(!KeyboardLayoutProvider.applies(&natural));
+        // Safari has no `navigator.keyboard`.
+        assert!(Fingerprint::ios_mobile_safari()
+            .keyboard_layout()
+            .is_value());
+        assert!(!KeyboardLayoutProvider.applies(&Fingerprint::ios_mobile_safari()));
+        // No protocol command delivers it, so native spoofing does not take it over.
+        let native = windows_with(|b| b.native_spoofing(true));
+        assert!(KeyboardLayoutProvider.applies(&native));
+    }
+
+    #[test]
+
     fn a_denied_geolocation_answers_permission_denied() {
         let fp = windows_with(|b| b.geolocation(Spoof::Off));
         assert!(GeolocationProvider.applies(&fp));

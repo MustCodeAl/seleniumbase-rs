@@ -1286,3 +1286,87 @@ async fn the_language_reaches_intl_in_the_script_mode() {
         "the capture finds Intl contradicting the language: {intl:?}"
     );
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_layout_map_is_the_persona_s() {
+    use seleniumbase_rs::evasion::fingerprint::KeyboardLayout;
+
+    let lab = lab().await;
+    // Headless Chrome may have no keyboard to ask: then there is nothing to make agree.
+    let ask = "(async () => {
+        if (!navigator.keyboard || !navigator.keyboard.getLayoutMap) { return { map: false, why: 'no navigator.keyboard' }; }
+        try {
+            const map = await navigator.keyboard.getLayoutMap();
+            return { map: true, size: map.size, y: map.get('KeyY') === undefined ? null : map.get('KeyY') };
+        } catch (error) { return { map: false, why: String(error) }; }
+    })()";
+    let before = lab.eval(ask).await;
+    if before["map"] != json!(true) {
+        println!("this Chrome gives no layout map, so there is nothing to make agree: {before}");
+        lab.close().await;
+        return;
+    }
+    println!("the host's own map before the install: {before}");
+
+    let german = persona_with(|b| b.locale("de-DE").keyboard_layout(KeyboardLayout::Qwertz));
+    lab.install(&german, &["keyboard_layout"]).await;
+
+    let seen = lab
+        .eval(
+            r##"(async () => {
+        const map = await navigator.keyboard.getLayoutMap();
+        const proto = KeyboardLayoutMap.prototype;
+        const keys = Array.from(map.keys());
+        const seenByForEach = [];
+        map.forEach(function (value, key, self) { seenByForEach.push(self === map); });
+        let wrongReceiver = null;
+        try { proto.get.call({}, 'KeyY'); } catch (error) { wrongReceiver = String(error); }
+        return {
+            y: map.get('KeyY'), z: map.get('KeyZ'), q: map.get('KeyQ'), minus: map.get('Minus'),
+            has: map.has('Digit1'), hasNot: map.has('Nope'),
+            size: map.size,
+            spread: [...map].length,
+            keys: keys.length,
+            values: Array.from(map.values()).length,
+            forEach: seenByForEach.length, forEachGetsTheMap: seenByForEach.every(Boolean),
+            instance: map instanceof KeyboardLayoutMap,
+            own: Object.getOwnPropertyNames(map),
+            looksNative: [proto.get, proto.has, proto.keys, proto.values, proto.entries, proto.forEach]
+                .every((f) => f.toString().includes('[native code]')),
+            sizeGetter: Object.getOwnPropertyDescriptor(proto, 'size').get.toString().includes('[native code]'),
+            iteratorIsEntries: proto[Symbol.iterator] === proto.entries,
+            wrongReceiver,
+        };
+    })()"##,
+        )
+        .await;
+    lab.close().await;
+
+    assert_eq!(seen["y"], json!("z"), "{seen}");
+    assert_eq!(seen["z"], json!("y"), "{seen}");
+    assert_eq!(seen["q"], json!("q"), "{seen}");
+    assert_eq!(seen["minus"], json!("ß"), "{seen}");
+    assert_eq!(seen["has"], json!(true), "{seen}");
+    assert_eq!(seen["hasNot"], json!(false), "{seen}");
+    for count in ["size", "spread", "keys", "values", "forEach"] {
+        assert_eq!(seen[count], json!(48), "{count}: {seen}");
+    }
+    assert_eq!(seen["forEachGetsTheMap"], json!(true), "{seen}");
+    assert_eq!(seen["instance"], json!(true), "{seen}");
+    assert_eq!(
+        seen["own"],
+        json!([]),
+        "no instance gets a property: {seen}"
+    );
+    assert_eq!(seen["looksNative"], json!(true), "{seen}");
+    assert_eq!(seen["sizeGetter"], json!(true), "{seen}");
+    assert_eq!(seen["iteratorIsEntries"], json!(true), "{seen}");
+    assert!(
+        seen["wrongReceiver"]
+            .as_str()
+            .is_some_and(|error| error.contains("Illegal invocation")),
+        "a stand-in refuses another receiver as the browser's method does: {seen}"
+    );
+}

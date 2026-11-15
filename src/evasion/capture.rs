@@ -53,7 +53,7 @@ use super::fingerprint::{
     BatteryProfile, BrandVersion, BrowserType, ClientHints, ConnectionProfile, Fingerprint,
     FingerprintBuilder, MediaDevices, ScreenSize, SpeechVoice, StealthPolicy, WebGl,
 };
-use super::fingerprint::{ColorGamut, ColorScheme, Contrast, MediaFeatures};
+use super::fingerprint::{ColorGamut, ColorScheme, Contrast, KeyboardLayout, MediaFeatures};
 
 use super::js::capture_js::get_capture_js;
 use super::spoof::Spoof;
@@ -582,6 +582,7 @@ impl RawProbe {
 
         builder = self.map_graphics(builder, unanswered);
         builder = self.map_media(builder, unanswered);
+        builder = self.map_keyboard(builder, unanswered);
 
         builder = self.map_devices(builder, unanswered);
         builder = self.map_client_hints(builder, unanswered);
@@ -612,6 +613,38 @@ impl RawProbe {
                 builder
             }
         }
+    }
+
+    /// The layout of the keyboard map the page read: the letters of its sample
+    /// name one of the three layouts of the setting. A reading that does not (a
+    /// browser with no `navigator.keyboard`, a map that failed to load, a layout
+    /// none of the three) leaves the setting to the browser and says why. A probe
+    /// with no keyboard reading at all is silent: the script that wrote it did
+    /// not read one.
+    fn map_keyboard(
+        &self,
+        builder: FingerprintBuilder,
+        unanswered: &mut Map<String, Value>,
+    ) -> FingerprintBuilder {
+        let Some(reading) = self.keyboard.as_ref().and_then(Value::as_object) else {
+            return builder;
+        };
+        let layout = reading
+            .get("sample")
+            .and_then(Value::as_object)
+            .and_then(KeyboardLayout::of_sample);
+        if let Some(layout) = layout {
+            return builder.keyboard_layout(layout);
+        }
+        let reason = if let Some(why) = reading.get("unknown").and_then(Value::as_str) {
+            why
+        } else if reading.get("supported") == Some(&Value::Bool(false)) {
+            "the browser has no navigator.keyboard"
+        } else {
+            "the keyboard map is none of the layouts the setting names"
+        };
+        note_unanswered(unanswered, "keyboard_layout", Some(reason));
+        builder
     }
 
     fn map_graphics(
@@ -1322,6 +1355,60 @@ mod tests {
             comparison.matched.contains(&"media_features"),
             "{comparison:?}"
         );
+    }
+
+    #[test]
+
+    fn the_keyboard_sample_becomes_the_layout() {
+        let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+        raw["keyboard"]["sample"]["KeyY"] = json!("z");
+        raw["keyboard"]["sample"]["KeyZ"] = json!("y");
+
+        let german = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+        let american = capture(WINDOWS_ON_MAC);
+
+        assert_eq!(
+            german.fingerprint.keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwertz),
+            "the page's own map names the layout, not the locale"
+        );
+        assert_eq!(
+            american.fingerprint.keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwerty)
+        );
+        assert!(!german.unmapped.contains_key("unanswered"));
+        assert!(
+            german.unmapped.contains_key("keyboard"),
+            "the raw reading stays for the consistency rules"
+        );
+    }
+
+    #[test]
+    fn a_keyboard_the_page_could_not_read_is_unanswered() {
+        let unreadable =
+            json!({ "supported": true, "size": 48, "sample": { "KeyQ": "й", "KeyY": "н" } });
+        for (reading, why) in [
+            (json!({ "supported": false }), "no navigator.keyboard"),
+            (
+                json!({ "unknown": "the keyboard map could not be read" }),
+                "could not be read",
+            ),
+            (unreadable, "none of the layouts"),
+        ] {
+            let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+            raw["keyboard"] = reading;
+
+            let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+            let reasons = captured.unanswered();
+            let found = reasons
+                .iter()
+                .find(|(setting, _)| *setting == "keyboard_layout");
+            assert!(
+                found.is_some_and(|(_, reason)| reason.contains(why)),
+                "{why}: {reasons:?}"
+            );
+        }
     }
 
     #[test]

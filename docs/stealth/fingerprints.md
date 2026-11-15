@@ -343,6 +343,10 @@ conditions), for the values the fingerprint holds:
 * `navigator.mediaDevices.enumerateDevices` (when `media_devices` is a value)
 * Time zone, through `Intl.DateTimeFormat`, the local-time methods of `Date`, and
   `Emulation.setTimezoneOverride`
+* The keyboard layout map (`navigator.keyboard.getLayoutMap()`): the
+  `keyboard_layout` provider answers `get`, `has`, `keys`, `values`, `entries`,
+  `forEach`, `size` and the iterator with the persona's 48 keys (a Chromium
+  persona only)
 * Geolocation, through `Emulation.setGeolocationOverride`, the JavaScript
   provider, and the geolocation permission
 * `$cdc_`, `__webdriver`, `__selenium` and similar marker properties
