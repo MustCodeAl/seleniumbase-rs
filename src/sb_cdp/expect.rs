@@ -56,9 +56,7 @@ where
         Ok(())
     } else {
         let not = if negate { "not " } else { "" };
-        let last_seen = last_seen
-            .into_inner()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let last_seen = crate::common::poison::into_inner(last_seen);
         Err(SeleniumBaseError::assertion_failed(format!(
             "expected {subject} {not}{expectation}, but after {timeout:?} it was {last_seen}"
         )))

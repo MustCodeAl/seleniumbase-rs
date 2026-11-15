@@ -3,6 +3,10 @@
 //! step fails (the evidence, the closed browser). No Chrome starts;
 //! `tests/bdd_chrome.rs` runs a scenario on a real one.
 #![cfg(all(feature = "bdd", feature = "test-util"))]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "rstest-bdd's step macros wrap a step that is not async in `catch_unwind`"
+)]
 
 use std::path::PathBuf;
 use std::sync::{LazyLock, Mutex};

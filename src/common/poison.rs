@@ -18,12 +18,24 @@ pub(crate) fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
     }
 }
 
+/// Takes the value out of `mutex`, including when the lock is poisoned.
+pub(crate) fn into_inner<T>(mutex: Mutex<T>) -> T {
+    // The value is only read once the work that could have panicked is over.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the one place a poisoned lock is recovered so the next test can use the registry"
+    )]
+    {
+        mutex.into_inner().unwrap_or_else(PoisonError::into_inner)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::panic::{catch_unwind, AssertUnwindSafe};
     use std::sync::Mutex;
 
-    use super::locked;
+    use super::{into_inner, locked};
 
     #[test]
     fn a_poisoned_mutex_still_yields_its_value() {
@@ -39,5 +51,22 @@ mod tests {
         }));
         assert!(mutex.is_poisoned());
         assert_eq!(*locked(&mutex), 7);
+    }
+
+    #[test]
+    fn a_poisoned_mutex_still_gives_up_its_value() {
+        let mutex = Mutex::new(vec![1, 2]);
+        // The test poisons the mutex on purpose, then checks that `into_inner` still returns it.
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the test poisons the mutex on purpose"
+        )]
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            let mut guard = mutex.lock().expect("the test lock");
+            guard.push(3);
+            panic!("poison the mutex");
+        }));
+        assert!(mutex.is_poisoned());
+        assert_eq!(into_inner(mutex), [1, 2, 3]);
     }
 }

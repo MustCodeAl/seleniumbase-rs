@@ -29,7 +29,7 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::time::Duration;
 
@@ -438,7 +438,7 @@ impl<S: Closeable> Registry<S> {
 
     fn lock(&self) -> MutexGuard<'_, HashMap<u64, Host<S>>> {
         // A panic while the map is held cannot leave it in a bad state.
-        self.live.lock().unwrap_or_else(PoisonError::into_inner)
+        crate::common::poison::locked(&self.live)
     }
 
     /// How many sessions are alive.

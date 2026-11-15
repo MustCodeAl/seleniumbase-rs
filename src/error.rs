@@ -2009,7 +2009,7 @@ mod tests {
 
     #[test]
     fn a_database_driver_error_keeps_its_cause() {
-        let cause = std::io::Error::new(std::io::ErrorKind::Other, "locked");
+        let cause = std::io::Error::other("locked");
         let error = SeleniumBaseError::DatabaseDriver {
             message: cause.to_string(),
             source: Box::new(cause),

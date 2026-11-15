@@ -4,7 +4,7 @@
 //!
 //! The design, group by group, is `docs/design/basecase_over_cdp.md`.
 
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard};
 
 use serde_json::Value;
 
@@ -35,7 +35,7 @@ impl PageSlot {
     fn locked(&self) -> MutexGuard<'_, Option<Tab>> {
         // The slot is only read and replaced, so a panic while it was held
         // cannot have left it half-written.
-        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+        crate::common::poison::locked(&self.0)
     }
 
     /// The tab, if the session is a direct CDP attachment.
@@ -282,9 +282,7 @@ impl BrowserSession {
     fn entered_frames(&self) -> std::sync::MutexGuard<'_, Vec<Locator>> {
         // A panic while the list was held cannot leave it half-written: it is
         // only pushed to, popped and cleared.
-        self.frames
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+        crate::common::poison::locked(&self.frames)
     }
 
     /// The locator of the frame the session is in, or `None` at the top

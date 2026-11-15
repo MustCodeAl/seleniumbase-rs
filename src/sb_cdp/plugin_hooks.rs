@@ -323,6 +323,10 @@ pub(super) async fn deliver_event(browser: &Browser, event: CdpEvent) {
 ///
 /// [`SeleniumBaseError::Plugin`] naming the plugin when it has no task or does
 /// not hold the capability for one, when the task fails, and when it panics.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a panicking plugin task becomes a plugin error, so one plugin cannot end the server"
+)]
 pub(crate) async fn run_task(
     browser: &Browser,
     name: &str,
