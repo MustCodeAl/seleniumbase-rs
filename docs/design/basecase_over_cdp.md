@@ -64,7 +64,8 @@ A direct attachment is a `BrowserSession` with `external_page: Option<sb_cdp::Pa
 | Files and downloads: `assert_downloaded_file`, `get_downloaded_files`, `download_file`, `install_addon` | `Unsupported` | `Page::download_*` and the downloads folder the engine sets; `install_addon` and `uninstall_addon` are Firefox WebDriver commands: they refuse and name `sb_cdp` extension loading (`LaunchOptions`). |
 | Mouse: `click_at_offset`, `drag_and_drop_by_offset`, `click_chain`, `cdp_mouse_click`, `cdp_type_text` | `Unsupported` | `Page::mouse()` (`Input.dispatchMouseEvent`) and `Locator::click_with_offset`, `drag_to`. |
 | Tours, presentations, charts, messenger, jQuery Confirm, demo-mode highlights | the page-script ones work (`execute_script`); the ones that find an element first fail | Unchanged code: they run page scripts and, through `Element`, find. |
-| Recorder Mode, `get_chromedriver_version`, `cdp_events` (the chromedriver performance log), multiple drivers | `Unsupported` | Refused, naming the alternative: Recorder Mode and `cdp_events` need chromedriver (use `Page::events` and the `sb_cdp` recorder of `sbrs`); there is no chromedriver to ask for its version (`get_browser_version`). |
+| Recorder Mode, `get_chromedriver_version`, `cdp_events` (the chromedriver performance log) | `Unsupported` | Refused, naming the alternative: Recorder Mode and `cdp_events` need chromedriver (use `Page::events` and the `sb_cdp` recorder of `sbrs`); there is no chromedriver to ask for its version (`get_browser_version`). |
+| Multiple drivers: `get_new_driver`, `switch_to_driver` | work | Unchanged code: each new driver connects with the case's settings, so it launches another browser, or attaches again to the endpoint the settings name; quitting it closes that connection's browser. |
 
 ## 5. Names and style
 
