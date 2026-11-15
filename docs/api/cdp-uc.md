@@ -41,7 +41,7 @@ starts a local browser or driver.
 | `set_network_throttle(&throttle)` | Network throttling: a `NetworkThrottle` (`offline`, `latency`, `download`, `upload`; the default changes nothing). Works in every driver mode on a Chromium browser. |
 | `set_timezone(id)` | Sets timezone. |
 | `set_geolocation(lat, lon, acc)` | Sets geolocation. |
-| `install_addon(path, temporary)` | Firefox only: installs an add-on (an `.xpi` file or an unpacked directory on the machine geckodriver runs on) through geckodriver and returns its id. An unsigned add-on needs `temporary = true`. Other browsers get `Unsupported`; use `with_extension_dir` for Chrome. |
+| `install_addon(path, temporary)` | Firefox only: installs an add-on (an `.xpi` file or an unpacked directory on the machine geckodriver runs on) through geckodriver and returns its id. An unsigned add-on needs `temporary = true`. Other browsers get `Unsupported`; use `extension_dir` for Chrome. |
 | `uninstall_addon(id)` | Firefox only: removes an add-on by the id `install_addon` returned. |
 | `human_click(selector)` | WebDriver click after a random delay of 100 to 300 ms. |
 | `human_type(selector, text)` | Clicks the element, then types with the fingerprint's humanize timing, or a typical typist's timing when no fingerprint is set. Planned typos are not sent. |
@@ -58,7 +58,7 @@ On a Chromium launch the mode adds the undetected-chrome arguments (`--disable-b
 
 | How to turn it on | Effect |
 |-------------------|--------|
-| `BrowserConfig::default().with_mode(DriverMode::Uc)` | The session starts in UC mode. |
+| `BrowserConfig::builder().mode(DriverMode::Uc).build()?` | The session starts in UC mode. |
 | `sbrs --uc` | Global switch. Aliases: `--undetected`, `--undetectable`. Sets the mode to `uc` (`SB_MODE`). |
 | `sbrs --uc` together with `--cdp` | The mode override is `cdp`. `--cdp` is applied first. |
 | `sbrs mkfile --uc` | Writes a generated test that uses `DriverMode::Uc`. That command's own `--uc` and `--cdp` cannot be combined. |
@@ -67,7 +67,7 @@ On a Chromium launch the mode adds the undetected-chrome arguments (`--disable-b
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode, Result};
 
 async fn open_quietly() -> Result<()> {
-    let config = BrowserConfig::default().with_mode(DriverMode::Uc);
+    let config = BrowserConfig::builder().mode(DriverMode::Uc).build()?;
     let mut sb = BaseCase::new(config).await?;
     assert!(sb.is_uc_mode_active());
     sb.uc_open_with_reconnect("https://example.com").await?;

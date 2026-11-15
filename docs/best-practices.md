@@ -693,7 +693,7 @@ and the `SB_*` variables, so the choice belongs to the environment:
 SB_HEADLESS=true cargo test
 ```
 
-Do not write `.headless(false)` or `.with_headless(false)` into a committed
+Do not write `BrowserConfigBuilder::headless(false)` or `LaunchOptionsBuilder::headless(false)` into a committed
 test: a headed browser needs a display, which a CI server does not have.
 `BrowserConfig::default()` is already headless and does not read `SB_HEADLESS`;
 the pure CDP engine, started from `LaunchOptions` by hand, is headless on Linux

@@ -210,10 +210,11 @@ acting.
 ```rust
 use seleniumbase_rs::{BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_headless(true)
-    .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...");
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .headless(true)
+    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...")
+    .build()?;
 ```
 
 ### Stealth and fingerprinting
@@ -336,7 +337,7 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut sb = BaseCase::new(BrowserConfig::default().with_mode(DriverMode::Cdp)).await?;
+    let mut sb = BaseCase::new(BrowserConfig::builder().mode(DriverMode::Cdp).build()?).await?;
     sb.open("https://seleniumbase.io").await?;
     let text = sb.text("h1").await?;
     println!("{text}");

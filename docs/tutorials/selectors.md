@@ -293,7 +293,7 @@ use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> seleniumbase_rs::Result<()> {
-    let config = BrowserConfig::from_env()?.with_headless(true);
+    let config = BrowserConfig::from_env()?.into_builder().headless(true).build()?;
 
     run_browser_test(config, async |sb| {
         sb.open("https://example.com").await?;

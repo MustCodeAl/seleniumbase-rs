@@ -25,7 +25,7 @@ has for each, from turning on the logs to reproducing a failure without Chrome.
 
 <Visibility for="agents">
 
-Summary for AI exports: logs go to standard error. `sbrs` and `sbrs-mcp` read the filter from `SB_LOG_LEVEL`, else `RUST_LOG`, else `info`, and `SB_LOG_FORMAT=pretty|json`. A program installs logging with `seleniumbase_rs::init_tracing()` or `init_tracing_from_runtime(&RuntimeConfig::from_env()?)`. Debug features: `tokio-console` (build with `RUSTFLAGS="--cfg tokio_unstable"`) and `full-tracing`; `error-backtrace` is declared but nothing reads it. Run headed with `BrowserConfig::with_headless(false)`, `LaunchOptions::builder().headless(false)` or `sbrs --headed`. Save evidence with `Plugins` and `ScreenshotOnFailurePlugin` / `PageSourceOnFailurePlugin`. Reproduce without Chrome with `Browser::new_mocked()` (feature `test-util`). Check the setup with `sbrs doctor`. Pick log targets by module path, such as `RUST_LOG=info,seleniumbase_rs::browser=debug`. The MCP debugging tools are `diagnose_environment`, `diagnose_selector`, `get_console_messages`, `get_failed_requests` and `capture_debug_bundle`. To step through a test, build it with `CARGO_PROFILE_DEV_DEBUG=2` (the repository's check environment sets `0`, which leaves out the debug information a debugger needs) and start `rust-lldb` on the test binary, or use a CodeLLDB launch configuration with a `cargo` property.
+Summary for AI exports: logs go to standard error. `sbrs` and `sbrs-mcp` read the filter from `SB_LOG_LEVEL`, else `RUST_LOG`, else `info`, and `SB_LOG_FORMAT=pretty|json`. A program installs logging with `seleniumbase_rs::init_tracing()` or `init_tracing_from_runtime(&RuntimeConfig::from_env()?)`. Debug features: `tokio-console` (build with `RUSTFLAGS="--cfg tokio_unstable"`) and `full-tracing`; `error-backtrace` is declared but nothing reads it. Run headed with `BrowserConfigBuilder::headless(false)`, `LaunchOptions::builder().headless(false)` or `sbrs --headed`. Save evidence with `Plugins` and `ScreenshotOnFailurePlugin` / `PageSourceOnFailurePlugin`. Reproduce without Chrome with `Browser::new_mocked()` (feature `test-util`). Check the setup with `sbrs doctor`. Pick log targets by module path, such as `RUST_LOG=info,seleniumbase_rs::browser=debug`. The MCP debugging tools are `diagnose_environment`, `diagnose_selector`, `get_console_messages`, `get_failed_requests` and `capture_debug_bundle`. To step through a test, build it with `CARGO_PROFILE_DEV_DEBUG=2` (the repository's check environment sets `0`, which leaves out the debug information a debugger needs) and start `rust-lldb` on the test binary, or use a CodeLLDB launch configuration with a `cargo` property.
 
 </Visibility>
 
@@ -254,7 +254,7 @@ Headless is the default. To see the window, turn it off:
 ```rust
 use seleniumbase_rs::BrowserConfig;
 
-let config = BrowserConfig::default().with_headless(false);
+let config = BrowserConfig::builder().headless(false).build()?;
 ```
 
 </Tab>
@@ -297,13 +297,14 @@ use std::time::Duration;
 
 use seleniumbase_rs::{BrowserConfig, RunSettings};
 
-let config = BrowserConfig::default()
-    .with_headless(false)
-    .with_run_settings(
+let config = BrowserConfig::builder()
+    .headless(false)
+    .run_settings(
         RunSettings::default()
             .with_demo_mode(true)
             .with_demo_sleep(Duration::from_millis(800)),
-    );
+    )
+    .build()?;
 ```
 
 <Warning>

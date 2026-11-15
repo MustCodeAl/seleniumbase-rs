@@ -582,7 +582,7 @@ The library does not weaken CORS or the same-origin policy. It can, on request,
 remove the Content Security Policy, which is the one that most often gets in the
 way of an injected helper.
 
-- **Disable CSP.** `BrowserConfig::with_disable_csp(true)` is the launch switch
+- **Disable CSP.** `BrowserConfigBuilder::disable_csp(true)` is the launch switch
   `--disable-csp` (also written `--dcsp` or `--no-csp`; `disable_csp`, `dcsp` and
   `no_csp` in the Python-style names). The doc comment says it strips the Content
   Security Policy from every response, Chromium only. It is done with a bundled

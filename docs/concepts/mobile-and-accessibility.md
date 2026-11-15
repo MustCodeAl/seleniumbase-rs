@@ -310,11 +310,11 @@ adds a keyboard pass and a screen reader pass.
 seleniumbase-rs has a **mobile mode** that follows Python SeleniumBase's
 `--mobile` option.
 
-- `BrowserConfig::with_mobile(true)` turns Chrome's mobile emulation on with the
+- `BrowserConfigBuilder::mobile(true)` turns Chrome's mobile emulation on with the
   default screen, `DeviceMetrics::default()`: **390 by 715 CSS pixels at a pixel
   ratio of 3** (Python's `constants.Mobile`), and an Android Chrome user agent
   (`MOBILE_USER_AGENT`).
-- `BrowserConfig::with_device_metrics(metrics)` chooses another screen, and turns
+- `BrowserConfigBuilder::device_metrics(metrics)` chooses another screen, and turns
   mobile on as well. It is the counterpart of Python's `--metrics`, also written
   `--device-metrics`, and of its `d_width`, `d_height` and `d_p_r` settings. Here
   setting metrics is enough, while Python applies them only together with
@@ -333,7 +333,7 @@ seleniumbase-rs has a **mobile mode** that follows Python SeleniumBase's
 ```rust,ignore src/main.rs
 use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
-run_browser_test(BrowserConfig::default().with_mobile(true), async |sb| {
+run_browser_test(BrowserConfig::builder().mobile(true).build()?, async |sb| {
     sb.open("https://example.com").await?;
     let width = sb.execute_script("return window.innerWidth;").await?;
     assert_eq!(width, 390);
@@ -351,7 +351,7 @@ use seleniumbase_rs::browser::options::DeviceMetrics;
 use seleniumbase_rs::{run_browser_test, BrowserConfig};
 
 let metrics: DeviceMetrics = "412,732,3".parse()?;
-let config = BrowserConfig::default().with_device_metrics(metrics);
+let config = BrowserConfig::builder().device_metrics(metrics).build()?;
 
 run_browser_test(config, async |sb| {
     sb.open("https://example.com").await?;

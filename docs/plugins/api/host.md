@@ -57,9 +57,10 @@ use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 // seleniumbase-rs with features = ["plugin-shield"]
-let config = BrowserConfig::default()
-    .with_plugins(PluginSet::new().with(Hello)?) // first: it replaces the set
-    .with_plugins_named(["shield"])?; // resolved at once
+let config = BrowserConfig::builder()
+    .plugins(PluginSet::new().with(Hello)?) // first: it replaces the set
+    .plugins_named(["shield"]) // resolved by `build`
+    .build()?;
 let mut sb = BaseCase::new(config).await?;
 sb.quit().await?;
 ```
@@ -307,30 +308,30 @@ Nothing is launched, so `before_launch` does not run.
 For URL-based attachment with a fingerprint, use the existing launch builder
 with `.cdp_url(endpoint).fingerprint(&fingerprint).plugins(plugins)` and call
 `Browser::launch`. The host performs the same attach checks, prepares existing
-windows, and runs the usual page and close hooks. `BrowserConfig::with_plugins`
+windows, and runs the usual page and close hooks. `BrowserConfigBuilder::plugins`
 also carries its set into a direct CDP session through `browser_config`.
 See [Tauri CDP attachment](/ecosystem/tauri-api/cdp).
 
-## BrowserConfig::with_plugins
+## BrowserConfigBuilder::plugins
 
-<Badge color="green">fn</Badge> `seleniumbase_rs::BrowserConfig::with_plugins`
+<Badge color="green">fn</Badge> `seleniumbase_rs::BrowserConfigBuilder::plugins`
 
 ```rust
 #[cfg(feature = "plugins")]
-pub fn with_plugins(mut self, plugins: seleniumbase_rs_plugin::PluginSet) -> Self
+pub fn plugins(mut self, plugins: seleniumbase_rs_plugin::PluginSet) -> Self
 ```
 
 <ParamField body="plugins" type="PluginSet" required>
 
 The plugins whose hooks run for every session started with this
-configuration. It replaces the set the configuration holds, named plugins
-included, so call it before `with_plugins_named` and `with_plugin_selection`.
+configuration. It replaces the set the builder holds, named plugins
+included, so call it before `plugins_named` and `plugin_selection`.
 
 </ParamField>
 
-<ResponseField name="return" type="BrowserConfig">
+<ResponseField name="return" type="BrowserConfigBuilder">
 
-The configuration.
+The builder.
 
 </ResponseField>
 
@@ -343,13 +344,13 @@ the session with `SeleniumBaseError::Plugin`. Plugins cannot be combined with
 Internet Explorer. What each browser accepts is in
 [The WebDriver engine](/tutorials/plugins#the-webdriver-engine).
 
-## BrowserConfig::with_plugins_named
+## BrowserConfigBuilder::plugins_named
 
-<Badge color="green">fn</Badge> `seleniumbase_rs::BrowserConfig::with_plugins_named`
+<Badge color="green">fn</Badge> `seleniumbase_rs::BrowserConfigBuilder::plugins_named`
 
 ```rust
 #[cfg(feature = "plugins")]
-pub fn with_plugins_named<I, S>(self, names: I) -> Result<Self, SeleniumBaseError>
+pub fn plugins_named<I, S>(self, names: I) -> Self
 where
     I: IntoIterator<Item = S>,
     S: Into<String>,
@@ -361,27 +362,24 @@ Names of built-in plugins, each with its default options.
 
 </ParamField>
 
-<ResponseField name="return" type="Result<BrowserConfig, SeleniumBaseError>">
+<ResponseField name="return" type="BrowserConfigBuilder">
 
-The configuration with the plugins added after those of `with_plugins`, or
+The builder with the plugins added after those of `plugins`. `build` returns
 `SeleniumBaseError::Plugin` for a name this build does not have (the message
 lists the ones it has) or a plugin already in the set.
 
 </ResponseField>
 
-Unlike the CDP builder, a configuration has no `build`, so the names are
-resolved at once.
+The names are resolved by `BrowserConfigBuilder::build`, in the order the
+setters were called, so an error shows up there and not at the setter.
 
-## BrowserConfig::with_plugin_selection
+## BrowserConfigBuilder::plugin_selection
 
-<Badge color="green">fn</Badge> `seleniumbase_rs::BrowserConfig::with_plugin_selection`
+<Badge color="green">fn</Badge> `seleniumbase_rs::BrowserConfigBuilder::plugin_selection`
 
 ```rust
 #[cfg(feature = "plugins")]
-pub fn with_plugin_selection(
-    mut self,
-    selection: &PluginSelection,
-) -> Result<Self, SeleniumBaseError>
+pub fn plugin_selection(mut self, selection: &PluginSelection) -> Self
 ```
 
 <ParamField body="selection" type="&PluginSelection" required>
@@ -390,9 +388,9 @@ Plugin names and options, such as `Settings::plugins`.
 
 </ParamField>
 
-<ResponseField name="return" type="Result<BrowserConfig, SeleniumBaseError>">
+<ResponseField name="return" type="BrowserConfigBuilder">
 
-The configuration with the plugins added after those it holds, or
+The builder with the plugins added after those it holds. `build` returns
 `SeleniumBaseError::Plugin` for an unknown name, options a plugin refuses,
 options for a plugin that is not enabled, or a plugin already in the set.
 
@@ -431,8 +429,8 @@ is on, in the order `shield`, `block-resources`, `crx`, `fetcher`, `extractor`,
 
 </ResponseField>
 
-The names that `plugins_named`, `plugin_selection`, `with_plugins_named`,
-`with_plugin_selection`, the settings file, `SB_PLUGINS` and `sbrs --plugin`
+The names that `plugins_named`, `plugin_selection` (of either builder), the
+settings file, `SB_PLUGINS` and `sbrs --plugin`
 accept come from this registry only. Add your own with
 `builtin_registry().with(Descriptor::of::<P>())` and build with `build_with`.
 

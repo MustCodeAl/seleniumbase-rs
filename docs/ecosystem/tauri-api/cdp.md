@@ -196,13 +196,13 @@ System WKWebView and WebKitGTK use the WebDriver bridge instead of CDP.
 
 | Existing client surface | Configuration |
 |---|---|
-| `BrowserConfig::with_cdp_url(url)` | Direct HTTP or browser WebSocket debugger URL; an authenticated plugin base URL also supports discovery. |
-| `BrowserConfig::with_cdp_discovery(true)` | Discover through the existing `webdriver_url`. Explicit `cdp_url` takes precedence. |
+| `BrowserConfigBuilder::cdp_url(url)` | Direct HTTP or browser WebSocket debugger URL; an authenticated plugin base URL also supports discovery. |
+| `BrowserConfigBuilder::cdp_discovery(true)` | Discover through the existing `webdriver_url`. Explicit `cdp_url` takes precedence. |
 | `LaunchOptionsBuilder::cdp_url(url)` | `Browser::launch(options)` attaches without launching a process. |
 | `LaunchOptionsBuilder::browser_config(&config)` | Carries CDP selection, fingerprint and plugins into the pure engine. |
 | `BrowserSession::pure_cdp_page()` | Access the full attached `Page` and its `Browser`. |
 | `CdpDriver::attach(&mut self, browser)` | An instance method, not a static call: `let mut driver = CdpDriver::new(); driver.attach(browser).await?;` drives the attached browser's first window. |
-| `BrowserConfig::with_cdp_target(window)` | The window `BaseCase` drives: a target id or part of its URL. Without it, the first window. |
+| `BrowserConfigBuilder::cdp_target(window)` | The window `BaseCase` drives: a target id or part of its URL. Without it, the first window. |
 | `Browser::select_page(window)` | The same choice on a `Browser`: a target id, else the first window whose URL contains the text. |
 
 On a directly attached page the whole `BaseCase` API works (`open`, `click`, `type_text`,
@@ -211,7 +211,7 @@ the waits, `switch_to_frame`, `cookies`, `accept_alert`, `save_screenshot`, and 
 code written against them. Fingerprints use
 the existing evasion provider registry for future documents and already-open
 contexts, plus native CDP overrides when `native_spoofing` is enabled.
-`with_plugins(...)` or `LaunchOptionsBuilder::plugins(...)` enables the existing
+`plugins(...)` or `LaunchOptionsBuilder::plugins(...)` enables the existing
 attach-compatible plugin hooks and packages (feature `plugins`). Launch-only
 plugins are refused, and `before_launch` is not called.
 
@@ -224,7 +224,7 @@ windows:
   window. The fingerprint, emulation and plugins reach a window when the
   automation opens it (`new_page`, `new_window`) or picks it: `default_page()`
   (the first window), `page(id)`, `select_page(id_or_url_part)`,
-  `BrowserConfig::with_cdp_target(...)` for `BaseCase`, or `pages()`, which
+  `BrowserConfigBuilder::cdp_target(...)` for `BaseCase`, or `pages()`, which
   asks for every window. `list_pages()` only lists them. The app's other
   windows are left as they are.
 - **A proxy is refused.** The app's network settings are not the test's to

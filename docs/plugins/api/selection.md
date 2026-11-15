@@ -467,7 +467,7 @@ The `[plugins]` table of the settings file with `SB_PLUGINS` on top, as
 `Settings::load` and `Settings::load_from` read it. A build without the
 feature `plugins` refuses a non-empty selection when it loads the settings.
 Turn it into plugins with `LaunchOptionsBuilder::plugin_selection` or
-`BrowserConfig::with_plugin_selection`.
+`BrowserConfigBuilder::plugin_selection`.
 
 ## Settings::load_plugin_selection
 
@@ -856,7 +856,7 @@ The plugins to give it.
 
 <ResponseField name="return" type="Result<BrowserConfig, SeleniumBaseError>">
 
-`BrowserConfig::with_plugin_selection` with the feature `plugins`; without it,
+`BrowserConfigBuilder::plugin_selection` with the feature `plugins`; without it,
 `SeleniumBaseError::InvalidConfig` for a non-empty selection instead of leaving
 it out of the program.
 

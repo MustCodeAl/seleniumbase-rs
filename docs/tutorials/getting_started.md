@@ -23,7 +23,7 @@ browser, interacts with a page, asserts on the result, and cleans up.
 
 <Visibility for="agents">
 
-Summary for AI exports: add `seleniumbase-rs` to `Cargo.toml` (it re-exports the Tokio runtime as `seleniumbase_rs::tokio`), build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required. Import from `seleniumbase_rs`, not from the crates it is built on. Tokio: `use seleniumbase_rs::tokio;` before `#[tokio::main]` or `#[tokio::test]`. rstest (feature `testing`): `use seleniumbase_rs::testing::{fixture, rstest};`. Gherkin (feature `bdd`): `use seleniumbase_rs::testing::bdd::{given, scenario, scenarios, skip, then, when};` plus `use seleniumbase_rs::testing::rstest;`, and `rstest-bdd = "0.6"` in the manifest (never named in code). Elements: `BaseCase::find_element` returns `seleniumbase_rs::Element`; the raw WebDriver types of the escape hatches: `use seleniumbase_rs::drivers::{WebDriver, WebDriverError, WebElement};` (`WebElement` for `Element::as_webdriver_element`, `WebDriver` for `BrowserSession::webdriver`, `WebDriverError` for the calls made on them); extra capabilities: `CapabilityOverrides::from_text` with `BrowserConfig::with_capabilities`. There is one `Key`, `use seleniumbase_rs::Key;`, which `Element::press` and `Locator::press` take; `drivers` has no `Key`. Cookies, from either engine: `use seleniumbase_rs::{Cookie, SameSite};`. JSON: `use seleniumbase_rs::json::{json, Value};`. Test plugins: `use seleniumbase_rs::plugins::observer::async_trait;`. Plugin crates, your own `serde` derives and your own `tracing` spans still need those crates.
+Summary for AI exports: add `seleniumbase-rs` to `Cargo.toml` (it re-exports the Tokio runtime as `seleniumbase_rs::tokio`), build a `BrowserConfig`, create `BaseCase::new(config).await?`, call `open`, `click`, `type_text` and the `assert_*` methods, then `quit`. Rust 1.99 or newer and a Chromium-based browser are required. Import from `seleniumbase_rs`, not from the crates it is built on. Tokio: `use seleniumbase_rs::tokio;` before `#[tokio::main]` or `#[tokio::test]`. rstest (feature `testing`): `use seleniumbase_rs::testing::{fixture, rstest};`. Gherkin (feature `bdd`): `use seleniumbase_rs::testing::bdd::{given, scenario, scenarios, skip, then, when};` plus `use seleniumbase_rs::testing::rstest;`, and `rstest-bdd = "0.6"` in the manifest (never named in code). Elements: `BaseCase::find_element` returns `seleniumbase_rs::Element`; the raw WebDriver types of the escape hatches: `use seleniumbase_rs::drivers::{WebDriver, WebDriverError, WebElement};` (`WebElement` for `Element::as_webdriver_element`, `WebDriver` for `BrowserSession::webdriver`, `WebDriverError` for the calls made on them); extra capabilities: `CapabilityOverrides::from_text` with `BrowserConfigBuilder::capabilities`. There is one `Key`, `use seleniumbase_rs::Key;`, which `Element::press` and `Locator::press` take; `drivers` has no `Key`. Cookies, from either engine: `use seleniumbase_rs::{Cookie, SameSite};`. JSON: `use seleniumbase_rs::json::{json, Value};`. Test plugins: `use seleniumbase_rs::plugins::observer::async_trait;`. Plugin crates, your own `serde` derives and your own `tracing` spans still need those crates.
 
 </Visibility>
 
@@ -93,9 +93,10 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. Configure the browser.
-    let config = BrowserConfig::default()
-        .with_mode(DriverMode::Uc)
-        .with_headless(false);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .headless(false)
+        .build()?;
 
     // 2. Create the test case. This starts the browser and driver if needed.
     let mut sb = BaseCase::new(config).await?;
@@ -138,9 +139,9 @@ welcome message, and close.
 
 - `BrowserConfig::default()` returns a default configuration pointing at
   `http://localhost:4444` with <Tooltip tip="The browser runs without a visible window.">headless</Tooltip> mode enabled.
-- `with_mode(DriverMode::Uc)` enables Undetected Chromedriver mode, which
+- `mode(DriverMode::Uc)` enables Undetected Chromedriver mode, which
   applies anti-detection evasions.
-- `with_headless(false)` runs the browser with a visible window so you can watch
+- `headless(false)` runs the browser with a visible window so you can watch
   the test. In CI you usually want `true`.
 - `BaseCase::new(config).await?` creates the browser session. If no WebDriver
   server is running, the crate attempts to start one.
@@ -160,21 +161,21 @@ settings most programs touch (all are in `seleniumbase_rs::BrowserConfig`):
 
 | Setting | Builder | Default |
 |---|---|---|
-| Browser | `with_browser(Browser::Edge)` | `Browser::Chrome` (also `Chromium`, `Firefox`, `Brave`, `Opera`, `Safari`, `ChromeForTesting`, ...) |
-| Headless | `with_headless(bool)` | `true` |
-| Engine mode | `with_mode(DriverMode)` | `DriverMode::WebDriver` (`Cdp` and `Uc` add DevTools helpers and anti-detection) |
-| WebDriver endpoint | `with_webdriver_url(url)` | `http://localhost:4444` |
-| Existing Chromium debugger | `with_cdp_url(url)` | none; attach over HTTP or a browser WebSocket without starting a browser or driver |
-| Tauri CDP discovery | `with_cdp_discovery(bool)` | `false`; discover through the authenticated `webdriver_url` |
-| Browser binary | `with_browser_binary_path(path)` | none (`from_env` reads `SB_CHROME_BIN`) |
-| Proxy | `with_proxy(spec)` or `with_proxy_pac_url(url)` | none |
-| User agent, locale | `with_user_agent(ua)`, `with_locale("de-DE")` | none |
-| Profile and extensions | `with_user_data_dir(dir)`, `with_extension_dir(dir)` | none |
-| Start page | `with_start_page(url)` | none |
-| Ad blocking | `with_ad_block(bool)` | `false` |
-| Reuse browsers between tests | `with_reuse_session(bool)` | `false` |
-| Extra Chromium arguments | `with_extra_args([..])`, `push_extra_arg(arg)` | none |
-| Fingerprint | `with_fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](/stealth/introduction) |
+| Browser | `browser(Browser::Edge)` | `Browser::Chrome` (also `Chromium`, `Firefox`, `Brave`, `Opera`, `Safari`, `ChromeForTesting`, ...) |
+| Headless | `headless(bool)` | `true` |
+| Engine mode | `mode(DriverMode)` | `DriverMode::WebDriver` (`Cdp` and `Uc` add DevTools helpers and anti-detection) |
+| WebDriver endpoint | `webdriver_url(url)` | `http://localhost:4444` |
+| Existing Chromium debugger | `cdp_url(url)` | none; attach over HTTP or a browser WebSocket without starting a browser or driver |
+| Tauri CDP discovery | `cdp_discovery(bool)` | `false`; discover through the authenticated `webdriver_url` |
+| Browser binary | `browser_binary_path(path)` | none (`from_env` reads `SB_CHROME_BIN`) |
+| Proxy | `proxy(spec)` or `proxy_pac_url(url)` | none |
+| User agent, locale | `user_agent(ua)`, `locale("de-DE")` | none |
+| Profile and extensions | `user_data_dir(dir)`, `extension_dir(dir)` | none |
+| Start page | `start_page(url)` | none |
+| Ad blocking | `ad_block(bool)` | `false` |
+| Reuse browsers between tests | `reuse_session(bool)` | `false` |
+| Extra Chromium arguments | `extra_args([..])`, `extra_arg(arg)` | none |
+| Fingerprint | `fingerprint(Fingerprint)` | none; see [Fingerprint & Stealth Profiles](/stealth/introduction) |
 
 An explicit `cdp_url` takes precedence over discovery. Direct attachments use
 `BaseCase::cdp_*` methods; the app keeps running after `quit()`. See the
@@ -266,7 +267,7 @@ async fn main() -> seleniumbase_rs::Result<()> {
     init_tracing(); // install the log subscriber; RUST_LOG=debug for more
 
     // SB_* variables from the environment, headless unless you change it.
-    let config = BrowserConfig::from_env()?.with_headless(true);
+    let config = BrowserConfig::from_env()?.into_builder().headless(true).build()?;
 
     run_browser_test(config, async |sb| {
         sb.load_html_string(PAGE).await?;
@@ -326,9 +327,10 @@ use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, DriverMode, Result
 
 #[tokio::test]
 async fn login_succeeds() -> Result<()> {
-    let config = BrowserConfig::default()
-        .with_mode(DriverMode::Uc)
-        .with_headless(false);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .headless(false)
+        .build()?;
 
     run_browser_test(config, async |sb| {
         sb.open("https://seleniumbase.io/simple/login").await?;
@@ -375,7 +377,7 @@ needs no second crate.
 | Why the driver failed a command (no such alert, window or frame; a script that threw) | `use seleniumbase_rs::{DriverErrorKind, SeleniumBaseError};` and `SeleniumBaseError::WebDriver(error)` with `error.kind()` | `thirtyfour` |
 | A named key for `Element::press` or `Locator::press` | `use seleniumbase_rs::Key;` (one `Key` for both engines; `drivers` has none) | `thirtyfour` |
 | How the network behaves (slowed down, cut off), on either engine | `use seleniumbase_rs::NetworkThrottle;` (with `std::time::Duration` for the latency) | `thirtyfour` |
-| Extra capabilities of the WebDriver engine | `use seleniumbase_rs::browser::options::CapabilityOverrides;` with `BrowserConfig::with_capabilities` | `thirtyfour` |
+| Extra capabilities of the WebDriver engine | `use seleniumbase_rs::browser::options::CapabilityOverrides;` with `BrowserConfigBuilder::capabilities` | `thirtyfour` |
 | A JSON value or the `json!` macro | `use seleniumbase_rs::json::{json, Value};` | `serde_json = "1"` |
 | `#[async_trait]` for a `TestPlugin` or `PageEvidence` | `use seleniumbase_rs::plugins::observer::async_trait;` | `async-trait = "0.1"` |
 
@@ -486,7 +488,7 @@ in that crate, and the import keeps working beside it.
 
 **Cause.** The browser binary path is wrong.
 
-**Solution.** Use `BrowserConfig::with_browser_binary_path`, or build the config with `BrowserConfig::from_env()` and set `SB_CHROME_BIN` (`BrowserConfig::default()` reads no variables).
+**Solution.** Use `BrowserConfigBuilder::browser_binary_path`, or build the config with `BrowserConfig::from_env()` and set `SB_CHROME_BIN` (`BrowserConfig::default()` reads no variables).
 
 </Accordion>
 
@@ -494,7 +496,7 @@ in that crate, and the import keeps working beside it.
 
 **Cause.** Site blocks headless Chrome (headless sessions already use `--headless=new`).
 
-**Solution.** Use `with_headless(false)`.
+**Solution.** Use `headless(false)`.
 
 </Accordion>
 

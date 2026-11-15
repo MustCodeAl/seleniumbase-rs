@@ -217,7 +217,7 @@ server (`find_api`) before you write the call.
     on one tab or one `Page`. Use `BrowserPool::acquire()` per flow (a `Lease` is an
     isolated context and a tab) or `browser.new_context()`.
 11. **Headless in CI, set outside the code:** `SB_HEADLESS=true cargo test`. The
-    fixtures read it. Do not write `.with_headless(false)` or `.headless(false)`
+    fixtures read it. Do not write `BrowserConfigBuilder::headless(false)` or `LaunchOptionsBuilder::headless(false)`
     in a committed test.
 12. **Write a body that is safe to run twice.** `SB_RERUNS` calls the closure
     again, so it must not move out of what it captures (`for p in &paths`, not

@@ -451,12 +451,13 @@ For per-test overrides, build a `BrowserConfig` directly:
 ```rust
 use seleniumbase_rs::{BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_headless(true)
-    .with_proxy("http://proxy:8080")
-    .with_locale("en-US")
-    .with_extra_args(vec!["--disable-blink-features=AutomationControlled".into()]);
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .headless(true)
+    .proxy("http://proxy:8080")
+    .locale("en-US")
+    .extra_args(vec!["--disable-blink-features=AutomationControlled".into()])
+    .build()?;
 ```
 
 A `BrowserConfig` keeps what it holds in groups, and a field is read through its group:
@@ -469,7 +470,7 @@ A `BrowserConfig` keeps what it holds in groups, and a field is read through its
 
 The pure CDP engine (`LaunchOptionsBuilder::browser_config`) reads `browser` whole and ignores
 `session`. `BrowserSettings::default()` opens a window, as Python does; a default `BrowserConfig`
-is headless. Replace a whole group with `with_browser_settings` and `with_session_settings`.
+is headless. Replace a whole group with `browser_settings` and `session_settings`.
 
 `BrowserConfig` also supports `from_env()` to load runtime variables directly:
 
@@ -496,7 +497,7 @@ use seleniumbase_rs::BrowserConfig;
 
 let proxies = ProxyList::from_file("proxies.txt")?;
 let entry = proxies.next_round_robin().expect("a non-empty list");
-let config = BrowserConfig::default().with_proxy(entry.spec());
+let config = BrowserConfig::builder().proxy(entry.spec()).build()?;
 ```
 
 `ProxyEntry`'s `Debug` and `Display` never show a password; only `spec()` does.
@@ -565,7 +566,7 @@ blocked name inside a query string does not block the page.
 
 A Chromium WebDriver session sends such a list to the browser when
 `BrowserConfig::ad_block` is on: the built-in list, or yours through
-`with_ad_block_list(list)`, which replaces it. `bounded_url_patterns()` is what
+`ad_block_list(list)`, which replaces it. `bounded_url_patterns()` is what
 is sent. It leaves out a host whose parent domain is also listed and refuses a
 list that needs more than 2,000 patterns, so the browser is never given half of
 what you asked for. See [Blocking ads](/help/customizing_test_runs#blocking-ads).

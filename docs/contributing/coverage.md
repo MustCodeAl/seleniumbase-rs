@@ -147,7 +147,7 @@ A real-Chrome test needs no screen:
   `CI` is set.
 - A test that needs a headed Chrome gets a virtual display on Linux: set
   `SBRS_XVFB=1` in the test container, or use `--xvfb` /
-  `BrowserConfig::with_virtual_display` outside it. The container commands,
+  `BrowserConfigBuilder::virtual_display` outside it. The container commands,
   with Xvfb installed, are in
   [Run the tests in a container](/building#run-the-tests-in-a-container).
 

@@ -305,7 +305,7 @@ See [Fingerprint & Stealth Profiles](/stealth/policies).
 
 <Badge color="orange">Plugins</Badge>
 
-One thing a plugin may do, written as a stable string such as `launch.args`, `cdp:Network` or `page.script:example.com`. A plugin declares the ones it needs and a [PluginSet](#pluginset) grants and checks them; for a native Rust plugin this is a declared contract, not a sandbox. It is not the same as the WebDriver capabilities that `with_capabilities` merges into a session.
+One thing a plugin may do, written as a stable string such as `launch.args`, `cdp:Network` or `page.script:example.com`. A plugin declares the ones it needs and a [PluginSet](#pluginset) grants and checks them; for a native Rust plugin this is a declared contract, not a sandbox. It is not the same as the WebDriver capabilities that `capabilities` merges into a session.
 
 See [Capabilities](/plugins/api/capabilities).
 
@@ -505,7 +505,7 @@ See [How browser extensions work](/concepts/browser-extensions#the-parts).
 
 <Badge color="red">Network</Badge>
 
-A response header that lists where a page may load and run content from. It blocks injected scripts, which is why a helper that adds an inline script can fail on such a page. `BrowserConfig::with_disable_csp` removes it for a session.
+A response header that lists where a page may load and run content from. It blocks injected scripts, which is why a helper that adds an inline script can fail on such a page. `BrowserConfigBuilder::disable_csp` removes it for a session.
 
 See [Content Security Policy](/concepts/web-security#content-security-policy).
 
@@ -1499,7 +1499,7 @@ See [Pure CDP](/tutorials/pure_cdp#intercepting-requests).
 
 <Badge color="green">Testing</Badge>
 
-A run option (`with_reuse_session(true)`, `--reuse-session` or `SB_REUSE_SESSION`) that keeps a browser open from one test to the next. The browser is cleaned before the next test gets it, and only one test holds it at a time.
+A run option (`reuse_session(true)`, `--reuse-session` or `SB_REUSE_SESSION`) that keeps a browser open from one test to the next. The browser is cleaned before the next test gets it, and only one test holds it at a time.
 
 See [Customizing Test Runs](/help/customizing_test_runs#sharing-a-browser-between-tests).
 
@@ -1555,7 +1555,7 @@ See [Containers and deployment](/concepts/containers-and-deployment#github-actio
 
 <Badge color="green">Testing</Badge>
 
-Run-wide settings as plain data, the Rust version of Python SeleniumBase's pytest options such as `--demo`, `--slow` and `--message-duration`. Build one and give it to `BrowserConfig::with_run_settings` or `BaseCase::set_run_settings`; the default changes nothing.
+Run-wide settings as plain data, the Rust version of Python SeleniumBase's pytest options such as `--demo`, `--slow` and `--message-duration`. Build one and give it to `BrowserConfigBuilder::run_settings` or `BaseCase::set_run_settings`; the default changes nothing.
 
 See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 
@@ -2237,7 +2237,7 @@ See [Cross-site scripting](/concepts/web-security#cross-site-scripting-xss).
 
 <Badge color="blue">Engine</Badge>
 
-A virtual X display: a headed browser can open its window on it when the machine has no screen. On Linux `BrowserConfig::with_virtual_display` starts one for the WebDriver engine, and the `Xvfb` program must be installed.
+A virtual X display: a headed browser can open its window on it when the machine has no screen. On Linux `BrowserConfigBuilder::virtual_display` starts one for the WebDriver engine, and the `Xvfb` program must be installed.
 
 See [Headless and Headed Browsers](/tutorials/headless#containers-and-ci).
 

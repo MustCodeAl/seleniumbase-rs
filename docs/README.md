@@ -121,9 +121,10 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = BrowserConfig::default()
-        .with_mode(DriverMode::Uc)
-        .with_headless(false);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .headless(false)
+        .build()?;
 
     // Starts the browser, and chromedriver if needed.
     let mut sb = BaseCase::new(config).await?;
@@ -218,9 +219,10 @@ that common bot checks do not spot the automation. Turn it on in the configurati
 ```rust
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_headless(true);
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .headless(true)
+    .build()?;
 let mut sb = BaseCase::new(config).await?;
 ```
 

@@ -23,7 +23,7 @@ another one `BaseCase::new` fails.
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs mkrec tests/login.rs --url seleniumbase.io/demo_page` opens a browser in Recorder Mode; type `c` and press Enter in the terminal, or press SHIFT+ESC in the browser with `--ee`, to end it. It writes `recordings/login_rec.rs` and `recordings/login_rec.json` and copies the code to `tests/login.rs`. `--rec-sb-mgr` writes a script, `--rec-sb-cdp` pure CDP code, `--behave` (`--rec-behave`) also a Gherkin feature. `codegen` and `record` are other names for `mkrec`. From a test, `BrowserConfig::with_recorder_mode(true)` (or `sbrs --rec test`, or `SB_RECORDER=true`) writes the recording when the browser quits, and `recorder_breakpoint` pauses for the manual part. `sbrs replay recordings/login_rec.json` replays the JSON file. `sbrs recorder` is a terminal app (feature `tui`) that runs these steps from a form. Separately, `BaseCase` logs the calls it makes: `export_recording_as_rust()` returns a Rust program, `save_recording_to_logs()` saves JSON and Rust, and `ActionRecorder::to_rust_test(name)` returns a `#[tokio::test]`. `sbrs run-scenario` reads hand-written scenarios, not action files.
+Summary for AI exports: `sbrs mkrec tests/login.rs --url seleniumbase.io/demo_page` opens a browser in Recorder Mode; type `c` and press Enter in the terminal, or press SHIFT+ESC in the browser with `--ee`, to end it. It writes `recordings/login_rec.rs` and `recordings/login_rec.json` and copies the code to `tests/login.rs`. `--rec-sb-mgr` writes a script, `--rec-sb-cdp` pure CDP code, `--behave` (`--rec-behave`) also a Gherkin feature. `codegen` and `record` are other names for `mkrec`. From a test, `BrowserConfigBuilder::recorder_mode(true)` (or `sbrs --rec test`, or `SB_RECORDER=true`) writes the recording when the browser quits, and `recorder_breakpoint` pauses for the manual part. `sbrs replay recordings/login_rec.json` replays the JSON file. `sbrs recorder` is a terminal app (feature `tui`) that runs these steps from a form. Separately, `BaseCase` logs the calls it makes: `export_recording_as_rust()` returns a Rust program, `save_recording_to_logs()` saves JSON and Rust, and `ActionRecorder::to_rust_test(name)` returns a `#[tokio::test]`. `sbrs run-scenario` reads hand-written scenarios, not action files.
 
 </Visibility>
 
@@ -67,10 +67,10 @@ they work on `mkrec` and before `test`, and each has an `SB_*` variable and a
 | You get | Flag | Variable | `BrowserConfig` | File |
 |---|---|---|---|---|
 | An rstest test that uses the `sb` fixture (the default) | none | | | `recordings/NAME_rec.rs` |
-| A standalone `#[tokio::main]` program that calls `BaseCase` | `--rec-sb-mgr` | `SB_REC_SB_MGR` | `with_recording_sb_mgr(true)` | `recordings/NAME_rec.rs` |
-| A standalone program for the pure CDP engine | `--rec-sb-cdp` | `SB_REC_SB_CDP` | `with_recording_sb_cdp(true)` | `recordings/NAME_rec.rs` |
-| A Gherkin feature, as well as the code | `--rec-behave` (`--rec-gherkin`; `mkrec --behave`) | `SB_REC_BEHAVE` | `with_recording_behave(true)` | `recordings/features/NAME_rec.feature` |
-| The code printed with line numbers | `--rec-print` | `SB_REC_PRINT` | `with_recording_print(true)` | the terminal |
+| A standalone `#[tokio::main]` program that calls `BaseCase` | `--rec-sb-mgr` | `SB_REC_SB_MGR` | `recording_sb_mgr(true)` | `recordings/NAME_rec.rs` |
+| A standalone program for the pure CDP engine | `--rec-sb-cdp` | `SB_REC_SB_CDP` | `recording_sb_cdp(true)` | `recordings/NAME_rec.rs` |
+| A Gherkin feature, as well as the code | `--rec-behave` (`--rec-gherkin`; `mkrec --behave`) | `SB_REC_BEHAVE` | `recording_behave(true)` | `recordings/features/NAME_rec.feature` |
+| The code printed with line numbers | `--rec-print` | `SB_REC_PRINT` | `recording_print(true)` | the terminal |
 | The recorded actions as JSON | always | | | `recordings/NAME_rec.json` |
 
 `--rec-sleep` (`SB_REC_SLEEP`) keeps the sleeps of the recording.
@@ -148,7 +148,7 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut sb = BaseCase::new(BrowserConfig::default().with_recorder_mode(true)).await?;
+    let mut sb = BaseCase::new(BrowserConfig::builder().recorder_mode(true).build()?).await?;
     sb.open("https://seleniumbase.io/demo_page").await?;
     // Pause here: do the manual part in the browser, then type c and press Enter.
     sb.recorder_breakpoint("Click around, then press c here").await?;
@@ -163,7 +163,7 @@ at a `recorder_breakpoint`; with the file in `tests/`, run it with
 
 | Method | What it does |
 |---|---|
-| `BrowserConfig::with_recorder_mode(bool)` | Turns Recorder Mode on (`--rec`, `SB_RECORDER`). `with_recording_print`, `with_recording_behave`, `with_recording_sb_mgr` and `with_recording_sb_cdp` turn it on too. |
+| `BrowserConfigBuilder::recorder_mode(bool)` | Turns Recorder Mode on (`--rec`, `SB_RECORDER`). `recording_print`, `recording_behave`, `recording_sb_mgr` and `recording_sb_cdp` turn it on too. |
 | `BaseCase::recorder_breakpoint(message)` | Pauses the test. `c` continues, `q` ends the test as skipped, and the end of stdin (nextest, CI) continues at once. A test built on the fixture calls `api::recorder::recorder_breakpoint(sb, message)`. |
 | `BaseCase::wait_for_recorder_end(limit)` | Waits for SHIFT+ESC (`--ee`), for every window to close, or for `limit`. |
 | `BaseCase::activate_recorder()` | Starts recording on the newest tab, for a test that did not turn Recorder Mode on. |
@@ -314,7 +314,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 `BaseCase::export_recording_as_cdp_rust()` returns it from a live test. To make
 `export_recording_as_rust` and `save_recording_to_logs` write it, as the Python
-flag does, turn the setting on with `BrowserConfig::with_recording_sb_cdp(true)`, the
+flag does, turn the setting on with `BrowserConfigBuilder::recording_sb_cdp(true)`, the
 `sbrs --rec-sb-cdp` flag or `SB_REC_SB_CDP=true`; the test itself still runs on
 WebDriver, and only the generated code changes.
 

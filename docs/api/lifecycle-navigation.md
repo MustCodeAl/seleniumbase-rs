@@ -19,8 +19,8 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `sb.quit().await` | Ends the session; closes a browser it launched, or detaches from an external app and leaves it running. |
 | `sb.reconnect().await` | Replaces the WebDriver session while keeping the driver process. |
 
-On a [direct CDP attachment](/ecosystem/tauri-api/cdp) (`BrowserConfig::with_cdp_url`,
-`with_cdp_discovery`) the whole `BaseCase` API runs through the pure CDP engine, as Python's
+On a [direct CDP attachment](/ecosystem/tauri-api/cdp) (`BrowserConfigBuilder::cdp_url`,
+`cdp_discovery`) the whole `BaseCase` API runs through the pure CDP engine, as Python's
 CDP Mode gives `sb.cdp` the methods of `sb`: navigation, finding and clicking, typing, the
 waits and assertions, frames, windows and tabs (a window handle is the target id), cookies,
 scripts, screenshots, alerts and the mouse. `BrowserSession::pure_cdp_page()` gives the

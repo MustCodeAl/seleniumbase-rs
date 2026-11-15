@@ -267,8 +267,8 @@ expression above first checks that the element exists.
 
 - **Autoplay.** Pass the Chrome flag `--autoplay-policy=no-user-gesture-required`.
   With the pure CDP engine, that is `LaunchOptions::builder().arg(...)`; with
-  WebDriver, `BrowserConfig::with_chromium_arg("autoplay-policy=no-user-gesture-required")`.
-- **Silence.** `--mute-audio` passes through `with_chromium_arg("mute-audio")`
+  WebDriver, `BrowserConfigBuilder::chromium_arg("autoplay-policy=no-user-gesture-required")`.
+- **Silence.** `--mute-audio` passes through `chromium_arg("mute-audio")`
   the same way.
 - **Fake camera and microphone.** A page that calls `getUserMedia` needs a device.
   Chrome's `--use-fake-device-for-media-stream` and `--use-fake-ui-for-media-stream`

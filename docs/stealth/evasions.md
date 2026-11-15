@@ -145,8 +145,8 @@ automation markers:
   `cdc_` and `__webdriver` signatures. See the
   [Binary Patching tutorial](/stealth/advanced/binary-patching).
 * Pass the extra Chromium flags returned by `engine_spoofing_args()` (a
-  `Vec<String>`) through `BrowserConfig::with_extra_args`, which replaces the
-  list (`push_extra_arg` adds one), or through `StealthOptions::extra_args`.
+  `Vec<String>`) through `BrowserConfigBuilder::extra_args`, which replaces the
+  list (`extra_arg` adds one), or through `StealthOptions::extra_args`.
 * Combining a `Fingerprint`, UC mode, binary patching, and engine args covers the
   most layers this crate offers. None of it guarantees that a given detector
   passes.

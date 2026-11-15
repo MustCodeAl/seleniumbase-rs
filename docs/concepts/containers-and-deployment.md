@@ -422,14 +422,14 @@ For a Selenium Grid, the library has the client side in
 `utilities::selenium_grid`: `GridUrl` parses and writes a Grid address,
 `GridStatus` reads the Grid's `/status` reply, and `wait_until_ready` polls it,
 which helps when a Compose file starts the hub and the tests together. The
-address goes into `BrowserConfig::with_webdriver_url`.
+address goes into `BrowserConfigBuilder::webdriver_url`.
 
 ```rust,ignore src/main.rs
 use seleniumbase_rs::utilities::selenium_grid::GridUrl;
 use seleniumbase_rs::BrowserConfig;
 
 let grid: GridUrl = "localhost".parse()?;      // becomes http://localhost:4444
-let config = BrowserConfig::default().with_webdriver_url(grid.to_string());
+let config = BrowserConfig::builder().webdriver_url(grid.to_string()).build()?;
 ```
 
 <Tip>

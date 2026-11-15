@@ -150,7 +150,7 @@ Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 
 <Tab title="WebDriver engine" icon="server">
 
-For the WebDriver engine, `BrowserConfig::with_plugin_selection`:
+For the WebDriver engine, `BrowserConfigBuilder::plugin_selection`:
 
 ```rust,no_run
 use seleniumbase_rs::config::settings::Settings;
@@ -158,7 +158,9 @@ use seleniumbase_rs::config::settings::Settings;
 let settings = Settings::load()?;
 let config = settings
     .to_browser_config()
-    .with_plugin_selection(&settings.plugins)?;
+    .into_builder()
+    .plugin_selection(&settings.plugins)
+    .build()?;
 Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
@@ -234,10 +236,10 @@ quietly dropped. The same text is in `sbrs --help`.
 
 | Command | What happens |
 |---|---|
-| Every command that starts a browser with `BaseCase` (`open`, `smoke`, `screenshot`, `record`, `replay`, `run-scenario`, `print-pdf`, ...) | The WebDriver engine runs the plugins (`BrowserConfig::with_plugin_selection`). It refuses a plugin that needs a task, request interception or browser contexts (fetcher, extractor, batcher, crawler, imap, tor) before a browser starts |
+| Every command that starts a browser with `BaseCase` (`open`, `smoke`, `screenshot`, `record`, `replay`, `run-scenario`, `print-pdf`, ...) | The WebDriver engine runs the plugins (`BrowserConfigBuilder::plugin_selection`). It refuses a plugin that needs a task, request interception or browser contexts (fetcher, extractor, batcher, crawler, imap, tor) before a browser starts |
 | `sbrs devtools` | The pure CDP engine runs them (`LaunchOptionsBuilder::plugin_selection`) |
 | `sbrs plugin run NAME` | The pure CDP engine runs the task of the plugin `NAME`, which this command turns on for that run, with the plugins the file, `SB_PLUGINS` and the global options name. Results are JSON lines on standard output or in `--out`; the summary goes to standard error |
-| `sbrs test` | Passes the names on to the tests as `SB_PLUGINS`, with the names the file and the variable already turn on, for a test that calls `with_plugin_selection(&settings.plugins)`. It refuses `--plugin-opt`, because the variable carries names only: put the options under `[plugins.NAME]` in the file |
+| `sbrs test` | Passes the names on to the tests as `SB_PLUGINS`, with the names the file and the variable already turn on, for a test that calls `plugin_selection(&settings.plugins)`. It refuses `--plugin-opt`, because the variable carries names only: put the options under `[plugins.NAME]` in the file |
 | `sbrs-mcp` | Every browser the server starts gets them; see below |
 | `sbrs plugin list`, `sbrs plugin info` | Show them; see below |
 | Commands that start no browser (`version`, `doctor`, `install`, `mkfile`, ...) | Ignore the options, even a wrong one: `sbrs --plugin 'a b' version` prints the version |
@@ -439,7 +441,7 @@ Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 them and reports a mistake as `SeleniumBaseError::Plugin`. Named plugins are
 added after the set given to `plugins(...)`, and run in the order their phases
 give (privacy plugins run after the others). On the WebDriver engine,
-`BrowserConfig::with_plugins_named` and `with_plugin_selection` do the same and
+`BrowserConfigBuilder::plugins_named` and `plugin_selection` do the same and
 return the error at once, because a configuration has no `build()`.
 
 A program with plugins of its own builds a registry:

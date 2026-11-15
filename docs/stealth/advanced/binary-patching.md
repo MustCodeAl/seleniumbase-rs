@@ -139,9 +139,10 @@ Add them to a `BrowserConfig`:
 ```rust
 use seleniumbase_rs::{engine_spoofing_args, BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_extra_args(engine_spoofing_args());
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .extra_args(engine_spoofing_args())
+    .build()?;
 ```
 
 </Tab>

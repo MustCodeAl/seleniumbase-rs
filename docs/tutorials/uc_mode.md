@@ -24,7 +24,7 @@ It needs Chrome, Chromium or Edge. With Firefox, `BaseCase::new` returns an
 
 <Visibility for="agents">
 
-Summary for AI exports: set `BrowserConfig::default().with_mode(DriverMode::Uc)` or run `sbrs --uc` before the subcommand (`--undetected` and `--undetectable` are the same flag; `SB_MODE=uc`). It needs Chrome, Chromium or Edge, and it cannot be combined with `--cdp`. UC mode starts Chrome with the undetected-Chrome launch arguments, leaves out the `enable-automation` switch and injects a stealth script into every new document. It does not patch chromedriver: use `ChromedriverPatcher`, `patch_chromedriver`, or `sbrs patch-chromedriver --path`. Log DevTools events in this mode with `--uc-cdp-events` (`--uc-cdp`, `SB_UC_CDP_EVENTS`). Clicks and typing with human timing are `uc_click` / `uc_type` and `sbrs uc-click` / `sbrs uc-type`. A fresh session is `reconnect`, `uc_open_with_reconnect` or `uc_open_with_disconnect`. For a site that still detects you, combine the patched driver, `engine_spoofing_args()`, a coherent `Fingerprint`, a headed run (`with_headless(false)` or `--headed`), `FingerprintBuilder::native_spoofing(true)`, an egress IP that matches the spoofed place, and the pure CDP engine.
+Summary for AI exports: set `BrowserConfig::builder().mode(DriverMode::Uc).build()?` or run `sbrs --uc` before the subcommand (`--undetected` and `--undetectable` are the same flag; `SB_MODE=uc`). It needs Chrome, Chromium or Edge, and it cannot be combined with `--cdp`. UC mode starts Chrome with the undetected-Chrome launch arguments, leaves out the `enable-automation` switch and injects a stealth script into every new document. It does not patch chromedriver: use `ChromedriverPatcher`, `patch_chromedriver`, or `sbrs patch-chromedriver --path`. Log DevTools events in this mode with `--uc-cdp-events` (`--uc-cdp`, `SB_UC_CDP_EVENTS`). Clicks and typing with human timing are `uc_click` / `uc_type` and `sbrs uc-click` / `sbrs uc-type`. A fresh session is `reconnect`, `uc_open_with_reconnect` or `uc_open_with_disconnect`. For a site that still detects you, combine the patched driver, `engine_spoofing_args()`, a coherent `Fingerprint`, a headed run (`headless(false)` or `--headed`), `FingerprintBuilder::native_spoofing(true)`, an egress IP that matches the spoofed place, and the pure CDP engine.
 
 </Visibility>
 
@@ -50,13 +50,13 @@ cannot be combined.
 
 | Option | Where | What it does |
 | --- | --- | --- |
-| `BrowserConfig::with_mode(DriverMode::Uc)` | Rust | Turns UC mode on for that session. |
+| `BrowserConfigBuilder::mode(DriverMode::Uc)` | Rust | Turns UC mode on for that session. |
 | `--uc`, `--undetected`, `--undetectable` | command line, before the subcommand | Same mode. The environment variable is `SB_MODE=uc`. |
 | `--uc-cdp-events`, `--uc-cdp` | command line | Logs the DevTools events while UC mode is on. `SB_UC_CDP_EVENTS`. `true` or `false`. |
-| `with_headless(false)`, `--headed`, `--gui` | Rust, command line | A visible window. `BrowserConfig::default()` is headless. `--headed` sets `SB_HEADLESS=false`. |
+| `headless(false)`, `--headed`, `--gui` | Rust, command line | A visible window. `BrowserConfig::default()` is headless. `--headed` sets `SB_HEADLESS=false`. |
 | `--headless`, `--headless2` | command line | Headless (`SB_HEADLESS`). A headless session uses `--headless=new`. |
-| `with_user_agent`, `--user-agent`, `--agent`, `-a` | Rust, command line | The user-agent string (`SB_USER_AGENT`). |
-| `with_locale`, `--locale` | Rust, command line | The browser locale (`SB_LOCALE`). |
+| `user_agent`, `--user-agent`, `--agent`, `-a` | Rust, command line | The user-agent string (`SB_USER_AGENT`). |
+| `locale`, `--locale` | Rust, command line | The browser locale (`SB_LOCALE`). |
 | `set_timezone`, `set_geolocation` | `BaseCase` | Timezone and geolocation through CDP. They work in `Cdp` and `Uc` mode. In plain WebDriver mode they return an "Enable mode cdp or uc" error. |
 | `uc_click`, `sbrs uc-click --css` | Rust, command line | A click with human-like timing. Alias of `human_click`. |
 | `uc_type`, `sbrs uc-type --css --text` | Rust, command line | Typing with human-like timing. Alias of `human_type`. |
@@ -65,7 +65,7 @@ cannot be combined.
 | `uc_open_with_disconnect(url)` | `BaseCase` | Quits the session, connects a new one with the same config, then opens `url`. |
 | `is_uc_mode_active` | `BaseCase` | `true` when the session was started in `DriverMode::Uc`. |
 | `sbrs patch-chromedriver --path`, `ChromedriverPatcher`, `patch_chromedriver` | command line, Rust | Strips the markers a stock chromedriver injects. UC mode does not do this itself. The auto-started driver is `downloaded_drivers/chromedriver`. |
-| `engine_spoofing_args` then `with_extra_args` | Rust | Extra Chromium flags, including `--disable-blink-features=AutomationControlled`. |
+| `engine_spoofing_args` then `extra_args` | Rust | Extra Chromium flags, including `--disable-blink-features=AutomationControlled`. |
 | `FingerprintBuilder::native_spoofing(true)` | Rust | Delivers fingerprint claims through CDP and launch arguments instead of JavaScript, where the browser can. |
 | `solve_captcha`, `solve_captcha_with` | `BaseCase` | Presses a Turnstile checkbox along a human pointer path. Not a puzzle solver. |
 | `sbrs --uc --url URL solve-captcha` | command line | The same press, then checks text and a cookie you name. |
@@ -82,9 +82,10 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = BrowserConfig::default()
-        .with_mode(DriverMode::Uc)
-        .with_headless(false);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .headless(false)
+        .build()?;
 
     let mut sb = BaseCase::new(config).await?;
     sb.open("https://seleniumbase.io/demo_page").await?;
@@ -98,7 +99,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`BrowserConfig::default()` is headless; `with_headless(false)` opens a window.
+`BrowserConfig::default()` is headless; `headless(false)` opens a window.
 
 </Tab>
 
@@ -170,10 +171,11 @@ async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 ```rust
 use seleniumbase_rs::{BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...")
-    .with_locale("en-US");
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...")
+    .locale("en-US")
+    .build()?;
 ```
 
 ### Human-like input and fresh sessions
@@ -257,9 +259,10 @@ Add Chromium flags that disable automation telemetry:
 ```rust
 use seleniumbase_rs::{engine_spoofing_args, BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_extra_args(engine_spoofing_args());
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .extra_args(engine_spoofing_args())
+    .build()?;
 ```
 
 `engine_spoofing_args()` returns flags such as
@@ -305,9 +308,10 @@ use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
 async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let mut sb = BaseCase::new(
-        BrowserConfig::default()
-            .with_mode(DriverMode::Uc)
-            .with_headless(false),
+        BrowserConfig::builder()
+            .mode(DriverMode::Uc)
+            .headless(false)
+            .build()?,
     ).await?;
 
     sb.uc_open_with_reconnect("https://example.com/protected").await?;
@@ -420,7 +424,7 @@ agent, platform, screen size, WebGL vendor, and geolocation.
 
 <Step title="Run headful" icon="window-maximize">
 
-Run headful (`with_headless(false)` or `sbrs --headed`). A headless session
+Run headful (`headless(false)` or `sbrs --headed`). A headless session
 already uses `--headless=new`, not the legacy headless implementation.
 
 </Step>
@@ -471,7 +475,7 @@ chromedriver at all.
 
 **Likely cause:** Headless artifacts.
 
-**Fix:** Run headful with `with_headless(false)` (or `sbrs --headed`).
+**Fix:** Run headful with `headless(false)` (or `sbrs --headed`).
 
 </Accordion>
 

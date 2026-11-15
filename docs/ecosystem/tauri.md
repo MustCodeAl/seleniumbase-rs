@@ -319,7 +319,7 @@ use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 #[tokio::test]
 async fn saving_a_profile() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    let config = BrowserConfig::default().with_webdriver_url("http://127.0.0.1:4445/secret/");
+    let config = BrowserConfig::builder().webdriver_url("http://127.0.0.1:4445/secret/").build()?;
     let mut sb = BaseCase::new(config).await?;
     sb.type_text("#name", "Work").await?;
     sb.click("#save").await?;
@@ -387,10 +387,11 @@ use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint};
 async fn test() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let fingerprint = Fingerprint::windows_desktop()
         .to_builder().native_spoofing(true).build()?;
-    let config = BrowserConfig::default()
-        .with_webdriver_url("http://127.0.0.1:4445/your-token/")
-        .with_cdp_discovery(true)
-        .with_fingerprint(fingerprint);
+    let config = BrowserConfig::builder()
+        .webdriver_url("http://127.0.0.1:4445/your-token/")
+        .cdp_discovery(true)
+        .fingerprint(fingerprint)
+        .build()?;
     let mut sb = BaseCase::new(config).await?;
     let title = sb.cdp_get_title().await?;
     sb.cdp_click("#save").await?;
@@ -427,7 +428,7 @@ fingerprint, is refused because the app owns its network and profile settings.
 `close()` and `quit()` detach what they attached and leave the app running. See
 [what attaching changes in the app](/ecosystem/tauri-api/cdp#what-attaching-changes-in-the-app).
 
-`BrowserConfig::with_cdp_url` bypasses discovery; it takes HTTP or browser
+`BrowserConfigBuilder::cdp_url` bypasses discovery; it takes HTTP or browser
 WebSocket URLs. An authenticated plugin URL is also accepted. For discovery,
 `GET /<token>/cdp` returns `value.cdpEnabled`, `value.cdpPort`, `value.cdpUrl`
 and `value.cdpState` (`disabled`, `unreachable` or `ready`). The port and URL
@@ -441,11 +442,11 @@ Chromium socket. The client's discovery follows no redirect and refuses an
 endpoint that is not loopback HTTP. `/status` keeps its existing `ready` and
 `message` fields.
 
-With the `plugins` feature, use the existing `BrowserConfig::with_plugins` or
+With the `plugins` feature, use the existing `BrowserConfigBuilder::plugins` or
 `LaunchOptionsBuilder::plugins`. Attachment runs `on_browser`; packages and
 `on_page_created` run for each window the automation opens or picks, and normal
 page/browser hooks afterwards. The app's other windows are left untouched: pick
-the one to drive with `BrowserConfig::with_cdp_target` (a target id or part of
+the one to drive with `BrowserConfigBuilder::cdp_target` (a target id or part of
 its URL) or `Browser::select_page`. Launch-only plugins are refused by the existing attach checks;
 `before_launch` is not run. Fingerprints use `session_script` and
 `safe_cdp_overrides`, including `native_spoofing` overrides. The script is

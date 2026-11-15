@@ -23,19 +23,19 @@ switch between the two modes, and what headless mode changes.
 
 <Visibility for="agents">
 
-Summary for AI exports: `BrowserConfig::default()` is headless and `Settings::default()` (the settings file, `SB_HEADLESS`, the `sbrs` command line) is headed. The pure CDP engine (`LaunchOptions`) and the `sbrs-mcp` `start_browser` tool are headless on Linux and headed elsewhere. Switch with `BrowserConfig::with_headless(bool)`, `LaunchOptionsBuilder::headless(bool)`, `sbrs --headless` / `--headed`, `SB_HEADLESS=true|false` or `headless = true` in `sbase_config.toml`. `BrowserConfig::from_env()`, the pure CDP engine and `sbrs-mcp` do not read `SB_HEADLESS`. Chromium sessions use `--headless=new`; Chrome's old headless mode is `Browser::ChromeHeadlessShell` (`--browser chs`), which cannot run UC mode. On Linux, `BrowserConfig::with_virtual_display` runs a headed browser on Xvfb.
+Summary for AI exports: `BrowserConfig::default()` is headless and `Settings::default()` (the settings file, `SB_HEADLESS`, the `sbrs` command line) is headed. The pure CDP engine (`LaunchOptions`) and the `sbrs-mcp` `start_browser` tool are headless on Linux and headed elsewhere. Switch with `BrowserConfigBuilder::headless(bool)`, `LaunchOptionsBuilder::headless(bool)`, `sbrs --headless` / `--headed`, `SB_HEADLESS=true|false` or `headless = true` in `sbase_config.toml`. `BrowserConfig::from_env()`, the pure CDP engine and `sbrs-mcp` do not read `SB_HEADLESS`. Chromium sessions use `--headless=new`; Chrome's old headless mode is `Browser::ChromeHeadlessShell` (`--browser chs`), which cannot run UC mode. On Linux, `BrowserConfigBuilder::virtual_display` runs a headed browser on Xvfb.
 
 </Visibility>
 
 <Card color="#1a85d4" title="Quick reference" icon="eye-slash">
 
-- In code: `BrowserConfig::with_headless(bool)`
+- In code: `BrowserConfigBuilder::headless(bool)`
 - Pure CDP: `LaunchOptionsBuilder::headless(bool)`
 - Command line: `sbrs --headless` or `sbrs --headed`
 - Variable: `SB_HEADLESS=true`
 - Settings file: `headless = true`
 - Old headless mode: `--browser chs`
-- Headed on a Linux server: `with_virtual_display`
+- Headed on a Linux server: `virtual_display`
 
 </Card>
 
@@ -71,7 +71,7 @@ Run headed when someone has to see or use the window:
 
 - **Watching a test.** Demo mode (`RunSettings::with_demo_mode`) outlines each
   element and pauses after each action so you can follow along (see
-  [Run settings](/tutorials/run_settings)). `with_esc_end(true)` lets the person
+  [Run settings](/tutorials/run_settings)). `esc_end(true)` lets the person
   watching press ESC in the browser to end the test.
 - **Recording.** `sbrs mkrec` saves the clicks and typing you do in the browser.
   Like the other `sbrs` browser commands, it is headed by default.
@@ -97,7 +97,7 @@ Each engine has its own default:
 
 | Entry point | Default | How to change it |
 |---|---|---|
-| `BrowserConfig::default()` and `BrowserConfig::from_env()`, which `BaseCase::new` and `run_browser_test` take | <Badge color="green">Headless</Badge> | `with_headless(bool)`. Neither constructor reads `SB_HEADLESS`. |
+| `BrowserConfig::default()` and `BrowserConfig::from_env()`, which `BaseCase::new` and `run_browser_test` take | <Badge color="green">Headless</Badge> | `headless(bool)`. Neither constructor reads `SB_HEADLESS`. |
 | `Settings`: `sbase_config.toml`, `Settings::load()` and `to_browser_config()`, also used by the helpers `sbrs mkdir` writes | <Badge color="blue">Headed</Badge> (`headless = false`) | The file's `headless` key, then `SB_HEADLESS` |
 | `sbrs` browser commands (`open`, `smoke`, `record`, ...) | <Badge color="blue">Headed</Badge> | `--headless` or `--headed`, `SB_HEADLESS`, the settings file |
 | `sbrs devtools` | <Badge color="purple">By system</Badge> Headless on Linux, headed elsewhere | `--headless`, or the global `--headed` |
@@ -117,7 +117,7 @@ settings file and no `SB_HEADLESS`.
 
 For `Settings` and the `sbrs` commands, each step in this chain overrides the one
 before it, and `to_browser_config()` turns the result into a `BrowserConfig`. A
-`BrowserConfig` you build in code with `with_headless` is final.
+`BrowserConfig` you build in code with `headless` is final.
 
 ```mermaid
 graph LR
@@ -133,7 +133,7 @@ graph LR
 
 <Tab title="BrowserConfig" icon="code">
 
-`with_headless(true)` runs without a window (the default), and `with_headless(false)`
+`headless(true)` runs without a window (the default), and `headless(false)`
 opens one. A value you set in code is final: no variable or file changes it later.
 
 ```rust,no_run tests/headed.rs
@@ -142,7 +142,7 @@ use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 #[tokio::test]
 async fn shows_the_title() -> Result<()> {
     // `false` opens a window; `true` (the default) runs without one.
-    let config = BrowserConfig::default().with_headless(false);
+    let config = BrowserConfig::builder().headless(false).build()?;
 
     run_browser_test(config, async |sb| {
         sb.open("https://example.com").await?;
@@ -306,9 +306,10 @@ build, `chrome-headless-shell`, which the WebDriver engine runs as
 ```rust Rust
 use seleniumbase_rs::{Browser, BrowserConfig};
 
-let config = BrowserConfig::default()
-    .with_browser(Browser::ChromeHeadlessShell)
-    .with_headless(true);
+let config = BrowserConfig::builder()
+    .browser(Browser::ChromeHeadlessShell)
+    .headless(true)
+    .build()?;
 ```
 
 ```bash Terminal
@@ -351,7 +352,7 @@ The stealth layer changes these:
 |---|---|
 | UC mode (`DriverMode::Uc`) | If you set no user agent and Chrome reports `HeadlessChrome`, it overrides the user agent to say `Chrome` over CDP. |
 | A `Fingerprint` whose policy has `headless_fixes` on (`StealthPolicy::balanced()`, which every preset uses) | Runs the `headless`, `permissions` and `hairline` evasions and turns on `Emulation.setFocusEmulationEnabled`. `matchMedia` then reports no reduced motion, no dark color scheme and a fine pointer, `document.hidden` is `false`, `visibilityState` is `visible`, and the two permission answers agree. The outer window size is left to the `window_geometry` evasion. |
-| A user agent from `with_user_agent`, `LaunchOptionsBuilder::user_agent` or a fingerprint | Replaces the `HeadlessChrome` user agent at launch. |
+| A user agent from `user_agent`, `LaunchOptionsBuilder::user_agent` or a fingerprint | Replaces the `HeadlessChrome` user agent at launch. |
 | `native_spoofing` on a WebDriver session (Chrome, Chromium, Edge) | Runs a patched copy of Chrome (`EnginePatch::chrome_binary()`), which also overwrites the `HeadlessChrome` marker in the binary. |
 | Pure CDP engine without a user agent or fingerprint | Changes nothing: the user agent still says `HeadlessChrome`. |
 
@@ -367,7 +368,7 @@ first run (headless Chrome 155 on macOS), CreepJS still found two signs.
 <Tip>
 
 **Recommendation.** If a site still blocks a headless browser after these
-measures, run headed with `with_headless(false)` (or `sbrs --headed`). On a server
+measures, run headed with `headless(false)` (or `sbrs --headed`). On a server
 with no display, give the headed browser a virtual display; see the last step below.
 [UC mode](/tutorials/uc_mode#still-detected) lists the other measures.
 
@@ -380,7 +381,7 @@ with no display, give the headed browser a virtual display; see the last step be
 <Step title="Turn headless mode on" icon="eye-slash">
 
 Set `SB_HEADLESS=true` for `sbrs` and for tests that load `Settings`. Keep
-`BrowserConfig::default()` (already headless) or call `with_headless(true)` in
+`BrowserConfig::default()` (already headless) or call `headless(true)` in
 code. The pure CDP engine is headless on Linux unless you set `headless(false)`.
 The repository's verification image sets `SB_HEADLESS=true` because the container
 has no display.
@@ -422,7 +423,7 @@ The image's entry point is `sbrs`, so the arguments after the image name are
 
 <Badge color="orange">Linux only</Badge> <Badge color="gray">WebDriver engine</Badge>
 
-On Linux, `BrowserConfig::with_virtual_display` starts <Tooltip tip="A virtual X display that a headed browser opens its window on when the machine has no screen.">Xvfb</Tooltip> and opens the headed
+On Linux, `BrowserConfigBuilder::virtual_display` starts <Tooltip tip="A virtual X display that a headed browser opens its window on when the machine has no screen.">Xvfb</Tooltip> and opens the headed
 browser on it. This is Python SeleniumBase's `--xvfb`. The screen is 1366 by 768
 unless you pass another `VirtualDisplay`:
 
@@ -432,9 +433,10 @@ use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result};
 
 #[tokio::test]
 async fn runs_headed_on_a_server() -> Result<()> {
-    let config = BrowserConfig::default()
-        .with_headless(false)
-        .with_virtual_display(VirtualDisplay::new(1920, 1080));
+    let config = BrowserConfig::builder()
+        .headless(false)
+        .virtual_display(VirtualDisplay::new(1920, 1080))
+        .build()?;
 
     run_browser_test(config, async |sb| {
         sb.open("https://example.com").await?;
@@ -472,7 +474,7 @@ command lines put the global `--headless` before the subcommand.
 Some `BaseCase` helpers speak the DevTools Protocol: `print_to_pdf`,
 `save_as_pdf_to_logs`, `set_timezone`, `set_geolocation`, `cdp_click`,
 `cdp_type` and `solve_captcha`. They need a Chromium session started with
-`with_mode(DriverMode::Cdp)` (or `DriverMode::Uc`). In plain WebDriver mode they
+`mode(DriverMode::Cdp)` (or `DriverMode::Uc`). In plain WebDriver mode they
 fail with "CDP is unavailable for this session".
 
 </Note>
@@ -487,7 +489,7 @@ screenshots are taken, at the size the browser starts with or is given.
 <Tab title="BaseCase (WebDriver)" icon="code">
 
 A Chromium session starts at 1280 by 720 pixels (390 by 844 with
-`with_mobile(true)`) unless `with_window_size` sets another size.
+`mobile(true)`) unless `window_size` sets another size.
 `set_window_size` resizes a running browser, and `reset_window_size` goes back to
 1280 by 720.
 
@@ -495,7 +497,7 @@ A Chromium session starts at 1280 by 720 pixels (390 by 844 with
 use seleniumbase_rs::browser::options::WindowSize;
 use seleniumbase_rs::BrowserConfig;
 
-let config = BrowserConfig::default().with_window_size(WindowSize::new(1920, 1080));
+let config = BrowserConfig::builder().window_size(WindowSize::new(1920, 1080)).build()?;
 
 // Inside the test:
 sb.set_window_size(1366, 768).await?;
@@ -599,7 +601,7 @@ writes into `latest_logs/` and returns the path.
 ```rust PDF
 use seleniumbase_rs::{BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default().with_mode(DriverMode::Cdp);
+let config = BrowserConfig::builder().mode(DriverMode::Cdp).build()?;
 
 // Inside the test:
 sb.print_to_pdf("example.pdf").await?;
@@ -933,10 +935,10 @@ page.assert_no_js_errors().await?;
 
 <Tab title="BaseCase (WebDriver)" icon="code">
 
-`with_device_metrics` turns on Chrome's phone emulation: the page sees that
+`device_metrics` turns on Chrome's phone emulation: the page sees that
 viewport, a touch screen and that pixel ratio, with an Android user agent unless
-`with_user_agent` gives one. `with_mobile(true)` alone only gives a 390 by 844
-window and the Android user agent. `with_locale` sets the language.
+`user_agent` gives one. `mobile(true)` alone only gives a 390 by 844
+window and the Android user agent. `locale` sets the language.
 `set_timezone` and `set_geolocation` change a running browser and need CDP mode.
 `BaseCase` has no method that grants the location permission.
 
@@ -944,10 +946,11 @@ window and the Android user agent. `with_locale` sets the language.
 use seleniumbase_rs::browser::options::DeviceMetrics;
 use seleniumbase_rs::{BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Cdp)
-    .with_device_metrics(DeviceMetrics::new(412, 915, 2.625))
-    .with_locale("de-DE");
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Cdp)
+    .device_metrics(DeviceMetrics::new(412, 915, 2.625))
+    .locale("de-DE")
+    .build()?;
 
 // Inside the test:
 sb.set_timezone("Europe/Berlin").await?;
@@ -1005,13 +1008,13 @@ These need a window on a screen, or a person in front of it:
 | `gui_click_x_y`, `gui_write`, `gui_click_element` and the other `gui_*` helpers, and their `uc_gui_*` aliases (feature `gui`) | They move the operating system's own mouse and keyboard, and a headless browser has no window for them to reach | Click and type over DevTools: `cdp_click` and `cdp_type` on `BaseCase` in CDP mode, `Locator::click` and `type_text` in the pure CDP engine. Or run headed on a virtual display. |
 | `Page::gui_click_captcha` and `gui_captcha_plan` (feature `gui`) | They refuse a headless browser: "a headless browser has no window on the screen to click" | `solve_captcha`, which clicks over DevTools: on `Page`, or on `BaseCase` in CDP mode |
 | Demo mode, slow mode and the messages of `post_message` | They still run, but nobody sees them, so they only slow the run; a message stays at most 0.75 s | Screenshots, or a headed run |
-| `with_esc_end(true)` | It ends the test when a person presses ESC in the window | A headed run |
+| `esc_end(true)` | It ends the test when a person presses ESC in the window | A headed run |
 | Native dialogs (`api::dialog`, `choose_file_dialog`) | They open the desktop's own dialogs and wait for a person | Leave them out of unattended runs |
 | `sbrs mkrec` | It saves the clicks and typing a person does in the window | A headed run |
 | Browser plugins with `Requirements::HEADFUL` | They refuse a headless launch | A headed run, or no such plugin |
 
 On a Linux server, run the headed browser on a virtual display with
-`BrowserConfig::with_virtual_display` (see [Containers and CI](#containers-and-ci)),
+`BrowserConfigBuilder::virtual_display` (see [Containers and CI](#containers-and-ci)),
 and see [GUI automation](/tutorials/gui_automation) for the `gui` feature.
 
 ## Debugging a headless run
@@ -1026,15 +1029,15 @@ and see [GUI automation](/tutorials/gui_automation) for the `gui` feature.
   otherwise.
 - **Check what the page sees.** `sb.user_agent()` returns a user agent with
   `HeadlessChrome` in it when nothing replaced it.
-- **Attach DevTools.** `BrowserConfig::with_remote_debug(true)` opens Chrome's
-  remote debugger at `http://localhost:9222`, and `with_remote_debug_port(port)`
+- **Attach DevTools.** `BrowserConfigBuilder::remote_debug(true)` opens Chrome's
+  remote debugger at `http://localhost:9222`, and `remote_debug_port(port)`
   opens it on another port. In the pure CDP engine, use
   `LaunchOptionsBuilder::debugging_port(9222)`. `sbrs devtools --headless --port 0
   --json` launches a headless Chrome and prints its DevTools endpoint. Anyone on
   the machine who can reach the port can drive the browser, so use it for
   debugging only.
 - **Watch it.** Run the same test headed (`--headed`, `SB_HEADLESS=false` or
-  `with_headless(false)`), with demo mode if the steps are too fast to follow.
+  `headless(false)`), with demo mode if the steps are too fast to follow.
 - **Do not compare timings across modes.** Real Chrome behaves differently in
   headless and headed runs, so check which mode a test uses before you trust a
   timing. With `reuse_session`, a headless browser is never handed to a headed
@@ -1050,7 +1053,7 @@ and see [GUI automation](/tutorials/gui_automation) for the `gui` feature.
 Only `Settings::load()`, `Settings::load_from`, `Settings::from_env()` and the
 `sbrs` browser commands read the variable. A program that builds
 `BrowserConfig::default()` or `BrowserConfig::from_env()` is headless anyway. A
-program that sets `with_headless(false)` stays headed. The pure CDP engine and
+program that sets `headless(false)` stays headed. The pure CDP engine and
 `sbrs-mcp` ignore the variable. On the command line, `--headed` beats it. Build
 the configuration with `Settings::load()?.to_browser_config()`, and `export` the
 variable (or put it before the command on the same line).
@@ -1083,7 +1086,7 @@ write global options before the subcommand: `sbrs --headless open URL`.
 <Accordion title="chrome-headless-shell cannot run the undetected (UC) mode" icon="user-secret">
 
 `Browser::ChromeHeadlessShell` cannot run with `DriverMode::Uc`. Use Chrome with
-`with_headless(true)`, which UC mode supports, or drop UC mode.
+`headless(true)`, which UC mode supports, or drop UC mode.
 
 </Accordion>
 
@@ -1091,13 +1094,13 @@ write global options before the subcommand: `sbrs --headless open URL`.
 
 The session looks for it under `downloaded_drivers/chs/` and downloads the stable
 build there when it is missing. If the download fails, put the program there, or
-name it with `BrowserConfig::with_browser_binary_path`.
+name it with `BrowserConfigBuilder::browser_binary_path`.
 
 </Accordion>
 
 <Accordion title="Xvfb is not installed or not on the PATH" icon="desktop">
 
-`with_virtual_display` needs the `Xvfb` program. Install it (`apt install xvfb`)
+`virtual_display` needs the `Xvfb` program. Install it (`apt install xvfb`)
 or run headless. If no virtual display starts, check the log: the session skips it
 for a headless browser, outside Linux, and with a driver it did not start itself.
 
@@ -1132,11 +1135,11 @@ first, then run headed (on a virtual display on a server).
 
 | Python option | Rust |
 |---|---|
-| `headless` | `BrowserConfig::with_headless(true)` |
-| `headed` | `BrowserConfig::with_headless(false)` |
-| `headless2` | `with_headless(true)`: Chrome's new headless mode (`--headless=new`) |
-| `headless1` | `with_browser(Browser::ChromeHeadlessShell)` with `headless` on |
-| `--xvfb` | `BrowserConfig::with_virtual_display` |
+| `headless` | `BrowserConfigBuilder::headless(true)` |
+| `headed` | `BrowserConfigBuilder::headless(false)` |
+| `headless2` | `headless(true)`: Chrome's new headless mode (`--headless=new`) |
+| `headless1` | `browser(Browser::ChromeHeadlessShell)` with `headless` on |
+| `--xvfb` | `BrowserConfigBuilder::virtual_display` |
 | `--xvfb-metrics=WIDTH,HEIGHT` | `VirtualDisplay::new(width, height)` (1366, 768 when not given) |
 
 ## Next steps

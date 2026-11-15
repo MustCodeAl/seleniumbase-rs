@@ -26,7 +26,7 @@ lists the limits.
 
 <Visibility for="agents">
 
-Summary for AI exports: `RunSettings` carries the run-wide knobs of Python's pytest options as plain data: `with_demo_mode`, `with_slow_mode`, `with_demo_sleep`, `with_message_duration`, `with_default_timeout`, `with_skip_js_waits`, `with_record_sleep` and `with_visual_baseline_reset`. Pass them with `BrowserConfig::with_run_settings` or `BaseCase::set_run_settings`. `RunSettings::default()` changes nothing. Nothing reads them from the command line, the environment or a config file. Keep demo and slow mode out of CI.
+Summary for AI exports: `RunSettings` carries the run-wide knobs of Python's pytest options as plain data: `with_demo_mode`, `with_slow_mode`, `with_demo_sleep`, `with_message_duration`, `with_default_timeout`, `with_skip_js_waits`, `with_record_sleep` and `with_visual_baseline_reset`. Pass them with `BrowserConfigBuilder::run_settings` or `BaseCase::set_run_settings`. `RunSettings::default()` changes nothing. Nothing reads them from the command line, the environment or a config file. Keep demo and slow mode out of CI.
 
 </Visibility>
 
@@ -131,10 +131,10 @@ assert_eq!(settings.message_duration(), Duration::from_millis(2550));
 ## A complete test
 
 This test is for watching. It needs a visible browser, so it sets
-`with_headless(false)`. The settings go in the configuration, so they apply from
+`headless(false)`. The settings go in the configuration, so they apply from
 the first action: a `BaseCase` made from a configuration (`BaseCase::new`, and
 so `run_browser_test` and `Plugins::run_browser_test`) starts with the
-`BrowserConfig::with_run_settings` it carries. To change them later, call
+`BrowserConfigBuilder::run_settings` it carries. To change them later, call
 `set_run_settings` on the case.
 
 ```rust,no_run
@@ -145,14 +145,15 @@ use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, Result, RunSetting
 #[tokio::test]
 async fn login_for_a_demo() -> Result<()> {
     // Python: pytest --demo --demo-sleep=0.8 --message-duration=2
-    let config = BrowserConfig::default()
-        .with_headless(false)
-        .with_run_settings(
+    let config = BrowserConfig::builder()
+        .headless(false)
+        .run_settings(
             RunSettings::default()
                 .with_demo_mode(true)
                 .with_demo_sleep(Duration::from_millis(800))
                 .with_message_duration(Duration::from_secs(2)),
-        );
+        )
+        .build()?;
 
     run_browser_test(config, async |sb| {
         sb.open("https://seleniumbase.io/simple/login").await?; // full pause
@@ -214,7 +215,7 @@ fn run_settings_from_env() -> RunSettings {
 ```
 
 Then build the configuration with
-`BrowserConfig::default().with_run_settings(run_settings_from_env())` (or call
+`BrowserConfig::builder().run_settings(run_settings_from_env()).build()?` (or call
 `sb.set_run_settings(run_settings_from_env())` on a `BaseCase` you made with
 `BaseCase::new`).
 Run the test with `MY_DEMO=1 cargo test login_for_a_demo -- --nocapture`.

@@ -4078,12 +4078,12 @@ rust = "mcp::sb"
 [options_driver."ad_block"]
 status = "composed"
 rust = "BrowserSettings::ad_block"
-note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "Set BrowserSettings::ad_block (BrowserConfigBuilder::ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_driver."ad_block_on"]
 status = "composed"
 rust = "BrowserSettings::ad_block"
-note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "Set BrowserSettings::ad_block (BrowserConfigBuilder::ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_driver."agent"]
 status = "composed"
@@ -4091,11 +4091,11 @@ rust = "BrowserSettings::user_agent"
 
 [options_driver."binary_location"]
 status = "implemented"
-rust = "BrowserConfig::with_binary_location"
+rust = "BrowserConfigBuilder::binary_location"
 
 [options_driver."block_images"]
 status = "implemented"
-rust = "BrowserConfig::with_block_images"
+rust = "BrowserConfigBuilder::block_images"
 note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_driver."browser"]
@@ -4105,13 +4105,13 @@ rust = "BrowserConfig::browser"
 [options_driver."cap_file"]
 status = "implemented"
 rust = "CapabilityOverrides::from_file"
-note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_driver."cap_string"]
 status = "implemented"
 rust = "CapabilityOverrides::from_text"
-note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 
 [options_driver."cft"]
 status = "implemented"
@@ -4120,7 +4120,7 @@ note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing
 
 [options_driver."chromium_arg"]
 status = "implemented"
-rust = "BrowserConfig::with_chromium_arg"
+rust = "BrowserConfigBuilder::chromium_arg"
 
 [options_driver."chs"]
 status = "implemented"
@@ -4141,61 +4141,61 @@ rust = "DeviceMetrics::width"
 
 [options_driver."dark_mode"]
 status = "implemented"
-rust = "BrowserConfig::with_dark_mode"
+rust = "BrowserConfigBuilder::dark_mode"
 note = "The pure CDP engine has LaunchOptionsBuilder::dark_mode, and Emulation::color_scheme changes only what prefers-color-scheme reports in a running tab."
 
 [options_driver."devtools"]
 status = "implemented"
-rust = "BrowserConfig::with_devtools"
+rust = "BrowserConfigBuilder::devtools"
 note = "The pure CDP engine has LaunchOptionsBuilder::devtools. A headless browser has no window for them and gets nothing."
 
 [options_driver."disable_cookies"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_cookies"
+rust = "BrowserConfigBuilder::disable_cookies"
 note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_driver."disable_csp"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_csp"
+rust = "BrowserConfigBuilder::disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only. The pure CDP engine calls Page.setBypassCSP in every tab (LaunchOptionsBuilder::switch with LaunchSwitch::DisableCsp), as Python's CDP mode does."
 
 [options_driver."disable_features"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_features"
+rust = "BrowserConfigBuilder::disable_features"
 note = "The pure CDP engine has LaunchOptionsBuilder::disable_features, joined with the library's own into the one switch Chrome reads."
 
 [options_driver."disable_gpu"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_gpu"
+rust = "BrowserConfigBuilder::disable_gpu"
 
 [options_driver."disable_js"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_js"
+rust = "BrowserConfigBuilder::disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_driver."disable_ws"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_web_security"
+rust = "BrowserConfigBuilder::disable_web_security"
 note = "The pure CDP engine has LaunchOptionsBuilder::disable_web_security."
 
 [options_driver."do_not_track"]
 status = "implemented"
-rust = "BrowserConfig::with_do_not_track"
+rust = "BrowserConfigBuilder::do_not_track"
 note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_driver."driver_version"]
 status = "implemented"
-rust = "BrowserConfig::with_driver_version"
+rust = "BrowserConfigBuilder::driver_version"
 note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_driver."enable_3d_apis"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_3d_apis"
+rust = "BrowserConfigBuilder::enable_3d_apis"
 note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_driver."enable_sync"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_sync"
+rust = "BrowserConfigBuilder::enable_sync"
 note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_driver."enable_ws"]
@@ -4208,31 +4208,31 @@ rust = "BrowserSettings::extensions"
 
 [options_driver."extension_zip"]
 status = "implemented"
-rust = "BrowserConfig::with_extension_archive"
+rust = "BrowserConfigBuilder::extension_archive"
 note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_driver."external_pdf"]
 status = "implemented"
-rust = "BrowserConfig::with_external_pdf"
+rust = "BrowserConfigBuilder::external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_driver."firefox_arg"]
 status = "implemented"
 rust = "FirefoxOptions::add_args"
-note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_driver."firefox_pref"]
 status = "implemented"
 rust = "FirefoxOptions::add_preferences"
-note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_driver."guest"]
 status = "implemented"
-rust = "BrowserConfig::with_guest_mode"
+rust = "BrowserConfigBuilder::guest_mode"
 
 [options_driver."guest_mode"]
 status = "implemented"
-rust = "BrowserConfig::with_guest_mode"
+rust = "BrowserConfigBuilder::guest_mode"
 
 [options_driver."headed"]
 status = "composed"
@@ -4245,27 +4245,27 @@ rust = "BrowserSettings::headless"
 
 [options_driver."headless1"]
 status = "implemented"
-rust = "BrowserConfig::with_headless1"
+rust = "BrowserConfigBuilder::headless1"
 note = "Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot."
 
 [options_driver."headless2"]
 status = "implemented"
-rust = "BrowserConfig::with_headless2"
+rust = "BrowserConfigBuilder::headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_driver."host_resolver_rules"]
 status = "implemented"
-rust = "BrowserConfig::with_host_resolver_rules"
+rust = "BrowserConfigBuilder::host_resolver_rules"
 note = "The pure CDP engine has LaunchOptionsBuilder::host_resolver_rules."
 
 [options_driver."incognito"]
 status = "implemented"
-rust = "BrowserConfig::with_incognito"
+rust = "BrowserConfigBuilder::incognito"
 
 [options_driver."is_mobile"]
 status = "composed"
 rust = "BrowserSettings::mobile"
-note = "Give the screen with `with_device_metrics`."
+note = "Give the screen with `device_metrics`."
 
 [options_driver."locale"]
 status = "implemented"
@@ -4277,12 +4277,12 @@ rust = "BrowserSettings::lang"
 
 [options_driver."log_cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_driver."log_cdp_events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_driver."mobile"]
@@ -4297,32 +4297,32 @@ note = "Each pure CDP browser answers its own proxy login over the protocol, so 
 
 [options_driver."no_sandbox"]
 status = "implemented"
-rust = "BrowserConfig::with_no_sandbox"
+rust = "BrowserConfigBuilder::no_sandbox"
 
 [options_driver."page_load_strategy"]
 status = "implemented"
-rust = "BrowserConfig::with_page_load_strategy"
+rust = "BrowserConfigBuilder::page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_driver."pls"]
 status = "implemented"
-rust = "BrowserConfig::with_page_load_strategy"
+rust = "BrowserConfigBuilder::page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_driver."port"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_driver."position"]
 status = "implemented"
-rust = "BrowserConfig::with_window_position"
+rust = "BrowserConfigBuilder::window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_driver."protocol"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_driver."proxy"]
 status = "implemented"
@@ -4331,7 +4331,7 @@ divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, 
 
 [options_driver."proxy_bypass_list"]
 status = "implemented"
-rust = "BrowserConfig::with_proxy_bypass_list"
+rust = "BrowserConfigBuilder::proxy_bypass_list"
 note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file. The pure CDP engine has LaunchOptionsBuilder::proxy_bypass_list."
 
 [options_driver."proxy_pac_url"]
@@ -4342,32 +4342,32 @@ divergence = "The URL must end in .pac, with a login before it or in it. Chrome 
 
 [options_driver."recorder_ext"]
 status = "implemented"
-rust = "BrowserConfig::with_recorder_extension"
+rust = "BrowserConfigBuilder::recorder_extension"
 note = "Loads the bundled SeleniumBase Recorder extension. Chromium only."
 
 [options_driver."remote_debug"]
 status = "implemented"
-rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
+rust = "BrowserConfigBuilder::remote_debug"
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_driver."server"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_driver."servername"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`."
+rust = "BrowserConfigBuilder::grid"
+note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see the `grid` setter."
 
 [options_driver."size"]
 status = "implemented"
-rust = "BrowserConfig::with_window_size"
+rust = "BrowserConfigBuilder::window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_driver."swiftshader"]
 status = "implemented"
-rust = "BrowserConfig::with_swiftshader"
+rust = "BrowserConfigBuilder::swiftshader"
 note = "The pure CDP engine has LaunchOptionsBuilder::swiftshader."
 
 [options_driver."uc"]
@@ -4377,13 +4377,13 @@ note = "DriverMode::Uc."
 
 [options_driver."uc_cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
 divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_driver."uc_cdp_events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
 divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
@@ -4407,7 +4407,7 @@ note = "DriverMode::Uc."
 
 [options_driver."use_auto_ext"]
 status = "implemented"
-rust = "BrowserConfig::with_automation_extension"
+rust = "BrowserConfigBuilder::automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_driver."use_chromium"]
@@ -4421,12 +4421,12 @@ rust = "BrowserSettings::user_data_dir"
 
 [options_driver."window_position"]
 status = "implemented"
-rust = "BrowserConfig::with_window_position"
+rust = "BrowserConfigBuilder::window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_driver."window_size"]
 status = "implemented"
-rust = "BrowserConfig::with_window_size"
+rust = "BrowserConfigBuilder::window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_pytest."--account"]
@@ -4437,17 +4437,17 @@ note = "`sbrs test --account`, `SB_ACCOUNT` or `account` in the `[test]` table; 
 [options_pytest."--ad-block"]
 status = "implemented"
 rust = "BrowserSettings::ad_block"
-note = "`sbrs --ad-block` sets BrowserConfig::ad_block. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "`sbrs --ad-block` sets BrowserConfig::ad_block. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--ad_block"]
 status = "implemented"
 rust = "BrowserSettings::ad_block"
-note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--adblock"]
 status = "implemented"
 rust = "BrowserSettings::ad_block"
-note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--agent"]
 status = "implemented"
@@ -4486,7 +4486,7 @@ note = "When a run starts, `latest_logs/` is moved to `archived_logs/logs_<unix 
 
 [options_pytest."--auto-ext"]
 status = "implemented"
-rust = "BrowserConfig::with_automation_extension"
+rust = "BrowserConfigBuilder::automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--binary-location"]
@@ -4496,7 +4496,7 @@ note = "`sbrs test --binary-location`, `SB_CHROME_BIN` or `chrome_bin` in the se
 
 [options_pytest."--binary_location"]
 status = "implemented"
-rust = "BrowserConfig::with_binary_location"
+rust = "BrowserConfigBuilder::binary_location"
 
 [options_pytest."--bl"]
 status = "implemented"
@@ -4506,21 +4506,21 @@ note = "An alias of --binary-location."
 [options_pytest."--block-ads"]
 status = "implemented"
 rust = "BrowserSettings::ad_block"
-note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block-images"]
 status = "implemented"
-rust = "BrowserConfig::with_block_images"
+rust = "BrowserConfigBuilder::block_images"
 note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_pytest."--block_ads"]
 status = "implemented"
 rust = "BrowserSettings::ad_block"
-note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "A Python spelling of --ad-block; `sbrs` takes --ad-block, and BrowserConfig::ad_block is the same setting. Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_pytest."--block_images"]
 status = "implemented"
-rust = "BrowserConfig::with_block_images"
+rust = "BrowserConfigBuilder::block_images"
 note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_pytest."--brave"]
@@ -4535,24 +4535,24 @@ rust = "BrowserConfig::browser"
 [options_pytest."--cap-file"]
 status = "implemented"
 rust = "CapabilityOverrides::from_file"
-note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_pytest."--cap-string"]
 status = "implemented"
 rust = "CapabilityOverrides::from_text"
-note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 
 [options_pytest."--cap_file"]
 status = "implemented"
 rust = "CapabilityOverrides::from_file"
-note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_pytest."--cap_string"]
 status = "implemented"
 rust = "CapabilityOverrides::from_text"
-note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 
 [options_pytest."--cft"]
 status = "implemented"
@@ -4581,11 +4581,11 @@ note = "`sbrs test --chromium` (also `--use-chromium`) is `SB_BROWSER=chromium`.
 
 [options_pytest."--chromium-arg"]
 status = "implemented"
-rust = "BrowserConfig::with_chromium_arg"
+rust = "BrowserConfigBuilder::chromium_arg"
 
 [options_pytest."--chromium_arg"]
 status = "implemented"
-rust = "BrowserConfig::with_chromium_arg"
+rust = "BrowserConfigBuilder::chromium_arg"
 
 [options_pytest."--chs"]
 status = "implemented"
@@ -4595,7 +4595,7 @@ note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when miss
 [options_pytest."--codegen"]
 status = "implemented"
 rust = "BrowserSettings::switches"
-note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfigBuilder::recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--comet"]
 status = "implemented"
@@ -4609,20 +4609,20 @@ note = "SB_CRUMBS=1 or `browser::reuse::set_crumbs(true)` (process-wide, as the 
 
 [options_pytest."--crx"]
 status = "implemented"
-rust = "BrowserConfig::with_extension_archive"
+rust = "BrowserConfigBuilder::extension_archive"
 note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_pytest."--dark"]
 status = "implemented"
-rust = "BrowserConfig::with_dark_mode"
+rust = "BrowserConfigBuilder::dark_mode"
 
 [options_pytest."--dark-mode"]
 status = "implemented"
-rust = "BrowserConfig::with_dark_mode"
+rust = "BrowserConfigBuilder::dark_mode"
 
 [options_pytest."--dark_mode"]
 status = "implemented"
-rust = "BrowserConfig::with_dark_mode"
+rust = "BrowserConfigBuilder::dark_mode"
 
 [options_pytest."--dash-title"]
 status = "implemented"
@@ -4656,7 +4656,7 @@ note = "A Python spelling of --database-env; `sbrs test` takes both."
 
 [options_pytest."--dcsp"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_csp"
+rust = "BrowserConfigBuilder::disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--demo"]
@@ -4686,19 +4686,19 @@ note = "The pause demo and slow mode make after an action."
 
 [options_pytest."--device-metrics"]
 status = "implemented"
-rust = "BrowserConfig::with_device_metrics"
+rust = "BrowserConfigBuilder::device_metrics"
 note = "Chrome's `mobileEmulation` experimental option."
 divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_pytest."--device_metrics"]
 status = "implemented"
-rust = "BrowserConfig::with_device_metrics"
+rust = "BrowserConfigBuilder::device_metrics"
 note = "Chrome's `mobileEmulation` experimental option."
 divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_pytest."--devtools"]
 status = "implemented"
-rust = "BrowserConfig::with_devtools"
+rust = "BrowserConfigBuilder::devtools"
 
 [options_pytest."--disable-beforeunload"]
 status = "implemented"
@@ -4707,34 +4707,34 @@ note = "After every page load the beforeunload dialog is switched off (BaseCase:
 
 [options_pytest."--disable-cookies"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_cookies"
+rust = "BrowserConfigBuilder::disable_cookies"
 note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_pytest."--disable-csp"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_csp"
+rust = "BrowserConfigBuilder::disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--disable-features"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_features"
+rust = "BrowserConfigBuilder::disable_features"
 
 [options_pytest."--disable-gpu"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_gpu"
+rust = "BrowserConfigBuilder::disable_gpu"
 
 [options_pytest."--disable-js"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_js"
+rust = "BrowserConfigBuilder::disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_pytest."--disable-web-security"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_web_security"
+rust = "BrowserConfigBuilder::disable_web_security"
 
 [options_pytest."--disable-ws"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_web_security"
+rust = "BrowserConfigBuilder::disable_web_security"
 
 [options_pytest."--disable_beforeunload"]
 status = "implemented"
@@ -4743,54 +4743,54 @@ note = "After every page load the beforeunload dialog is switched off (BaseCase:
 
 [options_pytest."--disable_cookies"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_cookies"
+rust = "BrowserConfigBuilder::disable_cookies"
 note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_pytest."--disable_csp"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_csp"
+rust = "BrowserConfigBuilder::disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--disable_features"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_features"
+rust = "BrowserConfigBuilder::disable_features"
 
 [options_pytest."--disable_gpu"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_gpu"
+rust = "BrowserConfigBuilder::disable_gpu"
 
 [options_pytest."--disable_js"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_js"
+rust = "BrowserConfigBuilder::disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_pytest."--disable_ws"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_web_security"
+rust = "BrowserConfigBuilder::disable_web_security"
 
 [options_pytest."--do-not-track"]
 status = "implemented"
-rust = "BrowserConfig::with_do_not_track"
+rust = "BrowserConfigBuilder::do_not_track"
 note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_pytest."--do_not_track"]
 status = "implemented"
-rust = "BrowserConfig::with_do_not_track"
+rust = "BrowserConfigBuilder::do_not_track"
 note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_pytest."--driver-version"]
 status = "implemented"
-rust = "BrowserConfig::with_driver_version"
+rust = "BrowserConfigBuilder::driver_version"
 note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
 
 [options_pytest."--driver_version"]
 status = "implemented"
-rust = "BrowserConfig::with_driver_version"
+rust = "BrowserConfigBuilder::driver_version"
 note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/, or msedgedriver-<version>/ for Edge. geckodriver takes no version here: one geckodriver drives many Firefox versions, and `sbrs get geckodriver VERSION` pins one."
 
 [options_pytest."--dws"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_web_security"
+rust = "BrowserConfigBuilder::disable_web_security"
 
 [options_pytest."--edge"]
 status = "implemented"
@@ -4799,18 +4799,18 @@ note = "Choose Browser::Edge. The session starts msedgedriver itself, from downl
 
 [options_pytest."--ee"]
 status = "implemented"
-rust = "BrowserConfig::with_esc_end"
+rust = "BrowserConfigBuilder::esc_end"
 note = "Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
 divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--enable-3d-apis"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_3d_apis"
+rust = "BrowserConfigBuilder::enable_3d_apis"
 note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_pytest."--enable-sync"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_sync"
+rust = "BrowserConfigBuilder::enable_sync"
 note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_pytest."--enable-web-security"]
@@ -4823,12 +4823,12 @@ reason = "Accepted and ignored by `sbrs test`. Python adds --disable-web-securit
 
 [options_pytest."--enable_3d_apis"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_3d_apis"
+rust = "BrowserConfigBuilder::enable_3d_apis"
 note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_pytest."--enable_sync"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_sync"
+rust = "BrowserConfigBuilder::enable_sync"
 note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_pytest."--enable_ws"]
@@ -4842,13 +4842,13 @@ note = "`sbrs test --env`, `SB_ENV` or `env` in the `[test]` table; one of Pytho
 
 [options_pytest."--esc-end"]
 status = "implemented"
-rust = "BrowserConfig::with_esc_end"
+rust = "BrowserConfigBuilder::esc_end"
 note = "Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
 divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
 [options_pytest."--esc_end"]
 status = "implemented"
-rust = "BrowserConfig::with_esc_end"
+rust = "BrowserConfigBuilder::esc_end"
 note = "Also `sbrs --esc-end` (aliases `--esc_end`, `--ee`), `Settings::esc_end` and SB_ESC_END. BaseCase puts a keydown listener in the page that sets `document.sb_esc_end`, and open, click, click_link_text, highlight, wait_for_element_visible, wait_for_ready_state_complete and the demo highlight of type_text, update_text and press_keys return SeleniumBaseError::Skipped once ESC was pressed; run_browser_test counts that as a skipped test."
 divergence = "Python assigns `document.onkeydown`, replacing the page's own handler; the Rust listener is added once per document with addEventListener, so the page keeps its handlers. A script that fails (an open alert, no page) counts as 'ESC not pressed'. Only the WebDriver engine (BaseCase) has the option."
 
@@ -4858,7 +4858,7 @@ rust = "BrowserSettings::extensions"
 
 [options_pytest."--extension-zip"]
 status = "implemented"
-rust = "BrowserConfig::with_extension_archive"
+rust = "BrowserConfigBuilder::extension_archive"
 note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_pytest."--extension_dir"]
@@ -4867,17 +4867,17 @@ rust = "BrowserSettings::extensions"
 
 [options_pytest."--extension_zip"]
 status = "implemented"
-rust = "BrowserConfig::with_extension_archive"
+rust = "BrowserConfigBuilder::extension_archive"
 note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_pytest."--external-pdf"]
 status = "implemented"
-rust = "BrowserConfig::with_external_pdf"
+rust = "BrowserConfigBuilder::external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_pytest."--external_pdf"]
 status = "implemented"
-rust = "BrowserConfig::with_external_pdf"
+rust = "BrowserConfigBuilder::external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_pytest."--fast"]
@@ -4915,22 +4915,22 @@ note = "Choose Browser::Firefox. The session starts geckodriver itself, from dow
 [options_pytest."--firefox-arg"]
 status = "implemented"
 rust = "FirefoxOptions::add_args"
-note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_pytest."--firefox-pref"]
 status = "implemented"
 rust = "FirefoxOptions::add_preferences"
-note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_pytest."--firefox_arg"]
 status = "implemented"
 rust = "FirefoxOptions::add_args"
-note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_pytest."--firefox_pref"]
 status = "implemented"
 rust = "FirefoxOptions::add_preferences"
-note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_pytest."--ftrace"]
 status = "implemented"
@@ -4944,15 +4944,15 @@ note = "Alias of --maximize upstream: `sbrs test --fullscreen`, `SB_MAXIMIZE` or
 
 [options_pytest."--guest"]
 status = "implemented"
-rust = "BrowserConfig::with_guest_mode"
+rust = "BrowserConfigBuilder::guest_mode"
 
 [options_pytest."--guest-mode"]
 status = "implemented"
-rust = "BrowserConfig::with_guest_mode"
+rust = "BrowserConfigBuilder::guest_mode"
 
 [options_pytest."--guest_mode"]
 status = "implemented"
-rust = "BrowserConfig::with_guest_mode"
+rust = "BrowserConfigBuilder::guest_mode"
 
 [options_pytest."--gui"]
 status = "implemented"
@@ -4970,12 +4970,12 @@ rust = "BrowserSettings::headless"
 
 [options_pytest."--headless1"]
 status = "implemented"
-rust = "BrowserConfig::with_headless1"
+rust = "BrowserConfigBuilder::headless1"
 note = "Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot."
 
 [options_pytest."--headless2"]
 status = "implemented"
-rust = "BrowserConfig::with_headless2"
+rust = "BrowserConfigBuilder::headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_pytest."--highlights"]
@@ -4985,11 +4985,11 @@ note = "`sbrs test --highlights`, `SB_HIGHLIGHTS` or `highlights` in the setting
 
 [options_pytest."--host-resolver-rules"]
 status = "implemented"
-rust = "BrowserConfig::with_host_resolver_rules"
+rust = "BrowserConfigBuilder::host_resolver_rules"
 
 [options_pytest."--host_resolver_rules"]
 status = "implemented"
-rust = "BrowserConfig::with_host_resolver_rules"
+rust = "BrowserConfigBuilder::host_resolver_rules"
 
 [options_pytest."--ie"]
 status = "implemented"
@@ -4998,15 +4998,15 @@ note = "Run with IEDriverServer, which must be in downloaded_drivers/ or on the 
 
 [options_pytest."--incognito"]
 status = "implemented"
-rust = "BrowserConfig::with_incognito"
+rust = "BrowserConfigBuilder::incognito"
 
 [options_pytest."--incognito-mode"]
 status = "implemented"
-rust = "BrowserConfig::with_incognito"
+rust = "BrowserConfigBuilder::incognito"
 
 [options_pytest."--incognito_mode"]
 status = "implemented"
-rust = "BrowserConfig::with_incognito"
+rust = "BrowserConfigBuilder::incognito"
 
 [options_pytest."--interval"]
 status = "implemented"
@@ -5052,12 +5052,12 @@ note = "A Python spelling of --locale-code; `sbrs test` takes both."
 
 [options_pytest."--log-cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log-cdp-events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log-path"]
@@ -5066,12 +5066,12 @@ reason = "Accepted and ignored by `sbrs test`. Deprecated upstream and no longer
 
 [options_pytest."--log_cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log_cdp_events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_pytest."--log_path"]
@@ -5080,7 +5080,7 @@ reason = "Accepted and ignored by `sbrs test`. Deprecated upstream and no longer
 
 [options_pytest."--maximize"]
 status = "implemented"
-rust = "BrowserConfig::with_maximize"
+rust = "BrowserConfigBuilder::maximize"
 note = "A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it."
 
 [options_pytest."--maximize-window"]
@@ -5105,7 +5105,7 @@ note = "How long BaseCase::post_message keeps its message, to the millisecond (2
 
 [options_pytest."--metrics"]
 status = "implemented"
-rust = "BrowserConfig::with_device_metrics"
+rust = "BrowserConfigBuilder::device_metrics"
 note = "Chrome's `mobileEmulation` experimental option."
 divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
@@ -5116,12 +5116,12 @@ rust = "BrowserSettings::mobile"
 [options_pytest."--mobile-emulator"]
 status = "implemented"
 rust = "BrowserSettings::mobile"
-note = "Give the screen with `with_device_metrics`."
+note = "Give the screen with `device_metrics`."
 
 [options_pytest."--mobile_emulator"]
 status = "implemented"
 rust = "BrowserSettings::mobile"
-note = "Give the screen with `with_device_metrics`."
+note = "Give the screen with `device_metrics`."
 
 [options_pytest."--multi-proxy"]
 status = "not-applicable"
@@ -5133,12 +5133,12 @@ reason = "Accepted and ignored by `sbrs test`: each pure CDP browser answers its
 
 [options_pytest."--no-csp"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_csp"
+rust = "BrowserConfigBuilder::disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--no-sandbox"]
 status = "implemented"
-rust = "BrowserConfig::with_no_sandbox"
+rust = "BrowserConfigBuilder::no_sandbox"
 
 [options_pytest."--no-screenshot"]
 status = "implemented"
@@ -5147,12 +5147,12 @@ note = "`sbrs test --no-screenshot` (also `--ns`), `SB_NO_SCREENSHOT` or `no_scr
 
 [options_pytest."--no_csp"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_csp"
+rust = "BrowserConfigBuilder::disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_pytest."--no_sandbox"]
 status = "implemented"
-rust = "BrowserConfig::with_no_sandbox"
+rust = "BrowserConfigBuilder::no_sandbox"
 
 [options_pytest."--no_screenshot"]
 status = "implemented"
@@ -5166,11 +5166,11 @@ note = "A spelling of --no-screenshot; see there."
 
 [options_pytest."--open-devtools"]
 status = "implemented"
-rust = "BrowserConfig::with_devtools"
+rust = "BrowserConfigBuilder::devtools"
 
 [options_pytest."--open_devtools"]
 status = "implemented"
-rust = "BrowserConfig::with_devtools"
+rust = "BrowserConfigBuilder::devtools"
 
 [options_pytest."--opera"]
 status = "implemented"
@@ -5184,28 +5184,28 @@ note = "USERNAME:PASSWORD@URL works for Chrome and Edge on a driver this machine
 
 [options_pytest."--page-load-strategy"]
 status = "implemented"
-rust = "BrowserConfig::with_page_load_strategy"
+rust = "BrowserConfigBuilder::page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_pytest."--page_load_strategy"]
 status = "implemented"
-rust = "BrowserConfig::with_page_load_strategy"
+rust = "BrowserConfigBuilder::page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_pytest."--pls"]
 status = "implemented"
-rust = "BrowserConfig::with_page_load_strategy"
+rust = "BrowserConfigBuilder::page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_pytest."--port"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_pytest."--protocol"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_pytest."--proxy"]
 status = "implemented"
@@ -5214,12 +5214,12 @@ divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, 
 
 [options_pytest."--proxy-bypass-list"]
 status = "implemented"
-rust = "BrowserConfig::with_proxy_bypass_list"
+rust = "BrowserConfigBuilder::proxy_bypass_list"
 note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
 
 [options_pytest."--proxy-driver"]
 status = "implemented"
-rust = "BrowserConfig::with_proxy_for_driver_download"
+rust = "BrowserConfigBuilder::proxy_for_driver_download"
 note = "Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy."
 
 [options_pytest."--proxy-pac-url"]
@@ -5239,24 +5239,24 @@ note = "SERVER:PORT only. A WebDriver session hands the address to Chrome as a f
 
 [options_pytest."--proxy_bypass_list"]
 status = "implemented"
-rust = "BrowserConfig::with_proxy_bypass_list"
+rust = "BrowserConfigBuilder::proxy_bypass_list"
 note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
 
 [options_pytest."--proxy_driver"]
 status = "implemented"
-rust = "BrowserConfig::with_proxy_for_driver_download"
+rust = "BrowserConfigBuilder::proxy_for_driver_download"
 note = "Downloads of the driver, and of the Chrome for Testing builds, go through the session's proxy."
 
 [options_pytest."--rcs"]
 status = "implemented"
-rust = "BrowserConfig::with_reuse_module_session"
-note = "Alias of --reuse-class-session upstream. Also `sbrs --rcs` (aliases `--reuse-class-session`, `--reuse_class_session`), `Settings::reuse_class_session` and SB_REUSE_CLASS_SESSION; like upstream it turns --reuse-session on. Rust has no test classes, so the module that holds the test plays the part: it is read from the name libtest gives the test's thread (`login::tests::valid` is in `login::tests`; the tests at the root of an integration test file share the root module). BrowserConfig::with_reuse_class_session(name) shares a browser among the tests that pass the same name instead. Tests of different classes never share a browser; the rest is as for --reuse-session."
+rust = "BrowserConfigBuilder::reuse_module_session"
+note = "Alias of --reuse-class-session upstream. Also `sbrs --rcs` (aliases `--reuse-class-session`, `--reuse_class_session`), `Settings::reuse_class_session` and SB_REUSE_CLASS_SESSION; like upstream it turns --reuse-session on. Rust has no test classes, so the module that holds the test plays the part: it is read from the name libtest gives the test's thread (`login::tests::valid` is in `login::tests`; the tests at the root of an integration test file share the root module). BrowserConfigBuilder::reuse_class_session(name) shares a browser among the tests that pass the same name instead. Tests of different classes never share a browser; the rest is as for --reuse-session."
 divergence = "Python quits the class's browser when the next class starts (setUpClass and tearDownClass); here it stays open until the idle timeout, so the browsers of several modules can be open at once. A BaseCase made outside a libtest thread (a custom harness, a spawned task on a Tokio worker) counts as the root module."
 
 [options_pytest."--rec"]
 status = "implemented"
 rust = "BrowserSettings::switches"
-note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfigBuilder::recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--rec-behave"]
 status = "implemented"
@@ -5275,7 +5275,7 @@ note = "`sbrs test --rec-print`, `SB_REC_PRINT` or `rec_print` in the `[test]` t
 
 [options_pytest."--rec-sb-cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_recording_sb_cdp"
+rust = "BrowserConfigBuilder::recording_sb_cdp"
 note = "Also `sbrs --rec-sb-cdp` (alias `--rec_sb_cdp`), `Settings::rec_sb_cdp` and SB_REC_SB_CDP. With it on, BaseCase::export_recording_as_rust (and so save_recording_to_logs, `sbrs run-scenario` and the `save` command of record_live_session) returns ActionRecorder::to_cdp_script: a #[tokio::main] program of sb_cdp Page and Locator calls, every selector and value a Rust string literal. to_cdp_test and save_recording_as_cdp_test write a test; BaseCase::export_recording_as_cdp_rust asks for it whatever the setting is. 51 recorded actions have a pure CDP call, and the program written for all of them is compiled against the real sb_cdp API by tests/recorder_cdp_compiles.rs; any other action becomes a `// skipped:` comment that quotes its BaseCase call."
 divergence = "Python writes the recording file when the test ends; here it is written when export_recording_as_rust, save_recording_to_logs or a CLI command asks. The test itself still runs on WebDriver, and the generated program launches a pure CDP Browser. Waits use the pure CDP engine's own timeout, not ten seconds, and actions with no pure CDP call (frame, window and alert switching, JavaScript clicks, set_window_size) are comments, where Python comments out the actions CDPMethods lacks."
 
@@ -5292,7 +5292,7 @@ note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb
 [options_pytest."--record"]
 status = "implemented"
 rust = "BrowserSettings::switches"
-note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfigBuilder::recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--record-sleep"]
 status = "implemented"
@@ -5302,55 +5302,55 @@ note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb
 [options_pytest."--recorder"]
 status = "implemented"
 rust = "BrowserSettings::switches"
-note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfig::with_recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
+note = "Recorder Mode (`--rec`, `SB_RECORDER`, `BrowserConfigBuilder::recorder_mode`) runs Python's page recorder in every tab; when the test quits, the actions are processed as Python does and written to `recordings/<test>_rec.rs` (an rstest test on the `sb` fixture) and `.json`, with `.feature` under `--rec-behave`. `sbrs mkrec` (aliases `codegen`, `record`) records from the command line."
 
 [options_pytest."--remote-debug"]
 status = "implemented"
-rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
+rust = "BrowserConfigBuilder::remote_debug"
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--remote-debugger"]
 status = "implemented"
-rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
+rust = "BrowserConfigBuilder::remote_debug"
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--remote_debug"]
 status = "implemented"
-rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
+rust = "BrowserConfigBuilder::remote_debug"
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--remote_debugger"]
 status = "implemented"
-rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
+rust = "BrowserConfigBuilder::remote_debug"
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_pytest."--reuse-class-session"]
 status = "implemented"
-rust = "BrowserConfig::with_reuse_module_session"
-note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse-class-session` and SB_REUSE_CLASS_SESSION. See --rcs."
+rust = "BrowserConfigBuilder::reuse_module_session"
+note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfigBuilder::reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse-class-session` and SB_REUSE_CLASS_SESSION. See --rcs."
 divergence = "See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts."
 
 [options_pytest."--reuse-session"]
 status = "implemented"
-rust = "BrowserConfig::with_reuse_session"
+rust = "BrowserConfigBuilder::reuse_session"
 note = "Also `sbrs --reuse-session` (aliases `--reuse_session`, `--rs`), `Settings::reuse_session` and SB_REUSE_SESSION. BaseCase::new (BrowserSession::connect) leases an idle browser started with the same configuration (all of it but the start page) from a process-wide registry that keeps each browser's WebDriver server address, session id, capabilities and the chromedriver this crate started; it attaches with a new client made in the test's own Tokio runtime, then cleans the browser: an open dialog dismissed, every window but the first closed, every cookie deleted only with --crumbs (Network.clearBrowserCookies on Chromium, WebDriver's delete-all elsewhere), the open page's local and session storage cleared, about:blank, and the start page if there is one. BaseCase::quit, run_browser_test and dropping the case give it back open. One test holds a browser at a time; one that starts while every matching browser is held gets its own, kept for reuse too. A browser that no longer answers is closed and replaced; get_new_driver browsers are never shared. Idle browsers are closed with their chromedriver after reuse::idle_timeout (5 s; reuse::set_idle_timeout, SB_REUSE_IDLE_SECS), by seleniumbase_rs::shutdown_reused_sessions() and by common::shutdown::drain_cleanups (which sbrs calls). Mock WebDriver tests in browser::reuse check that the second case sends no new-session request (from another Tokio runtime) and which cleaning commands it sends; tests/reuse_session_chrome.rs (ignored) checks in Chrome 155 that two #[tokio::test] in one binary share one Chrome (the same session id), that the first test's cookie and local storage are gone in the second, and that the reaper closes the browser and stops chromedriver after the idle timeout."
 divergence = "Cookies are kept unless --crumbs is given, as in Python; unlike Python, the page is always set to about:blank and the page's local and session storage cleared, and the other windows closed, because Rust tests run in any order and side by side. Python quits the shared browser when pytest ends; a Rust test binary has no end-of-run hook, so the idle timeout does it, and a binary that exits sooner after its last test leaves that browser and its chromedriver running unless shutdown_reused_sessions() is called. Under cargo-nextest each test is a process of its own and nothing is shared."
 
 [options_pytest."--reuse_class_session"]
 status = "implemented"
-rust = "BrowserConfig::with_reuse_module_session"
-note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfig::with_reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse_class_session` and SB_REUSE_CLASS_SESSION. See --rcs."
+rust = "BrowserConfigBuilder::reuse_module_session"
+note = "The same option as --rcs: the tests of one Rust module share a browser (BrowserConfigBuilder::reuse_class_session(name) for the tests that pass one name). Also `sbrs --reuse_class_session` and SB_REUSE_CLASS_SESSION. See --rcs."
 divergence = "See --rcs: the module plays the part of the class, and a class's browser closes after the idle timeout, not when the next class starts."
 
 [options_pytest."--reuse_session"]
 status = "implemented"
-rust = "BrowserConfig::with_reuse_session"
+rust = "BrowserConfigBuilder::reuse_session"
 note = "The same option as --reuse-session: the tests of a run share browsers, cleaned between tests. Also `sbrs --reuse_session` and SB_REUSE_SESSION. See --reuse-session."
 divergence = "See --reuse-session: cookies are kept unless --crumbs is given, the page and its storage are always reset, and the browser closes after an idle timeout, since a test binary has no end-of-run hook."
 
 [options_pytest."--rs"]
 status = "implemented"
-rust = "BrowserConfig::with_reuse_session"
+rust = "BrowserConfigBuilder::reuse_session"
 note = "Alias of --reuse-session upstream: the tests of a run share browsers, cleaned between tests. Also `sbrs --rs` and SB_REUSE_SESSION. See --reuse-session."
 divergence = "See --reuse-session: cookies are kept unless --crumbs is given, the page and its storage are always reset, and the browser closes after an idle timeout, since a test binary has no end-of-run hook."
 
@@ -5376,8 +5376,8 @@ note = "`sbrs test --screenshot` (also `--save-screenshot`, `--ss`), `SB_SAVE_SC
 
 [options_pytest."--server"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_pytest."--settings"]
 status = "implemented"
@@ -5446,7 +5446,7 @@ note = "BaseCase::new opens the start page when one is set; BaseCase::open_start
 
 [options_pytest."--swiftshader"]
 status = "implemented"
-rust = "BrowserConfig::with_swiftshader"
+rust = "BrowserConfigBuilder::swiftshader"
 
 [options_pytest."--time-limit"]
 status = "implemented"
@@ -5480,13 +5480,13 @@ note = "DriverMode::Uc."
 
 [options_pytest."--uc-cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
 divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_pytest."--uc-cdp-events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
 divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
@@ -5500,7 +5500,7 @@ reason = "Accepted and ignored by `sbrs test`. Deprecated upstream: UC Mode alwa
 
 [options_pytest."--uc_cdp_events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
 divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
@@ -5525,7 +5525,7 @@ note = "Alias of --start-page upstream. BaseCase::new opens the start page when 
 
 [options_pytest."--use-auto-ext"]
 status = "implemented"
-rust = "BrowserConfig::with_automation_extension"
+rust = "BrowserConfigBuilder::automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--use-chromium"]
@@ -5535,7 +5535,7 @@ note = "An alias of --chromium: `sbrs test --use-chromium` is `SB_BROWSER=chromi
 
 [options_pytest."--use_auto_ext"]
 status = "implemented"
-rust = "BrowserConfig::with_automation_extension"
+rust = "BrowserConfigBuilder::automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_pytest."--user-agent"]
@@ -5611,22 +5611,22 @@ note = "After every page load and after BaseCase::click the page is waited on fo
 
 [options_pytest."--window-position"]
 status = "implemented"
-rust = "BrowserConfig::with_window_position"
+rust = "BrowserConfigBuilder::window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_pytest."--window-size"]
 status = "implemented"
-rust = "BrowserConfig::with_window_size"
+rust = "BrowserConfigBuilder::window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_pytest."--window_position"]
 status = "implemented"
-rust = "BrowserConfig::with_window_position"
+rust = "BrowserConfigBuilder::window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_pytest."--window_size"]
 status = "implemented"
-rust = "BrowserConfig::with_window_size"
+rust = "BrowserConfigBuilder::window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_pytest."--with-basic-test-info"]
@@ -5687,7 +5687,7 @@ reason = "A Python spelling of --with-testing-base: accepted and ignored by `sbr
 
 [options_pytest."--xvfb"]
 status = "implemented"
-rust = "BrowserConfig::with_virtual_display"
+rust = "BrowserConfigBuilder::virtual_display"
 note = "Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python."
 
 [options_pytest."--xvfb-metrics"]
@@ -5708,12 +5708,12 @@ note = "`Settings::test.data.account` (`account` in the `[test]` table, `SB_ACCO
 [options_sb."ad_block"]
 status = "implemented"
 rust = "BrowserSettings::ad_block"
-note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "Set BrowserSettings::ad_block (BrowserConfigBuilder::ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."ad_block_on"]
 status = "implemented"
 rust = "BrowserSettings::ad_block"
-note = "Set BrowserSettings::ad_block (BrowserConfig::with_ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfig::with_ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
+note = "Set BrowserSettings::ad_block (BrowserConfigBuilder::ad_block). Refuses the requests of the ad and tracker hosts of an AdBlockList (the built-in list, or the one set with BrowserConfigBuilder::ad_block_list) with Network.setBlockedURLs, which a WebDriver session sends through chromedriver's DevTools channel when it connects and for each window it switches to. Works in a Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for Testing, chrome-headless-shell); Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver and block nothing. The pure CDP engine blocks hosts with LaunchOptionsBuilder::ad_block. Python hides the ad elements of a loaded page, which BaseCase::ad_block does when called. A URL that names a port is not matched, and a frame of another site is not stopped from loading and its own requests are not blocked (a frame of the page's own site is). Checked in a real Chrome 155 with chromedriver 155 on macOS (tests/ad_block_chrome.rs)."
 
 [options_sb."agent"]
 status = "implemented"
@@ -5722,11 +5722,11 @@ note = "`user_agent` in the settings file, `SB_USER_AGENT`, `sbrs test --user-ag
 
 [options_sb."binary_location"]
 status = "implemented"
-rust = "BrowserConfig::with_binary_location"
+rust = "BrowserConfigBuilder::binary_location"
 
 [options_sb."block_images"]
 status = "implemented"
-rust = "BrowserConfig::with_block_images"
+rust = "BrowserConfigBuilder::block_images"
 note = "Chrome's content-setting preference (`prefs` of `goog:chromeOptions`), or Firefox's `permissions.default.image`."
 
 [options_sb."browser"]
@@ -5736,13 +5736,13 @@ rust = "BrowserConfig::browser"
 [options_sb."cap_file"]
 status = "implemented"
 rust = "CapabilityOverrides::from_file"
-note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "Reads JSON or the Python dictionary of a capabilities file without running Python; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 divergence = "Python's parser reads one key per line; this reads the whole dictionary."
 
 [options_sb."cap_string"]
 status = "implemented"
 rust = "CapabilityOverrides::from_text"
-note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfig::with_capabilities`."
+note = "JSON, or a Python dictionary; merged over the session's capabilities with `BrowserConfigBuilder::capabilities`."
 
 [options_sb."cft"]
 status = "implemented"
@@ -5751,7 +5751,7 @@ note = "Chrome for Testing, downloaded into downloaded_drivers/cft/ when missing
 
 [options_sb."chromium_arg"]
 status = "implemented"
-rust = "BrowserConfig::with_chromium_arg"
+rust = "BrowserConfigBuilder::chromium_arg"
 
 [options_sb."chs"]
 status = "implemented"
@@ -5760,7 +5760,7 @@ note = "chrome-headless-shell, downloaded into downloaded_drivers/chs/ when miss
 
 [options_sb."dark_mode"]
 status = "implemented"
-rust = "BrowserConfig::with_dark_mode"
+rust = "BrowserConfigBuilder::dark_mode"
 
 [options_sb."data"]
 status = "implemented"
@@ -5779,13 +5779,13 @@ note = "The pause demo and slow mode make after an action."
 
 [options_sb."device_metrics"]
 status = "implemented"
-rust = "BrowserConfig::with_device_metrics"
+rust = "BrowserConfigBuilder::device_metrics"
 note = "Chrome's `mobileEmulation` experimental option."
 divergence = "Python applies the metrics only together with --mobile; here setting them turns mobile emulation on."
 
 [options_sb."devtools"]
 status = "implemented"
-rust = "BrowserConfig::with_devtools"
+rust = "BrowserConfigBuilder::devtools"
 
 [options_sb."disable_beforeunload"]
 status = "implemented"
@@ -5794,45 +5794,45 @@ note = "After every page load the beforeunload dialog is switched off (BaseCase:
 
 [options_sb."disable_cookies"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_cookies"
+rust = "BrowserConfigBuilder::disable_cookies"
 note = "Chrome's cookie content-setting preference, or Firefox's `network.cookie.cookieBehavior`."
 
 [options_sb."disable_csp"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_csp"
+rust = "BrowserConfigBuilder::disable_csp"
 note = "Loads the bundled Disable CSP extension, which removes the Content-Security-Policy headers. Chromium only."
 
 [options_sb."disable_features"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_features"
+rust = "BrowserConfigBuilder::disable_features"
 
 [options_sb."disable_js"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_js"
+rust = "BrowserConfigBuilder::disable_js"
 note = "Chrome's JavaScript content-setting preference, or Firefox's `javascript.enabled`."
 
 [options_sb."disable_ws"]
 status = "implemented"
-rust = "BrowserConfig::with_disable_web_security"
+rust = "BrowserConfigBuilder::disable_web_security"
 
 [options_sb."do_not_track"]
 status = "implemented"
-rust = "BrowserConfig::with_do_not_track"
+rust = "BrowserConfigBuilder::do_not_track"
 note = "Chrome's `enable_do_not_track` preference, or Firefox's `privacy.donottrackheader.enabled`."
 
 [options_sb."driver_version"]
 status = "implemented"
-rust = "BrowserConfig::with_driver_version"
+rust = "BrowserConfigBuilder::driver_version"
 note = "browser, mlatest (the newest build of the browser's major version), latest, stable, beta, dev, canary, keep (a driver already downloaded or on the PATH), previous or latest-1 (the major before the stable one), a major version or a full version. The driver goes to downloaded_drivers/chromedriver-<version>/."
 
 [options_sb."enable_3d_apis"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_3d_apis"
+rust = "BrowserConfigBuilder::enable_3d_apis"
 note = "A headless session keeps the GPU. A Rust session never adds --disable-3d-apis."
 
 [options_sb."enable_sync"]
 status = "implemented"
-rust = "BrowserConfig::with_enable_sync"
+rust = "BrowserConfigBuilder::enable_sync"
 note = "Chrome Sync is switched off with `--disable-sync` unless this is set."
 
 [options_sb."enable_ws"]
@@ -5850,12 +5850,12 @@ rust = "BrowserSettings::extensions"
 
 [options_sb."extension_zip"]
 status = "implemented"
-rust = "BrowserConfig::with_extension_archive"
+rust = "BrowserConfigBuilder::extension_archive"
 note = "A .zip or .crx file, sent in the `extensions` option of `goog:chromeOptions`. Chromium only."
 
 [options_sb."external_pdf"]
 status = "implemented"
-rust = "BrowserConfig::with_external_pdf"
+rust = "BrowserConfigBuilder::external_pdf"
 note = "Chrome's `plugins.always_open_pdf_externally`, or Firefox's `pdfjs.disabled`."
 
 [options_sb."fast"]
@@ -5865,20 +5865,20 @@ reason = "Python 4.55.2 reads fast only in CDP mode, where it skips the 0.2 s wa
 [options_sb."firefox_arg"]
 status = "implemented"
 rust = "FirefoxOptions::add_args"
-note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_sb."firefox_pref"]
 status = "implemented"
 rust = "FirefoxOptions::add_preferences"
-note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfig::with_firefox_options`."
+note = "Comma-separated NAME:VALUE; `FirefoxOptions` goes to `BrowserConfigBuilder::firefox_options`."
 
 [options_sb."guest"]
 status = "implemented"
-rust = "BrowserConfig::with_guest_mode"
+rust = "BrowserConfigBuilder::guest_mode"
 
 [options_sb."guest_mode"]
 status = "implemented"
-rust = "BrowserConfig::with_guest_mode"
+rust = "BrowserConfigBuilder::guest_mode"
 
 [options_sb."headed"]
 status = "implemented"
@@ -5891,12 +5891,12 @@ rust = "BrowserSettings::headless"
 
 [options_sb."headless1"]
 status = "implemented"
-rust = "BrowserConfig::with_headless1"
+rust = "BrowserConfigBuilder::headless1"
 note = "Chrome's old headless mode now exists only as chrome-headless-shell: Chrome with no program of its own named runs it (downloaded when missing); the undetected mode cannot."
 
 [options_sb."headless2"]
 status = "implemented"
-rust = "BrowserConfig::with_headless2"
+rust = "BrowserConfigBuilder::headless2"
 note = "`headless = true` launches Chrome's new headless mode (`--headless=new`), which is what headless2 asks for."
 
 [options_sb."highlights"]
@@ -5906,11 +5906,11 @@ note = "`highlights` in the settings file, `SB_HIGHLIGHTS`, `sbrs test --highlig
 
 [options_sb."host_resolver_rules"]
 status = "implemented"
-rust = "BrowserConfig::with_host_resolver_rules"
+rust = "BrowserConfigBuilder::host_resolver_rules"
 
 [options_sb."incognito"]
 status = "implemented"
-rust = "BrowserConfig::with_incognito"
+rust = "BrowserConfigBuilder::incognito"
 
 [options_sb."interval"]
 status = "implemented"
@@ -5920,7 +5920,7 @@ note = "Zero is unset. play_tour (the tour moves on by itself), save_presentatio
 [options_sb."is_mobile"]
 status = "implemented"
 rust = "BrowserSettings::mobile"
-note = "Give the screen with `with_device_metrics`."
+note = "Give the screen with `device_metrics`."
 
 [options_sb."js_checking_on"]
 status = "implemented"
@@ -5938,17 +5938,17 @@ note = "`locale_code` in the settings file, `SB_LOCALE_CODE`, `sbrs test --local
 
 [options_sb."log_cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_sb."log_cdp_events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "Asks the driver to keep the performance log; read it with `BrowserSession::cdp_events`."
 
 [options_sb."maximize"]
 status = "implemented"
-rust = "BrowserConfig::with_maximize"
+rust = "BrowserConfigBuilder::maximize"
 note = "A headed Chromium window starts with --start-maximized and no --window-size; Firefox and Safari are maximized once they are running. A headless session ignores it."
 
 [options_sb."message_duration"]
@@ -5971,28 +5971,28 @@ note = "`no_screenshot` in the `[test]` table, `SB_NO_SCREENSHOT`, `sbrs test --
 
 [options_sb."page_load_strategy"]
 status = "implemented"
-rust = "BrowserConfig::with_page_load_strategy"
+rust = "BrowserConfigBuilder::page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_sb."pls"]
 status = "implemented"
-rust = "BrowserConfig::with_page_load_strategy"
+rust = "BrowserConfigBuilder::page_load_strategy"
 note = "The `pageLoadStrategy` capability: normal, eager or none."
 
 [options_sb."port"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_sb."position"]
 status = "implemented"
-rust = "BrowserConfig::with_window_position"
+rust = "BrowserConfigBuilder::window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_sb."protocol"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_sb."proxy"]
 status = "implemented"
@@ -6001,7 +6001,7 @@ divergence = "Checked as Python checks it (schemes http, https, socks4, socks5, 
 
 [options_sb."proxy_bypass_list"]
 status = "implemented"
-rust = "BrowserConfig::with_proxy_bypass_list"
+rust = "BrowserConfigBuilder::proxy_bypass_list"
 note = "Chrome's `--proxy-bypass-list`. It applies to a proxy named with `proxy`, not to a PAC file."
 
 [options_sb."proxy_pac_url"]
@@ -6025,7 +6025,7 @@ note = "`rec_print` in the `[test]` table, `SB_REC_PRINT`, `sbrs test --rec-prin
 
 [options_sb."rec_sb_cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_recording_sb_cdp"
+rust = "BrowserConfigBuilder::recording_sb_cdp"
 note = "Also Settings::rec_sb_cdp, SB_REC_SB_CDP and `sbrs --rec-sb-cdp`. With it on, BaseCase::export_recording_as_rust and save_recording_to_logs write ActionRecorder::to_cdp_script, a pure CDP program; see `--rec-sb-cdp`."
 divergence = "Python writes the file when the SB() block ends; here you ask for it (export_recording_as_rust, save_recording_to_logs)."
 
@@ -6041,13 +6041,13 @@ note = "BaseCase::sleep goes into the recording, and the generated Rust calls sb
 
 [options_sb."recorder_ext"]
 status = "implemented"
-rust = "BrowserConfig::with_recorder_extension"
+rust = "BrowserConfigBuilder::recorder_extension"
 note = "Loads the bundled SeleniumBase Recorder extension. Chromium only."
 
 [options_sb."remote_debug"]
 status = "implemented"
-rust = "BrowserConfig::with_remote_debug"
-note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `with_remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
+rust = "BrowserConfigBuilder::remote_debug"
+note = "Opens Chrome's debugger on port 9222, or on a free port when 9222 is in use; `remote_debug_port` names another and refuses it when it is in use; `BrowserSession::remote_debug_address` says where it listens."
 
 [options_sb."rtf"]
 status = "not-applicable"
@@ -6060,13 +6060,13 @@ note = "`save_screenshot` in the `[test]` table, `SB_SAVE_SCREENSHOT`, `sbrs tes
 
 [options_sb."server"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "`with_grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
+rust = "BrowserConfigBuilder::grid"
+note = "`grid(protocol, servername, port)` builds the URL Python builds: an https:// server forces https, another scheme is dropped, the port is left out when it is the protocol's own, `/wd/hub` is added, and `localhost` keeps the local driver. `BrowserConfig::webdriver_url` takes the whole URL."
 
 [options_sb."servername"]
 status = "implemented"
-rust = "BrowserConfig::with_grid"
-note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see `with_grid`."
+rust = "BrowserConfigBuilder::grid"
+note = "The server name may carry a login (`USER:KEY@hub.browserstack.com`), which stays in the WebDriver URL; see the `grid` setter."
 
 [options_sb."settings_file"]
 status = "implemented"
@@ -6075,7 +6075,7 @@ note = "`sbrs --config FILE` or `Settings::load_from(path)` read a TOML or JSON 
 
 [options_sb."size"]
 status = "implemented"
-rust = "BrowserConfig::with_window_size"
+rust = "BrowserConfigBuilder::window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_sb."sjw"]
@@ -6100,7 +6100,7 @@ note = "BaseCase::new opens the start page when one is set; BaseCase::open_start
 
 [options_sb."swiftshader"]
 status = "implemented"
-rust = "BrowserConfig::with_swiftshader"
+rust = "BrowserConfigBuilder::swiftshader"
 
 [options_sb."test"]
 status = "composed"
@@ -6124,13 +6124,13 @@ note = "DriverMode::Uc."
 
 [options_sb."uc_cdp"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
 divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
 [options_sb."uc_cdp_events"]
 status = "implemented"
-rust = "BrowserConfig::with_cdp_events"
+rust = "BrowserConfigBuilder::cdp_events"
 note = "CdpEventCapture::UndetectedOnly: the performance log is kept in UC mode only; read it with `BrowserSession::cdp_events`."
 divergence = "Python adds a listener with driver.add_cdp_listener; here the events are read back from the log."
 
@@ -6154,7 +6154,7 @@ note = "DriverMode::Uc."
 
 [options_sb."use_auto_ext"]
 status = "implemented"
-rust = "BrowserConfig::with_automation_extension"
+rust = "BrowserConfigBuilder::automation_extension"
 note = "Sets `useAutomationExtension` to true. Upstream marks the option deprecated. Chromium only."
 
 [options_sb."use_chromium"]
@@ -6198,17 +6198,17 @@ note = "After every page load and after BaseCase::click the page is waited on fo
 
 [options_sb."window_position"]
 status = "implemented"
-rust = "BrowserConfig::with_window_position"
+rust = "BrowserConfigBuilder::window_position"
 note = "Chrome's `--window-position`; a Firefox window is moved once it runs."
 
 [options_sb."window_size"]
 status = "implemented"
-rust = "BrowserConfig::with_window_size"
+rust = "BrowserConfigBuilder::window_size"
 note = "Chrome's `--window-size`; a Firefox window is resized once it runs."
 
 [options_sb."xvfb"]
 status = "implemented"
-rust = "BrowserConfig::with_virtual_display"
+rust = "BrowserConfigBuilder::virtual_display"
 note = "Starts Xvfb for a headed session on Linux that starts its own driver; ignored elsewhere, as in Python."
 
 [options_sb."xvfb_metrics"]

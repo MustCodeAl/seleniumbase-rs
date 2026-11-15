@@ -41,7 +41,7 @@ drives the browser.
 
 <Visibility for="agents">
 
-Summary for AI exports: a browser plugin is a Rust crate that implements `Plugin` and runs hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`) around a browser launch. Turn plugins on with the `plugins` feature, build a `PluginSet`, and give it to `LaunchOptionsBuilder::plugins` (pure CDP engine) or `BrowserConfig::with_plugins` (`BaseCase`). Plugins fail closed: a refusal or a hook error stops the launch or the tab with `SeleniumBaseError::Plugin`. A plugin is Rust code that runs with your program's rights. Since plugin API 0.1.3 a plugin can also steer navigation (`before_navigate`, `after_navigate`), block or watch requests (`network`, `on_request`, `on_response`), change browser contexts (`before_context`), hear tests start and end (`on_test_start`, `on_test_end`) and offer a task run by name (`task`, `sbrs plugin run NAME`, the MCP tool `run_plugin_task`); those hooks need a capability declared in `metadata()`. A panic in a hook becomes `PluginError::Panicked`, and a set with a timer cuts a hook off at its time limit with `PluginError::Timeout`.
+Summary for AI exports: a browser plugin is a Rust crate that implements `Plugin` and runs hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`) around a browser launch. Turn plugins on with the `plugins` feature, build a `PluginSet`, and give it to `LaunchOptionsBuilder::plugins` (pure CDP engine) or `BrowserConfigBuilder::plugins` (`BaseCase`). Plugins fail closed: a refusal or a hook error stops the launch or the tab with `SeleniumBaseError::Plugin`. A plugin is Rust code that runs with your program's rights. Since plugin API 0.1.3 a plugin can also steer navigation (`before_navigate`, `after_navigate`), block or watch requests (`network`, `on_request`, `on_response`), change browser contexts (`before_context`), hear tests start and end (`on_test_start`, `on_test_end`) and offer a task run by name (`task`, `sbrs plugin run NAME`, the MCP tool `run_plugin_task`); those hooks need a capability declared in `metadata()`. A panic in a hook becomes `PluginError::Panicked`, and a set with a timer cuts a hook off at its time limit with `PluginError::Timeout`.
 
 </Visibility>
 
@@ -105,7 +105,7 @@ is nothing to launch, so `before_launch` does not run; the rest does.
 
 <Tab title="BaseCase (WebDriver)" icon="flask">
 
-With `BaseCase`, the same set goes to `BrowserConfig::with_plugins`:
+With `BaseCase`, the same set goes to `BrowserConfigBuilder::plugins`:
 
 ```rust,no_run src/main.rs
 use seleniumbase_rs::plugin_api::PluginSet;
@@ -114,7 +114,7 @@ use seleniumbase_rs_plugin_block_resources::BlockResources;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
     let plugins = PluginSet::new().with(BlockResources::images_and_fonts())?;
-    let mut sb = BaseCase::new(BrowserConfig::default().with_plugins(plugins)).await?;
+    let mut sb = BaseCase::new(BrowserConfig::builder().plugins(plugins).build()?).await?;
     sb.open("https://example.com").await?; // no images, no web fonts
     sb.quit().await?;
     Ok(())
@@ -263,7 +263,7 @@ file.
 | Flag | Refuses |
 |---|---|
 | `Requirements::HEADFUL` | a headless browser |
-| `Requirements::LAUNCH_ONLY` | a browser attached with `connect_with_plugins`, and a WebDriver session on a server other than the local default (`with_webdriver_url`, such as a Selenium Grid) |
+| `Requirements::LAUNCH_ONLY` | a browser attached with `connect_with_plugins`, and a WebDriver session on a server other than the local default (`webdriver_url`, such as a Selenium Grid) |
 | `Requirements::CHROMIUM_ONLY` | browsers that are not Chromium-based: Firefox and Safari on the WebDriver engine |
 | `Requirements::RUN_LAST` | nothing; the plugin runs after the others |
 
@@ -455,7 +455,7 @@ A plugin that sets a new proxy may include a password in it.
 
 ## The WebDriver engine
 
-`BrowserConfig::with_plugins` gives a set to `BaseCase::new`, and to
+`BrowserConfigBuilder::plugins` gives a set to `BaseCase::new`, and to
 `BrowserSession::connect`, which `BaseCase::new` calls. The hooks run at these
 points:
 
@@ -513,7 +513,7 @@ A Firefox preference must be true or false, a whole number or text. Internet
 Explorer takes no plugins. Plugins cannot be combined with `reuse_session`: a
 browser kept for reuse would get the hooks a second time, or not at all, so the
 combination is refused. A session on a server other than the local default
-(`with_webdriver_url`) counts as attaching for `LAUNCH_ONLY`; `before_launch`
+(`webdriver_url`) counts as attaching for `LAUNCH_ONLY`; `before_launch`
 still runs there, and its settings travel in the capabilities, so extension
 folders must exist on the machine that runs the browser.
 
