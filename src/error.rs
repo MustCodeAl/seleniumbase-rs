@@ -205,6 +205,17 @@ pub enum SeleniumBaseError {
         /// What went wrong, as the plugin set reported it.
         reason: String,
     },
+
+    /// An operation failed. `context` names the step, and the cause is kept
+    /// as [`Error::source`](std::error::Error::source).
+    #[error("{context}: {source}")]
+    Context {
+        /// What the caller was doing.
+        context: String,
+        /// The error that caused this one.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
 }
 
 /// What the driver (chromedriver, geckodriver, msedgedriver, ...) answered when it failed a
@@ -692,6 +703,11 @@ impl SeleniumBaseError {
 
     /// Returns true if this error represents a recoverable transient condition.
     pub fn is_transient(&self) -> bool {
+        if let Self::Context { source, .. } = self {
+            return source
+                .downcast_ref::<Self>()
+                .is_some_and(Self::is_transient);
+        }
         matches!(
             self,
             Self::BrowserDisconnected { .. }
@@ -770,6 +786,10 @@ impl SeleniumBaseError {
             Self::TestLifecycle(_) => "test_lifecycle",
             Self::Database(_) => "database",
             Self::Plugin { .. } => "plugin",
+            Self::Context { source, .. } => source
+                .downcast_ref::<Self>()
+                .map(Self::category)
+                .unwrap_or("context"),
         }
     }
 
@@ -806,7 +826,7 @@ impl SeleniumBaseError {
     /// | Code | Meaning | Categories |
     /// |---|---|---|
     /// | 1 | a check or a test failed | `assertion_failed`, `test_lifecycle`, `skipped` |
-    /// | 2 | the input was wrong | `invalid_config`, `invalid_selector`, `parse`, `json`, `unsupported`, `python_migration` |
+    /// | 2 | the input was wrong | `invalid_config`, `invalid_selector`, `parse`, `json`, `unsupported`, `python_migration`, `context` |
     /// | 3 | an element could not be used | `element_not_found`, `element_not_interactable`, `stale_element`, `strict_mode_violation`, `wait_timeout` |
     /// | 4 | the browser or its driver failed | `browser_launch`, `browser_disconnected`, `session_not_started`, `webdriver`, `cdp_driver`, `playwright`, `patcher`, `stealth`, `gui`, `screenshot`, `pdf`, `plugin` |
     /// | 5 | the network or a site failed | `navigation`, `network`, `download`, `authentication`, `captcha` |
@@ -814,7 +834,8 @@ impl SeleniumBaseError {
     /// | 7 | the MCP server failed | `mcp` |
     ///
     /// Code 2 is also what the argument parser uses for a mistyped option, so
-    /// "fix what you typed" is one number either way.
+    /// "fix what you typed" is one number either way. A `Context` whose cause is a
+    /// `SeleniumBaseError` uses that cause's code. Any other cause is code 2.
     ///
     /// # Examples
     ///
@@ -857,6 +878,10 @@ impl SeleniumBaseError {
             | Self::Captcha { .. }
             | Self::Authentication(_) => 5,
             Self::Io(_) | Self::Database(_) => 6,
+            Self::Context { source, .. } => source
+                .downcast_ref::<Self>()
+                .map(Self::exit_code)
+                .unwrap_or(2),
             Self::Mcp { .. } => 7,
         }
     }
@@ -1026,6 +1051,13 @@ impl SeleniumBaseError {
                  open, and the free disk space."
                 .to_owned(),
             Self::Plugin { plugin, .. } => plugin_hint(plugin),
+            Self::Context { source, .. } => source
+                .downcast_ref::<Self>()
+                .and_then(Self::hint)
+                .unwrap_or_else(|| {
+                    "Read the message for the step that failed, then the error after the colon."
+                        .to_owned()
+                }),
         })
     }
 }
@@ -1323,17 +1355,29 @@ fn io_hint(kind: std::io::ErrorKind) -> &'static str {
 
 /// Extension trait for attaching context to `Result<T, E>` without losing the
 /// original error source.
+///
+/// `E` is [`Error`](std::error::Error) + [`Send`] + [`Sync`] + `'static`, so the
+/// cause can be stored and moved onto another task.
 pub trait ResultExt<T, E>: Sized {
-    /// Map an error into `SeleniumBaseError` with additional context.
+    /// Map an error into [`SeleniumBaseError::Context`].
+    ///
+    /// The message is `{context}: {error}`. [`Error::source`](std::error::Error::source)
+    /// is the original error.
     fn sb_context(self, context: impl Into<String>) -> Result<T>;
     /// Log any error with structured tracing fields and return the original
     /// error.
     fn log_err(self) -> Self;
 }
 
-impl<T, E: std::fmt::Display> ResultExt<T, E> for std::result::Result<T, E> {
+impl<T, E> ResultExt<T, E> for std::result::Result<T, E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
     fn sb_context(self, context: impl Into<String>) -> Result<T> {
-        self.map_err(|e| SeleniumBaseError::InvalidConfig(format!("{}: {}", context.into(), e)))
+        self.map_err(|error| SeleniumBaseError::Context {
+            context: context.into(),
+            source: Box::new(error),
+        })
     }
 
     fn log_err(self) -> Self {
@@ -1913,10 +1957,19 @@ mod tests {
     fn result_ext_attaches_context() {
         let res: std::result::Result<(), std::io::Error> =
             Err(std::io::Error::new(std::io::ErrorKind::NotFound, "oops"));
-        let sb = res.sb_context("reading config");
-        assert!(sb.is_err());
-        let msg = sb.unwrap_err().to_string();
-        assert!(msg.contains("reading config"));
-        assert!(msg.contains("oops"));
+        let error = res.sb_context("reading config").unwrap_err();
+        let msg = error.to_string();
+        assert!(msg.contains("reading config"), "{msg}");
+        assert!(msg.contains("oops"), "{msg}");
+        let source = std::error::Error::source(&error).expect("the io error");
+        assert_eq!(source.to_string(), "oops");
+        assert_eq!(error.category(), "context");
+        assert_eq!(error.exit_code(), 2);
+
+        let inner: Result<()> = Err(SeleniumBaseError::wait_timeout("visible #x", None));
+        let wrapped = inner.sb_context("opening the page").unwrap_err();
+        assert_eq!(wrapped.category(), "wait_timeout");
+        assert_eq!(wrapped.exit_code(), 3);
+        assert!(wrapped.is_transient());
     }
 }

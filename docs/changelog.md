@@ -68,6 +68,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Breaking
 
+- **Breaking: `sb_context` keeps the cause.** `ResultExt` requires
+  `E: Error + Send + Sync + 'static`. The error is `SeleniumBaseError::Context`.
+  The message is still `{context}: {error}`, and `source()` is the original error.
+  When that error is a `SeleniumBaseError`, the category, the exit code, the hint
+  and whether it is transient follow the cause. Any other cause is category
+  `context` and exit code 2.
 - **Breaking: the cloud logging plugins take an upload target.** `S3LoggingPlugin`,
   `AzureLoggingPlugin` and `GcpLoggingPlugin` are no longer empty values, and `upload_file`, `new`
   and `Default` are gone. `from_env` reads the account (`SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`,
