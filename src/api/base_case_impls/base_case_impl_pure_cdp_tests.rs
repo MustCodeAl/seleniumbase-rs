@@ -54,6 +54,10 @@ mod tests_pure_cdp {
                 let expression = params["expression"].as_str().unwrap_or_default();
                 Ok(if expression.contains("__sbcdp.center(") {
                     value(json!({ "x": 120.0, "y": 80.0, "covered": false }))
+                } else if expression.contains("x: r.left") {
+                    // `Locator::viewport_rect`: a 40 by 20 box whose centre is (120, 60).
+                    value(json!({ "x": 100.0, "y": 50.0, "width": 40.0, "height": 20.0 }))
+
                 } else if expression.contains("__sbcdp.fieldText(") {
                     value(json!(self.text))
                 } else if expression.contains("/* getAttribute */") {
@@ -665,6 +669,128 @@ mod tests_pure_cdp {
 
         assert!(matches!(outcome, Ok(None)), "{outcome:?}");
         assert_eq!(watch.current().unwrap().message, "Hi");
+    }
+
+
+    /// The mouse events sent, as `(type, button, click count)`.
+    fn mouse_buttons(mock: &MockCtrl) -> Vec<(String, String, u64)> {
+        mock.calls_to("Input.dispatchMouseEvent")
+            .into_iter()
+            .map(|call| {
+                (
+                    call.params["type"].as_str().unwrap_or_default().to_owned(),
+                    call.params["button"].as_str().unwrap_or_default().to_owned(),
+                    call.params["clickCount"].as_u64().unwrap_or_default(),
+                )
+            })
+            .collect()
+    }
+
+    #[tokio::test]
+    async fn hover_double_click_and_context_click_are_real_mouse_events() {
+        let (mut sb, mock) = case().await;
+        Page::one().script(&mock);
+
+        sb.hover("#go").await.unwrap();
+        assert_eq!(mouse(&mock), [("mouseMoved".to_owned(), 120.0, 80.0)]);
+
+        sb.double_click("#go").await.unwrap();
+        let double = mouse_buttons(&mock).split_off(1);
+        let expected = [
+            ("mouseMoved", "none", 0),
+            ("mousePressed", "left", 1),
+            ("mouseReleased", "left", 1),
+            ("mousePressed", "left", 2),
+            ("mouseReleased", "left", 2),
+        ];
+        assert_eq!(
+            double,
+            expected.map(|(kind, button, count)| (kind.to_owned(), button.to_owned(), count))
+        );
+
+        sb.context_click("#go").await.unwrap();
+        let right = mouse_buttons(&mock).split_off(6);
+        assert!(
+            right
+                .iter()
+                .filter(|(kind, _, _)| kind == "mousePressed")
+                .all(|(_, button, _)| button == "right"),
+            "{right:?}"
+        );
+        assert_eq!(right.len(), 3, "{right:?}");
+    }
+
+    #[tokio::test]
+    async fn a_click_at_an_offset_lands_that_far_from_the_centre_of_the_element() {
+        let (mut sb, mock) = case().await;
+        Page::one().script(&mock);
+
+        sb.click_with_offset("#go", 10, 5).center(true).await.unwrap();
+        sb.double_click_with_offset("#go", -20, 0)
+            .center(true)
+            .await
+            .unwrap();
+
+        // The element is 40 by 20 pixels and its centre is (120, 60).
+        let presses: Vec<_> = mouse(&mock)
+            .into_iter()
+            .filter(|(kind, _, _)| kind == "mousePressed")
+            .map(|(_, x, y)| (x, y))
+            .collect();
+        assert_eq!(presses, [(130.0, 65.0), (100.0, 60.0), (100.0, 60.0)]);
+    }
+
+    #[tokio::test]
+    async fn a_drag_by_an_offset_holds_the_button_from_the_centre_to_the_target() {
+        let (mut sb, mock) = case().await;
+        Page::one().script(&mock);
+
+        sb.drag_and_drop_with_offset("#go", 30, -10).await.unwrap();
+
+        let events = mouse(&mock);
+        assert_eq!(events.first(), Some(&("mouseMoved".to_owned(), 120.0, 60.0)));
+        assert_eq!(events.get(1), Some(&("mousePressed".to_owned(), 120.0, 60.0)));
+        assert_eq!(events.last(), Some(&("mouseReleased".to_owned(), 150.0, 50.0)));
+        assert!(events.len() > 3, "the pointer travels between the two: {events:?}");
+    }
+
+    #[tokio::test]
+    async fn a_click_chain_clicks_each_element_in_turn() {
+        let (mut sb, mock) = case().await;
+        Page::one().script(&mock);
+
+        sb.click_chain(&["#first", "#second"]).await.unwrap();
+
+        let pressed = mouse(&mock)
+            .into_iter()
+            .filter(|(kind, _, _)| kind == "mousePressed")
+            .count();
+        assert_eq!(pressed, 2);
+    }
+
+    #[tokio::test]
+    async fn a_method_that_needs_a_driver_refuses_by_name_and_names_the_alternative() {
+        let (sb, _mock) = case().await;
+
+        let version = sb.chromedriver_version().unwrap_err();
+        let events = sb.session.cdp_events().await.unwrap_err();
+        let addon = sb.install_addon("dark-mode.xpi", true).await.unwrap_err();
+
+        for (error, method, alternative) in [
+            (version, "chromedriver_version", "browser_version"),
+            (events, "cdp_events", "Page::events"),
+            (addon, "install_addon", "with_extension_dir"),
+        ] {
+            assert!(
+                matches!(error, SeleniumBaseError::Unsupported(_)),
+                "{method}: {error:?}"
+            );
+            let text = error.to_string();
+            assert!(
+                text.contains(method) && text.contains(alternative),
+                "{method}: {text}"
+            );
+        }
     }
 
 
