@@ -31,17 +31,13 @@
 //! # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 //! ```
 
-use std::collections::BTreeMap;
-use std::path::PathBuf;
-
-use serde::{Deserialize, Serialize};
-
-use crate::browser::config::Browser;
-use crate::config::ad_block_list::AdBlockList;
+mod browser_settings;
 
 mod capabilities;
 mod cdp_events;
 mod chromium_args;
+mod chromium_settings;
+
 mod device;
 mod driver;
 mod extensions;
@@ -52,16 +48,22 @@ mod page_load;
 #[cfg(feature = "plugins")]
 mod plugins;
 mod proxy;
+mod proxy_settings;
+
 mod remote;
 mod session;
 mod switches;
 mod virtual_display;
 mod window;
 
+pub use browser_settings::BrowserSettings;
+
 pub use capabilities::CapabilityOverrides;
 pub use cdp_events::{CdpEvent, CdpEventCapture};
 pub use chromium_args::parse_chromium_args;
 pub(crate) use chromium_args::switch_args;
+pub use chromium_settings::ChromiumSettings;
+
 pub(crate) use device::emulated_phone;
 pub use device::{DeviceMetrics, MOBILE_USER_AGENT};
 pub use driver::{DriverVersion, ReleaseChannel};
@@ -74,191 +76,21 @@ pub use page_load::PageLoadStrategy;
 #[cfg(feature = "plugins")]
 pub use plugins::BrowserPlugins;
 pub use proxy::{PacUrl, ProxyAddress, ProxyBypassList, ProxyScheme};
+pub use proxy_settings::ProxySettings;
+
 pub use remote::{grid_url, GridProtocol};
 pub use session::{GridSettings, SessionSettings, DEFAULT_WEBDRIVER_URL};
 pub use switches::{chrome_preferences, firefox_preferences, nested_preferences, LaunchSwitch};
 pub use virtual_display::VirtualDisplay;
 pub use window::{WindowPosition, WindowSize};
 
-/// The proxy of a browser: the server, a proxy auto-config script, and the hosts that skip
-/// the proxy.
-///
-/// Both engines read it, so it belongs to the [`BrowserSettings`] they share.
-#[derive(Clone, Default, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct ProxySettings {
-    /// The proxy server, written `[scheme://][user:password@]host:port` (`--proxy`,
-    /// `SB_PROXY`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub server: Option<String>,
-    /// A proxy auto-config script the browser fetches to choose its proxy
-    /// (`--proxy-pac-url`, `SB_PROXY_PAC_URL`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pac_url: Option<String>,
-    /// Hosts that skip the proxy (`--proxy-bypass-list`, `SB_PROXY_BYPASS_LIST`).
-    #[serde(skip_serializing_if = "ProxyBypassList::is_empty")]
-    pub bypass_list: ProxyBypassList,
-}
-
-// Written by hand: the server and the script's address may carry a password.
-impl std::fmt::Debug for ProxySettings {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::evasion::options::without_credentials;
-        f.debug_struct("ProxySettings")
-            .field("server", &self.server.as_deref().map(without_credentials))
-            .field("pac_url", &self.pac_url.as_deref().map(without_credentials))
-            .field("bypass_list", &self.bypass_list)
-            .finish()
-    }
-}
-
-/// The Chromium command-line settings that have no switch of their own.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct ChromiumSettings {
-    /// Extra command-line arguments (`--chromium-arg`, `SB_CHROMIUM_ARG`), each written with
-    /// its leading `--`.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub args: Vec<String>,
-    /// Chromium features to switch off (`--disable-features`), joined with the session's own
-    /// into the one switch Chrome reads.
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub disable_features: Vec<String>,
-    /// Rules that map host names to addresses (`--host-resolver-rules`), sent as one
-    /// Chromium switch.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub host_resolver_rules: Option<String>,
-}
-
-/// What both engines start: the browser, its window, its proxy, its profile and its
-/// switches. See the [module documentation](self).
-///
-/// [`Settings`](crate::Settings) and [`BrowserConfig`](crate::BrowserConfig) both hold one,
-/// and the pure CDP engine reads it whole (`LaunchOptionsBuilder::browser_config`). Every
-/// field has a default that changes nothing, so a default value is the browser as it would
-/// start without these options: the default [`Browser`] and headed (Python's default). A
-/// default [`BrowserConfig`](crate::BrowserConfig) is headless.
-#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
-pub struct BrowserSettings {
-    /// Which browser to start (`--browser`, `SB_BROWSER`).
-    pub kind: Browser,
-    /// The program of the browser (`--binary-location`, `SB_CHROME_BIN`). Unset, the browser
-    /// is looked for in the usual places. When `native_spoofing` is enabled and this is unset,
-    /// the crate locates the system Chrome binary, patches a cached copy, and sets this field
-    /// before launch.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub executable_path: Option<PathBuf>,
-    /// Runs the browser without a window (`--headless`, `SB_HEADLESS`).
-    pub headless: bool,
-    /// A page the browser opens as soon as it starts (`--start-page`, `SB_START_PAGE`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
-    /// The user-agent string the browser sends (`--agent`, `SB_USER_AGENT`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_agent: Option<String>,
-    /// The browser's language, such as `fr-FR` (`--locale`, `SB_LOCALE`, `SB_LOCALE_CODE`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub lang: Option<String>,
-    /// Mobile emulation (`--mobile`, `SB_MOBILE`).
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub mobile: bool,
-    /// The phone screen to emulate (`--metrics`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub device_metrics: Option<DeviceMetrics>,
-    /// The window's size (`--window-size`); the browser's own default if unset.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub window_size: Option<WindowSize>,
-    /// The window's position (`--window-position`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub window_position: Option<WindowPosition>,
-    /// The proxy (`[browser.proxy]`).
-    pub proxy: ProxySettings,
-    /// A browser profile folder that keeps cookies and settings between runs
-    /// (`--user-data-dir`, `SB_USER_DATA_DIR`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_data_dir: Option<PathBuf>,
-    /// Unpacked browser extensions to load (`--extension-dir`, `SB_EXTENSION_DIR`, separated
-    /// by commas there).
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub extensions: Vec<PathBuf>,
-    /// The `--ad-block` setting: refuse the requests of advertising and tracking hosts.
-    ///
-    /// A Chromium WebDriver session (Chrome, Chromium, Edge, Brave, Comet, Opera, Chrome for
-    /// Testing, `chrome-headless-shell`) sends the hosts of an [`AdBlockList`] to the browser
-    /// with `Network.setBlockedURLs` once it is connected: the built-in list, or the one set
-    /// with [`ad_block_list`](Self::ad_block_list). The block belongs to a window, so the
-    /// session repeats it for each window it switches to with `switch_to_window` or
-    /// `switch_to_new_window`; a window reached some other way needs
-    /// [`BrowserSession::apply_ad_block`](crate::browser::session::BrowserSession::apply_ad_block).
-    ///
-    /// What it does not reach, as seen in Chrome 155 (`tests/ad_block_chrome.rs`): a URL that
-    /// names a port is not matched, and a frame of another site is not stopped from loading,
-    /// nor are its own requests blocked. A frame of the page's own site is blocked like the
-    /// page.
-    ///
-    /// Firefox, Safari and Internet Explorer have no DevTools channel through WebDriver, so
-    /// the setting blocks nothing there (a warning says so). The pure CDP engine blocks hosts
-    /// with `LaunchOptionsBuilder::ad_block`, and `BaseCase::ad_block` removes ad elements
-    /// from a page that loaded.
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub ad_block: bool,
-    /// The hosts to refuse when `ad_block` is on. Unset, the built-in list is used; see
-    /// [`AdBlockList`].
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub ad_block_list: Option<AdBlockList>,
-    /// The on/off settings that were asked for (`[browser.switches]`). A switch is on when the
-    /// map says `true`; one that is missing or `false` is off. Use [`has`](Self::has) and
-    /// [`set`](Self::set).
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub switches: BTreeMap<LaunchSwitch, bool>,
-    /// The Chromium command-line settings with no switch of their own
-    /// (`[browser.chromium]`).
-    pub chromium: ChromiumSettings,
-    /// The virtual screen for a headed browser on Linux (`--xvfb`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub virtual_display: Option<VirtualDisplay>,
-    /// The port of Chrome's remote debugger (`--remote-debug`).
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub debugging_port: Option<u16>,
-    /// Whether the remote debugger may take another port when `debugging_port` is in use.
-    /// Set by [`with_remote_debug`](crate::BrowserConfig::with_remote_debug), which asks for
-    /// the default port only; a port named with
-    /// [`with_remote_debug_port`](crate::BrowserConfig::with_remote_debug_port) is an error
-    /// when it is busy.
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub debugging_any_port: bool,
-}
-
-impl BrowserSettings {
-    /// Whether `switch` is on.
-    #[must_use]
-    pub fn has(&self, switch: LaunchSwitch) -> bool {
-        self.switches.get(&switch).copied().unwrap_or(false)
-    }
-
-    /// Turns `switch` on or off. Off removes the entry, so a value that sets nothing is a
-    /// value that writes nothing.
-    pub fn set(&mut self, switch: LaunchSwitch, on: bool) {
-        if on {
-            self.switches.insert(switch, true);
-        } else {
-            self.switches.remove(&switch);
-        }
-    }
-
-    /// The switches that are on, in the order of [`LaunchSwitch`].
-    pub fn switches_on(&self) -> impl Iterator<Item = LaunchSwitch> + '_ {
-        self.switches
-            .iter()
-            .filter(|(_, on)| **on)
-            .map(|(switch, _)| *switch)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
+
+    use crate::browser::config::Browser;
+    use crate::config::ad_block_list::AdBlockList;
 
     #[test]
     fn the_default_changes_nothing_and_writes_only_the_browser() {

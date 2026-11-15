@@ -682,9 +682,11 @@ Launch and session plumbing:
 <LayoutFile name="launcher.rs" note="chromedriver discovery, startup and StealthOptions" />
 <LayoutFile name="mod.rs" note="the browser module" />
 <LayoutDir name="options" open note="typed launch settings">
+<LayoutFile name="browser_settings.rs" note="BrowserSettings, what both engines start" />
 <LayoutFile name="capabilities.rs" note="capabilities added to the session" />
 <LayoutFile name="cdp_events.rs" note="which DevTools events are logged" />
 <LayoutFile name="chromium_args.rs" note="Chromium switches" />
+<LayoutFile name="chromium_settings.rs" note="Chromium settings with no switch of their own" />
 <LayoutFile name="device.rs" note="mobile device emulation" />
 <LayoutFile name="driver.rs" note="driver settings" />
 <LayoutFile name="extensions.rs" note="extensions to load" />
@@ -695,6 +697,7 @@ Launch and session plumbing:
 <LayoutFile name="page_load.rs" note="how long a navigation waits" />
 <LayoutFile name="plugins.rs" note="plugins turned on for the browser" />
 <LayoutFile name="proxy.rs" note="the proxy" />
+<LayoutFile name="proxy_settings.rs" note="ProxySettings, the proxy a browser uses" />
 <LayoutFile name="remote.rs" note="a remote WebDriver server" />
 <LayoutFile name="session.rs" note="SessionSettings and GridSettings, what only a WebDriver session reads" />
 <LayoutFile name="switches.rs" note="browser switches" />
@@ -955,6 +958,8 @@ helpers.
 <LayoutFile name="units.rs" note="units of a converted test" />
 </LayoutDir>
 <LayoutFile name="recorder.rs" note="imports a recording" />
+<LayoutFile name="script_import.rs" note="ScriptImport, the Rust a script import produced" />
+<LayoutFile name="script_import_options.rs" note="ScriptImportOptions, how to import" />
 <LayoutFile name="selector.rs" note="selectors in the imported test" />
 <LayoutFile name="tests.rs" note="tests of the importer" />
 <LayoutFile name="translate.rs" note="translates one call" />

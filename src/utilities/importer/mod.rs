@@ -50,6 +50,9 @@ mod parser;
 mod program;
 pub(crate) mod pyconv;
 mod recorder;
+mod script_import;
+mod script_import_options;
+
 mod selector;
 mod translate;
 
@@ -58,6 +61,9 @@ use std::fmt;
 use std::path::Path;
 
 pub use crate::utilities::python_importer::{ImportDiagnostic, ImportSeverity};
+pub use script_import::ScriptImport;
+pub use script_import_options::ScriptImportOptions;
+
 use crate::SeleniumBaseError;
 
 use emit::{TestOut, Tool};
@@ -159,46 +165,6 @@ impl ScriptLanguage {
 impl fmt::Display for ScriptLanguage {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.name())
-    }
-}
-
-/// How to import.
-#[derive(Clone, Debug)]
-pub struct ScriptImportOptions {
-    /// The source language; `None` detects it from the content.
-    pub language: Option<ScriptLanguage>,
-    /// The name of the test generated for a script that has no test titles
-    /// (codegen output, a plain script).
-    pub test_name: String,
-}
-
-impl Default for ScriptImportOptions {
-    fn default() -> Self {
-        Self {
-            language: None,
-            test_name: "imported_test".to_owned(),
-        }
-    }
-}
-
-/// The generated Rust and what could not be converted.
-#[derive(Clone, Debug)]
-pub struct ScriptImport {
-    /// The Rust file: one `#[tokio::test]` per test.
-    pub rust: String,
-    /// One diagnostic per statement left as a `TODO`, with its line.
-    pub diagnostics: Vec<ImportDiagnostic>,
-    /// The language the source was read as.
-    pub language: ScriptLanguage,
-    /// The names of the generated test functions.
-    pub tests: Vec<String>,
-}
-
-impl ScriptImport {
-    /// Whether everything was converted: no statement became a `TODO`.
-    #[must_use]
-    pub fn is_complete(&self) -> bool {
-        self.diagnostics.is_empty()
     }
 }
 

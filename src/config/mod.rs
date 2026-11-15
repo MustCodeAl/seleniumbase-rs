@@ -1,3 +1,6 @@
+//! How a run is configured: the settings file, `SB_*` variables, the proxy
+//! list, the ad-block list, and the runtime log format.
+
 pub mod ad_block_list;
 pub mod browser_options;
 pub mod env_vars;
