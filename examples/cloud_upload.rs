@@ -124,9 +124,11 @@ async fn upload_to_s3(artifact: &std::path::Path) -> Outcome {
     {
         return Outcome::Skipped(reason);
     }
-    let bucket = std::env::var("SB_S3_BUCKET").unwrap_or_default();
-    let region = std::env::var("AWS_REGION").unwrap_or_else(|_| "us-east-1".to_owned());
-    match S3LoggingPlugin::upload_file(&bucket, &object_name(artifact), artifact, &region).await {
+    let plugin = match S3LoggingPlugin::from_env() {
+        Ok(plugin) => plugin,
+        Err(error) => return Outcome::Failed(error.to_string()),
+    };
+    match plugin.upload(artifact, &object_name(artifact)).await {
         Ok(()) => Outcome::Uploaded,
         Err(error) => Outcome::Failed(error.to_string()),
     }
@@ -139,7 +141,11 @@ async fn upload_to_azure(artifact: &std::path::Path) -> Outcome {
     if let Some(reason) = unset_variables(&["AZURE_BLOB_URL"]) {
         return Outcome::Skipped(reason);
     }
-    match AzureLoggingPlugin::upload_file(artifact).await {
+    let plugin = match AzureLoggingPlugin::from_env() {
+        Ok(plugin) => plugin,
+        Err(error) => return Outcome::Failed(error.to_string()),
+    };
+    match plugin.upload(artifact).await {
         Ok(()) => Outcome::Uploaded,
         Err(error) => Outcome::Failed(error.to_string()),
     }
@@ -152,8 +158,11 @@ async fn upload_to_gcs(artifact: &std::path::Path) -> Outcome {
     if let Some(reason) = unset_variables(&["SB_GCS_BUCKET", "GCS_ACCESS_TOKEN"]) {
         return Outcome::Skipped(reason);
     }
-    let bucket = std::env::var("SB_GCS_BUCKET").unwrap_or_default();
-    match GcpLoggingPlugin::upload_file(&bucket, &object_name(artifact), artifact).await {
+    let plugin = match GcpLoggingPlugin::from_env() {
+        Ok(plugin) => plugin,
+        Err(error) => return Outcome::Failed(error.to_string()),
+    };
+    match plugin.upload(artifact, &object_name(artifact)).await {
         Ok(()) => Outcome::Uploaded,
         Err(error) => Outcome::Failed(error.to_string()),
     }

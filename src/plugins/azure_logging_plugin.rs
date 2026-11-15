@@ -1,18 +1,18 @@
 //! Azure Blob Storage logging plugin.
 //!
 //! Uploads through [`object_store::azure::MicrosoftAzureBuilder`]
-//! (object_store 0.12, feature `azure`). Docs: <https://docs.rs/object_store/0.12.4/object_store/azure/struct.MicrosoftAzureBuilder.html>.
+//! (object_store 0.14.2, feature `azure`). Docs: <https://docs.rs/object_store/0.14.2/object_store/azure/struct.MicrosoftAzureBuilder.html>.
 //!
-//! Authentication is a SAS URL. Set `AZURE_BLOB_URL` to the full blob URL
-//! including the SAS token, for example:
-//!
-//! ```bash
-//! export AZURE_BLOB_URL="https://myaccount.blob.core.windows.net/mycontainer/myblob?sv=...&sig=..."
-//! ```
+//! [`from_env`](AzureLoggingPlugin::from_env) reads `AZURE_BLOB_URL`, a blob URL
+//! with a SAS token that has write permission. [`from_lookup`](AzureLoggingPlugin::from_lookup)
+//! takes that name from a closure.
 
+use std::fmt;
 use std::path::Path;
+use std::sync::Arc;
 
 use object_store::azure::MicrosoftAzureBuilder;
+use object_store::ObjectStore;
 use thiserror::Error;
 use tokio::fs;
 
@@ -31,21 +31,32 @@ pub enum AzureUploadError {
     Upload(String),
 }
 
-/// Uploads test artifacts, such as the files the failure plugins save, to Azure
-/// Blob Storage.
+/// Uploads test artifacts, such as the files the failure plugins save, to one Azure blob.
 ///
-/// It has no hooks of its own: call [`upload_file`](Self::upload_file) after a
+/// It has no hooks of its own: build it with [`from_env`](Self::from_env) or
+/// [`from_lookup`](Self::from_lookup), then call [`upload`](Self::upload) after a
 /// test, for example on the screenshot a
 /// [`ScreenshotOnFailurePlugin`](crate::plugins::screen_shots::ScreenshotOnFailurePlugin)
 /// wrote.
-pub struct AzureLoggingPlugin;
+///
+/// `Debug` names the type and not the SAS token.
+#[non_exhaustive]
+pub struct AzureLoggingPlugin {
+    store: Arc<dyn ObjectStore>,
+    blob: String,
+}
+
+impl fmt::Debug for AzureLoggingPlugin {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AzureLoggingPlugin")
+            .field("blob", &self.blob)
+            .finish_non_exhaustive()
+    }
+}
 
 impl AzureLoggingPlugin {
-    pub fn new() -> Self {
-        Self
-    }
-
-    /// Upload `path` to the Azure Blob URL given by `AZURE_BLOB_URL`.
+    /// The blob `AZURE_BLOB_URL` names.
     ///
     /// The URL must include a SAS token with write permission. The account is
     /// the first label of the host, the container is the first path segment,
@@ -54,10 +65,21 @@ impl AzureLoggingPlugin {
     /// # Errors
     ///
     /// Returns [`AzureUploadError::MissingEnv`] when `AZURE_BLOB_URL` is unset,
-    /// and [`AzureUploadError::InvalidUrl`] when the URL has no account or container.
-    pub async fn upload_file(path: &Path) -> Result<(), AzureUploadError> {
-        let url_str = std::env::var("AZURE_BLOB_URL")
-            .map_err(|_| AzureUploadError::MissingEnv("AZURE_BLOB_URL"))?;
+    /// and [`AzureUploadError::InvalidUrl`] when the URL has no account, container,
+    /// or blob name.
+    pub fn from_env() -> Result<Self, AzureUploadError> {
+        Self::from_lookup(|name| std::env::var(name).ok())
+    }
+
+    /// The same blob as [`from_env`](Self::from_env), read through `lookup`.
+    ///
+    /// # Errors
+    ///
+    /// As [`from_env`](Self::from_env).
+    pub fn from_lookup(lookup: impl Fn(&str) -> Option<String>) -> Result<Self, AzureUploadError> {
+        let url_str = lookup("AZURE_BLOB_URL")
+            .filter(|value| !value.trim().is_empty())
+            .ok_or(AzureUploadError::MissingEnv("AZURE_BLOB_URL"))?;
         let url = url::Url::parse(&url_str)
             .map_err(|error| AzureUploadError::InvalidUrl(error.to_string()))?;
         let host = url
@@ -81,40 +103,94 @@ impl AzureLoggingPlugin {
             .query_pairs()
             .map(|(key, value)| (key.into_owned(), value.into_owned()))
             .collect();
-
         let store = MicrosoftAzureBuilder::new()
             .with_account(account)
             .with_container_name(container)
             .with_sas_authorization(sas)
             .build()
             .map_err(|error| AzureUploadError::Upload(error.to_string()))?;
+        Ok(Self {
+            store: Arc::new(store),
+            blob: blob.to_owned(),
+        })
+    }
 
-        let bytes = fs::read(path).await?;
-        object_log::put_bytes(&store, blob, bytes)
+    /// Uploads the file at `path` to the blob this plugin was built for.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`AzureUploadError::Io`] when the file cannot be read, and
+    /// [`AzureUploadError::Upload`] when the store rejects the write.
+    pub async fn upload(&self, path: impl AsRef<Path>) -> Result<(), AzureUploadError> {
+        let bytes = fs::read(path.as_ref()).await?;
+        object_log::put_bytes(self.store.as_ref(), &self.blob, bytes)
             .await
             .map_err(|error| AzureUploadError::Upload(error.to_string()))?;
         Ok(())
     }
-}
 
-impl Default for AzureLoggingPlugin {
-    fn default() -> Self {
-        Self::new()
+    #[cfg(test)]
+    fn for_store(store: Arc<dyn ObjectStore>, blob: String) -> Self {
+        Self { store, blob }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
+    use object_store::memory::InMemory;
+    use object_store::path::Path as ObjectPath;
+    use object_store::{ObjectStore, ObjectStoreExt};
+
     use super::*;
 
     #[test]
-    fn upload_file_requires_blob_url() {
-        let err = tokio::runtime::Runtime::new()
-            .unwrap()
-            .block_on(AzureLoggingPlugin::upload_file(Path::new(
-                "/nonexistent/path",
-            )))
-            .unwrap_err();
-        assert!(matches!(err, AzureUploadError::MissingEnv(_)));
+    fn from_lookup_reports_a_missing_url_without_reading_the_process() {
+        let error = AzureLoggingPlugin::from_lookup(|_| None).unwrap_err();
+        assert!(matches!(
+            error,
+            AzureUploadError::MissingEnv("AZURE_BLOB_URL")
+        ));
+    }
+
+    #[test]
+    fn from_lookup_rejects_a_url_with_no_blob_name() {
+        let error = AzureLoggingPlugin::from_lookup(|name| {
+            (name == "AZURE_BLOB_URL")
+                .then(|| "https://account.blob.core.windows.net/container".to_owned())
+        })
+        .unwrap_err();
+        assert!(matches!(error, AzureUploadError::InvalidUrl(_)));
+    }
+
+    #[test]
+    fn debug_names_the_blob_and_not_the_sas_token() {
+        let plugin =
+            AzureLoggingPlugin::for_store(Arc::new(InMemory::new()), "logs/a.txt".to_owned());
+        let rendered = format!("{plugin:?}");
+        assert!(rendered.contains("logs/a.txt"));
+        assert!(!rendered.contains("sig="));
+    }
+
+    #[tokio::test]
+    async fn upload_writes_the_file_to_an_in_memory_store() {
+        let store = Arc::new(InMemory::new());
+        let plugin = AzureLoggingPlugin::for_store(
+            Arc::clone(&store) as Arc<dyn ObjectStore>,
+            "logs/a.txt".to_owned(),
+        );
+        let dir = tempfile::tempdir().expect("temp dir");
+        let path = dir.path().join("a.txt");
+        std::fs::write(&path, b"hello").expect("write");
+        plugin.upload(&path).await.expect("upload");
+        let got = store
+            .get(&ObjectPath::from("logs/a.txt"))
+            .await
+            .expect("get")
+            .bytes()
+            .await
+            .expect("body");
+        assert_eq!(&got[..], b"hello");
     }
 }

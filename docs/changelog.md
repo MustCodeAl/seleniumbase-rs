@@ -62,8 +62,18 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   their lock. Clippy disallows `std::panic::catch_unwind`, `FutureExt::catch_unwind` and
   `PoisonError::into_inner` unless the call carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
 
+- `logs_root_with` takes the lookup for `SB_REPORT_ROOT`. A missing or blank value is still the
+  empty path. `logs_root` reads the environment through that function.
+
 
 ### Breaking
+
+- **Breaking: the cloud logging plugins take an upload target.** `S3LoggingPlugin`,
+  `AzureLoggingPlugin` and `GcpLoggingPlugin` are no longer empty values, and `upload_file`, `new`
+  and `Default` are gone. `from_env` reads the account (`SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`, optional `SB_S3_REGION`, `AWS_REGION` and `AWS_ENDPOINT_URL`;
+  `AZURE_BLOB_URL`; `SB_GCS_BUCKET` and `GCS_ACCESS_TOKEN`). `from_lookup` takes the same names from
+  a closure. `upload` writes one file. `Debug` does not include the secret or the access token.
 
 - **Breaking: dropping a `TestRecorder` no longer writes the result.** A panic used to be recorded
   as failed (`the test panicked`, and `basic_test_info.txt` was written) and a plain drop as

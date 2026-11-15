@@ -77,8 +77,17 @@ pub const ARCHIVED_REPORTS_DIR: &str = "archived_reports";
 /// runs the tests of each package from that package's folder.
 #[must_use]
 pub fn logs_root() -> PathBuf {
-    std::env::var(REPORT_ROOT_VARIABLE)
-        .ok()
+    logs_root_with(|name| std::env::var(name).ok())
+}
+
+/// The folder [`logs_root`] would return when `lookup` answers for
+/// [`REPORT_ROOT_VARIABLE`].
+///
+/// A missing or blank answer is the empty path, the current folder. A test
+/// passes a closure and does not change the process environment.
+#[must_use]
+pub fn logs_root_with(lookup: impl FnOnce(&str) -> Option<String>) -> PathBuf {
+    lookup(REPORT_ROOT_VARIABLE)
         .filter(|root| !root.trim().is_empty())
         .map(PathBuf::from)
         .unwrap_or_default()
@@ -548,6 +557,19 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
+
+    #[test]
+    fn logs_root_with_uses_the_lookup() {
+        assert_eq!(
+            logs_root_with(|name| {
+                assert_eq!(name, REPORT_ROOT_VARIABLE);
+                Some("reports".to_owned())
+            }),
+            PathBuf::from("reports")
+        );
+        assert_eq!(logs_root_with(|_| Some("   ".to_owned())), PathBuf::new());
+        assert_eq!(logs_root_with(|_| None), PathBuf::new());
+    }
 
     #[test]
     fn a_plain_file_name_is_accepted() {
