@@ -205,12 +205,10 @@ def browser_detail():
     options = _folder(
         "options", "typed launch settings",
         _file("browser_settings.rs", "BrowserSettings, what both engines start"),
-
         _file("capabilities.rs", "capabilities added to the session"),
         _file("cdp_events.rs", "which DevTools events are logged"),
         _file("chromium_args.rs", "Chromium switches"),
         _file("chromium_settings.rs", "Chromium settings with no switch of their own"),
-
         _file("device.rs", "mobile device emulation"),
         _file("driver.rs", "driver settings"),
         _file("extensions.rs", "extensions to load"),
@@ -222,7 +220,6 @@ def browser_detail():
         _file("plugins.rs", "plugins turned on for the browser"),
         _file("proxy.rs", "the proxy"),
         _file("proxy_settings.rs", "ProxySettings, the proxy a browser uses"),
-
         _file("remote.rs", "a remote WebDriver server"),
         _file("session.rs", "SessionSettings and GridSettings, what only a WebDriver session reads"),
 
@@ -412,7 +409,6 @@ def utilities_detail():
         _file("recorder.rs", "imports a recording"),
         _file("script_import.rs", "ScriptImport, the Rust a script import produced"),
         _file("script_import_options.rs", "ScriptImportOptions, how to import"),
-
         _file("selector.rs", "selectors in the imported test"),
         _file("tests.rs", "tests of the importer"),
         _file("translate.rs", "translates one call"),
