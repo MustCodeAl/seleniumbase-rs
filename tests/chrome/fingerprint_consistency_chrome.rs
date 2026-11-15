@@ -61,6 +61,7 @@ const CLOSED: &[&str] = &[
     "plugins_vs_device",
     "pdf_viewer_vs_plugins",
     "keyboard_vs_locale",
+    "webgl_extensions_vs_renderer",
 ];
 
 /// The gaps the evasions leave open today, by rule, each with the rank it has
@@ -82,10 +83,6 @@ const OPEN: &[(&str, &str)] = &[
     (
         "api_missing_vs_persona",
         "host: an API the host's Chrome lacks cannot be added honestly",
-    ),
-    (
-        "webgl_extensions_vs_renderer",
-        "step 15: the host's WebGL extensions",
     ),
     (
         "storage_quota_vs_device",

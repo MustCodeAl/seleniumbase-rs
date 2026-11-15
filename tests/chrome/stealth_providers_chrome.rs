@@ -1370,3 +1370,67 @@ async fn the_layout_map_is_the_persona_s() {
         "a stand-in refuses another receiver as the browser's method does: {seen}"
     );
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_phone_gpu_has_no_s3tc() {
+    let lab = lab().await;
+    let read = r##"(() => {
+        const desktop = ['WEBGL_compressed_texture_s3tc', 'WEBKIT_WEBGL_compressed_texture_s3tc',
+            'WEBGL_compressed_texture_s3tc_srgb', 'EXT_texture_compression_bptc',
+            'EXT_texture_compression_rgtc'];
+        const of = (kind) => {
+            const gl = document.createElement('canvas').getContext(kind);
+            if (!gl) { return null; }
+            const list = gl.getSupportedExtensions() || [];
+            return {
+                listed: desktop.filter((name) => list.includes(name)),
+                answered: desktop.filter((name) => gl.getExtension(name) !== null),
+                anyCase: gl.getExtension('webgl_compressed_texture_s3tc') !== null,
+                count: list.length,
+                native: gl.getSupportedExtensions.toString().includes('[native code]')
+                    && gl.getExtension.toString().includes('[native code]'),
+            };
+        };
+        return { webgl: of('webgl'), webgl2: of('webgl2') };
+    })()"##;
+    let before = lab.eval(read).await;
+    println!("the host's own desktop compression before the install: {before}");
+
+    let phone = Fingerprint::android_mobile();
+    lab.install(&phone, &["webgl"]).await;
+    let after = lab.eval(read).await;
+    let captured = lab
+        .page
+        .capture_fingerprint()
+        .await
+        .expect("the capture runs");
+    lab.close().await;
+
+    for kind in ["webgl", "webgl2"] {
+        if before[kind].is_null() {
+            continue;
+        }
+        let (was, is) = (&before[kind], &after[kind]);
+        assert_eq!(is["listed"], json!([]), "{kind}: {after}");
+        assert_eq!(is["answered"], json!([]), "{kind}: {after}");
+        assert_eq!(is["anyCase"], json!(false), "{kind}: {after}");
+        assert_eq!(is["native"], json!(true), "{kind}: {after}");
+        let dropped = was["listed"].as_array().map_or(0, Vec::len);
+        assert_eq!(
+            is["count"].as_u64().map(|count| count + dropped as u64),
+            was["count"].as_u64(),
+            "{kind}: only the desktop compression left the list: {before} then {after}"
+        );
+    }
+    let found: Vec<_> = captured
+        .contradictions()
+        .into_iter()
+        .filter(|c| c.rule == "webgl_extensions_vs_renderer")
+        .collect();
+    assert!(
+        found.is_empty(),
+        "the capture finds the extension list contradicting the renderer: {found:?}"
+    );
+}

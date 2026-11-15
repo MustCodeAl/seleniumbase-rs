@@ -282,6 +282,15 @@ pub(super) fn check(captured: &CapturedFingerprint) -> Vec<Contradiction> {
 // Graphics
 // ---------------------------------------------------------------------------
 
+/// Whether a WebGL renderer string names a phone GPU (`Adreno`, `Mali`,
+/// `PowerVR`), which compresses textures with ETC and ASTC and never with the
+/// desktop formats (S3TC, BPTC, RGTC).
+pub(crate) fn is_mobile_gpu(renderer: &str) -> bool {
+    ["Adreno", "Mali", "PowerVR"]
+        .iter()
+        .any(|needle| renderer.contains(needle))
+}
+
 /// The maker a WebGL vendor or renderer string names, in the word WebGPU uses.
 pub(crate) fn gpu_maker(text: &str) -> Option<&'static str> {
     let lower = text.to_ascii_lowercase();
@@ -1515,9 +1524,7 @@ fn webgl_parameters(
     let Some((_, renderer)) = webgl_strings(fp) else {
         return;
     };
-    let mobile_gpu = ["Adreno", "Mali", "PowerVR"]
-        .iter()
-        .any(|needle| renderer.contains(needle));
+    let mobile_gpu = is_mobile_gpu(&renderer);
     if !mobile_gpu {
         return;
     }
@@ -1799,6 +1806,21 @@ mod tests {
     }
 
     #[test]
+    fn a_renderer_of_a_phone_gpu_is_mobile() {
+        for phone in ["Adreno (TM) 740", "Mali-G715", "PowerVR Rogue GE8320"] {
+            assert!(is_mobile_gpu(phone), "{phone}");
+        }
+        for desktop in [
+            "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+            "ANGLE (Apple, ANGLE Metal Renderer: Apple M1, Unspecified Version)",
+            "",
+        ] {
+            assert!(!is_mobile_gpu(desktop), "{desktop}");
+        }
+    }
+
+    #[test]
+
     fn the_loudest_contradiction_comes_first_and_names_both_surfaces() {
         let found = found(&probe());
 

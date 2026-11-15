@@ -21,8 +21,8 @@ use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
 use crate::evasion::fingerprint::{api_expected, BrowserType, TASKBAR_HEIGHT};
 
 use crate::evasion::fingerprint::{
-    gpu_architecture, gpu_maker, languages_for_locale, AudioNoise, CanvasNoise, Dimension,
-    Fingerprint, Geolocation, OsType, AUDIO_SEED_MASK,
+    gpu_architecture, gpu_maker, is_mobile_gpu, languages_for_locale, AudioNoise, CanvasNoise,
+    Dimension, Fingerprint, Geolocation, OsType, AUDIO_SEED_MASK,
 };
 
 /// Fills `@NAME@` markers in a JavaScript template, in one pass.
@@ -681,11 +681,46 @@ impl EvasionProvider for WindowGeometryProvider {
     }
 }
 
+/// The WebGL extensions of the desktop texture-compression formats. A phone GPU
+/// compresses textures with ETC and ASTC, so a persona that names one lists none
+/// of these (Chrome also lists the S3TC one under its `WEBKIT_` alias).
+const DESKTOP_COMPRESSION_EXTENSIONS: [&str; 5] = [
+    "WEBGL_compressed_texture_s3tc",
+    "WEBKIT_WEBGL_compressed_texture_s3tc",
+    "WEBGL_compressed_texture_s3tc_srgb",
+    "EXT_texture_compression_bptc",
+    "EXT_texture_compression_rgtc",
+];
+
+/// What `WebglProvider` adds to its `patch` function for a phone GPU: the
+/// extension list without the names in `@HIDDEN@`, and `null` from
+/// `getExtension` for them (the name match is case-insensitive, as the
+/// browser's).
+const HIDE_EXTENSIONS_JS: &str = r##"
+    const hidden = @HIDDEN@;
+    const hiddenLower = hidden.map(function (name) { return name.toLowerCase(); });
+    const listed = context.prototype.getSupportedExtensions;
+    context.prototype.getSupportedExtensions = sb.native(function getSupportedExtensions() {
+      const list = listed.apply(this, arguments);
+      return Array.isArray(list) ? list.filter(function (name) { return hidden.indexOf(name) === -1; }) : list;
+    }, 'getSupportedExtensions', listed);
+    const asked = context.prototype.getExtension;
+    context.prototype.getExtension = sb.native(function getExtension(name) {
+      if (hiddenLower.indexOf(String(name).toLowerCase()) !== -1) { return null; }
+      return asked.apply(this, arguments);
+    }, 'getExtension', asked);"##;
+
 /// Overrides WebGL `UNMASKED_VENDOR_WEBGL` / `UNMASKED_RENDERER_WEBGL`.
 ///
 /// The fingerprint's optional GPU vendor and renderer ids are not emitted: no
 /// browser API shows them to a page, and a property to carry them would only
 /// be one more thing to find.
+///
+/// When the renderer names a phone GPU (`Adreno`, `Mali`, `PowerVR`), the
+/// provider also drops the desktop texture-compression extensions (S3TC, BPTC,
+/// RGTC) from `getSupportedExtensions()` and makes `getExtension` answer `null`
+/// for them, so the extension list agrees with the renderer.
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WebglProvider;
 
@@ -705,6 +740,21 @@ impl EvasionProvider for WebglProvider {
         let literal = |given: Option<&str>| given.map_or_else(|| "null".to_owned(), quoted);
         let vendor = literal(webgl.and_then(|gl| gl.vendor.as_deref()));
         let renderer = literal(webgl.and_then(|gl| gl.renderer.as_deref()));
+        // A phone GPU lists none of the desktop texture compression.
+        let phone = webgl
+            .and_then(|gl| gl.renderer.as_deref())
+            .is_some_and(is_mobile_gpu);
+        let extensions = if phone {
+            let hidden = DESKTOP_COMPRESSION_EXTENSIONS
+                .iter()
+                .map(|name| quoted(name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            render(HIDE_EXTENSIONS_JS, &[("HIDDEN", &format!("[{hidden}]"))])
+        } else {
+            String::new()
+        };
+
         Some(render(
             r##"(function () {
   @SB@
@@ -717,12 +767,16 @@ impl EvasionProvider for WebglProvider {
       if (parameter === 37445 && vendor !== null) { return vendor; }
       if (parameter === 37446 && renderer !== null) { return renderer; }
       return original.apply(this, arguments);
-    }, 'getParameter', original);
+    }, 'getParameter', original);@EXTENSIONS@
   }
   patch(window.WebGLRenderingContext);
   patch(window.WebGL2RenderingContext);
 })();"##,
-            &[("VENDOR", &vendor), ("RENDERER", &renderer)],
+            &[
+                ("VENDOR", &vendor),
+                ("RENDERER", &renderer),
+                ("EXTENSIONS", &extensions),
+            ],
         ))
     }
 }
@@ -2554,6 +2608,51 @@ mod tests {
         // No protocol command delivers it, so native spoofing does not take it over.
         let native = windows_with(|b| b.native_spoofing(true));
         assert!(KeyboardLayoutProvider.applies(&native));
+    }
+
+    #[test]
+
+    fn a_phone_gpu_drops_the_desktop_compression_extensions() {
+        let phone = Fingerprint::android_mobile();
+        assert!(
+            phone
+                .webgl()
+                .value()
+                .and_then(|gl| gl.renderer.as_deref())
+                .is_some_and(|renderer| renderer.contains("Adreno")),
+            "the Android preset names a phone GPU"
+        );
+
+        let script = WebglProvider.script(&ctx_for(&phone)).unwrap();
+
+        for name in [
+            "WEBGL_compressed_texture_s3tc",
+            "WEBGL_compressed_texture_s3tc_srgb",
+            "EXT_texture_compression_bptc",
+            "EXT_texture_compression_rgtc",
+        ] {
+            assert!(script.contains(&format!("'{name}'")), "{name}: {script}");
+        }
+        assert!(script.contains("getSupportedExtensions"), "{script}");
+        assert!(script.contains("function getExtension"), "{script}");
+        assert!(
+            script.contains("UNMASKED") || script.contains("37445"),
+            "the renderer strings are still answered: {script}"
+        );
+    }
+
+    #[test]
+    fn a_desktop_gpu_keeps_them() {
+        for desktop in [
+            Fingerprint::windows_desktop(),
+            Fingerprint::macos_desktop(),
+            Fingerprint::linux_desktop(),
+        ] {
+            let script = WebglProvider.script(&ctx_for(&desktop)).unwrap();
+
+            assert!(!script.contains("getSupportedExtensions"), "{script}");
+            assert!(!script.contains("compressed_texture"), "{script}");
+        }
     }
 
     #[test]
