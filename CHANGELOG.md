@@ -49,6 +49,9 @@ work, `docs/parity.md` the per-API status).
 
 ### Fixed
 
+- `BatteryProfile::default()` is a full battery on the charger; it charged at 94 % with no time
+  to full, a shape Chrome never reports (`battery_shape` is closed).
+
 - Without native spoofing, Intl followed the machine's locale while `navigator.language` said
   the persona's; every Intl constructor and `toLocale*String` now default to the persona's
   language (the `localization` provider).

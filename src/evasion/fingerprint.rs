@@ -235,7 +235,7 @@ impl Default for BatteryProfile {
     fn default() -> Self {
         Self {
             charging: true,
-            level: 0.94,
+            level: 1.0,
             charging_time: 0.0,
             discharging_time: f64::INFINITY,
         }
@@ -2992,6 +2992,22 @@ mod tests {
             drawn(OsType::Windows, 3).storage_quota(),
             drawn(OsType::Windows, 4).storage_quota()
         );
+    }
+
+    #[test]
+
+    fn the_default_battery_is_the_shape_chrome_gives_a_full_one() {
+        let battery = BatteryProfile::default();
+
+        // Chrome on a desktop with no battery reports exactly this, and a full one on the
+        // charger reports it too: no 94 % with no time left to charge.
+        assert!(battery.charging);
+        assert!((battery.level - 1.0).abs() < f64::EPSILON, "{battery:?}");
+        assert!(battery.charging_time.abs() < f64::EPSILON, "{battery:?}");
+        assert!(battery.discharging_time.is_infinite(), "{battery:?}");
+        for preset in [Fingerprint::windows_desktop(), Fingerprint::macos_desktop()] {
+            assert_eq!(preset.battery().value(), Some(&battery));
+        }
     }
 
     #[test]

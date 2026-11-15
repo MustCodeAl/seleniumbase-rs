@@ -1806,6 +1806,26 @@ mod tests {
     }
 
     #[test]
+    fn the_battery_of_a_preset_is_not_a_battery_shape() {
+        let battery = crate::evasion::fingerprint::BatteryProfile::default();
+        let mut raw = probe();
+        set(&mut raw, "battery.level", json!(battery.level));
+        set(&mut raw, "battery.charging", json!(battery.charging));
+        set(
+            &mut raw,
+            "battery.chargingTime",
+            json!(battery.charging_time),
+        );
+
+        assert!(!rules(&raw).contains(&"battery_shape"), "{:?}", rules(&raw));
+
+        // The shape Chrome never reports: charging at 94 % with no time to full.
+        set(&mut raw, "battery.level", json!(0.94));
+        assert!(rules(&raw).contains(&"battery_shape"));
+    }
+
+    #[test]
+
     fn a_renderer_of_a_phone_gpu_is_mobile() {
         for phone in ["Adreno (TM) 740", "Mali-G715", "PowerVR Rogue GE8320"] {
             assert!(is_mobile_gpu(phone), "{phone}");

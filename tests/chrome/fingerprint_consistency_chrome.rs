@@ -63,6 +63,7 @@ const CLOSED: &[&str] = &[
     "keyboard_vs_locale",
     "webgl_extensions_vs_renderer",
     "storage_quota_vs_device",
+    "battery_shape",
 ];
 
 /// The gaps the evasions leave open today, by rule, each with the rank it has
@@ -84,10 +85,6 @@ const OPEN: &[(&str, &str)] = &[
     (
         "api_missing_vs_persona",
         "host: an API the host's Chrome lacks cannot be added honestly",
-    ),
-    (
-        "battery_shape",
-        "step 18: the preset's battery charges with no time to full",
     ),
 ];
 
