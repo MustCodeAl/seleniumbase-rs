@@ -4,8 +4,8 @@
 //! A scenario is a test function that binds a feature file; its steps are
 //! `#[given]`, `#[when]` and `#[then]` functions that ask for the `sb`
 //! fixture and use the browser. [`sb`] gives a [`SbCase`], which derefs to a
-//! [`BaseCase`]; [`sb_cdp`] gives a [`SbCdpCase`], which derefs to a pure CDP
-//! [`Page`]. Both read the run configuration as the
+//! [`BaseCase`](crate::BaseCase); [`sb_cdp`] gives a [`SbCdpCase`], which derefs to a pure CDP
+//! [`Page`](crate::sb_cdp::Page). Both read the run configuration as the
 //! [`testing`](crate::testing) fixtures do (the settings file, `SB_SETTINGS_FILE`
 //! and the `SB_*` variables that `sbrs test` sets), and when the scenario is
 //! over, whatever its end, they close the browser after taking the evidence of
@@ -25,11 +25,11 @@
 //! // tests/login.rs. The test crate depends on seleniumbase-rs with the features
 //! // `testing` and `bdd`, and on rstest-bdd, which the macros read from the manifest
 //! // (no file names it).
-
+//!
 //! use seleniumbase_rs::testing::bdd::{given, sb, scenario, then, when, SbCase};
 //! use seleniumbase_rs::testing::rstest; // the `scenario` attribute expands to `rstest::` paths
 //! use seleniumbase_rs::tokio;
-
+//!
 //! // `Result` is written out in full: the steps' macros name `std`'s `Result`.
 //!
 //! #[scenario(path = "tests/features/login.feature", name = "Valid login")]
