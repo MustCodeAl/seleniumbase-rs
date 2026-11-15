@@ -7,8 +7,11 @@ use thiserror::Error;
 /// A command extracted from a Selenium IDE HTML test case.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdeCommand {
+    /// The command name, such as `open` or `click`.
     pub command: String,
+    /// The selector or URL the command acts on.
     pub target: String,
+    /// The text or option the command takes. Empty when the command has none.
     pub value: String,
 }
 
@@ -50,6 +53,19 @@ fn cached(cell: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
 /// `&amp;` in a URL comes out as `&`. Rows may span lines, as Selenium IDE writes
 /// them. HTML that is not a table yields an empty list. Reading a string
 /// cannot fail.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utilities::selenium_ide::parse_ide_html;
+///
+/// let commands = parse_ide_html(
+///     "<table><tr><td>open</td><td>/login</td><td></td></tr></table>",
+/// );
+/// assert_eq!(commands[0].command, "open");
+/// assert_eq!(commands[0].target, "/login");
+/// assert!(commands[0].value.is_empty());
+/// ```
 #[must_use]
 pub fn parse_ide_html(html: &str) -> Vec<IdeCommand> {
     static ROW: OnceLock<Regex> = OnceLock::new();

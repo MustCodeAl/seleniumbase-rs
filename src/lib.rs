@@ -210,26 +210,44 @@ pub mod visual;
 /// `io-util` and `fs`); a program that needs another one lists `tokio` itself.
 pub use tokio;
 
+#[doc(inline)]
 pub use api::base_case::{BaseCase, CookieExpiry, DriverId};
+#[doc(inline)]
 pub use api::chart::{Chart, ChartType};
 #[cfg(feature = "gui")]
+#[doc(inline)]
 pub use api::gui::Gui;
+#[doc(inline)]
 pub use api::run_settings::{PauseKind, RunSettings};
+#[doc(inline)]
 pub use api::runner::{run_browser_test, run_cdp_test};
+#[doc(inline)]
 pub use api::tour::TourTheme;
+#[doc(inline)]
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
+#[doc(inline)]
 pub use browser::config::{Browser, BrowserConfig, DriverMode};
+#[doc(inline)]
 pub use browser::element::Element;
+#[doc(inline)]
 pub use browser::options::NetworkThrottle;
-
+#[doc(inline)]
 pub use browser::reuse::shutdown_reused_sessions;
+#[doc(inline)]
 pub use browser::session::BrowserSession;
+#[doc(inline)]
 pub use common::tls::install_tls_provider;
+#[doc(inline)]
 pub use config::settings::{Settings, SettingsOverrides};
+#[doc(inline)]
 pub use config::{LogFormat, RuntimeConfig};
+#[doc(inline)]
 pub use cookie::{Cookie, SameSite};
+#[doc(inline)]
 pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseError};
+#[doc(inline)]
 pub use evasion::capture::CapturedFingerprint;
+#[doc(inline)]
 pub use evasion::fingerprint::{
     AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
     CoherenceReport, ConnectionProfile, Dimension, Fingerprint, FingerprintBuilder,
@@ -237,21 +255,27 @@ pub use evasion::fingerprint::{
     ProxyConfig, QuicMode, ScreenSize, SettingDiff, SpeechVoice, Spoof, StealthPolicy, WebGl,
     WebRtcAddresses, WebRtcPolicy,
 };
+#[doc(inline)]
 pub use evasion::providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
     EvasionRegistry, SESSION_OMITTED_PROVIDERS,
 };
+#[doc(inline)]
 pub use evasion::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
 };
+#[doc(inline)]
 pub use sb_cdp::{Key, SelectBy};
-
+#[doc(inline)]
 pub use tracing_util::{
     init_tracing, init_tracing_from_runtime, init_tracing_json, init_tracing_json_with_filter,
     init_tracing_with_filter,
 };
+#[doc(inline)]
 pub use utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
 };
+#[doc(inline)]
 pub use utilities::retry::RetryPolicy;
+#[doc(inline)]
 pub use utils::selectors::Selector;

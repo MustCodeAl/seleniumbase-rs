@@ -69,6 +69,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 - `common`, `config`, `utils` and `utilities` have module docs. Each public module of `utilities` has one too.
 
+- The crate root inlines its own re-exports, so the root page of the docs lists the items. `tokio` stays a link. `IdeCommand` names its three fields, and `parse_ide_html` has an example. `ProfileParams` and `Parameters` document each field.
+
+
 
 
 
