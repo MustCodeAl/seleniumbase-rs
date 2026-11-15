@@ -142,7 +142,7 @@ impl XvfbProcess {
 
     /// Stops the server. It is also stopped when the value is dropped.
     ///
-    /// The wait is [`reap_child`](crate::browser::launcher::reap_child): on a
+    /// The wait is the launcher's `reap_child`: on a
     /// Tokio runtime it runs on the blocking pool.
     pub fn stop(&mut self) {
         if let Some(child) = self.child.take() {
