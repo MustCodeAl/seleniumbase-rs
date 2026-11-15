@@ -1,3 +1,6 @@
+//! Helpers shared by both engines that are not themselves a browser: colour,
+//! the debug prompt, encryption and obfuscation, shutdown, and the test id.
+
 pub mod color;
 pub mod debug_prompt;
 pub mod encryption;

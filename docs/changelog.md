@@ -67,6 +67,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 - `ProxySettings`, `ChromiumSettings` and `BrowserSettings` live in files named after them, and so do `SbCase`, `SbCdpCase`, `ScriptImport` and `ScriptImportOptions`. Each is re-exported from the module it left, so the paths are unchanged. `profile_payloads` names each re-export. The crate docs list the functions that change process-wide state (`install_tls_provider`, the `init_tracing` functions, `shutdown_reused_sessions`). A driver-repair test that finds the system did not kill the altered binary logs that with `tracing` instead of printing it.
 
+- `common`, `config`, `utils` and `utilities` have module docs. Each public module of `utilities` has one too.
+
+
 
 
 ### Breaking
