@@ -595,6 +595,7 @@ capability trait.
 <LayoutFile name="base_case_impl_parity.rs" note="parity helpers" />
 <LayoutFile name="base_case_impl_pdf_html.rs" note="PDF and HTML helpers" />
 <LayoutFile name="base_case_impl_presentations.rs" note="presentations" />
+<LayoutFile name="base_case_impl_pure_cdp_tests.rs" note="tests of BaseCase on a direct CDP attachment" />
 <LayoutFile name="base_case_impl_rec_cdp.rs" note="recorder helpers for CDP" />
 <LayoutFile name="base_case_impl_recorder.rs" note="recorder helpers" />
 <LayoutFile name="base_case_impl_shadow.rs" note="shadow DOM helpers" />
@@ -708,6 +709,7 @@ Launch and session plumbing:
 <LayoutFile name="capabilities.rs" note="the capabilities each browser is asked for" />
 <LayoutFile name="cdp.rs" note="DevTools commands of the session" />
 <LayoutFile name="connect.rs" note="starting a session, a leased one, or a direct CDP attachment" />
+<LayoutFile name="dialogs.rs" note="the JavaScript dialog a direct CDP attachment has open" />
 <LayoutFile name="elements.rs" note="finding and using elements" />
 <LayoutFile name="emulation.rs" note="the ad block and the phone emulation" />
 <LayoutFile name="fingerprint.rs" note="the fingerprint of the session" />
@@ -717,6 +719,7 @@ Launch and session plumbing:
 <LayoutFile name="navigation.rs" note="opening pages and moving through history" />
 <LayoutFile name="page.rs" note="the page: title, source, scripts" />
 <LayoutFile name="plugins.rs" note="browser plugins (feature plugins)" />
+<LayoutFile name="pure_cdp.rs" note="windows, frames, cookies and the scope of a direct CDP attachment" />
 <LayoutFile name="waits.rs" note="waiting for elements and text" />
 </LayoutDir>
 <LayoutFile name="shadow_find.rs" note="finding elements in a shadow root" />

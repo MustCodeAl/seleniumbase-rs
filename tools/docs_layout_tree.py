@@ -135,6 +135,8 @@ def api_detail():
         _file("base_case_impl_parity.rs", "parity helpers"),
         _file("base_case_impl_pdf_html.rs", "PDF and HTML helpers"),
         _file("base_case_impl_presentations.rs", "presentations"),
+        _file("base_case_impl_pure_cdp_tests.rs", "tests of BaseCase on a direct CDP attachment"),
+
         _file("base_case_impl_rec_cdp.rs", "recorder helpers for CDP"),
         _file("base_case_impl_recorder.rs", "recorder helpers"),
         _file("base_case_impl_shadow.rs", "shadow DOM helpers"),
@@ -250,6 +252,8 @@ def browser_detail():
                         _file("capabilities.rs", "the capabilities each browser is asked for"),
                         _file("cdp.rs", "DevTools commands of the session"),
                         _file("connect.rs", "starting a session, a leased one, or a direct CDP attachment"),
+                        _file("dialogs.rs", "the JavaScript dialog a direct CDP attachment has open"),
+
                         _file("elements.rs", "finding and using elements"),
                         _file("emulation.rs", "the ad block and the phone emulation"),
                         _file("fingerprint.rs", "the fingerprint of the session"),
@@ -259,6 +263,8 @@ def browser_detail():
                         _file("navigation.rs", "opening pages and moving through history"),
                         _file("page.rs", "the page: title, source, scripts"),
                         _file("plugins.rs", "browser plugins (feature plugins)"),
+                        _file("pure_cdp.rs", "windows, frames, cookies and the scope of a direct CDP attachment"),
+
                         _file("waits.rs", "waiting for elements and text")),
         _file("shadow_find.rs", "finding elements in a shadow root"),
         _file("virtual_display.rs", "opens a virtual display on Linux"),

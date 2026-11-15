@@ -2,7 +2,7 @@
 //!
 //! [`BaseCase::find_element`](crate::BaseCase::find_element) and the other
 //! methods that hand back an element return this type, and an element has the
-//! methods of the pure CDP engine's [`Locator`](crate::sb_cdp::Locator) for
+//! methods of the pure CDP engine's [`Locator`] for
 //! the same ideas (`text`, `html`, `click`, `type_text`, ...), under the same
 //! names.
 //!
@@ -699,7 +699,7 @@ impl DriverElement {
 ///
 /// [`BaseCase::find_element`](crate::BaseCase::find_element) and the other
 /// methods that hand back an element return this type, and an element has the
-/// methods of the pure CDP engine's [`Locator`](crate::sb_cdp::Locator) for
+/// methods of the pure CDP engine's [`Locator`] for
 /// the same ideas (`text`, `html`, `click`, `type_text`, ...), under the same
 /// names.
 ///
@@ -724,7 +724,7 @@ impl DriverElement {
 /// WebDriver session is reachable with
 /// [`as_webdriver_element`](Self::as_webdriver_element) and
 /// [`into_webdriver_element`](Self::into_webdriver_element); a CDP element has
-/// none, and has a [`Locator`](crate::sb_cdp::Locator) in its place.
+/// none, and has a [`Locator`] in its place.
 ///
 /// # Examples
 ///
