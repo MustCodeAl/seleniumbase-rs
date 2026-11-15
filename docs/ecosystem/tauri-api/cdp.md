@@ -257,11 +257,11 @@ never in a release build.
 
 </Warning>
 
-See the [Tauri setup guide](/ecosystem/tauri#app-owned-chromium-cef-and-webview2)
+See the [Tauri browser guide](/ecosystem/tauri-browser#attach-to-the-webview-from-a-test)
 for complete client examples. Launch flags and binary patches must be applied
 before the app starts. This integration is covered by mock HTTP/CDP tests;
 real CEF/WebView2 app behavior has not been verified in this change.
 
 The `stealth` feature is a different path: fingerprint stealth inside the
 app's process, with no debugging port and no automation gate. See
-[Stealth inside the app](/ecosystem/tauri#stealth-inside-the-app-with-no-debugging-port).
+[Give your shipped webview a fingerprint](/ecosystem/tauri-browser#give-your-shipped-webview-a-fingerprint).
