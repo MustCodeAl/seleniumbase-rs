@@ -519,6 +519,11 @@ mod tests {
                 &["connection"],
             ),
             (
+                "storage_quota",
+                |b| b.storage_quota(300_000_000_000_u64),
+                &["storage_quota"],
+            ),
+            (
                 "speech_voices",
                 |b| b.speech_voices(SpeechVoice::default_set()),
                 &["speech"],
@@ -606,6 +611,7 @@ mod tests {
             "window_geometry",
             "timezone",
             "keyboard_layout",
+            "storage_quota",
             "battery",
             "client_hints",
         ] {
@@ -799,6 +805,7 @@ mod tests {
         localization_passes_the_audit => "localization",
         geolocation_passes_the_audit => "geolocation",
         keyboard_layout_passes_the_audit => "keyboard_layout",
+        storage_quota_passes_the_audit => "storage_quota",
         hairline_passes_the_audit => "hairline",
         iframe_passes_the_audit => "iframe",
         attach_shadow_passes_the_audit => "attach_shadow",

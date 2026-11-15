@@ -52,7 +52,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   given locale, answered by the `keyboard_layout` provider (`navigator.keyboard.getLayoutMap()`)
   and read back by the capture.
 - The `storage_quota` setting (bytes, the quota `navigator.storage.estimate()` reports): a random one
-  is 60 % of a disk of the machine's kind, and a preset claims a 512 GB desktop or a 128 GB phone.
+  is 60 % of a disk of the machine's kind, and a preset claims a 512 GB desktop or a 128 GB phone;
+  the `storage_quota` provider answers `estimate()` and `webkitTemporaryStorage` with it, and the
+  capture reads it back (`storage_quota_vs_device` is closed).
 - A phone GPU's WebGL lists no S3TC, BPTC or RGTC texture compression (`webgl_extensions_vs_renderer`
   is closed): the `webgl` provider drops those extensions when the renderer is an Adreno, Mali or
   PowerVR.

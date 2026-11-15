@@ -583,6 +583,7 @@ impl RawProbe {
         builder = self.map_graphics(builder, unanswered);
         builder = self.map_media(builder, unanswered);
         builder = self.map_keyboard(builder, unanswered);
+        builder = self.map_storage(builder, unanswered);
 
         builder = self.map_devices(builder, unanswered);
         builder = self.map_client_hints(builder, unanswered);
@@ -644,6 +645,38 @@ impl RawProbe {
             "the keyboard map is none of the layouts the setting names"
         };
         note_unanswered(unanswered, "keyboard_layout", Some(reason));
+        builder
+    }
+
+    /// The quota `navigator.storage.estimate()` reported: a finite number of at
+    /// least one byte makes the `storage_quota` setting. A browser with no
+    /// `navigator.storage`, or an estimate that failed or gave no number, leaves
+    /// the setting to the browser and says why. A probe with no storage reading
+    /// at all is silent: the script that wrote it did not read one.
+    fn map_storage(
+        &self,
+        builder: FingerprintBuilder,
+        unanswered: &mut Map<String, Value>,
+    ) -> FingerprintBuilder {
+        let Some(reading) = self.storage.as_ref().and_then(Value::as_object) else {
+            return builder;
+        };
+        // Whole bytes a page can count: up to 2^53 - 1, the last exact integer of a double.
+        let quota = reading
+            .get("quota")
+            .and_then(Value::as_f64)
+            .filter(|n| n.is_finite() && (1.0..=9_007_199_254_740_991.0).contains(n));
+        if let Some(quota) = quota {
+            return builder.storage_quota(quota.round() as u64);
+        }
+        let reason = if let Some(why) = reading.get("unknown").and_then(Value::as_str) {
+            why
+        } else if reading.get("supported") == Some(&Value::Bool(false)) {
+            "the browser has no navigator.storage"
+        } else {
+            "the storage estimate gave no quota"
+        };
+        note_unanswered(unanswered, "storage_quota", Some(reason));
         builder
     }
 
@@ -1404,6 +1437,52 @@ mod tests {
             let found = reasons
                 .iter()
                 .find(|(setting, _)| *setting == "keyboard_layout");
+            assert!(
+                found.is_some_and(|(_, reason)| reason.contains(why)),
+                "{why}: {reasons:?}"
+            );
+        }
+    }
+
+    #[test]
+
+    fn the_quota_reading_becomes_the_setting() {
+        let captured = capture(WINDOWS_ON_MAC);
+
+        assert_eq!(
+            captured.fingerprint.storage_quota().value(),
+            Some(&299_977_052_160)
+        );
+        assert!(!captured.unmapped.contains_key("unanswered"));
+        assert!(
+            captured.unmapped.contains_key("storage"),
+            "the raw reading stays for the consistency rules"
+        );
+    }
+
+    #[test]
+    fn a_storage_the_page_could_not_read_is_unanswered() {
+        for (reading, why) in [
+            (json!({ "supported": false }), "no navigator.storage"),
+            (
+                json!({ "unknown": "the storage quota could not be read" }),
+                "could not be read",
+            ),
+            (
+                json!({ "supported": true, "quota": null, "usage": 0 }),
+                "gave no quota",
+            ),
+        ] {
+            let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+            raw["storage"] = reading;
+
+            let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+            assert!(captured.fingerprint.storage_quota().is_natural());
+            let reasons = captured.unanswered();
+            let found = reasons
+                .iter()
+                .find(|(setting, _)| *setting == "storage_quota");
             assert!(
                 found.is_some_and(|(_, reason)| reason.contains(why)),
                 "{why}: {reasons:?}"

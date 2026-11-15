@@ -278,3 +278,47 @@ async fn a_phone_persona_lists_no_plugins_and_no_pdf_viewer() {
         assert_eq!(seen["pdfViewer"], json!(false), "{name}: {seen}");
     }
 }
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_new_browser_context_reports_the_persona_s_quota() {
+    let persona = Fingerprint::windows_desktop();
+    let quota = *persona
+        .storage_quota()
+        .value()
+        .expect("a preset claims a quota");
+    let (browser, page) = open(&persona).await;
+    let estimate = "navigator.storage.estimate().then((estimate) => estimate.quota)";
+    let legacy = "new Promise((resolve) => navigator.webkitTemporaryStorage.queryUsageAndQuota(\
+                  (used, granted) => resolve(granted), () => resolve(null)))";
+
+    let in_default = page.evaluate(estimate).await.expect("the page answers");
+    // An in-memory context has a quota of its own, much smaller than a disk's.
+    let context = browser.new_context().await.expect("a context");
+    let second = context.new_page().await.expect("a page in the context");
+    second
+        .goto(&serve())
+        .await
+        .expect("the loopback page loads");
+    let in_context = second.evaluate(estimate).await.expect("the page answers");
+    let in_context_legacy = second.evaluate(legacy).await.expect("the page answers");
+    let captured = second
+        .capture_fingerprint()
+        .await
+        .expect("the capture runs");
+    browser.close().await.expect("Chrome closes");
+
+    assert_eq!(in_default, json!(quota), "the default context");
+    assert_eq!(in_context, json!(quota), "the new context");
+    assert_eq!(in_context_legacy, json!(quota), "webkitTemporaryStorage");
+    let found: Vec<_> = captured
+        .contradictions()
+        .into_iter()
+        .filter(|c| c.rule == "storage_quota_vs_device")
+        .collect();
+    assert!(
+        found.is_empty(),
+        "the capture of the new context finds its quota too small: {found:?}"
+    );
+}

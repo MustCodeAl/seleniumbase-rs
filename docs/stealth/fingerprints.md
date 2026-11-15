@@ -348,6 +348,10 @@ conditions), for the values the fingerprint holds:
   `keyboard_layout` provider answers `get`, `has`, `keys`, `values`, `entries`,
   `forEach`, `size` and the iterator with the persona's 48 keys (a Chromium
   persona only)
+* The storage quota (`navigator.storage.estimate()` and
+  `navigator.webkitTemporaryStorage.queryUsageAndQuota`): the `storage_quota`
+  provider answers with the persona's quota and the real usage; the quota Chrome
+  enforces is not changed
 * Geolocation, through `Emulation.setGeolocationOverride`, the JavaScript
   provider, and the geolocation permission
 * `$cdc_`, `__webdriver`, `__selenium` and similar marker properties

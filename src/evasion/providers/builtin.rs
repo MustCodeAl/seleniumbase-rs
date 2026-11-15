@@ -93,6 +93,7 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(LocalizationProvider),
         Box::new(GeolocationProvider),
         Box::new(KeyboardLayoutProvider),
+        Box::new(StorageQuotaProvider),
         Box::new(HairlineProvider),
         Box::new(IframeProvider),
         Box::new(AttachShadowProvider),
@@ -2067,6 +2068,64 @@ impl EvasionProvider for KeyboardLayoutProvider {
     }
 }
 
+/// Answers the storage quota with the persona's.
+///
+/// `navigator.storage.estimate()` resolves the browser's own estimate with its
+/// `quota` replaced (the usage and `usageDetails` stay the real ones), and
+/// `navigator.webkitTemporaryStorage.queryUsageAndQuota` calls back with the real
+/// usage and the persona's quota. A Chrome that gives the persistent storage an
+/// object of its own keeps its answer; current Chrome hands out one object for
+/// both names, and then both answer with the persona's quota.
+/// The quota Chrome enforces is not touched: `Storage.overrideQuotaForOrigin`
+/// needs every origin before the page loads it and changes what a page can
+/// really store.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StorageQuotaProvider;
+
+impl EvasionProvider for StorageQuotaProvider {
+    fn name(&self) -> &str {
+        "storage_quota"
+    }
+    fn priority(&self) -> i32 {
+        105
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.storage_quota().is_value()
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let quota = ctx.fingerprint.storage_quota().value()?;
+        Some(render(
+            r##"(function () {
+  @SB@
+  const quota = @QUOTA@;
+  if (typeof StorageManager !== 'undefined' && typeof StorageManager.prototype.estimate === 'function') {
+    const original = StorageManager.prototype.estimate;
+    StorageManager.prototype.estimate = sb.native(function estimate() {
+      return original.apply(this, arguments).then(function (estimate) {
+        const answer = {};
+        Object.keys(estimate).forEach(function (key) { answer[key] = estimate[key]; });
+        answer.quota = quota;
+        return answer;
+      });
+    }, 'estimate', original);
+  }
+  // The class of `webkitTemporaryStorage` has no global name, so it is reached through an instance.
+  const legacy = navigator.webkitTemporaryStorage ? Object.getPrototypeOf(navigator.webkitTemporaryStorage) : null;
+  if (legacy && typeof legacy.queryUsageAndQuota === 'function') {
+    const originalQuery = legacy.queryUsageAndQuota;
+    legacy.queryUsageAndQuota = sb.native(function queryUsageAndQuota(success, failure) {
+      if (this !== navigator.webkitTemporaryStorage || typeof success !== 'function') {
+        return originalQuery.apply(this, arguments);
+      }
+      return originalQuery.call(this, function (used) { success(used, quota); }, failure);
+    }, 'queryUsageAndQuota', originalQuery);
+  }
+})();"##,
+            &[("QUOTA", &quota.to_string())],
+        ))
+    }
+}
+
 /// Fixes the Modernizr hairline headless detection.
 ///
 /// It is a headless fix, so it runs when the policy's `headless_fixes` is on;
@@ -2388,7 +2447,7 @@ mod tests {
 
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 32);
+        assert_eq!(providers.len(), 33);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());
@@ -2653,6 +2712,39 @@ mod tests {
             assert!(!script.contains("getSupportedExtensions"), "{script}");
             assert!(!script.contains("compressed_texture"), "{script}");
         }
+    }
+
+    #[test]
+
+    fn the_storage_script_carries_the_quota() {
+        let fp = windows_with(|b| b.storage_quota(300_000_000_000_u64));
+        assert!(StorageQuotaProvider.applies(&fp));
+
+        let script = StorageQuotaProvider.script(&ctx_for(&fp)).unwrap();
+
+        assert!(script.contains("const quota = 300000000000;"), "{script}");
+        assert!(
+            script.contains("StorageManager.prototype.estimate = sb.native("),
+            "{script}"
+        );
+        assert!(
+            script.contains("legacy.queryUsageAndQuota = sb.native("),
+            "{script}"
+        );
+        assert!(
+            script.contains("this !== navigator.webkitTemporaryStorage"),
+            "the persistent storage keeps its own answer: {script}"
+        );
+        assert!(
+            script.contains("answer.quota = quota;"),
+            "the usage stays the real one: {script}"
+        );
+
+        let natural = built(Fingerprint::builder().os_type(OsType::Windows));
+        assert!(natural.storage_quota().is_natural());
+        assert!(!StorageQuotaProvider.applies(&natural));
+        // A preset claims a quota, so it runs the provider.
+        assert!(StorageQuotaProvider.applies(&Fingerprint::windows_desktop()));
     }
 
     #[test]

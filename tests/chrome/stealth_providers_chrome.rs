@@ -1434,3 +1434,57 @@ async fn a_phone_gpu_has_no_s3tc() {
         "the capture finds the extension list contradicting the renderer: {found:?}"
     );
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_quota_is_the_persona_s_in_both_apis() {
+    let lab = lab().await;
+    let read = r##"(async () => {
+        const estimate = await navigator.storage.estimate();
+        const ask = (storage) => new Promise((resolve) => storage.queryUsageAndQuota(
+            (used, granted) => resolve({ used, granted }), () => resolve(null)));
+        return {
+            quota: estimate.quota, usage: estimate.usage, keys: Object.keys(estimate),
+            temporary: await ask(navigator.webkitTemporaryStorage),
+            persistent: await ask(navigator.webkitPersistentStorage),
+            sameObject: navigator.webkitTemporaryStorage === navigator.webkitPersistentStorage,
+            native: StorageManager.prototype.estimate.toString().includes('[native code]')
+                && Object.getPrototypeOf(navigator.webkitTemporaryStorage).queryUsageAndQuota.toString().includes('[native code]'),
+        };
+    })()"##;
+    let before = lab.eval(read).await;
+    println!("the host's own quota before the install: {before}");
+
+    let persona = persona_with(|b| b.storage_quota(300_000_000_000_u64));
+    lab.install(&persona, &["storage_quota"]).await;
+    let after = lab.eval(read).await;
+    lab.close().await;
+
+    assert_eq!(after["quota"], json!(300_000_000_000_u64), "{after}");
+    assert_eq!(
+        after["temporary"]["granted"],
+        json!(300_000_000_000_u64),
+        "{after}"
+    );
+    assert_eq!(after["usage"], before["usage"], "the usage is the real one");
+    assert_eq!(
+        after["temporary"]["used"], before["temporary"]["used"],
+        "the usage is the real one"
+    );
+    assert_eq!(
+        after["keys"], before["keys"],
+        "the answer has the same keys"
+    );
+    if before["sameObject"] == json!(true) {
+        // This Chrome hands out one object for both names, so there is no telling them apart:
+        // both give the persona's quota, as both gave the host's.
+        assert_eq!(after["persistent"], after["temporary"], "{after}");
+    } else {
+        assert_eq!(
+            after["persistent"], before["persistent"],
+            "the persistent storage keeps its own answer"
+        );
+    }
+    assert_eq!(after["native"], json!(true), "{after}");
+}

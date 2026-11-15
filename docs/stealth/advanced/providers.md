@@ -120,13 +120,14 @@ the Playwright session use.
 | 92 | `localization` | Localization is on, and not `native_spoofing` | `navigator.language` and `navigator.languages`: the `languages` the fingerprint holds, else its `accept_languages`, else the list its `locale` implies. Every Intl constructor (`Collator`, `NumberFormat`, `PluralRules`, `RelativeTimeFormat`, `ListFormat`, `DateTimeFormat`, `DisplayNames`, `Segmenter`) and `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` and `localeCompare` default to the first language when the caller names no locale, as `Emulation.setLocaleOverride` does natively. |
 | 95 | `geolocation` | `geolocation` is a position and not `native_spoofing`, or it is `Off` | `getCurrentPosition` and `watchPosition`. They answer in JavaScript with the position, and refuse with `PERMISSION_DENIED` for `Off`. |
 | 100 | `keyboard_layout` | `keyboard_layout` is a value, and the persona is Chromium | `navigator.keyboard.getLayoutMap()`: `KeyboardLayoutMap.prototype` answers `get`, `has`, `keys`, `values`, `entries`, `forEach`, `size` and the iterator (the same function as `entries`, as on a real maplike) from the 48 keys of the layout (Windows's KBDUS, KBDGR or KBDFR, unshifted), each through `sb.native`. No instance gets a property of its own, and another receiver is refused with `Illegal invocation`. It runs under `native_spoofing` too: no protocol command sets the map. |
+| 105 | `storage_quota` | `storage_quota` is a value | `navigator.storage.estimate()` resolves the browser's own estimate with its `quota` replaced (the usage and `usageDetails` stay the real ones), and `navigator.webkitTemporaryStorage.queryUsageAndQuota` calls back with the real usage and the persona's quota; where a Chrome gives the persistent storage an object of its own, that keeps its answer (current Chrome hands out one object for both names, so both give the persona's quota, as both gave the host's). The class has no global name, so the provider reaches it through `navigator.webkitTemporaryStorage`. The quota Chrome enforces is not changed, so a page can still store only what the browser allows. |
 | 110 | `hairline` | the policy's `headless_fixes` is on | Modernizr's hairline check: `offsetHeight` of the element with id `modernizr` reads `1`. |
 | 120 | `iframe` | never | Reserved name. It emits no script. |
 | 125 | `attach_shadow` | the policy's `open_shadow_roots` is on | Forces `Element.attachShadow` to `mode: 'open'`. |
 | 130 | `tracker_block` | the policy blocks trackers | Makes `fetch`, `XMLHttpRequest` and `navigator.sendBeacon` to the tracker hosts (and their subdomains) fail like an unreachable host. Scripts, images and frames loaded by markup are not covered. |
 
-List them at runtime with `default_registry().provider_names()` (all 32, including
-the two reserved ones), `session_registry(&fp).provider_names()` (the 30 a
+List them at runtime with `default_registry().provider_names()` (all 33, including
+the two reserved ones), `session_registry(&fp).provider_names()` (the 31 a
 browser session runs), `applicable_names(&fp)` (those that run for a fingerprint),
 or over MCP with the `list_evasion_providers` tool, which lists the session ones.
 
