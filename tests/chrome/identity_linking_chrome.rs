@@ -16,6 +16,12 @@
 //! are the stealth repository's, and headless Chrome asks for no favicon, so
 //! that cache is checked only when a favicon was fetched at all.
 //!
+//! A control keeps one profile folder for two launches (`a_kept_profile_folder_links_two_visits`):
+//! the second visit then finds the first one's mark in the cookie (the fixture's has an expiry,
+//! a session cookie dies with the browser), `localStorage`, IndexedDB, the Cache API and the
+//! service worker, and the server is asked to revalidate the first one's `ETag` and
+//! `Last-Modified`. It proves the harness would see a link.
+//!
 //! The tests need a Chrome, so they are ignored by default:
 //!
 //! ```text
@@ -43,6 +49,8 @@ const FAVICON: &[u8] = b"GIF89a\x01\x00\x01\x00\x80\x00\x00\x00\x00\x00\xff\xff\
 struct Seen {
     cookies: Vec<String>,
     if_none_match: Vec<String>,
+    if_modified_since: Vec<String>,
+
     visitors: usize,
     favicons: usize,
 }
@@ -100,6 +108,10 @@ fn serve(seen: Arc<Mutex<Seen>>) -> String {
                     )
                 }
                 "/mark" => {
+                    if let Some(since) = header(&request, "If-Modified-Since") {
+                        seen.if_modified_since.push(since.to_owned());
+                    }
+
                     if let Some(tag) = header(&request, "If-None-Match") {
                         seen.if_none_match.push(tag.to_owned());
                         (
@@ -114,7 +126,7 @@ fn serve(seen: Arc<Mutex<Seen>>) -> String {
                         (
                             "200 OK",
                             "text/plain",
-                            format!("ETag: \"{visitor}\"\r\nCache-Control: no-cache\r\n"),
+                            format!("ETag: \"{visitor}\"\r\nLast-Modified: Sun, 01 Nov 2026 00:00:{:02} GMT\r\nCache-Control: no-cache\r\n", seen.visitors % 60),
                             visitor.into_bytes(),
                         )
                     }
@@ -240,6 +252,14 @@ async fn a_second_browser_context_starts_with_every_store_empty() {
                 .any(|cookie| cookie.contains("alpha") && cookie.contains("beta")),
             "one request carried both identities' cookies: {log:?}"
         );
+        // The one revalidation is the first identity's own second visit, and a validator
+        // never travels alone: the date comes with the ETag. A second one would be linking.
+        assert_eq!(
+            (log.if_none_match.len(), log.if_modified_since.len()),
+            (1, 1),
+            "only the first identity revalidated its own entry: {log:?}"
+        );
+
         if favicons_after_first > 0 {
             assert!(
                 log.favicons > favicons_after_first,
@@ -257,6 +277,60 @@ async fn a_second_browser_context_starts_with_every_store_empty() {
 #[tokio::test]
 #[ignore = "requires a local Chrome"]
 #[serial_test::serial(chrome)]
+async fn a_kept_profile_folder_links_two_visits() {
+    // The control: the harness can see a link when there is one. Two launches share one
+    // profile folder, so the second visit finds the first one's mark in every store that
+    // outlives a browser, and the server is asked to revalidate the first one's cache entry.
+    let seen = Arc::new(Mutex::new(Seen::default()));
+    let base = serve(Arc::clone(&seen));
+    let folder = tempfile::tempdir().expect("a profile folder");
+    let kept = || {
+        LaunchOptions::builder()
+            .headless(true)
+            .no_sandbox(std::env::var_os("CI").is_some())
+            .user_data_dir(folder.path())
+            .build()
+            .expect("options")
+    };
+
+    let first_browser = Browser::launch(kept()).await.expect("Chrome starts");
+    let page = first_browser.default_page().await.expect("a tab");
+    let first = visit(&page, &base, "alpha").await;
+    // Awaited: what a browser flushes at close is what the next one finds.
+    first_browser.close().await.expect("Chrome closes");
+
+    let second_browser = Browser::launch(kept()).await.expect("Chrome starts again");
+    let page = second_browser.default_page().await.expect("a tab");
+    let second = visit(&page, &base, "beta").await;
+    second_browser.close().await.expect("Chrome closes");
+
+    for store in ["cookie", "localStorage", "indexedDb", "cacheApi"] {
+        assert!(
+            second[store]
+                .as_str()
+                .is_some_and(|held| held.contains("alpha")),
+            "the kept profile lost the first visit's mark in {store}: {second} (the first left {first})"
+        );
+    }
+    assert_eq!(
+        second["serviceWorkers"], 1,
+        "the registration outlived the browser: {second}"
+    );
+    assert_eq!(
+        second["etag"], first["etag"],
+        "the HTTP cache of the kept profile answered with the first visitor's body"
+    );
+    let log = seen.lock().expect("the log");
+    assert!(
+        !log.if_none_match.is_empty() || !log.if_modified_since.is_empty(),
+        "the server saw no validator from the second launch: {log:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+
 async fn a_second_browser_with_its_own_profile_starts_with_every_store_empty() {
     let seen = Arc::new(Mutex::new(Seen::default()));
     let base = serve(Arc::clone(&seen));
@@ -277,5 +351,11 @@ async fn a_second_browser_with_its_own_profile_starts_with_every_store_empty() {
         Vec::<String>::new(),
         "neither browser revalidated the other's cache entry"
     );
+    assert_eq!(
+        seen.lock().expect("the log").if_modified_since,
+        Vec::<String>::new(),
+        "neither browser sent a validator of the other's cache entry"
+    );
+
     second_browser.close().await.expect("Chrome closes");
 }

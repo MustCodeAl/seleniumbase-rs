@@ -17,7 +17,7 @@
       const found = {};
 
       found.cookie = document.cookie || null;
-      document.cookie = 'mark=' + mark + '; path=/';
+      document.cookie = 'mark=' + mark + '; path=/; max-age=31536000';
 
       found.localStorage = localStorage.getItem('mark');
       localStorage.setItem('mark', mark);
