@@ -646,16 +646,21 @@ mod tests {
         let off = BrowserConfig::default();
         assert!(AdBlockList::for_config(&off).is_none());
 
-        let on = BrowserConfig::default().with_ad_block(true);
+        let on = BrowserConfig::builder()
+            .ad_block(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(AdBlockList::for_config(&on), Some(AdBlockList::builtin()));
     }
 
     #[test]
     fn a_list_of_the_callers_own_replaces_the_builtin_one() {
         let own = AdBlockList::from_hosts(["ads.example.com"]).unwrap();
-        let on = BrowserConfig::default()
-            .with_ad_block(true)
-            .with_ad_block_list(own.clone());
+        let on = BrowserConfig::builder()
+            .ad_block(true)
+            .ad_block_list(own.clone())
+            .build()
+            .expect("a valid config");
         assert_eq!(AdBlockList::for_config(&on), Some(own.clone()));
 
         // A list that is set but not asked for blocks nothing.
@@ -664,14 +669,19 @@ mod tests {
         assert!(AdBlockList::for_config(&off).is_none());
 
         // An empty list of one's own is not the built-in list in disguise.
-        let empty = BrowserConfig::default().with_ad_block_list(AdBlockList::new());
+        let empty = BrowserConfig::builder()
+            .ad_block_list(AdBlockList::new())
+            .build()
+            .expect("a valid config");
         assert_eq!(AdBlockList::for_config(&empty), Some(AdBlockList::new()));
     }
 
     #[test]
     fn setting_a_list_of_ones_own_turns_ad_blocking_on() {
-        let config = BrowserConfig::default()
-            .with_ad_block_list(AdBlockList::from_hosts(["ads.example.com"]).unwrap());
+        let config = BrowserConfig::builder()
+            .ad_block_list(AdBlockList::from_hosts(["ads.example.com"]).unwrap())
+            .build()
+            .expect("a valid config");
         assert!(config.browser.ad_block);
     }
 

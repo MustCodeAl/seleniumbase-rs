@@ -615,9 +615,7 @@ mod tests_recorder_mode {
     }
 
     fn config(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_recorder_mode(true);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).recorder_mode(true).build().expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -756,7 +754,7 @@ mod tests_recorder_mode {
     async fn without_recorder_mode_quit_writes_nothing() {
         let driver = browser(vec![tab("w1", "https://a.test/", Value::Null)], now());
         let mut config = config(&driver);
-        config = config.with_recorder_mode(false);
+        config = config.into_builder().recorder_mode(false).build().expect("a valid config");
         let mut sb = BaseCase::new(config).await.unwrap();
         let folder = temp("off");
         sb.set_recording_output(RecordingTarget::new("off", "Off", "t").in_folder(&folder));
@@ -895,7 +893,7 @@ mod tests_recorder_mode {
     /// (`cdp_url`) or a session that was quit has none, and Recorder Mode asked for.
     fn without_a_webdriver() -> BaseCase {
         BaseCase::with_session(
-            BrowserConfig::default().with_recorder_mode(true),
+            BrowserConfig::builder().recorder_mode(true).build().expect("a valid config"),
             BrowserSession::disconnected(),
         )
     }

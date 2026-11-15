@@ -404,9 +404,11 @@ mod headless_variant_tests {
 
     #[test]
     fn headless1_runs_chrome_as_chrome_headless_shell() {
-        let mut config = BrowserConfig::default()
-            .with_headless(false)
-            .with_headless1(true);
+        let mut config = BrowserConfig::builder()
+            .headless(false)
+            .headless1(true)
+            .build()
+            .expect("a valid config");
         config.browser.executable_path = None;
         let settled = settled(config);
         assert_eq!(settled.browser.kind, Browser::ChromeHeadlessShell);
@@ -415,16 +417,20 @@ mod headless_variant_tests {
 
     #[test]
     fn headless1_leaves_a_chrome_with_its_own_program_and_other_browsers_alone() {
-        let own = BrowserConfig::default()
-            .with_headless1(true)
-            .with_browser_binary_path("/opt/chrome/chrome");
+        let own = BrowserConfig::builder()
+            .headless1(true)
+            .browser_binary_path("/opt/chrome/chrome")
+            .build()
+            .expect("a valid config");
         assert_eq!(settled(own).browser.kind, Browser::Chrome);
 
         for browser in [Browser::Edge, Browser::Brave, Browser::Firefox] {
-            let config = BrowserConfig::default()
-                .with_browser(browser)
-                .with_headless(false)
-                .with_headless1(true);
+            let config = BrowserConfig::builder()
+                .browser(browser)
+                .headless(false)
+                .headless1(true)
+                .build()
+                .expect("a valid config");
             let config = settled(config);
             assert_eq!(config.browser.kind, browser);
             assert!(config.browser.headless, "{browser}");
@@ -433,9 +439,11 @@ mod headless_variant_tests {
 
     #[test]
     fn headless2_and_a_plain_session_change_nothing() {
-        let config = BrowserConfig::default()
-            .with_headless(false)
-            .with_headless2(true);
+        let config = BrowserConfig::builder()
+            .headless(false)
+            .headless2(true)
+            .build()
+            .expect("a valid config");
         let after = settled(config.clone());
         assert_eq!(after, config);
         assert!(after.browser.headless);
@@ -443,17 +451,21 @@ mod headless_variant_tests {
 
     #[test]
     fn the_headless_shell_is_made_headless() {
-        let shell = BrowserConfig::default()
-            .with_browser(Browser::ChromeHeadlessShell)
-            .with_headless(false);
+        let shell = BrowserConfig::builder()
+            .browser(Browser::ChromeHeadlessShell)
+            .headless(false)
+            .build()
+            .expect("a valid config");
         assert!(settled(shell).browser.headless);
     }
 
     #[test]
     fn headless1_cannot_run_the_undetected_mode_just_as_the_shell_cannot() {
-        let mut config = BrowserConfig::default()
-            .with_mode(DriverMode::Uc)
-            .with_headless1(true);
+        let mut config = BrowserConfig::builder()
+            .mode(DriverMode::Uc)
+            .headless1(true)
+            .build()
+            .expect("a valid config");
         config.browser.executable_path = None;
         let error = validate_mode_support(&config).expect_err("refused");
         assert!(
@@ -462,7 +474,11 @@ mod headless_variant_tests {
                 .contains("chrome-headless-shell cannot run"),
             "{error}"
         );
-        let with_program = config.with_browser_binary_path("/opt/chrome/chrome");
+        let with_program = config
+            .into_builder()
+            .browser_binary_path("/opt/chrome/chrome")
+            .build()
+            .expect("a valid config");
         assert!(validate_mode_support(&with_program).is_ok());
     }
 }
@@ -481,7 +497,10 @@ mod remote_debug_tests {
         let busy = listener.local_addr().unwrap().port();
 
         // A port that was named and is in use is an error.
-        let named = BrowserConfig::default().with_remote_debug_port(busy);
+        let named = BrowserConfig::builder()
+            .remote_debug_port(busy)
+            .build()
+            .expect("a valid config");
         let error = resolve_remote_debug(&mut named.clone())
             .unwrap_err()
             .to_string();
@@ -502,9 +521,16 @@ mod remote_debug_tests {
         // Firefox has no such debugger.
         let mut elsewhere = named
             .clone()
-            .with_webdriver_url("http://hub.test:4444/wd/hub");
+            .into_builder()
+            .webdriver_url("http://hub.test:4444/wd/hub")
+            .build()
+            .expect("a valid config");
         assert_eq!(resolve_remote_debug(&mut elsewhere).unwrap(), Some(busy));
-        let mut firefox = named.with_browser(Browser::Firefox);
+        let mut firefox = named
+            .into_builder()
+            .browser(Browser::Firefox)
+            .build()
+            .expect("a valid config");
         assert_eq!(resolve_remote_debug(&mut firefox).unwrap(), None);
         drop(listener);
     }

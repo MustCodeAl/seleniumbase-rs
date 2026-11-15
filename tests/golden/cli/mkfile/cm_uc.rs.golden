@@ -14,7 +14,9 @@ use seleniumbase_rs::{run_browser_test, tokio, DriverMode, Result};
 async fn cm_uc() -> Result<()> {
     let config = Settings::load()?
         .to_browser_config()
-        .with_mode(DriverMode::Uc);
+        .into_builder()
+        .mode(DriverMode::Uc)
+        .build()?;
     run_browser_test(config, async |sb| {
         sb.open("https://example.com").await?;
         // Add your steps here.

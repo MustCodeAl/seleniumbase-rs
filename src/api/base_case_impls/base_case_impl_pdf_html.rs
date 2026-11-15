@@ -230,7 +230,7 @@ mod tests_pdf_html {
         let sb = BaseCase::with_session(config.clone(), BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), None);
         assert_eq!(sb.locale(), "en-US");
-        let config = config.with_locale("de-DE");
+        let config = config.into_builder().locale("de-DE").build().expect("a valid config");
         let sb = BaseCase::with_session(config, BrowserSession::disconnected());
         assert_eq!(sb.configured_locale(), Some("de-DE"));
         assert_eq!(sb.locale(), "de-DE");

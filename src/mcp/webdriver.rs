@@ -140,21 +140,22 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     // Undetected mode is a Chromium feature.
     let uc = args.bool_or("uc", true)? && matches!(browser, Browser::Chrome | Browser::Chromium);
 
-    let mut config = BrowserConfig::from_env()?
-        .with_browser(browser)
-        .with_headless(headless);
+    let mut builder = BrowserConfig::from_env()?
+        .into_builder()
+        .browser(browser)
+        .headless(headless);
     if uc {
-        config = config.with_mode(DriverMode::Uc);
+        builder = builder.mode(DriverMode::Uc);
     }
-    config.browser.ad_block = args.bool_or("ad_block", false)?;
+    builder = builder.ad_block(args.bool_or("ad_block", false)?);
     if chromium_family && incognito {
-        config = config.push_extra_arg("--incognito");
+        builder = builder.extra_arg("--incognito");
     }
     if chromium_family && guest {
-        config = config.push_extra_arg("--guest");
+        builder = builder.extra_arg("--guest");
     }
     if let Some(proxy) = nonempty(&args, "proxy")? {
-        config = config.with_proxy(proxy);
+        builder = builder.proxy(proxy);
     }
     let fingerprint = super::fingerprint::start_fingerprint(&args, ctx.settings())?;
     if let Some(fingerprint) = &fingerprint {
@@ -164,13 +165,16 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
                 "a fingerprint applies to Chrome, Chromium and Edge, not Firefox",
             ));
         }
-        config = config.with_fingerprint(fingerprint.clone());
+        builder = builder.fingerprint(fingerprint.clone());
     }
     // The operator's plugins (`sbrs-mcp --plugin`), never a tool argument.
     let plugins = ctx.settings().plugin_selection();
     plugins.ensure_supported()?;
     #[cfg(feature = "plugins")]
-    let config = config.with_plugin_selection(plugins)?;
+    {
+        builder = builder.plugin_selection(plugins);
+    }
+    let config = builder.build()?;
 
     let started = ctx
         .start(async move { Ok::<_, ToolError>(Box::pin(BaseCase::new(config)).await?) })

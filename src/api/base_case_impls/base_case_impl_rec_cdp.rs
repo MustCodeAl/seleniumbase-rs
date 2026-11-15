@@ -47,9 +47,7 @@ mod tests_rec_sb_cdp {
                 _ => Reply::Value(Value::Null),
             }
         });
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_recording_sb_cdp(rec_sb_cdp);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).recording_sb_cdp(rec_sb_cdp).build().expect("a valid config");
         config.session.auto_start_driver = false;
         let mut sb = BaseCase::new(config)
             .await

@@ -307,7 +307,7 @@ mod debug_prompt_tests {
         sb.start_recording();
         assert!(!sb.recorder_mode(), "a recording window is not Recorder Mode");
 
-        let on = BaseCase::without_session(BrowserConfig::default().with_recorder_mode(true));
+        let on = BaseCase::without_session(BrowserConfig::builder().recorder_mode(true).build().expect("a valid config"));
         assert!(on.recorder_mode());
     }
 }

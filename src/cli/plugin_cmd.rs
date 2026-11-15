@@ -293,7 +293,7 @@ pub fn apply_to_config(
 ) -> Result<BrowserConfig, SeleniumBaseError> {
     #[cfg(feature = "plugins")]
     {
-        config.with_plugin_selection(selection)
+        config.into_builder().plugin_selection(selection).build()
     }
     #[cfg(not(feature = "plugins"))]
     {

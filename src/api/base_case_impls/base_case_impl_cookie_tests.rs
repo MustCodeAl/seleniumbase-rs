@@ -93,9 +93,7 @@ mod tests_cookie_calls {
 
     /// A [`BaseCase`] in DevTools mode on `driver`.
     async fn devtools_case(driver: &MockWebDriver) -> BaseCase {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_mode(DriverMode::Cdp);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).mode(DriverMode::Cdp).build().expect("a valid config");
         config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await

@@ -180,9 +180,7 @@ mod tests_addon {
 
     /// A Firefox session on `driver`, which starts no driver of its own.
     async fn firefox(driver: &MockWebDriver) -> BaseCase {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url())
-            .with_browser(Browser::Firefox);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url()).browser(Browser::Firefox).build().expect("a valid config");
         config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await

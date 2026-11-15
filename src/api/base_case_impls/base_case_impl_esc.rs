@@ -115,9 +115,7 @@ mod tests_esc_end {
     }
 
     async fn case(driver: &MockWebDriver, esc_end: bool) -> BaseCase {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_esc_end(esc_end);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).esc_end(esc_end).build().expect("a valid config");
         config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await

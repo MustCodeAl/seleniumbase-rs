@@ -209,7 +209,7 @@ mod tests_browser {
 
     fn sb(mode: DriverMode) -> BaseCase {
         BaseCase::with_session(
-            BrowserConfig::default().with_mode(mode),
+            BrowserConfig::builder().mode(mode).build().expect("a valid config"),
             BrowserSession::disconnected(),
         )
     }

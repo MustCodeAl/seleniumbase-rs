@@ -499,7 +499,7 @@ mod tests_presentations {
         // The default name is checked too.
         let error = sb.save_presentation().await.unwrap_err();
         assert!(error.to_string().contains("Presentation {default} does not exist!"));
-        sb.config = sb.config.clone().with_headless(false);
+        sb.config = sb.config.clone().into_builder().headless(false).build().expect("a valid config");
         let error = sb.begin_presentation().name("nope").await.unwrap_err();
         assert!(error.to_string().contains("Presentation {nope} does not exist!"));
     }
@@ -517,8 +517,8 @@ mod tests_presentations {
         // A disconnected session fails on any browser call, so Ok(None) also
         // proves that the browser was not touched, and nothing was written.
         for config in [
-            BrowserConfig::default().with_headless(true),
-            BrowserConfig::default().with_headless(false).with_xvfb(true),
+            BrowserConfig::builder().headless(true).build().expect("a valid config"),
+            BrowserConfig::builder().headless(false).xvfb(true).build().expect("a valid config"),
         ] {
             let mut sb = BaseCase::with_session(config, BrowserSession::disconnected());
             sb.add_slide("x").await.unwrap();
@@ -531,7 +531,7 @@ mod tests_presentations {
         let folder = tempfile::tempdir().unwrap();
         let settings = RunSettings::default().with_interval(Duration::from_secs(4));
         let mut sb = BaseCase::with_session(
-            BrowserConfig::default().with_run_settings(settings),
+            BrowserConfig::builder().run_settings(settings).build().expect("a valid config"),
             BrowserSession::disconnected(),
         );
         sb.presentations.insert(

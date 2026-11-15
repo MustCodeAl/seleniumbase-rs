@@ -470,7 +470,10 @@ mod network_throttle_tests {
 
     /// A session on `driver` that starts no driver of its own.
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -487,7 +490,11 @@ mod network_throttle_tests {
     #[tokio::test]
     async fn plain_webdriver_mode_throttles_through_the_drivers_devtools_channel() {
         let driver = driver_of("chrome");
-        let config = config_for(&driver).with_mode(DriverMode::WebDriver);
+        let config = config_for(&driver)
+            .into_builder()
+            .mode(DriverMode::WebDriver)
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config).await.expect("connects");
 
         session
@@ -508,7 +515,11 @@ mod network_throttle_tests {
     #[tokio::test]
     async fn the_cdp_mode_sends_the_same_command() {
         let driver = driver_of("chrome");
-        let config = config_for(&driver).with_mode(DriverMode::Cdp);
+        let config = config_for(&driver)
+            .into_builder()
+            .mode(DriverMode::Cdp)
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config).await.expect("connects");
 
         session

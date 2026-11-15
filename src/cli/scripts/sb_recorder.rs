@@ -254,11 +254,16 @@ pub async fn run_mkrec(
 
     // The recording prints the code file, as `sbase print FILE -n` does for
     // Python, and a plain ESC must keep pausing the recorder, not end it.
-    let mut config = config.with_recorder_mode(true).with_recording_print(true);
-    config = config.with_esc_end(false);
+    let mut builder = config
+        .into_builder()
+        .recorder_mode(true)
+        .recording_print(true)
+        .esc_end(false);
+
     if options.behave {
-        config = config.with_recording_behave(true);
+        builder = builder.recording_behave(true);
     }
+    let config = builder.build()?;
     let mut shutdown = Shutdown::install()?;
     let mut sb = BaseCase::new(config).await?;
     sb.set_recording_target(&options.stem(), FEATURE, SCENARIO);

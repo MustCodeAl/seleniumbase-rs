@@ -1094,9 +1094,11 @@ mod driven_tests {
                 Err(()) => Reply::Error(500, "unknown error"),
             }
         });
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url())
-            .with_mode(DriverMode::Cdp);
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .mode(DriverMode::Cdp)
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         let session = BrowserSession::connect(config).await.expect("connects");
         (driver, session)

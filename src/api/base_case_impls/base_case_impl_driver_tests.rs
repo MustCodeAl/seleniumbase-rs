@@ -1157,7 +1157,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn a_browser_that_is_not_chromium_has_no_log_and_no_dialog_to_switch_off() {
         let driver = page(json!([]));
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url().to_owned());
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).build().expect("a valid config");
         config.session.auto_start_driver = false;
         config.browser.kind = Browser::Firefox;
         let mut sb = BaseCase::new(config).await.unwrap();
@@ -1256,8 +1256,7 @@ mod tests_page_load_hooks {
 
     #[tokio::test]
     async fn the_multiplier_of_the_browser_config_reaches_the_case() {
-        let config = BrowserConfig::default()
-            .with_run_settings(RunSettings::default().with_timeout_multiplier(2.0));
+        let config = BrowserConfig::builder().run_settings(RunSettings::default().with_timeout_multiplier(2.0)).build().expect("a valid config");
         assert_eq!(BaseCase::without_session(config).default_wait_secs(), 20);
     }
 

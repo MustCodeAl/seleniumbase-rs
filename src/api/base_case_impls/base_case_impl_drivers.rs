@@ -362,7 +362,7 @@ mod tests_drivers {
 
     /// The configuration of a case that uses `driver`.
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url().to_owned());
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).build().expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }

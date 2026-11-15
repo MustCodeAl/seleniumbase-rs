@@ -767,16 +767,25 @@ mod driver_program_tests {
             ChromedriverPlan::Default
         );
         // A proxy alone changes nothing: it is for the session, not the download.
-        let proxied = BrowserConfig::default().with_proxy("u:p@proxy.test:8080");
+        let proxied = BrowserConfig::builder()
+            .proxy("u:p@proxy.test:8080")
+            .build()
+            .expect("a valid config");
         assert_eq!(chromedriver_plan(&proxied), ChromedriverPlan::Default);
         // The switch with no proxy to use changes nothing either.
-        let switch_only = BrowserConfig::default().with_proxy_for_driver_download(true);
+        let switch_only = BrowserConfig::builder()
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(chromedriver_plan(&switch_only), ChromedriverPlan::Default);
     }
 
     #[test]
     fn a_driver_version_pins_the_driver() {
-        let config = BrowserConfig::default().with_driver_version("126".parse().unwrap());
+        let config = BrowserConfig::builder()
+            .driver_version("126".parse().unwrap())
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chromedriver_plan(&config),
             ChromedriverPlan::Pinned {
@@ -795,9 +804,11 @@ mod driver_program_tests {
             Browser::ChromeForTesting,
             Browser::ChromeHeadlessShell,
         ] {
-            let config = BrowserConfig::default()
-                .with_browser(browser)
-                .with_browser_binary_path("/opt/browser/program");
+            let config = BrowserConfig::builder()
+                .browser(browser)
+                .browser_binary_path("/opt/browser/program")
+                .build()
+                .expect("a valid config");
             assert_eq!(
                 chromedriver_plan(&config),
                 ChromedriverPlan::Pinned {
@@ -809,9 +820,11 @@ mod driver_program_tests {
             );
         }
         // An explicit version still wins.
-        let pinned = BrowserConfig::default()
-            .with_browser(Browser::Brave)
-            .with_driver_version(DriverVersion::Milestone(120));
+        let pinned = BrowserConfig::builder()
+            .browser(Browser::Brave)
+            .driver_version(DriverVersion::Milestone(120))
+            .build()
+            .expect("a valid config");
         assert!(matches!(
             chromedriver_plan(&pinned),
             ChromedriverPlan::Pinned {
@@ -823,9 +836,11 @@ mod driver_program_tests {
 
     #[test]
     fn the_session_proxy_is_used_for_downloads_only_when_asked_and_never_printed() {
-        let config = BrowserConfig::default()
-            .with_proxy("user:hunter2@proxy.test:8080")
-            .with_proxy_for_driver_download(true);
+        let config = BrowserConfig::builder()
+            .proxy("user:hunter2@proxy.test:8080")
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         let plan = chromedriver_plan(&config);
         assert_eq!(
             plan,
@@ -895,9 +910,16 @@ mod driver_program_tests {
 
     #[test]
     fn the_download_proxy_is_the_session_proxy_only_when_asked() {
-        let proxied = BrowserConfig::default().with_proxy("u:p@proxy.test:8080");
+        let proxied = BrowserConfig::builder()
+            .proxy("u:p@proxy.test:8080")
+            .build()
+            .expect("a valid config");
         assert_eq!(download_proxy(&proxied), None);
-        let asked = proxied.with_proxy_for_driver_download(true);
+        let asked = proxied
+            .into_builder()
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             download_proxy(&asked).as_deref(),
             Some("u:p@proxy.test:8080")
@@ -906,7 +928,10 @@ mod driver_program_tests {
 
     #[test]
     fn keep_and_previous_are_planned_without_a_pin_for_keep() {
-        let keep = BrowserConfig::default().with_driver_version(DriverVersion::Keep);
+        let keep = BrowserConfig::builder()
+            .driver_version(DriverVersion::Keep)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chromedriver_plan(&keep),
             ChromedriverPlan::Keep {
@@ -915,9 +940,12 @@ mod driver_program_tests {
             }
         );
         let named = keep
-            .with_browser_binary_path("/opt/chrome/chrome")
-            .with_proxy("u:p@proxy.test:8080")
-            .with_proxy_for_driver_download(true);
+            .into_builder()
+            .browser_binary_path("/opt/chrome/chrome")
+            .proxy("u:p@proxy.test:8080")
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         let plan = chromedriver_plan(&named);
         assert_eq!(
             plan,
@@ -928,7 +956,10 @@ mod driver_program_tests {
         );
         assert!(!format!("{plan:?}").contains("proxy.test"), "{plan:?}");
 
-        let previous = BrowserConfig::default().with_driver_version(DriverVersion::Previous);
+        let previous = BrowserConfig::builder()
+            .driver_version(DriverVersion::Previous)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chromedriver_plan(&previous),
             ChromedriverPlan::Pinned {
@@ -1067,7 +1098,10 @@ mod driver_program_tests {
         if which::which("operadriver").is_ok() {
             return;
         }
-        let config = BrowserConfig::default().with_browser(Browser::Opera);
+        let config = BrowserConfig::builder()
+            .browser(Browser::Opera)
+            .build()
+            .expect("a valid config");
         let Err(error) = launch_driver_for(&config, None).await else {
             panic!("operadriver was found where none should be");
         };

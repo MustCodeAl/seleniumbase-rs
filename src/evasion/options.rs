@@ -667,9 +667,11 @@ mod tests {
 
     #[test]
     fn the_window_geometry_comes_from_the_launch_settings() {
-        let config = BrowserConfig::default()
-            .with_window_size(WindowSize::new(1920, 1080))
-            .with_window_position(WindowPosition::new(-10, 20));
+        let config = BrowserConfig::builder()
+            .window_size(WindowSize::new(1920, 1080))
+            .window_position(WindowPosition::new(-10, 20))
+            .build()
+            .expect("a valid config");
         let args = options_for(&config).args().unwrap();
         assert!(
             args.contains(&"--window-size=1920,1080".to_owned()),
@@ -693,9 +695,11 @@ mod tests {
 
     #[test]
     fn the_proxy_bypass_list_is_one_semicolon_separated_flag() {
-        let config = BrowserConfig::default()
-            .with_proxy("proxy.example:8080")
-            .with_proxy_bypass_list(ProxyBypassList::new(["*.example.com", "localhost"]).unwrap());
+        let config = BrowserConfig::builder()
+            .proxy("proxy.example:8080")
+            .proxy_bypass_list(ProxyBypassList::new(["*.example.com", "localhost"]).unwrap())
+            .build()
+            .expect("a valid config");
         let args = options_for(&config).args().unwrap();
         assert!(args.contains(&"--proxy-server=proxy.example:8080".to_owned()));
         assert!(
@@ -709,9 +713,11 @@ mod tests {
 
     #[test]
     fn chrome_is_given_the_proxy_and_the_pac_file_without_their_login() {
-        let config = BrowserConfig::default()
-            .with_proxy("user:hunter2@proxy.example:8080")
-            .with_proxy_pac_url("pac-user:hunter3@http://pac.example/proxy.pac");
+        let config = BrowserConfig::builder()
+            .proxy("user:hunter2@proxy.example:8080")
+            .proxy_pac_url("pac-user:hunter3@http://pac.example/proxy.pac")
+            .build()
+            .expect("a valid config");
         let args = options_for(&config).args().unwrap();
         assert!(
             args.contains(&"--proxy-server=proxy.example:8080".to_owned()),
@@ -724,7 +730,10 @@ mod tests {
         let everything = args.join(" ");
         assert!(!everything.contains("hunter"), "{everything}");
 
-        let socks = BrowserConfig::default().with_proxy("socks5h://10.0.0.1:1080");
+        let socks = BrowserConfig::builder()
+            .proxy("socks5h://10.0.0.1:1080")
+            .build()
+            .expect("a valid config");
         let args = options_for(&socks).args().unwrap();
         assert!(
             args.contains(&"--proxy-server=socks5://10.0.0.1:1080".to_owned()),
@@ -753,12 +762,14 @@ mod tests {
 
     #[test]
     fn the_content_switches_become_chrome_preferences() {
-        let config = BrowserConfig::default()
-            .with_block_images(true)
-            .with_disable_js(true)
-            .with_disable_cookies(true)
-            .with_do_not_track(true)
-            .with_external_pdf(true);
+        let config = BrowserConfig::builder()
+            .block_images(true)
+            .disable_js(true)
+            .disable_cookies(true)
+            .do_not_track(true)
+            .external_pdf(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chrome_options(&options_for(&config))["prefs"],
             json!({
@@ -770,9 +781,11 @@ mod tests {
             })
         );
 
-        let off = BrowserConfig::default()
-            .with_block_images(true)
-            .with_block_images(false);
+        let off = BrowserConfig::builder()
+            .block_images(true)
+            .block_images(false)
+            .build()
+            .expect("a valid config");
         assert!(chrome_options(&options_for(&off)).get("prefs").is_none());
     }
 
@@ -783,7 +796,10 @@ mod tests {
             (PageLoadStrategy::Eager, "eager"),
             (PageLoadStrategy::None, "none"),
         ] {
-            let config = BrowserConfig::default().with_page_load_strategy(strategy);
+            let config = BrowserConfig::builder()
+                .page_load_strategy(strategy)
+                .build()
+                .expect("a valid config");
             assert_eq!(
                 chrome_caps(&options_for(&config))["pageLoadStrategy"],
                 wanted
@@ -795,8 +811,10 @@ mod tests {
 
     #[test]
     fn device_metrics_turn_on_chromes_mobile_emulation() {
-        let config =
-            BrowserConfig::default().with_device_metrics(DeviceMetrics::new(412, 732, 3.0));
+        let config = BrowserConfig::builder()
+            .device_metrics(DeviceMetrics::new(412, 732, 3.0))
+            .build()
+            .expect("a valid config");
         let emulation = chrome_options(&options_for(&config))["mobileEmulation"].clone();
         assert_eq!(
             emulation["deviceMetrics"],
@@ -804,12 +822,20 @@ mod tests {
         );
         assert!(emulation["userAgent"].as_str().unwrap().contains("Android"));
 
-        let own = config.clone().with_user_agent("MyAgent/1.0");
+        let own = config
+            .clone()
+            .into_builder()
+            .user_agent("MyAgent/1.0")
+            .build()
+            .expect("a valid config");
         let emulation = chrome_options(&options_for(&own))["mobileEmulation"].clone();
         assert_eq!(emulation["userAgent"], "MyAgent/1.0");
 
         // Without metrics the default phone is emulated, as Python does.
-        let mobile = BrowserConfig::default().with_mobile(true);
+        let mobile = BrowserConfig::builder()
+            .mobile(true)
+            .build()
+            .expect("a valid config");
         let emulation = chrome_options(&options_for(&mobile))["mobileEmulation"].clone();
         assert_eq!(
             emulation["deviceMetrics"],
@@ -819,11 +845,20 @@ mod tests {
 
         // The undetected mode would show the capability: it is sent the phone
         // over DevTools instead (`BrowserSession::apply_mobile_emulation`).
-        let uc = mobile.clone().with_mode(DriverMode::Uc);
+        let uc = mobile
+            .clone()
+            .into_builder()
+            .mode(DriverMode::Uc)
+            .build()
+            .expect("a valid config");
         assert!(chrome_options(&options_for(&uc))
             .get("mobileEmulation")
             .is_none());
-        let uc_metrics = uc.with_device_metrics(DeviceMetrics::new(360, 640, 2.0));
+        let uc_metrics = uc
+            .into_builder()
+            .device_metrics(DeviceMetrics::new(360, 640, 2.0))
+            .build()
+            .expect("a valid config");
         assert!(chrome_options(&options_for(&uc_metrics))
             .get("mobileEmulation")
             .is_none());
@@ -837,15 +872,17 @@ mod tests {
 
     #[test]
     fn the_switches_reach_the_chromium_arguments() {
-        let config = BrowserConfig::default()
-            .with_headless(false)
-            .with_dark_mode(true)
-            .with_incognito(true)
-            .with_devtools(true)
-            .with_disable_gpu(true)
-            .with_chromium_arg("mute-audio,disable-features=Translate")
-            .with_disable_features(["Foo"])
-            .with_host_resolver_rules("MAP a.test 127.0.0.1");
+        let config = BrowserConfig::builder()
+            .headless(false)
+            .dark_mode(true)
+            .incognito(true)
+            .devtools(true)
+            .disable_gpu(true)
+            .chromium_arg("mute-audio,disable-features=Translate")
+            .disable_features(["Foo"])
+            .host_resolver_rules("MAP a.test 127.0.0.1")
+            .build()
+            .expect("a valid config");
         let args = options_for(&config).args().unwrap();
         for wanted in [
             "--enable-features=WebContentsForceDark",
@@ -859,19 +896,26 @@ mod tests {
             assert!(args.contains(&wanted.to_owned()), "{wanted}: {args:?}");
         }
         // The headed window keeps the GPU unless it was switched off.
-        let plain = options_for(&BrowserConfig::default().with_headless(false))
-            .args()
-            .unwrap();
+        let plain = options_for(
+            &BrowserConfig::builder()
+                .headless(false)
+                .build()
+                .expect("a valid config"),
+        )
+        .args()
+        .unwrap();
         assert!(!plain.contains(&"--disable-gpu".to_owned()), "{plain:?}");
     }
 
     #[test]
     fn a_loaded_extension_drops_incognito_and_the_feature_lists_are_one_switch() {
-        let config = BrowserConfig::default()
-            .with_incognito(true)
-            .with_guest_mode(true)
-            .with_disable_csp(true)
-            .with_disable_features(["Foo"]);
+        let config = BrowserConfig::builder()
+            .incognito(true)
+            .guest_mode(true)
+            .disable_csp(true)
+            .disable_features(["Foo"])
+            .build()
+            .expect("a valid config");
         let args = options_for(&config).args().unwrap();
         assert!(!args.contains(&"--incognito".to_owned()), "{args:?}");
         assert!(!args.contains(&"--guest".to_owned()), "{args:?}");
@@ -887,9 +931,11 @@ mod tests {
     #[test]
     fn a_maximized_headed_window_asks_for_no_size_and_a_headless_one_keeps_it() {
         let headed = options_for(
-            &BrowserConfig::default()
-                .with_headless(false)
-                .with_maximize(true),
+            &BrowserConfig::builder()
+                .headless(false)
+                .maximize(true)
+                .build()
+                .expect("a valid config"),
         )
         .args()
         .unwrap();
@@ -899,25 +945,35 @@ mod tests {
         );
         assert!(!headed.iter().any(|a| a.starts_with("--window-size=")));
 
-        let headless = options_for(&BrowserConfig::default().with_maximize(true))
-            .args()
-            .unwrap();
+        let headless = options_for(
+            &BrowserConfig::builder()
+                .maximize(true)
+                .build()
+                .expect("a valid config"),
+        )
+        .args()
+        .unwrap();
         assert!(!headless.contains(&"--start-maximized".to_owned()));
         assert!(headless.iter().any(|a| a.starts_with("--window-size=")));
     }
 
     #[test]
     fn chrome_headless_shell_is_always_headless() {
-        let shell = BrowserConfig::default()
-            .with_browser(crate::browser::config::Browser::ChromeHeadlessShell)
-            .with_headless(false);
+        let shell = BrowserConfig::builder()
+            .browser(crate::browser::config::Browser::ChromeHeadlessShell)
+            .headless(false)
+            .build()
+            .expect("a valid config");
         let args = options_for(&shell).args().unwrap();
         assert!(args.contains(&"--headless=new".to_owned()), "{args:?}");
     }
 
     #[test]
     fn the_locale_is_chromes_form_in_the_switch_and_the_preference() {
-        let config = BrowserConfig::default().with_locale("ar_eg");
+        let config = BrowserConfig::builder()
+            .locale("ar_eg")
+            .build()
+            .expect("a valid config");
         let options = options_for(&config);
         assert!(options.args().unwrap().contains(&"--lang=ar-EG".to_owned()));
         assert_eq!(
@@ -936,19 +992,29 @@ mod tests {
             "{default:?}"
         );
 
-        let enabled = BrowserConfig::default().with_enable_sync(true);
+        let enabled = BrowserConfig::builder()
+            .enable_sync(true)
+            .build()
+            .expect("a valid config");
         assert!(!options_for(&enabled)
             .args()
             .unwrap()
             .contains(&"--disable-sync".to_owned()));
 
         // The undetected-mode arguments carry the switch too.
-        let uc = BrowserConfig::default().with_mode(DriverMode::Uc);
+        let uc = BrowserConfig::builder()
+            .mode(DriverMode::Uc)
+            .build()
+            .expect("a valid config");
         assert!(options_for(&uc)
             .args()
             .unwrap()
             .contains(&"--disable-sync".to_owned()));
-        let uc_synced = uc.with_enable_sync(true);
+        let uc_synced = uc
+            .into_builder()
+            .enable_sync(true)
+            .build()
+            .expect("a valid config");
         assert!(!options_for(&uc_synced)
             .args()
             .unwrap()
@@ -957,12 +1023,19 @@ mod tests {
 
     #[test]
     fn the_automation_extension_is_kept_only_when_asked_for() {
-        let uc = BrowserConfig::default().with_mode(DriverMode::Uc);
+        let uc = BrowserConfig::builder()
+            .mode(DriverMode::Uc)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chrome_options(&options_for(&uc))["useAutomationExtension"],
             false
         );
-        let kept = uc.with_automation_extension(true);
+        let kept = uc
+            .into_builder()
+            .automation_extension(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chrome_options(&options_for(&kept))["useAutomationExtension"],
             true
@@ -978,9 +1051,11 @@ mod tests {
         let crx = dir.path().join("mine.crx");
         std::fs::write(&crx, b"crx bytes").unwrap();
 
-        let config = BrowserConfig::default()
-            .with_extension_archive(ExtensionArchive::try_new(&crx).unwrap())
-            .with_extension_archive(ExtensionArchive::try_new(&crx).unwrap());
+        let config = BrowserConfig::builder()
+            .extension_archive(ExtensionArchive::try_new(&crx).unwrap())
+            .extension_archive(ExtensionArchive::try_new(&crx).unwrap())
+            .build()
+            .expect("a valid config");
         let options = chrome_options(&options_for(&config));
         let encoded = base64::engine::general_purpose::STANDARD.encode(b"crx bytes");
         assert_eq!(
@@ -992,9 +1067,11 @@ mod tests {
             "--disable-features=DisableLoadExtensionCommandLineSwitch"
         )));
 
-        let bundled = BrowserConfig::default()
-            .with_disable_csp(true)
-            .with_recorder_extension(true);
+        let bundled = BrowserConfig::builder()
+            .disable_csp(true)
+            .recorder_extension(true)
+            .build()
+            .expect("a valid config");
         let extensions = chrome_options(&options_for(&bundled))["extensions"].clone();
         assert_eq!(extensions.as_array().unwrap().len(), 2);
 
@@ -1009,8 +1086,10 @@ mod tests {
 
     #[test]
     fn a_missing_extension_file_fails_the_session_before_it_starts() {
-        let config = BrowserConfig::default()
-            .with_extension_archive(ExtensionArchive::try_new("/no/such/extension.zip").unwrap());
+        let config = BrowserConfig::builder()
+            .extension_archive(ExtensionArchive::try_new("/no/such/extension.zip").unwrap())
+            .build()
+            .expect("a valid config");
         let error = options_for(&config).args().unwrap_err();
         assert!(
             error.to_string().contains("/no/such/extension.zip"),
@@ -1020,9 +1099,11 @@ mod tests {
 
     #[test]
     fn disable_features_lists_are_merged_not_overridden() {
-        let config = BrowserConfig::default()
-            .with_disable_csp(true)
-            .with_extra_args(["disable-features=Foo", "--disable-features=Bar,Foo"]);
+        let config = BrowserConfig::builder()
+            .disable_csp(true)
+            .extra_args(["disable-features=Foo", "--disable-features=Bar,Foo"])
+            .build()
+            .expect("a valid config");
         let args = options_for(&config).args().unwrap();
         let lists: Vec<_> = args
             .iter()
@@ -1037,17 +1118,27 @@ mod tests {
 
     #[test]
     fn the_remote_debugger_port_is_a_chrome_flag() {
-        let on = BrowserConfig::default().with_remote_debug(true);
+        let on = BrowserConfig::builder()
+            .remote_debug(true)
+            .build()
+            .expect("a valid config");
         assert!(options_for(&on)
             .args()
             .unwrap()
             .contains(&"--remote-debugging-port=9222".to_owned()));
-        let custom = BrowserConfig::default().with_remote_debug_port(9333);
+        let custom = BrowserConfig::builder()
+            .remote_debug_port(9333)
+            .build()
+            .expect("a valid config");
         assert!(options_for(&custom)
             .args()
             .unwrap()
             .contains(&"--remote-debugging-port=9333".to_owned()));
-        let off = on.with_remote_debug(false);
+        let off = on
+            .into_builder()
+            .remote_debug(false)
+            .build()
+            .expect("a valid config");
         assert!(!options_for(&off)
             .args()
             .unwrap()
@@ -1057,18 +1148,28 @@ mod tests {
 
     #[test]
     fn the_cdp_event_log_is_the_performance_and_browser_logging_capability() {
-        let logged = BrowserConfig::default().with_cdp_events(CdpEventCapture::Always);
+        let logged = BrowserConfig::builder()
+            .cdp_events(CdpEventCapture::Always)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chrome_caps(&options_for(&logged))["goog:loggingPrefs"],
             json!({"performance": "ALL", "browser": "ALL"})
         );
 
         // UC-only capture leaves a plain session alone, and logs a UC one.
-        let uc_only = BrowserConfig::default().with_cdp_events(CdpEventCapture::UndetectedOnly);
+        let uc_only = BrowserConfig::builder()
+            .cdp_events(CdpEventCapture::UndetectedOnly)
+            .build()
+            .expect("a valid config");
         assert!(chrome_caps(&options_for(&uc_only))
             .get("goog:loggingPrefs")
             .is_none());
-        let uc = uc_only.with_mode(DriverMode::Uc);
+        let uc = uc_only
+            .into_builder()
+            .mode(DriverMode::Uc)
+            .build()
+            .expect("a valid config");
         assert!(chrome_caps(&options_for(&uc))
             .get("goog:loggingPrefs")
             .is_some());
@@ -1081,7 +1182,10 @@ mod tests {
     fn capability_overrides_do_not_change_the_chrome_arguments() {
         // They are merged into the capabilities when the session is built.
         let caps = CapabilityOverrides::from_text(r#"{"name": "x"}"#).unwrap();
-        let config = BrowserConfig::default().with_capabilities(caps);
+        let config = BrowserConfig::builder()
+            .capabilities(caps)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             options_for(&config).args().unwrap(),
             options_for(&BrowserConfig::default()).args().unwrap()

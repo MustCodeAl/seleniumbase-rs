@@ -547,7 +547,9 @@ async fn steps(sb: &mut BaseCase) -> Result<()> {{
                         "DriverMode, ",
                         "    let config = Settings::load()?\n\
                          \x20       .to_browser_config()\n\
-                         \x20       .with_mode(DriverMode::Uc);\n\
+                         \x20       .into_builder()\n\
+                         \x20       .mode(DriverMode::Uc)\n\
+                         \x20       .build()?;\n\
                          \x20   run_browser_test(config, async |sb| {",
                     )
                 } else {

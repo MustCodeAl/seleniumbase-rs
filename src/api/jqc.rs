@@ -1285,15 +1285,22 @@ mod tests {
     }
 
     fn case_without_session(headless: bool) -> BaseCase {
-        BaseCase::without_session(BrowserConfig::default().with_headless(headless))
+        BaseCase::without_session(
+            BrowserConfig::builder()
+                .headless(headless)
+                .build()
+                .expect("a valid config"),
+        )
     }
 
     #[tokio::test]
     async fn where_nobody_watches_the_calls_return_pythons_values_and_send_nothing() {
         let driver = MockWebDriver::start(json!({}), |_| Reply::Value(Value::Null));
-        let mut config = BrowserConfig::default()
-            .with_headless(true)
-            .with_webdriver_url(driver.url().to_owned());
+        let mut config = BrowserConfig::builder()
+            .headless(true)
+            .webdriver_url(driver.url().to_owned())
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         let sb = BaseCase::new(config).await.unwrap();
 
@@ -1367,9 +1374,11 @@ mod tests {
     }
 
     async fn watched_case(driver: &MockWebDriver) -> BaseCase {
-        let mut config = BrowserConfig::default()
-            .with_headless(false)
-            .with_webdriver_url(driver.url().to_owned());
+        let mut config = BrowserConfig::builder()
+            .headless(false)
+            .webdriver_url(driver.url().to_owned())
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         BaseCase::new(config).await.unwrap()
     }

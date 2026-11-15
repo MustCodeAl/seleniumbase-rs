@@ -255,7 +255,7 @@ mod tests_messages {
     use serde_json::json;
 
     fn headed() -> BrowserConfig {
-        BrowserConfig::default().with_headless(false)
+        BrowserConfig::builder().headless(false).build().expect("a valid config")
     }
 
     fn last_script(driver: &MockWebDriver) -> String {
@@ -274,15 +274,13 @@ mod tests_messages {
             Duration::from_secs(5)
         );
 
-        let sb = BaseCase::without_session(headed().with_run_settings(
-            RunSettings::default().with_message_duration(Duration::from_millis(1500)),
-        ));
+        let sb = BaseCase::without_session(headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_millis(1500)),).build().expect("a valid config"));
         assert_eq!(sb.message_time(None), Duration::from_millis(1500));
     }
 
     #[test]
     fn a_message_in_a_headless_browser_stays_at_most_three_quarters_of_a_second() {
-        let sb = BaseCase::without_session(headed().with_headless(true));
+        let sb = BaseCase::without_session(headed().into_builder().headless(true).build().expect("a valid config"));
         assert_eq!(sb.message_time(None), Duration::from_millis(750));
         assert_eq!(
             sb.message_time(Some(Duration::from_secs(5))),
@@ -297,22 +295,22 @@ mod tests_messages {
 
     #[test]
     fn nobody_watches_a_headless_browser_or_one_on_a_virtual_display() {
-        let sb = BaseCase::without_session(headed().with_headless(true));
+        let sb = BaseCase::without_session(headed().into_builder().headless(true).build().expect("a valid config"));
         assert!(sb.nobody_watches());
 
-        let sb = BaseCase::without_session(headed().with_xvfb(true));
+        let sb = BaseCase::without_session(headed().into_builder().xvfb(true).build().expect("a valid config"));
         assert!(sb.nobody_watches());
 
         // Headed, with no virtual display, somebody watches.
         let sb = BaseCase::without_session(headed());
         assert!(!sb.nobody_watches());
-        let sb = BaseCase::without_session(headed().with_xvfb(true).with_xvfb(false));
+        let sb = BaseCase::without_session(headed().into_builder().xvfb(true).xvfb(false).build().expect("a valid config"));
         assert!(!sb.nobody_watches());
     }
 
     #[test]
     fn a_message_on_a_virtual_display_stays_at_most_three_quarters_of_a_second() {
-        let sb = BaseCase::without_session(headed().with_xvfb(true));
+        let sb = BaseCase::without_session(headed().into_builder().xvfb(true).build().expect("a valid config"));
         assert_eq!(sb.message_time(None), Duration::from_millis(750));
         assert_eq!(
             sb.message_time(Some(Duration::from_secs(5))),
@@ -332,7 +330,7 @@ mod tests_messages {
             "/execute/sync" => Reply::Value(json!(true)),
             _ => Reply::Value(Value::Null),
         });
-        let mut config = config.with_webdriver_url(driver.url().to_owned());
+        let mut config = config.into_builder().webdriver_url(driver.url().to_owned()).build().expect("a valid config");
         config.session.auto_start_driver = false;
         let sb = BaseCase::new(config).await.unwrap();
         (driver, sb)
@@ -350,9 +348,7 @@ mod tests_messages {
 
     #[tokio::test]
     async fn post_message_posts_with_messenger_for_the_duration_and_waits_for_it() {
-        let (driver, sb) = messenger_case(headed().with_run_settings(
-            RunSettings::default().with_message_duration(Duration::from_millis(120)),
-        ))
+        let (driver, sb) = messenger_case(headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_millis(120)),).build().expect("a valid config"))
         .await;
 
         let started = std::time::Instant::now();
@@ -392,9 +388,7 @@ mod tests_messages {
 
     #[tokio::test]
     async fn without_a_pause_the_call_returns_at_once() {
-        let (_driver, sb) = messenger_case(headed().with_run_settings(
-            RunSettings::default().with_message_duration(Duration::from_secs(30)),
-        ))
+        let (_driver, sb) = messenger_case(headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_secs(30)),).build().expect("a valid config"))
         .await;
         let started = std::time::Instant::now();
         sb.post_message("x").pause(false).await.unwrap();
@@ -403,7 +397,7 @@ mod tests_messages {
 
     #[tokio::test]
     async fn a_message_where_nobody_watches_is_cut_to_three_quarters_of_a_second() {
-        let (driver, sb) = messenger_case(headed().with_headless(true)).await;
+        let (driver, sb) = messenger_case(headed().into_builder().headless(true).build().expect("a valid config")).await;
         sb.post_message("x")
             .duration(Duration::from_secs(5))
             .pause(false)
@@ -482,7 +476,7 @@ mod tests_messages {
     }
 
     async fn case_on(driver: &MockWebDriver, config: BrowserConfig) -> BaseCase {
-        let mut config = config.with_webdriver_url(driver.url().to_owned());
+        let mut config = config.into_builder().webdriver_url(driver.url().to_owned()).build().expect("a valid config");
         config.session.auto_start_driver = false;
         BaseCase::new(config).await.unwrap()
     }
@@ -514,7 +508,7 @@ mod tests_messages {
     #[tokio::test]
     async fn a_mobile_emulator_gets_messenger_at_the_top_centre() {
         let driver = page_that_loads_messenger_on_request();
-        let sb = case_on(&driver, headed().with_mobile(true)).await;
+        let sb = case_on(&driver, headed().into_builder().mobile(true).build().expect("a valid config")).await;
 
         sb.post_message("Hello").pause(false).await.unwrap();
 
@@ -536,9 +530,7 @@ mod tests_messages {
         });
         let sb = case_on(
             &driver,
-            headed().with_run_settings(
-                RunSettings::default().with_message_duration(Duration::from_millis(120)),
-            ),
+            headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_millis(120)),).build().expect("a valid config"),
         )
         .await;
 

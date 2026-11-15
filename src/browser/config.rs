@@ -575,7 +575,10 @@ impl BrowserConfig {
     /// `--binary-location`). The same as
     /// [`with_browser_binary_path`](Self::with_browser_binary_path).
     pub fn with_binary_location(self, path: impl Into<PathBuf>) -> Self {
-        self.with_browser_binary_path(path)
+        self.into_builder()
+            .browser_binary_path(path)
+            .build()
+            .expect("a valid config")
     }
 
     /// Sends the session to a Selenium Grid: the WebDriver URL Python
@@ -981,7 +984,10 @@ impl BrowserConfig {
     /// Keep web security on (`--enable-ws`), which is the default; the
     /// opposite of [`with_disable_web_security`](Self::with_disable_web_security).
     pub fn with_enable_web_security(self, on: bool) -> Self {
-        self.with_disable_web_security(!on)
+        self.into_builder()
+            .disable_web_security(!on)
+            .build()
+            .expect("a valid config")
     }
 
     /// Render with SwiftShader, a software WebGL renderer (`--swiftshader`).
@@ -1031,7 +1037,10 @@ impl BrowserConfig {
     /// Runs headless in Chrome's new mode (`--headless2`), which is what
     /// [`with_headless`](Self::with_headless) already does.
     pub fn with_headless2(self, on: bool) -> Self {
-        self.with_headless(on)
+        self.into_builder()
+            .headless(on)
+            .build()
+            .expect("a valid config")
     }
 
     /// Opens a virtual display for a headed browser on Linux (`--xvfb`), of
@@ -1051,7 +1060,10 @@ impl BrowserConfig {
     pub fn with_chromium_arg(mut self, text: &str) -> Self {
         let (args, features) = crate::browser::options::parse_chromium_args(text);
         self.browser.chromium.args.extend(args);
-        self.with_disable_features(features)
+        self.into_builder()
+            .disable_features(features)
+            .build()
+            .expect("a valid config")
     }
 
     /// Chromium features to switch off (`--disable-features`), joined with the
@@ -1300,8 +1312,10 @@ mod tests {
             }
         }
 
-        let config = BrowserConfig::default()
-            .with_plugins(PluginSet::new().with(Mine).unwrap())
+        let config = BrowserConfig::builder()
+            .plugins(PluginSet::new().with(Mine).unwrap())
+            .build()
+            .expect("a valid config")
             .with_plugins_named(["shield"])
             .unwrap();
         assert_eq!(config.plugins().names(), ["mine", "shield"]);
@@ -1314,18 +1328,20 @@ mod tests {
 
     #[test]
     fn the_builders_write_into_the_group_that_owns_the_setting() {
-        let config = BrowserConfig::default()
-            .with_proxy("proxy.test:8080")
-            .with_proxy_pac_url("http://pac.test/p.pac")
-            .with_user_agent("Agent/1")
-            .with_locale("fr_FR")
-            .with_start_page("https://example.com/")
-            .with_user_data_dir("/tmp/profile")
-            .with_extension_dir("/ext/a, /ext/b")
-            .with_browser_binary_path("/opt/chrome")
-            .with_mode(DriverMode::Uc)
-            .with_reuse_session(true)
-            .with_webdriver_url("http://hub.test:4444/wd/hub");
+        let config = BrowserConfig::builder()
+            .proxy("proxy.test:8080")
+            .proxy_pac_url("http://pac.test/p.pac")
+            .user_agent("Agent/1")
+            .locale("fr_FR")
+            .start_page("https://example.com/")
+            .user_data_dir("/tmp/profile")
+            .extension_dir("/ext/a, /ext/b")
+            .browser_binary_path("/opt/chrome")
+            .mode(DriverMode::Uc)
+            .reuse_session(true)
+            .webdriver_url("http://hub.test:4444/wd/hub")
+            .build()
+            .expect("a valid config");
         let browser = &config.browser;
         assert_eq!(browser.proxy.server.as_deref(), Some("proxy.test:8080"));
         assert_eq!(
@@ -1400,15 +1416,19 @@ mod tests {
     #[test]
 
     fn the_debug_text_hides_every_login_and_the_discovery_url() {
-        let config = BrowserConfig::default()
-            .with_proxy("user:PROXYPW@proxy.test:8080")
-            .with_webdriver_url("https://USER:GRIDKEY@hub.test/wd/hub");
+        let config = BrowserConfig::builder()
+            .proxy("user:PROXYPW@proxy.test:8080")
+            .webdriver_url("https://USER:GRIDKEY@hub.test/wd/hub")
+            .build()
+            .expect("a valid config");
         let text = format!("{config:?}");
         assert!(!text.contains("PROXYPW"), "{text}");
         assert!(!text.contains("GRIDKEY"), "{text}");
-        let discovery = BrowserConfig::default()
-            .with_webdriver_url("http://127.0.0.1:4445/TOKEN123/")
-            .with_cdp_discovery(true);
+        let discovery = BrowserConfig::builder()
+            .webdriver_url("http://127.0.0.1:4445/TOKEN123/")
+            .cdp_discovery(true)
+            .build()
+            .expect("a valid config");
         assert!(!format!("{discovery:?}").contains("TOKEN123"));
     }
 
@@ -1416,7 +1436,10 @@ mod tests {
 
     fn run_settings_are_set_by_a_builder_and_stay_out_of_config_files() {
         let demo = RunSettings::default().with_demo_mode(true);
-        let config = BrowserConfig::default().with_run_settings(demo.clone());
+        let config = BrowserConfig::builder()
+            .run_settings(demo.clone())
+            .build()
+            .expect("a valid config");
         assert_eq!(config.run_settings(), &demo);
         assert_eq!(
             BrowserConfig::default().run_settings(),
@@ -1461,7 +1484,10 @@ mod tests {
 
     #[test]
     fn a_class_session_is_a_reused_session_for_one_class() {
-        let config = BrowserConfig::default().with_reuse_class_session("Login");
+        let config = BrowserConfig::builder()
+            .reuse_class_session("Login")
+            .build()
+            .expect("a valid config");
         assert!(config.session.reuse);
         assert_eq!(
             config.session.reuse_class,
@@ -1471,15 +1497,24 @@ mod tests {
 
     #[test]
     fn the_module_flag_turns_reuse_on_and_comes_off_alone() {
-        let on = BrowserConfig::default().with_reuse_module_session(true);
+        let on = BrowserConfig::builder()
+            .reuse_module_session(true)
+            .build()
+            .expect("a valid config");
         assert!(on.session.reuse);
         assert_eq!(on.session.reuse_class, Some(ReuseClass::TestModule));
-        let off = on.with_reuse_module_session(false);
+        let off = on
+            .into_builder()
+            .reuse_module_session(false)
+            .build()
+            .expect("a valid config");
         assert!(off.session.reuse, "--rs stays on");
         assert_eq!(off.session.reuse_class, None);
-        let named = BrowserConfig::default()
-            .with_reuse_class_session("Login")
-            .with_reuse_module_session(false);
+        let named = BrowserConfig::builder()
+            .reuse_class_session("Login")
+            .reuse_module_session(false)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             named.session.reuse_class,
             Some(ReuseClass::Named("Login".to_owned())),
@@ -1489,7 +1524,10 @@ mod tests {
 
     #[test]
     fn the_reuse_class_round_trips_through_a_config_file() {
-        let config = BrowserConfig::default().with_reuse_class_session("Login");
+        let config = BrowserConfig::builder()
+            .reuse_class_session("Login")
+            .build()
+            .expect("a valid config");
         let text = serde_json::to_string(&config).unwrap();
         assert!(
             text.contains(r#""reuse_class":{"named":"Login"}"#),
@@ -1497,7 +1535,10 @@ mod tests {
         );
         let back: BrowserConfig = serde_json::from_str(&text).unwrap();
         assert_eq!(back, config);
-        let module = BrowserConfig::default().with_reuse_module_session(true);
+        let module = BrowserConfig::builder()
+            .reuse_module_session(true)
+            .build()
+            .expect("a valid config");
         let text = serde_json::to_string(&module).unwrap();
         assert!(text.contains(r#""reuse_class":"test_module""#), "{text}");
     }
@@ -1578,16 +1619,20 @@ mod tests {
             .validate()
             .is_ok());
 
-        let bad_proxy = BrowserConfig::default()
-            .with_proxy("ftp://user:hunter2@h:21")
+        let bad_proxy = BrowserConfig::builder()
+            .proxy("ftp://user:hunter2@h:21")
+            .build()
+            .expect("a valid config")
             .validate()
             .unwrap_err()
             .to_string();
         assert!(bad_proxy.contains("is NOT in the expected"), "{bad_proxy}");
         assert!(!bad_proxy.contains("hunter2"), "{bad_proxy}");
 
-        let bad_pac = BrowserConfig::default()
-            .with_proxy_pac_url("http://h/p.js")
+        let bad_pac = BrowserConfig::builder()
+            .proxy_pac_url("http://h/p.js")
+            .build()
+            .expect("a valid config")
             .validate()
             .unwrap_err()
             .to_string();
@@ -1599,10 +1644,16 @@ mod tests {
 
     #[test]
     fn firefox_cannot_answer_a_proxy_login() {
-        let firefox = BrowserConfig::default().with_browser(Browser::Firefox);
+        let firefox = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .build()
+            .expect("a valid config");
         let error = firefox
             .clone()
-            .with_proxy("user:pw@h:8080")
+            .into_builder()
+            .proxy("user:pw@h:8080")
+            .build()
+            .expect("a valid config")
             .validate()
             .unwrap_err()
             .to_string();
@@ -1620,23 +1671,32 @@ mod tests {
             .is_err());
         assert!(firefox.with_proxy("h:8080").validate().is_ok());
         for browser in [Browser::Chrome, Browser::Edge, Browser::Brave] {
-            let config = BrowserConfig::default()
-                .with_browser(browser)
-                .with_proxy("user:pw@h:8080");
+            let config = BrowserConfig::builder()
+                .browser(browser)
+                .proxy("user:pw@h:8080")
+                .build()
+                .expect("a valid config");
             assert!(config.validate().is_ok(), "{browser}");
         }
     }
 
     #[test]
     fn remote_needs_capabilities_and_a_server() {
-        let remote = BrowserConfig::default().with_browser(Browser::Remote);
+        let remote = BrowserConfig::builder()
+            .browser(Browser::Remote)
+            .build()
+            .expect("a valid config");
         let error = remote.clone().validate().unwrap_err().to_string();
         assert!(
             error.contains("--browser=remote needs --cap-file or --cap-string"),
             "{error}"
         );
         let caps = CapabilityOverrides::from_text(r#"{"browserName":"chrome"}"#).unwrap();
-        let with_caps = remote.with_capabilities(caps);
+        let with_caps = remote
+            .into_builder()
+            .capabilities(caps)
+            .build()
+            .expect("a valid config");
         let error = with_caps.clone().validate().unwrap_err().to_string();
         assert!(
             error.contains("--browser=remote needs a WebDriver server"),
@@ -1680,12 +1740,23 @@ mod tests {
 
     #[test]
     fn the_remote_debugger_may_move_only_when_the_default_port_was_asked_for() {
-        let default = BrowserConfig::default().with_remote_debug(true);
+        let default = BrowserConfig::builder()
+            .remote_debug(true)
+            .build()
+            .expect("a valid config");
         assert!(default.browser.debugging_any_port);
-        let named = default.with_remote_debug_port(9333);
+        let named = default
+            .into_builder()
+            .remote_debug_port(9333)
+            .build()
+            .expect("a valid config");
         assert!(!named.browser.debugging_any_port);
         assert_eq!(named.browser.debugging_port, Some(9333));
-        let off = named.with_remote_debug(false);
+        let off = named
+            .into_builder()
+            .remote_debug(false)
+            .build()
+            .expect("a valid config");
         assert_eq!(off.browser.debugging_port, None);
         assert!(!off.browser.debugging_any_port);
     }
@@ -1699,10 +1770,12 @@ mod tests {
             "{plain}"
         );
 
-        let config = BrowserConfig::default()
-            .with_browser(Browser::Brave)
-            .with_block_images(true)
-            .with_page_load_strategy(PageLoadStrategy::Eager);
+        let config = BrowserConfig::builder()
+            .browser(Browser::Brave)
+            .block_images(true)
+            .page_load_strategy(PageLoadStrategy::Eager)
+            .build()
+            .expect("a valid config");
         let json = serde_json::to_value(&config).unwrap();
         assert_eq!(json["browser"]["kind"], "Brave");
         assert_eq!(
@@ -1726,8 +1799,10 @@ mod tests {
 
     #[test]
     fn device_metrics_turn_mobile_on() {
-        let config =
-            BrowserConfig::default().with_device_metrics(DeviceMetrics::new(360, 640, 2.0));
+        let config = BrowserConfig::builder()
+            .device_metrics(DeviceMetrics::new(360, 640, 2.0))
+            .build()
+            .expect("a valid config");
         assert!(config.browser.mobile);
         assert_eq!(
             config.browser.device_metrics,
@@ -1737,10 +1812,12 @@ mod tests {
 
     #[test]
     fn the_debug_output_hides_a_proxy_password_and_a_server_key() {
-        let config = BrowserConfig::default()
-            .with_proxy("socks5://user:secret@proxy.example:1080")
-            .with_proxy_pac_url("http://pac-user:pac-secret@pac.example/p.pac")
-            .with_webdriver_url("https://USER:ACCESSKEY@hub.example.com/wd/hub");
+        let config = BrowserConfig::builder()
+            .proxy("socks5://user:secret@proxy.example:1080")
+            .proxy_pac_url("http://pac-user:pac-secret@pac.example/p.pac")
+            .webdriver_url("https://USER:ACCESSKEY@hub.example.com/wd/hub")
+            .build()
+            .expect("a valid config");
         let shown = format!("{config:?}");
         for secret in ["secret", "ACCESSKEY", "pac-user", "USER:"] {
             assert!(!shown.contains(secret), "{secret} is in {shown}");
@@ -1756,17 +1833,25 @@ mod tests {
 
     #[test]
     fn the_switch_builders_turn_their_switches_on_and_off() {
-        let on = BrowserConfig::default()
-            .with_dark_mode(true)
-            .with_guest_mode(true)
-            .with_incognito(true)
-            .with_devtools(true)
-            .with_disable_web_security(true)
+        let on = BrowserConfig::builder()
+            .dark_mode(true)
+            .guest_mode(true)
+            .incognito(true)
+            .devtools(true)
+            .disable_web_security(true)
+            .build()
+            .expect("a valid config")
             .with_swiftshader(true)
             .with_enable_3d_apis(true)
-            .with_maximize(true)
+            .into_builder()
+            .maximize(true)
+            .build()
+            .expect("a valid config")
             .with_no_sandbox(true)
-            .with_disable_gpu(true);
+            .into_builder()
+            .disable_gpu(true)
+            .build()
+            .expect("a valid config");
         for switch in [
             LaunchSwitch::DarkMode,
             LaunchSwitch::Guest,
@@ -1781,7 +1866,12 @@ mod tests {
         ] {
             assert!(on.browser.has(switch), "{switch:?}");
         }
-        let off = on.with_dark_mode(false).with_enable_web_security(true);
+        let off = on
+            .into_builder()
+            .dark_mode(false)
+            .build()
+            .expect("a valid config")
+            .with_enable_web_security(true);
         assert!(!off.browser.has(LaunchSwitch::DarkMode));
         assert!(!off.browser.has(LaunchSwitch::DisableWebSecurity));
         assert!(off
@@ -1792,10 +1882,22 @@ mod tests {
 
     #[test]
     fn headless1_asks_for_a_headless_browser_and_headless2_is_headless() {
-        let headed = BrowserConfig::default().with_headless(false);
-        let one = headed.clone().with_headless1(true);
+        let headed = BrowserConfig::builder()
+            .headless(false)
+            .build()
+            .expect("a valid config");
+        let one = headed
+            .clone()
+            .into_builder()
+            .headless1(true)
+            .build()
+            .expect("a valid config");
         assert!(one.browser.headless && one.browser.has(LaunchSwitch::Headless1));
-        let two = headed.with_headless2(true);
+        let two = headed
+            .into_builder()
+            .headless2(true)
+            .build()
+            .expect("a valid config");
         assert!(two.browser.headless && !two.browser.has(LaunchSwitch::Headless1));
     }
 
@@ -1803,9 +1905,12 @@ mod tests {
     fn chromium_arg_text_adds_arguments_and_features_without_repeating_them() {
         let config = BrowserConfig::default()
             .with_chromium_arg("mute-audio,disable-features=Translate")
-            .with_chromium_arg("-ignore-gpu-blocklist,disable-features=Translate")
-            .with_disable_features(["Foo", "Translate"])
-            .with_host_resolver_rules("MAP a.test 127.0.0.1");
+            .into_builder()
+            .chromium_arg("-ignore-gpu-blocklist,disable-features=Translate")
+            .disable_features(["Foo", "Translate"])
+            .host_resolver_rules("MAP a.test 127.0.0.1")
+            .build()
+            .expect("a valid config");
         assert_eq!(
             config.browser.chromium.args,
             ["--mute-audio", "--ignore-gpu-blocklist"]
@@ -1822,7 +1927,10 @@ mod tests {
 
     #[test]
     fn xvfb_is_the_default_virtual_display_or_none() {
-        let on = BrowserConfig::default().with_xvfb(true);
+        let on = BrowserConfig::builder()
+            .xvfb(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(on.browser.virtual_display, Some(VirtualDisplay::default()));
         assert_eq!(on.with_xvfb(false).browser.virtual_display, None);
     }
@@ -1830,7 +1938,10 @@ mod tests {
     #[test]
     fn esc_end_is_off_until_it_is_asked_for() {
         assert!(!BrowserConfig::default().esc_end());
-        let on = BrowserConfig::default().with_esc_end(true);
+        let on = BrowserConfig::builder()
+            .esc_end(true)
+            .build()
+            .expect("a valid config");
         assert!(on.esc_end());
         assert!(on.browser.has(LaunchSwitch::EscEnd));
         assert!(!on.with_esc_end(false).esc_end());
@@ -1839,7 +1950,10 @@ mod tests {
     #[test]
     fn rec_sb_cdp_is_off_until_it_is_asked_for_and_is_written_as_a_switch() {
         assert!(!BrowserConfig::default().recording_sb_cdp());
-        let on = BrowserConfig::default().with_recording_sb_cdp(true);
+        let on = BrowserConfig::builder()
+            .recording_sb_cdp(true)
+            .build()
+            .expect("a valid config");
         assert!(on.recording_sb_cdp());
         assert!(!on.esc_end(), "the switches are independent");
         let json = serde_json::to_value(&on).unwrap();
@@ -1859,14 +1973,31 @@ mod tests {
         assert!(off.clone().with_recorder_mode(true).recorder_mode());
         assert!(!off.clone().with_recorder_mode(true).rec_print());
         for config in [
-            off.clone().with_recording_print(true),
-            off.clone().with_recording_behave(true),
+            off.clone()
+                .into_builder()
+                .recording_print(true)
+                .build()
+                .expect("a valid config"),
+            off.clone()
+                .into_builder()
+                .recording_behave(true)
+                .build()
+                .expect("a valid config"),
             off.clone().with_recording_sb_mgr(true),
-            off.clone().with_recording_sb_cdp(true),
+            off.clone()
+                .into_builder()
+                .recording_sb_cdp(true)
+                .build()
+                .expect("a valid config"),
         ] {
             assert!(config.recorder_mode());
         }
-        let on = off.with_recording_print(true).with_recording_behave(true);
+        let on = off
+            .into_builder()
+            .recording_print(true)
+            .recording_behave(true)
+            .build()
+            .expect("a valid config");
         assert!(on.rec_print() && on.rec_behave() && !on.rec_sb_mgr());
         let json = serde_json::to_value(&on).unwrap();
         assert_eq!(
@@ -1878,7 +2009,10 @@ mod tests {
     #[test]
 
     fn esc_end_is_written_beside_the_other_switches() {
-        let config = BrowserConfig::default().with_esc_end(true);
+        let config = BrowserConfig::builder()
+            .esc_end(true)
+            .build()
+            .expect("a valid config");
         let json = serde_json::to_value(&config).unwrap();
         assert_eq!(
             json["browser"]["switches"],
@@ -1890,7 +2024,10 @@ mod tests {
 
     #[test]
     fn the_remote_debugger_has_a_default_port_and_can_be_closed() {
-        let on = BrowserConfig::default().with_remote_debug(true);
+        let on = BrowserConfig::builder()
+            .remote_debug(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(on.browser.debugging_port, Some(9222));
         assert_eq!(on.with_remote_debug(false).browser.debugging_port, None);
     }
