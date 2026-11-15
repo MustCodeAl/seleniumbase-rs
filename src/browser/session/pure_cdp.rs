@@ -149,7 +149,7 @@ impl BrowserSession {
     /// The engine's error.
     pub(crate) async fn all_cookies(&self) -> Result<Vec<thirtyfour::Cookie>, SeleniumBaseError> {
         if self.external_page.is_some() {
-            let cookies = self.get_cookies().await?;
+            let cookies = self.cookies().await?;
             return Ok(cookies.iter().map(Cookie::to_webdriver).collect());
         }
         Ok(self.webdriver()?.get_all_cookies().await?)

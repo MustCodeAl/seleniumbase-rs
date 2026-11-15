@@ -117,7 +117,7 @@ impl BrowserSession {
     }
 
     /// Returns the current window size as `(width, height)`.
-    pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
+    pub async fn window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
         let (_, _, width, height) = self.window_rect().await?;
         Ok((width as u32, height as u32))
     }

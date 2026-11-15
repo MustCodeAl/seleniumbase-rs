@@ -1315,7 +1315,7 @@ impl BaseCase {
     ///
     /// Returns the browser's or the driver's error if the cookies cannot be read.
     pub async fn cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
-        self.session.get_cookies().await
+        self.session.cookies().await
     }
 
     /// Dispatches a CDP mouse click at `(x, y)`, in CSS pixels from the
@@ -1430,7 +1430,7 @@ impl BaseCase {
     ) -> Result<Option<String>, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
-        self.session.get_attribute(selector, attribute_name).await
+        self.session.attribute(selector, attribute_name).await
     }
 
     /// Executes the `property` action.
@@ -1440,7 +1440,7 @@ impl BaseCase {
         property_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
-        self.session.get_property(selector, property_name).await
+        self.session.property(selector, property_name).await
     }
 
     /// Waits up to `timeout` seconds for `css` to become visible.
@@ -1925,7 +1925,7 @@ impl BaseCase {
 
     /// Executes the `window_size` action.
     pub async fn window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
-        self.session.get_window_size().await
+        self.session.window_size().await
     }
 
     /// Waits for a window and switches to it. Corresponds to Python's `switch_to_window`.
@@ -2017,7 +2017,7 @@ impl BaseCase {
 
     /// Executes the `alert_text` action.
     pub async fn alert_text(&self) -> Result<String, SeleniumBaseError> {
-        self.session.get_alert_text().await
+        self.session.alert_text().await
     }
 
     /// Executes the `type_alert_text` action.
@@ -2221,7 +2221,7 @@ impl BaseCase {
     ///
     /// Returns the driver's error for any failure other than a missing cookie.
     pub async fn cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
-        self.session.get_cookie(name).await
+        self.session.cookie(name).await
     }
 
     /// Executes the `delete_cookie` action.
@@ -2460,7 +2460,7 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.get_alert_text().await.is_ok() {
+            if self.session.alert_text().await.is_ok() {
                 self.session.switch_to_alert_accept().await?;
                 return Ok(());
             }
@@ -2479,7 +2479,7 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.get_alert_text().await.is_ok() {
+            if self.session.alert_text().await.is_ok() {
                 self.session.switch_to_alert_dismiss().await?;
                 return Ok(());
             }
@@ -3190,7 +3190,7 @@ impl BaseCase {
 
     /// Return whether a JavaScript alert is currently present.
     pub async fn is_alert_present(&self) -> Result<bool, SeleniumBaseError> {
-        Ok(self.session.get_alert_text().await.is_ok())
+        Ok(self.session.alert_text().await.is_ok())
     }
 
     /// Get the browser user agent string.

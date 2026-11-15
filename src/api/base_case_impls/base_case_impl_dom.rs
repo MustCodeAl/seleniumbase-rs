@@ -131,7 +131,7 @@ impl BaseCase {
         self.session.switch_to_default_content().await?;
         let frame_source = frame_source?;
         self.wait_for_ready_state_complete().await?;
-        let src = self.session.get_property(iframe, "src")
+        let src = self.session.property(iframe, "src")
             .await?
             .unwrap_or_default();
         if opens_in_a_tab(&src) {
