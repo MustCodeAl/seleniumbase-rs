@@ -65,6 +65,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 - `logs_root_with` takes the lookup for `SB_REPORT_ROOT`. A missing or blank value is still the
   empty path. `logs_root` reads the environment through that function.
 
+- `ProxySettings`, `ChromiumSettings` and `BrowserSettings` live in files named after them, and so do `SbCase`, `SbCdpCase`, `ScriptImport` and `ScriptImportOptions`. Each is re-exported from the module it left, so the paths are unchanged. `profile_payloads` names each re-export. The crate docs list the functions that change process-wide state (`install_tls_provider`, the `init_tracing` functions, `shutdown_reused_sessions`). A driver-repair test that finds the system did not kill the altered binary logs that with `tracing` instead of printing it.
+
+
 
 ### Breaking
 

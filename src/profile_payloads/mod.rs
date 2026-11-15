@@ -52,4 +52,9 @@
 
 mod profile;
 
-pub use profile::*;
+pub use profile::{
+    CmdParam, CmdParams, GeolocationFingerprint, GraphicFingerprint, LocalizationFingerprint,
+    MediaDevicesFingerprint, NavigatorFingerprint, Parameters, ProfileFingerprint, ProfileFlags,
+    ProfileParams, ProfileProxy, ScreenFingerprint, StorageOptions, TimezoneFingerprint,
+    WebrtcFingerprint,
+};

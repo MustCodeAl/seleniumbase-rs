@@ -37,6 +37,16 @@
 //! `seleniumbase-rs-wire` of
 //! <https://github.com/MustCodeAl/seleniumbase-rs-stealth>, which build on the
 //! public API of this one.
+//!
+//! ## Process-wide state
+//!
+//! A few functions change state for the whole process, so two tests in one
+//! process can disturb each other. [`install_tls_provider`] installs the TLS
+//! backend. [`init_tracing`], [`init_tracing_json`], [`init_tracing_from_runtime`],
+//! [`init_tracing_with_filter`] and [`init_tracing_json_with_filter`] install
+//! the log subscriber. [`shutdown_reused_sessions`] closes browsers another
+//! test may still be using. The failure-log registry, the shutdown registry
+//! and the reused-session table are process-wide as well.
 
 /// The version of Python SeleniumBase whose API this crate tracks.
 ///
