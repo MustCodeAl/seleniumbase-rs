@@ -124,9 +124,14 @@ async fn the_sidecar_is_on_the_tab_of_its_target_and_leaves_the_browser_running(
 
     // A `BaseCase` on the same browser, through a direct CDP attachment, has a tab of its
     // own: a sidecar beside it is on that tab, whichever one the case took.
-    let mut sb = BaseCase::new(BrowserConfig::default().with_cdp_url(browser.http_url()))
-        .await
-        .expect("a case attaches to the running browser");
+    let mut sb = BaseCase::new(
+        BrowserConfig::builder()
+            .cdp_url(browser.http_url())
+            .build()
+            .expect("a valid config"),
+    )
+    .await
+    .expect("a case attaches to the running browser");
     let case_url = sb.current_url().await.expect("the case's URL");
     let beside_case = PlaywrightSidecar::attach(&sb)
         .await

@@ -59,7 +59,10 @@ fn capabilities_of_a_custom_launch_are_given_with_our_types() {
         CapabilityOverrides::from_text(r#"{"goog:chromeOptions": {"args": ["--headless=new"]}}"#)
             .expect("JSON capabilities");
     assert!(caps.keys().any(|key| key == "goog:chromeOptions"));
-    let _config = seleniumbase_rs::BrowserConfig::default().with_capabilities(caps);
+    let _config = seleniumbase_rs::BrowserConfig::builder()
+        .capabilities(caps)
+        .build()
+        .expect("a valid config");
 }
 
 #[test]
