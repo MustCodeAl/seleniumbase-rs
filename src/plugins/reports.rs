@@ -229,7 +229,9 @@ impl RunReporterPlugin {
 impl TestPlugin for RunReporterPlugin {
     async fn test_started(&mut self, test: &str) -> Result<()> {
         if let Some(previous) = self.recorder.take() {
-            previous.abandon()?;
+            if let Err(error) = previous.abandon() {
+                tracing::warn!(%error, "the previous test's result could not be written");
+            }
         }
         self.recorder = Some(self.run.start(TestId::named(test))?);
         Ok(())
