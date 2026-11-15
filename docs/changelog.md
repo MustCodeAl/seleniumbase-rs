@@ -74,6 +74,13 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   When that error is a `SeleniumBaseError`, the category, the exit code, the hint
   and whether it is transient follow the cause. Any other cause is category
   `context` and exit code 2.
+- **Breaking: example lookup, recorder paths and Selenium IDE parsing return typed
+  errors.** `find_examples` returns `ExamplesError` (the text is unchanged; a failed
+  start of `cargo metadata` and metadata that is not UTF-8 keep their source).
+  `validate_file_name`, `MkrecOptions::check` and `check_in` return `RecorderPathError`,
+  whose text is still the message Python prints after `ERROR: `. `parse_ide_file`
+  returns `IdeParseError`, which displays the operating-system error and keeps it as
+  `source()`. `parse_ide_html` returns the commands. It does not fail.
 - **Breaking: the cloud logging plugins take an upload target.** `S3LoggingPlugin`,
   `AzureLoggingPlugin` and `GcpLoggingPlugin` are no longer empty values, and `upload_file`, `new`
   and `Default` are gone. `from_env` reads the account (`SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`,

@@ -43,7 +43,7 @@ const TEST_CASE: &str = r#"<?xml version="1.0" encoding="UTF-8"?>
 "#;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let commands = parse_ide_html(TEST_CASE)?;
+    let commands = parse_ide_html(TEST_CASE);
     println!("{} commands:", commands.len());
     for cmd in &commands {
         println!(

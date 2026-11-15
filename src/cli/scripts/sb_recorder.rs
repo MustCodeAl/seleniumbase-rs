@@ -13,6 +13,7 @@
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use thiserror::Error;
 
 use crate::api::recorder::SavedRecording;
 use crate::common::color::{banner, palette};
@@ -99,8 +100,9 @@ impl MkrecOptions {
     ///
     /// # Errors
     ///
-    /// Returns the message Python prints after `ERROR: `.
-    pub fn check(&self) -> Result<(), String> {
+    /// Returns a [`RecorderPathError`]. Its text is the message Python prints
+    /// after `ERROR: `.
+    pub fn check(&self) -> Result<(), RecorderPathError> {
         self.check_in(Path::new("."))
     }
 
@@ -108,17 +110,43 @@ impl MkrecOptions {
     ///
     /// # Errors
     ///
-    /// Returns the message Python prints after `ERROR: `.
-    pub fn check_in(&self, dir: &Path) -> Result<(), String> {
+    /// Returns a [`RecorderPathError`]. Its text is the message Python prints
+    /// after `ERROR: `.
+    pub fn check_in(&self, dir: &Path) -> Result<(), RecorderPathError> {
         validate_file_name(&self.file)?;
         if !self.overwrite && dir.join(&self.file).exists() {
-            return Err(format!(
-                "File \"{}\" already exists in this directory!",
-                self.file
-            ));
+            return Err(RecorderPathError::Exists {
+                name: self.file.clone(),
+            });
         }
         Ok(())
     }
+}
+
+/// A file name `mkrec` will not record into.
+///
+/// [`Display`](std::fmt::Display) is the message Python prints after `ERROR: `.
+#[derive(Debug, Error, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum RecorderPathError {
+    /// The name does not end with `.rs`.
+    #[error("File name must end with \".rs\"!")]
+    Extension,
+    /// The name is too short or contains `*`.
+    #[error("Invalid file name!")]
+    Invalid,
+    /// The name starts with `-`.
+    #[error("File name cannot start with \"-\"!")]
+    LeadingDash,
+    /// The path is absolute or leaves the current folder.
+    #[error("File must be created in the current directory!")]
+    Outside,
+    /// `name` is already a file and overwrite is off.
+    #[error("File \"{name}\" already exists in this directory!")]
+    Exists {
+        /// The file name that is already there.
+        name: String,
+    },
 }
 
 /// Python's checks of the file name `mkrec` is given, with `.rs` for `.py`
@@ -126,8 +154,8 @@ impl MkrecOptions {
 ///
 /// # Errors
 ///
-/// Returns the message Python prints after `ERROR: `:
-/// `File name must end with ".rs"!`, `Invalid file name!`,
+/// Returns a [`RecorderPathError`]. Its text is the message Python prints
+/// after `ERROR: `: `File name must end with ".rs"!`, `Invalid file name!`,
 /// `File name cannot start with "-"!` or
 /// `File must be created in the current directory!` (an absolute path, or one
 /// that goes up with `..`).
@@ -140,23 +168,23 @@ impl MkrecOptions {
 /// assert!(validate_file_name("new_test.rs").is_ok());
 /// assert!(validate_file_name("tests/login.rs").is_ok());
 /// assert_eq!(
-///     validate_file_name("new_test.py").unwrap_err(),
+///     validate_file_name("new_test.py").unwrap_err().to_string(),
 ///     "File name must end with \".rs\"!"
 /// );
 /// assert_eq!(
-///     validate_file_name("../x.rs").unwrap_err(),
+///     validate_file_name("../x.rs").unwrap_err().to_string(),
 ///     "File must be created in the current directory!"
 /// );
 /// ```
-pub fn validate_file_name(file: &str) -> Result<(), String> {
+pub fn validate_file_name(file: &str) -> Result<(), RecorderPathError> {
     if !file.ends_with(".rs") {
-        return Err("File name must end with \".rs\"!".to_owned());
+        return Err(RecorderPathError::Extension);
     }
     if file.contains('*') || file.chars().count() < 4 {
-        return Err("Invalid file name!".to_owned());
+        return Err(RecorderPathError::Invalid);
     }
     if file.starts_with('-') {
-        return Err("File name cannot start with \"-\"!".to_owned());
+        return Err(RecorderPathError::LeadingDash);
     }
     let path = Path::new(file);
     let leaves_the_folder = path.is_absolute()
@@ -166,7 +194,7 @@ pub fn validate_file_name(file: &str) -> Result<(), String> {
             .components()
             .any(|part| matches!(part, std::path::Component::ParentDir));
     if leaves_the_folder {
-        return Err("File must be created in the current directory!".to_owned());
+        return Err(RecorderPathError::Outside);
     }
     Ok(())
 }
@@ -244,7 +272,9 @@ pub async fn run_mkrec(
     options: &MkrecOptions,
     out: &mut dyn Write,
 ) -> Result<MkrecOutcome, SeleniumBaseError> {
-    options.check().map_err(SeleniumBaseError::InvalidConfig)?;
+    options
+        .check()
+        .map_err(|error| SeleniumBaseError::InvalidConfig(error.to_string()))?;
     writeln!(
         out,
         "\n{}\n",
@@ -406,7 +436,11 @@ mod tests {
             ),
             ("a\\b.rs", "File must be created in the current directory!"),
         ] {
-            assert_eq!(validate_file_name(name).unwrap_err(), message, "{name}");
+            assert_eq!(
+                validate_file_name(name).unwrap_err().to_string(),
+                message,
+                "{name}"
+            );
         }
     }
 
@@ -430,7 +464,7 @@ mod tests {
         let mut options = MkrecOptions::new("taken.rs");
 
         assert_eq!(
-            options.check_in(dir.path()).unwrap_err(),
+            options.check_in(dir.path()).unwrap_err().to_string(),
             "File \"taken.rs\" already exists in this directory!"
         );
         options.overwrite = true;

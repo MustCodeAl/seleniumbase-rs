@@ -27,6 +27,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
+use thiserror::Error;
 
 /// How long an example may run when no time limit is given.
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(300);
@@ -146,14 +147,42 @@ pub fn examples_from_metadata(
     Some(found)
 }
 
+/// Why [`find_examples`] could not list the examples.
+///
+/// [`Display`](std::fmt::Display) is the text the function used to return as a
+/// `String`.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum ExamplesError {
+    /// `dirs` was empty.
+    #[error("no package to look for examples in")]
+    NoPackage,
+    /// `cargo metadata` could not be started.
+    #[error("cannot run cargo metadata: {source}")]
+    Cargo {
+        /// The operating-system error.
+        #[source]
+        source: std::io::Error,
+    },
+    /// `cargo metadata` ran and failed.
+    #[error("cargo metadata failed")]
+    Failed,
+    /// The metadata was not UTF-8.
+    #[error(transparent)]
+    Utf8(#[from] std::string::FromUtf8Error),
+    /// The metadata was not the JSON this command reads.
+    #[error("cannot read the output of cargo metadata")]
+    Unreadable,
+}
+
 /// The examples of the packages in `dirs`, found with `cargo metadata`.
 ///
 /// # Errors
 ///
-/// Returns a message when `cargo metadata` cannot be run or its output is not
-/// understood.
-pub fn find_examples(dirs: &[PathBuf], asked: &[String]) -> Result<Vec<Example>, String> {
-    let first = dirs.first().ok_or("no package to look for examples in")?;
+/// Returns [`ExamplesError`] when `cargo metadata` cannot be run or its output
+/// is not understood.
+pub fn find_examples(dirs: &[PathBuf], asked: &[String]) -> Result<Vec<Example>, ExamplesError> {
+    let first = dirs.first().ok_or(ExamplesError::NoPackage)?;
     let output = Command::new("cargo")
         .args([
             "metadata",
@@ -165,13 +194,12 @@ pub fn find_examples(dirs: &[PathBuf], asked: &[String]) -> Result<Vec<Example>,
         .current_dir(first)
         .stderr(Stdio::null())
         .output()
-        .map_err(|error| format!("cannot run cargo metadata: {error}"))?;
+        .map_err(|source| ExamplesError::Cargo { source })?;
     if !output.status.success() {
-        return Err("cargo metadata failed".into());
+        return Err(ExamplesError::Failed);
     }
-    let text = String::from_utf8(output.stdout).map_err(|error| error.to_string())?;
-    examples_from_metadata(&text, dirs, asked)
-        .ok_or_else(|| "cannot read the output of cargo metadata".to_owned())
+    let text = String::from_utf8(output.stdout)?;
+    examples_from_metadata(&text, dirs, asked).ok_or(ExamplesError::Unreadable)
 }
 
 /// Runs `command` with this process's input and output and stops it after
@@ -226,6 +254,13 @@ pub fn example_command(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn find_examples_without_a_package_names_the_reason() {
+        let error = find_examples(&[], &[]).unwrap_err();
+        assert!(matches!(error, ExamplesError::NoPackage));
+        assert_eq!(error.to_string(), "no package to look for examples in");
+    }
 
     const METADATA: &str = r#"{
         "packages": [
