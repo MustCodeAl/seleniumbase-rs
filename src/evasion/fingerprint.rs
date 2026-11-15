@@ -65,8 +65,8 @@ pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
 use super::randomize;
 pub(crate) use super::settings::TASKBAR_HEIGHT;
 pub use super::settings::{
-    ColorGamut, ColorScheme, Contrast, Geolocation, MediaDevices, MediaFeatures, ScreenSize, WebGl,
-    WebRtcAddresses,
+    ColorGamut, ColorScheme, Contrast, Geolocation, KeyboardLayout, MediaDevices, MediaFeatures,
+    ScreenSize, WebGl, WebRtcAddresses,
 };
 pub use super::spoof::Spoof;
 
@@ -468,6 +468,9 @@ pub enum Dimension {
     Localization,
     /// The time zone.
     Timezone,
+    /// `navigator.keyboard.getLayoutMap()`.
+    Keyboard,
+
     /// `screen.*`, the window size and the device pixel ratio.
     Screen,
     /// The colour gamut and the preferences `matchMedia` and `@media` report.
@@ -581,6 +584,9 @@ struct Fields {
     /// The IANA time zone, such as `Europe/Berlin`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     timezone: Spoof<String>,
+    /// The layout `navigator.keyboard.getLayoutMap()` reports.
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    keyboard_layout: Spoof<KeyboardLayout>,
 
     // Screen
     /// `screen.width` and `screen.height`, in CSS pixels.
@@ -675,6 +681,8 @@ impl Default for Fields {
             languages: Spoof::Natural,
             accept_languages: Spoof::Natural,
             timezone: Spoof::Natural,
+            keyboard_layout: Spoof::Natural,
+
             screen: Spoof::Natural,
             avail_screen: Spoof::Natural,
             pixel_ratio: Spoof::Natural,
@@ -855,6 +863,9 @@ impl Fingerprint {
         accept_languages: Spoof<String>;
         /// The IANA time zone.
         timezone: Spoof<String>;
+        /// The layout `navigator.keyboard.getLayoutMap()` reports.
+        keyboard_layout: Spoof<KeyboardLayout>;
+
         /// `screen.width` and `screen.height`.
         screen: Spoof<ScreenSize>;
         /// `screen.availWidth` and `screen.availHeight`.
@@ -962,6 +973,8 @@ impl Fingerprint {
                 f.locale.is_set() || f.languages.is_set() || f.accept_languages.is_set()
             }
             Dimension::Timezone => f.timezone.is_set(),
+            Dimension::Keyboard => f.keyboard_layout.is_set(),
+
             Dimension::Screen => {
                 f.screen.is_set()
                     || f.avail_screen.is_set()
@@ -1088,6 +1101,7 @@ impl Fingerprint {
         }
 
         self.check_media_features(&mut report);
+        self.check_keyboard(&mut report);
 
         self.check_graphics(&mut report);
         self.check_browser_persona(ua, &mut report);
@@ -1113,6 +1127,24 @@ impl Fingerprint {
         if features.forced_colors && os != OsType::Windows {
             report.warnings.push(format!(
                 "forced-colors is Windows high contrast, and the persona is {os:?}"
+            ));
+        }
+    }
+
+    /// The keyboard layout against the locale: a machine set up for a language
+    /// has the layout everybody uses for it.
+    fn check_keyboard(&self, report: &mut CoherenceReport) {
+        let (Some(layout), Some(locale)) = (self.0.keyboard_layout.value(), self.0.locale.as_str())
+        else {
+            return;
+        };
+        if let Some(expected) = KeyboardLayout::for_locale(locale)
+            && expected != *layout
+        {
+            report.warnings.push(format!(
+                "keyboard layout '{}' on a '{locale}' machine, whose keyboards are {}",
+                layout.as_str(),
+                expected.as_str()
             ));
         }
     }
@@ -1276,6 +1308,7 @@ impl Fingerprint {
             .languages(Spoof::Random)
             .accept_languages(Spoof::Random)
             .timezone(Spoof::Random)
+            .keyboard_layout(Spoof::Random)
             .geolocation(Spoof::Random)
             .screen_spoof(Spoof::Random)
             .pixel_ratio(Spoof::Random)
@@ -1605,6 +1638,8 @@ impl FingerprintBuilder {
         demote(&mut f.languages);
         demote(&mut f.accept_languages);
         demote(&mut f.timezone);
+        demote(&mut f.keyboard_layout);
+
         demote(&mut f.screen);
         demote(&mut f.avail_screen);
         demote(&mut f.pixel_ratio);
@@ -1688,6 +1723,12 @@ impl FingerprintBuilder {
         accept_languages: String;
         /// Sets the IANA time zone.
         timezone: String;
+        /// Sets the layout `navigator.keyboard.getLayoutMap()` reports. Without
+        /// it, [`build`](Self::build) derives the layout from the
+        /// [`locale`](Self::locale) when its language has one everybody uses. It
+        /// has no `Off`.
+        keyboard_layout: KeyboardLayout;
+
         /// Sets the available screen size (`screen.availWidth` and
         /// `availHeight`). `(width, height)` works.
         avail_screen: ScreenSize;
@@ -1937,6 +1978,12 @@ impl FingerprintBuilder {
         {
             fields.languages = Spoof::Value(languages_for_locale(locale));
         }
+        if fields.keyboard_layout.is_natural()
+            && let Some(layout) = fields.locale.as_str().and_then(KeyboardLayout::for_locale)
+        {
+            fields.keyboard_layout = Spoof::Value(layout);
+        }
+
         if fields.platform.is_natural() && fields.user_agent.is_value() {
             fields.platform = Spoof::Value(fields.os().platform().to_owned());
         }
@@ -1962,6 +2009,7 @@ fn refuse_useless_off(f: &Fields) -> Result<(), FingerprintError> {
         ("languages", f.languages.is_off()),
         ("accept_languages", f.accept_languages.is_off()),
         ("timezone", f.timezone.is_off()),
+        ("keyboard_layout", f.keyboard_layout.is_off()),
         ("screen", f.screen.is_off()),
         ("avail_screen", f.avail_screen.is_off()),
         ("pixel_ratio", f.pixel_ratio.is_off()),
@@ -2019,6 +2067,7 @@ fn has_random(f: &Fields) -> bool {
         f.languages.is_random(),
         f.accept_languages.is_random(),
         f.timezone.is_random(),
+        f.keyboard_layout.is_random(),
         f.screen.is_random(),
         f.avail_screen.is_random(),
         f.pixel_ratio.is_random(),
@@ -2168,6 +2217,13 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
         need_place("timezone")?;
         f.timezone = Spoof::Value(draw.region.timezone.to_owned());
     }
+    if f.keyboard_layout.is_random() {
+        // The layout of the locale the persona ends up with, the given one or
+        // the drawn region's; a language with no layout everybody uses draws none.
+        let locale = f.locale.as_str().unwrap_or(draw.region.tag);
+        f.keyboard_layout = KeyboardLayout::for_locale(locale).map_or(Spoof::Natural, Spoof::Value);
+    }
+
     if f.geolocation.is_random() {
         need_place("geolocation")?;
         f.geolocation = Spoof::Value(
@@ -2337,11 +2393,12 @@ mod tests {
     }
 
     /// Every dimension.
-    const EVERY_DIMENSION: [Dimension; 23] = [
+    const EVERY_DIMENSION: [Dimension; 24] = [
         Dimension::MediaFeatures,
         Dimension::Navigator,
         Dimension::Localization,
         Dimension::Timezone,
+        Dimension::Keyboard,
         Dimension::Screen,
         Dimension::Graphics,
         Dimension::Fonts,
@@ -2385,7 +2442,7 @@ mod tests {
         );
         assert_eq!(
             on(Fingerprint::builder().locale("de-DE")),
-            [Dimension::Localization]
+            [Dimension::Localization, Dimension::Keyboard]
         );
         assert_eq!(
             on(Fingerprint::builder().timezone("Europe/Berlin")),
@@ -2740,6 +2797,109 @@ mod tests {
     }
 
     #[test]
+    fn a_locale_fills_the_keyboard_layout() {
+        let layout = |locale: &str| built(Fingerprint::builder().locale(locale));
+
+        assert_eq!(
+            layout("de-DE").keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwertz)
+        );
+        assert_eq!(
+            layout("fr-FR").keyboard_layout().value(),
+            Some(&KeyboardLayout::Azerty)
+        );
+        assert_eq!(
+            layout("en-US").keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwerty)
+        );
+        assert!(
+            layout("fr-CA").keyboard_layout().is_natural(),
+            "Canada has no one layout, so none is claimed"
+        );
+        assert!(layout("ru-RU").keyboard_layout().is_natural());
+        let none = built(Fingerprint::builder().os_type(OsType::Windows));
+        assert!(none.keyboard_layout().is_natural());
+        assert!(!none.is_masked(Dimension::Keyboard));
+        assert!(layout("de-DE").is_masked(Dimension::Keyboard));
+    }
+
+    #[test]
+    fn a_given_layout_is_never_replaced() {
+        let fp = built(
+            Fingerprint::builder()
+                .locale("de-DE")
+                .keyboard_layout(KeyboardLayout::Azerty),
+        );
+
+        assert_eq!(fp.keyboard_layout().value(), Some(&KeyboardLayout::Azerty));
+        assert!(
+            fp.validate()
+                .warnings
+                .iter()
+                .any(|w| w.contains("keyboard layout")),
+            "{:?}",
+            fp.validate().warnings
+        );
+        let text = serde_json::to_string(&fp).unwrap();
+        assert!(text.contains(r#""keyboard_layout":"azerty""#), "{text}");
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(again, fp);
+    }
+
+    #[test]
+    fn a_random_layout_follows_the_locale() {
+        let german = built(
+            Fingerprint::builder()
+                .locale("de-DE")
+                .keyboard_layout(Spoof::Random),
+        );
+        assert_eq!(
+            german.keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwertz)
+        );
+
+        for seed in 0..40 {
+            let fp = built(
+                Fingerprint::builder()
+                    .seed(seed)
+                    .locale(Spoof::Random)
+                    .keyboard_layout(Spoof::Random),
+            );
+            let locale = fp.locale().as_str().expect("a drawn locale");
+            assert_eq!(
+                fp.keyboard_layout().value().copied(),
+                KeyboardLayout::for_locale(locale),
+                "seed {seed}, locale {locale}"
+            );
+        }
+        let russian = built(
+            Fingerprint::builder()
+                .locale("ru-RU")
+                .keyboard_layout(Spoof::Random),
+        );
+        assert!(
+            russian.keyboard_layout().is_natural(),
+            "a language with no one layout draws none"
+        );
+    }
+
+    #[test]
+    fn the_keyboard_layout_has_no_off() {
+        let error = Fingerprint::builder()
+            .keyboard_layout(Spoof::Off)
+            .build()
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            FingerprintError::OffNotAvailable {
+                setting: "keyboard_layout"
+            }
+        );
+    }
+
+    #[test]
+
     fn a_wide_gamut_on_a_windows_persona_is_a_coherence_warning() {
         let wide = built(
             Fingerprint::builder()

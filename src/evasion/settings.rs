@@ -202,6 +202,167 @@ impl ColorScheme {
     }
 }
 
+/// The layout `navigator.keyboard.getLayoutMap()` reports: the character each
+/// writing-system key types, unshifted. The maps are Windows's own layouts
+/// (KBDUS, KBDGR, KBDFR); a Mac's punctuation keys differ a little.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum KeyboardLayout {
+    /// The US layout, used for English and most of the world.
+    Qwerty,
+    /// The German layout, used in central Europe.
+    Qwertz,
+    /// The French layout.
+    Azerty,
+}
+
+/// The 48 key codes of a map, in the order the three layouts list them.
+const KEY_CODES: [&str; 48] = [
+    "Backquote",
+    "Digit1",
+    "Digit2",
+    "Digit3",
+    "Digit4",
+    "Digit5",
+    "Digit6",
+    "Digit7",
+    "Digit8",
+    "Digit9",
+    "Digit0",
+    "Minus",
+    "Equal",
+    "KeyQ",
+    "KeyW",
+    "KeyE",
+    "KeyR",
+    "KeyT",
+    "KeyY",
+    "KeyU",
+    "KeyI",
+    "KeyO",
+    "KeyP",
+    "BracketLeft",
+    "BracketRight",
+    "Backslash",
+    "KeyA",
+    "KeyS",
+    "KeyD",
+    "KeyF",
+    "KeyG",
+    "KeyH",
+    "KeyJ",
+    "KeyK",
+    "KeyL",
+    "Semicolon",
+    "Quote",
+    "IntlBackslash",
+    "KeyZ",
+    "KeyX",
+    "KeyC",
+    "KeyV",
+    "KeyB",
+    "KeyN",
+    "KeyM",
+    "Comma",
+    "Period",
+    "Slash",
+];
+
+/// Pairs each code of [`KEY_CODES`] with the key a layout types on it.
+const fn pair_keys(keys: [&'static str; 48]) -> [(&'static str, &'static str); 48] {
+    let mut pairs = [("", ""); 48];
+    let mut i = 0;
+    while i < 48 {
+        pairs[i] = (KEY_CODES[i], keys[i]);
+        i += 1;
+    }
+    pairs
+}
+
+/// KBDUS, unshifted.
+const QWERTY_KEYS: [(&str, &str); 48] = pair_keys([
+    "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y",
+    "u", "i", "o", "p", "[", "]", "\\", "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'",
+    "\\", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/",
+]);
+
+/// KBDGR, unshifted.
+const QWERTZ_KEYS: [(&str, &str); 48] = pair_keys([
+    "^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "ß", "´", "q", "w", "e", "r", "t", "z",
+    "u", "i", "o", "p", "ü", "+", "#", "a", "s", "d", "f", "g", "h", "j", "k", "l", "ö", "ä", "<",
+    "y", "x", "c", "v", "b", "n", "m", ",", ".", "-",
+]);
+
+/// KBDFR, unshifted.
+const AZERTY_KEYS: [(&str, &str); 48] = pair_keys([
+    "²", "&", "é", "\"", "'", "(", "-", "è", "_", "ç", "à", ")", "=", "a", "z", "e", "r", "t", "y",
+    "u", "i", "o", "p", "^", "$", "*", "q", "s", "d", "f", "g", "h", "j", "k", "l", "m", "ù", "<",
+    "w", "x", "c", "v", "b", "n", ",", ";", ":", "!",
+]);
+
+impl KeyboardLayout {
+    /// The layout a machine set up for `locale` has, when its language has one
+    /// that everybody uses: German and the languages of central Europe
+    /// (`de`, `cs`, `sk`, `hu`, `sl`, `hr`) QWERTZ, French AZERTY except in
+    /// Canada and Switzerland, and `en`, `es`, `it`, `pt`, `nl`, `pl`, `sv`,
+    /// `da`, `nb`, `fi`, `ja`, `ko` and `zh` QWERTY; `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::evasion::fingerprint::KeyboardLayout;
+    ///
+    /// assert_eq!(KeyboardLayout::for_locale("de-DE"), Some(KeyboardLayout::Qwertz));
+    /// assert_eq!(KeyboardLayout::for_locale("fr-CA"), None);
+    /// ```
+    #[must_use]
+    pub fn for_locale(locale: &str) -> Option<Self> {
+        let mut parts = locale.split(['-', '_']);
+        let language = parts.next().unwrap_or_default().to_ascii_lowercase();
+        let region = parts.last().unwrap_or_default().to_ascii_uppercase();
+        match language.as_str() {
+            "de" | "cs" | "sk" | "hu" | "sl" | "hr" => Some(Self::Qwertz),
+            "fr" if region != "CA" && region != "CH" => Some(Self::Azerty),
+            "en" | "es" | "it" | "pt" | "nl" | "pl" | "sv" | "da" | "nb" | "fi" | "ja" | "ko"
+            | "zh" => Some(Self::Qwerty),
+            _ => None,
+        }
+    }
+
+    /// The layout's name in lower case, as the capture and the reports write it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Qwerty => "qwerty",
+            Self::Qwertz => "qwertz",
+            Self::Azerty => "azerty",
+        }
+    }
+
+    /// The 48 keys of the map, `(code, key)`.
+    #[must_use]
+    pub const fn keys(self) -> &'static [(&'static str, &'static str); 48] {
+        match self {
+            Self::Qwerty => &QWERTY_KEYS,
+            Self::Qwertz => &QWERTZ_KEYS,
+            Self::Azerty => &AZERTY_KEYS,
+        }
+    }
+
+    /// The layout a sample of a map is, read from `KeyQ`, `KeyY`, `KeyZ` and `KeyA`.
+    pub(crate) fn of_sample(sample: &serde_json::Map<String, serde_json::Value>) -> Option<Self> {
+        let key = |code: &str| sample.get(code).and_then(serde_json::Value::as_str);
+        match (key("KeyQ"), key("KeyY"), key("KeyZ"), key("KeyA")) {
+            (Some("a"), _, _, Some("q")) => Some(Self::Azerty),
+            (Some("q"), Some("z"), Some("y"), _) => Some(Self::Qwertz),
+            (Some("q"), Some("y"), Some("z"), _) => Some(Self::Qwerty),
+            _ => None,
+        }
+    }
+}
+
 /// The position `navigator.geolocation` reports.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -438,6 +599,68 @@ impl From<Vec<MediaDeviceSpec>> for Spoof<MediaDevices> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_layout_has_48_keys_and_types_its_letters() {
+        for layout in [
+            KeyboardLayout::Qwerty,
+            KeyboardLayout::Qwertz,
+            KeyboardLayout::Azerty,
+        ] {
+            let keys = layout.keys();
+            let mut codes: Vec<&str> = keys.iter().map(|(code, _)| *code).collect();
+            codes.sort_unstable();
+            codes.dedup();
+            assert_eq!(keys.len(), 48);
+            assert_eq!(codes.len(), 48, "{layout:?} repeats a code");
+        }
+        let key = |layout: KeyboardLayout, code: &str| {
+            layout
+                .keys()
+                .iter()
+                .find(|(c, _)| *c == code)
+                .map(|(_, key)| *key)
+        };
+        assert_eq!(key(KeyboardLayout::Qwerty, "KeyY"), Some("y"));
+        assert_eq!(key(KeyboardLayout::Qwertz, "KeyY"), Some("z"));
+        assert_eq!(key(KeyboardLayout::Qwertz, "KeyZ"), Some("y"));
+        assert_eq!(key(KeyboardLayout::Azerty, "KeyQ"), Some("a"));
+        assert_eq!(key(KeyboardLayout::Azerty, "KeyA"), Some("q"));
+    }
+
+    #[test]
+    fn for_locale_picks_the_layout_of_the_language() {
+        assert_eq!(
+            KeyboardLayout::for_locale("de-DE"),
+            Some(KeyboardLayout::Qwertz)
+        );
+        assert_eq!(
+            KeyboardLayout::for_locale("fr-FR"),
+            Some(KeyboardLayout::Azerty)
+        );
+        assert_eq!(KeyboardLayout::for_locale("fr-CA"), None);
+        assert_eq!(
+            KeyboardLayout::for_locale("en-GB"),
+            Some(KeyboardLayout::Qwerty)
+        );
+        assert_eq!(KeyboardLayout::for_locale("ru-RU"), None);
+    }
+
+    #[test]
+    fn a_sample_of_a_map_names_its_layout() {
+        for layout in [
+            KeyboardLayout::Qwerty,
+            KeyboardLayout::Qwertz,
+            KeyboardLayout::Azerty,
+        ] {
+            let sample: serde_json::Map<String, serde_json::Value> = layout
+                .keys()
+                .iter()
+                .map(|(code, key)| ((*code).to_owned(), serde_json::json!(key)))
+                .collect();
+            assert_eq!(KeyboardLayout::of_sample(&sample), Some(layout));
+        }
+    }
 
     #[test]
     fn media_features_serialize_with_their_css_words() {

@@ -215,9 +215,9 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 | `oscpu`, `build_id` | nothing to draw (an error) | no `Off` | `Navigator` | The `navigator_props` provider. |
 | `locale`, `languages`, `accept_languages` | The place's locale and language list. | no `Off` | `Localization` | The `localization` provider, `--lang`, `Emulation.setLocaleOverride`, and the `Accept-Language` of the user agent override. |
 | `timezone` | The place's time zone. | no `Off` | `Timezone` | The `timezone` provider and `Emulation.setTimezoneOverride`. |
+| `keyboard_layout` | The locale's layout (`Qwerty`, `Qwertz` or `Azerty`), none for a language with no layout everybody uses. | no `Off` | `Keyboard` | The `keyboard_layout` provider. |
 | `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth` | The machine's screen. | no `Off` | `Screen` | The `window_geometry` provider, `--window-size` (a desktop's maximized browser window: the available screen less the tab strip and toolbar; a phone's screen) and `Emulation.setDeviceMetricsOverride`. |
 | `media_features` | The display's gamut (P3 on a Mac or an iPhone, sRGB elsewhere) and a light or dark scheme, with reduced motion, reduced transparency, contrast and forced colours. | no `Off` | `MediaFeatures` | `Emulation.setEmulatedMedia`. |
-
 | `webgl` | An adapter the operating system reports. | no `Off` | `Graphics` | The `webgl` and `webgpu` providers: the WebGPU adapter names the same GPU. |
 | `fonts` | The system's fonts, with a few of the less common left out. | no `Off` | `Fonts` | The `fonts` provider. |
 | `media_devices` | A microphone, a speaker and, usually, a camera. | No device is listed. | `MediaDevices` | The `media_devices` provider. |
@@ -252,10 +252,14 @@ setting and why. `.seed(u64)` makes the draw repeatable. Without it the draw use
 fresh entropy, and the seed it used is kept in the fingerprint (`fp.seed()`), so
 `fp.to_builder().build()` reproduces it.
 
-`build()` also fills two values the caller left out: `languages`, from a given
+`build()` also fills three values the caller left out: `languages`, from a given
 locale (the table's list for a known locale, else the locale and its language),
-and `navigator.platform` and the operating-system persona, from a recognised user
-agent. A value you set is never replaced.
+`keyboard_layout`, from a given locale whose language has a layout everybody
+uses (German QWERTZ, French AZERTY except in Canada and Switzerland, English and
+most others QWERTY; `KeyboardLayout::for_locale` is the one table), and
+`navigator.platform` and the operating-system persona, from a recognised user
+agent. A value you set is never replaced, and `validate()` warns when a layout you
+set is not the one the locale has.
 
 ## Consistency
 

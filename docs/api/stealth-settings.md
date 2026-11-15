@@ -61,7 +61,7 @@ assert!(Spoof::<String>::Off.is_off());
 | `policy()`, `humanize()` | The delivery policy and the humanized input timing. |
 | `tracker_hosts()` | The policy's host list, or the crate's default list when that list is empty. |
 
-Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`.
+Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `keyboard_layout`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`.
 
 `Off` is meaningful for media devices, geolocation, WebRTC, battery, connection, speech voices, Bluetooth and Client Hints. `Random` on a setting that has nothing to draw (`oscpu`, `build_id`, `proxy`) fails `build`.
 
@@ -88,7 +88,7 @@ fn build() -> Result<(), seleniumbase_rs::FingerprintError> {
 
 ## FingerprintBuilder
 
-Each setting method takes `impl Into<Spoof<T>>`. Calls can come in any order. A later call for the same setting replaces an earlier one. `build()` refuses a useless `Off`, draws every `Random` from one seed, derives `languages` from a given `locale` and `platform` from a recognised user agent when those were not set, then applies the policy.
+Each setting method takes `impl Into<Spoof<T>>`. Calls can come in any order. A later call for the same setting replaces an earlier one. `build()` refuses a useless `Off`, draws every `Random` from one seed, derives `languages` and `keyboard_layout` from a given `locale` and `platform` from a recognised user agent when those were not set, then applies the policy.
 
 `seed(u64)` makes the draw repeatable. Without a seed, a draw uses fresh entropy and keeps the seed it used. The operating system is the one from `os_type`, else the one named by the user agent, else Windows.
 
@@ -100,11 +100,11 @@ Each setting method takes `impl Into<Spoof<T>>`. Calls can come in any order. A 
 | `seed(u64)` | Seed of the draw and of deterministic noise. |
 | `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version` | `navigator` claims. `oscpu` and `build_id` have no random value. |
 | `locale`, `languages`, `accept_languages`, `timezone` | Language and time zone. |
+| `keyboard_layout(KeyboardLayout)` | The layout `navigator.keyboard.getLayoutMap()` reports: `Qwerty`, `Qwertz` or `Azerty` (Windows's KBDUS, KBDGR and KBDFR). Unset, `build()` takes it from a given `locale` (`KeyboardLayout::for_locale`; none for a language with no layout everybody uses). No `Off`. `Dimension::Keyboard` is on when it is set. |
 | `screen(width, height)` | Screen size in CSS pixels (`Spoof::Value`). |
 | `screen_spoof(spoof)` | Screen size from any `Spoof<ScreenSize>`, including `Random`. |
 | `avail_screen`, `pixel_ratio`, `color_depth` | Available screen, device pixel ratio, colour depth. |
 | `media_features(MediaFeatures)` | What `matchMedia` and `@media` report about the display and the preferences: `color_gamut` (`ColorGamut`), `color_scheme` (`ColorScheme`), `reduced_motion`, `reduced_transparency`, `contrast` (`Contrast`), `forced_colors`. `MediaFeatures::new(ColorGamut::P3)` starts from a display with no preference set. No `Off`. `Dimension::MediaFeatures` is on when it is set. |
-
 | `webgl` | Unmasked vendor and renderer. A `(vendor, renderer)` pair works. |
 | `media_devices` / `media_device_counts(audio_in, audio_out, video_in)` | What `enumerateDevices()` lists. `Off` lists none. |
 | `geolocation` | Position `navigator.geolocation` reports. `(latitude, longitude)` works. `Off` denies it. |

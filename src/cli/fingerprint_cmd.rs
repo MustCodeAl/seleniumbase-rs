@@ -551,7 +551,7 @@ mod tests {
             check
                 .text
                 .trim_end()
-                .ends_with("coherent, with 2 warning(s)"),
+                .ends_with("coherent, with 3 warning(s)"),
             "{}",
             check.text
         );

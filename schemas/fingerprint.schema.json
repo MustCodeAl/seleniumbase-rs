@@ -569,6 +569,24 @@
           },
           "description": "Humanized input timing."
         },
+        "keyboard_layout": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/KeyboardLayout"
+            }
+          ],
+          "description": "The layout `navigator.keyboard.getLayoutMap()` reports."
+        },
         "languages": {
           "anyOf": [
             {
@@ -1025,6 +1043,26 @@
         "mouse_steps"
       ],
       "type": "object"
+    },
+    "KeyboardLayout": {
+      "description": "The layout `navigator.keyboard.getLayoutMap()` reports: the character each writing-system key types, unshifted. The maps are Windows's own layouts (KBDUS, KBDGR, KBDFR); a Mac's punctuation keys differ a little.",
+      "oneOf": [
+        {
+          "const": "qwerty",
+          "description": "The US layout, used for English and most of the world.",
+          "type": "string"
+        },
+        {
+          "const": "qwertz",
+          "description": "The German layout, used in central Europe.",
+          "type": "string"
+        },
+        {
+          "const": "azerty",
+          "description": "The French layout.",
+          "type": "string"
+        }
+      ]
     },
     "MediaDeviceSpec": {
       "description": "A single labeled media device used by `MediaDevicesProvider`.",

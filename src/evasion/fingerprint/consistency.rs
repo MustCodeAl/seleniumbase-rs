@@ -20,7 +20,7 @@ use std::fmt;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 
-use super::{BrowserType, OsType};
+use super::{BrowserType, KeyboardLayout, OsType};
 use crate::evasion::capture::CapturedFingerprint;
 
 /// How loudly a detector reacts to a contradiction.
@@ -1481,17 +1481,8 @@ fn voices(persona: &Persona, fp: &super::Fingerprint, findings: &mut Findings) {
     }
 }
 
-/// The family of a keyboard layout from a few keys of its map.
-fn layout_family(sample: &Map<String, Value>) -> Option<&'static str> {
-    let key = |code: &str| sample.get(code).and_then(Value::as_str);
-    match (key("KeyQ"), key("KeyY"), key("KeyZ"), key("KeyA")) {
-        (Some("a"), _, _, Some("q")) => Some("azerty"),
-        (Some("q"), Some("z"), Some("y"), _) => Some("qwertz"),
-        (Some("q"), Some("y"), Some("z"), _) => Some("qwerty"),
-        _ => None,
-    }
-}
-
+/// The keyboard map against the layout the persona's locale has: the shared
+/// table is [`KeyboardLayout::for_locale`].
 fn keyboard(fp: &super::Fingerprint, readings: &Map<String, Value>, findings: &mut Findings) {
     let (Some(sample), Some(language)) = (
         at(readings, "keyboard.sample").and_then(Value::as_object),
@@ -1499,26 +1490,19 @@ fn keyboard(fp: &super::Fingerprint, readings: &Map<String, Value>, findings: &m
     ) else {
         return;
     };
-    let Some(found) = layout_family(sample) else {
+    let Some(found) = KeyboardLayout::of_sample(sample) else {
         return;
     };
-    let expected = match language_of(language).as_str() {
-        "de" | "cs" | "sk" | "hu" | "sl" | "hr" => Some("qwertz"),
-        "fr" if !language.ends_with("CA") && !language.ends_with("CH") => Some("azerty"),
-        "en" | "es" | "it" | "pt" | "nl" | "pl" | "sv" | "da" | "nb" | "fi" | "ja" | "ko"
-        | "zh" => Some("qwerty"),
-        _ => None,
-    };
-    if let Some(expected) = expected
+    if let Some(expected) = KeyboardLayout::for_locale(language)
         && expected != found
     {
         findings.push(
             "keyboard_vs_locale",
             Severity::Low,
             ["navigator.language", "navigator.keyboard.getLayoutMap()"],
-            [json!(language), json!(found)],
-            format!("a {language} machine has a {expected} keyboard"),
-            format!("the keyboard map is {found}"),
+            [json!(language), json!(found.as_str())],
+            format!("a {language} machine has a {} keyboard", expected.as_str()),
+            format!("the keyboard map is {}", found.as_str()),
         );
     }
 }
