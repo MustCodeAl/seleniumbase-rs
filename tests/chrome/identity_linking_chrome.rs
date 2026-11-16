@@ -37,7 +37,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
+use seleniumbase_rs::sb_cdp::{Browser, BrowserPool, LaunchOptions, Page, PoolOptions};
 use serde_json::Value;
 
 const PAGE: &str = include_str!("../fixtures/identity/evercookie.html");
@@ -133,6 +133,12 @@ fn serve(seen: Arc<Mutex<Seen>>) -> String {
                         )
                     }
                 }
+                "/blank" => (
+                    "200 OK",
+                    "text/html",
+                    String::new(),
+                    b"<!doctype html><title>blank</title>".to_vec(),
+                ),
                 _ => ("404 Not Found", "text/plain", String::new(), b"no".to_vec()),
             };
             drop(seen);
@@ -456,6 +462,87 @@ fn serve_keep_alive(log: Requests, phase: Arc<AtomicU8>) -> String {
         }
     });
     format!("http://{address}/")
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_saved_session_restores_cookies_and_local_storage_and_nothing_else() {
+    // A pool leases isolated contexts and keeps a session store in memory. What a session
+    // holds is the cookies and the local storage of one origin; the other stores a tracker
+    // writes (session storage, IndexedDB, the Cache API, service workers, the HTTP cache)
+    // must not come along, or a restored identity would carry more than it saved.
+    let seen = Arc::new(Mutex::new(Seen::default()));
+    let base = serve(Arc::clone(&seen));
+    let pool = BrowserPool::new(
+        options(),
+        PoolOptions::builder()
+            .max_browsers(1)
+            .contexts_per_browser(2)
+            .build()
+            .expect("pool options"),
+    );
+
+    // Lease A is the first identity: it visits, saves its session and goes away.
+    let lease_a = pool.acquire().await.expect("a lease");
+    let first = visit(lease_a.page(), &base, "alpha").await;
+    lease_a
+        .save_session("alpha")
+        .await
+        .expect("the session is saved");
+    lease_a.release().await;
+
+    // Lease B loads it into a new context on a blank page of the same origin, then visits.
+    let lease_b = pool.acquire().await.expect("a lease");
+    lease_b
+        .page()
+        .goto(format!("{base}blank"))
+        .await
+        .expect("the blank page loads");
+    assert!(
+        lease_b
+            .load_session("alpha")
+            .await
+            .expect("the session loads"),
+        "the saved session exists"
+    );
+    let restored = visit(lease_b.page(), &base, "beta").await;
+    lease_b.release().await;
+
+    for store in ["cookie", "localStorage"] {
+        assert!(
+            restored[store]
+                .as_str()
+                .is_some_and(|held| held.contains("alpha")),
+            "the session lost its {store}: {restored}"
+        );
+    }
+    for store in ["sessionStorage", "indexedDb", "cacheApi", "serviceWorkers"] {
+        let held = &restored[store];
+        assert!(
+            held.is_null() || held.as_u64() == Some(0),
+            "the session carried {store}: {held} (the first left {})",
+            first[store]
+        );
+    }
+    assert_ne!(
+        restored["etag"], first["etag"],
+        "the HTTP cache came along with the session"
+    );
+    assert!(
+        restored["etag"]
+            .as_str()
+            .is_some_and(|id| id.starts_with("visitor-")),
+        "the restored identity did not reach the server for its own mark: {restored}"
+    );
+
+    // Lease C loads nothing: every store is empty.
+    let lease_c = pool.acquire().await.expect("a lease");
+    let third = visit(lease_c.page(), &base, "gamma").await;
+    assert_unlinked(&third, &first, "a lease that loads no session");
+    lease_c.release().await;
+
+    pool.close().await;
 }
 
 #[tokio::test]
