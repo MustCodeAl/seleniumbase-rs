@@ -302,18 +302,38 @@ The same list is the `contradictions` field of the MCP tools
 readings the capture lacks says nothing: a page whose policy blocked a worker is
 not a contradiction.
 
-What the evasions make agree today, so a contradiction there is a regression:
-the user agent against `navigator.platform`, `vendor`, `productSub`, the Client
-Hints and the engine; `navigator.language` against `languages` and the Intl
-locales; the time zone against the `Date` offsets; the window against the
-screen; WebGL against WebGPU and the operating system; an `about:blank` frame
-against the window; the three codec answers. What is still open, in rank order:
-a dedicated worker's `navigator`, WebGL and Intl (the init script does not reach
-workers), the CSS media features of a phone persona (`pointer`, `hover`), the
-host's fonts, the host's APIs (`BarcodeDetector` on a Mac, `navigator.hid` for
-a phone persona), Chrome's own plugin list for a phone persona, touch events,
-the host's voices and keyboard, the storage quota, and the preset's battery
-shape.
+What the evasions make agree, so a contradiction there is a regression (the
+rules of `tests/chrome/fingerprint_consistency_chrome.rs` that a headless Chrome
+may never show for a preset):
+
+- the user agent against `navigator.platform`, `vendor`, `productSub`, the
+  Client Hints and the engine;
+- `navigator.language` against `languages` and the Intl locales (also without
+  native spoofing), the time zone against the `Date` offsets, the keyboard map
+  against the locale;
+- the window against the screen: a desktop persona's maximized window, the
+  taskbar, the pixel ratio, the headless 800x600;
+- the display: `matchMedia` and `@media` rules agree (`media_features`), and
+  the gamut and `forced-colors` fit the system;
+- a phone persona's touch events, coarse pointer, empty plugin list and missing
+  PDF viewer, and no desktop-only API on it (`api_present_vs_persona`);
+- WebGL against WebGPU and the operating system, and a phone GPU's extension
+  list (no S3TC, BPTC or RGTC);
+- the three codec answers, the speech voices, the storage quota (also in a new
+  browser context) and the battery shape;
+- an `about:blank` frame against the window.
+
+What stays open, because no script or protocol command can close it honestly:
+
+- a dedicated worker's `navigator`, WebGL and Intl (the init script does not
+  reach workers; the core count is sent through the protocol, but Chrome applies
+  it to the page and not to a worker): `worker_vs_window`, its own lane;
+- a phone persona's `any-pointer: fine` on a host that has a mouse
+  (`media_pointer_vs_device`);
+- the host's fonts (`fonts_vs_os`): the cure is a host of the persona's system,
+  or a persona of the host's;
+- an API the host's Chrome lacks (`api_missing_vs_persona`): a stub a page can
+  call is a lie the call reveals.
 
 A desktop persona's launch window is a maximized browser window, so its viewport
 is never the whole screen (`viewport_is_screen`) and `screen.availHeight` is

@@ -66,6 +66,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 - The `headless` provider no longer patches `matchMedia`; `media_features` goes through
   `Emulation.setEmulatedMedia`, which `@media` rules see too (`media_query_lie` and
   `color_gamut_vs_os` are closed). `capture_fingerprint` reads `media_features` back.
+- A fingerprint built with a locale now also holds a `keyboard_layout` (`build()` fills it, as it
+  fills `languages`), and every preset and drawn identity holds a `storage_quota`, so a file saved
+  by an earlier build reads back as before and a file saved now has the two settings. A layout
+  that disagrees with the locale is a `validate()` warning.
 - **Chrome version data moved to the current stable, 157.0.8103.38** (Chrome for Testing
   last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
@@ -76,12 +80,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 - `BatteryProfile::default()` is a full battery on the charger; it charged at 94 % with no time
   to full, a shape Chrome never reports (`battery_shape` is closed).
-
 - Without native spoofing, Intl followed the machine's locale while `navigator.language` said
   the persona's; every Intl constructor and `toLocale*String` now default to the persona's
   language (the `localization` provider).
-
-
 - A WebDriver session given a desktop fingerprint keeps its window's viewport; the
   device-metrics override made it the size of the screen. Both engines now send the desktop form
   (`width` and `height` `0`, the screen in `screenWidth` and `screenHeight`).

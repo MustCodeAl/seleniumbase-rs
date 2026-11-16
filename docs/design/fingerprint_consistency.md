@@ -4,9 +4,9 @@ title: "Design: fingerprint consistency"
 
 # Fingerprint consistency
 
-Status: in progress on `lane/fp-consistency`; what landed is listed under
+Status: done on `lane/fp-consistency`; what landed is listed under
 `## Unreleased` in `CHANGELOG.md`, what is left is the ranked list at the end.
-The steps that close the gaps, with their decisions, are
+The steps that closed the gaps, with their decisions, are
 [the implementation plan](/design/fingerprint_consistency_plan).
 It builds on [Fingerprint API v2](/design/fingerprint-api-v2) and
 [Fingerprint capture, export and import](/design/fingerprint-capture).
@@ -61,26 +61,42 @@ Two paths deliver a `Fingerprint` (see `src/evasion/evasions.rs` and
   `Emulation.setTimezoneOverride` (Intl and `Date`),
   `Emulation.setHardwareConcurrencyOverride` (the core count; step 2 of the
   [implementation plan](/design/fingerprint_consistency_plan)),
-  `Emulation.setDeviceMetricsOverride` (screen size, pixel ratio, `mobile`),
+  `Emulation.setDeviceMetricsOverride` (screen size, pixel ratio, `mobile`; a
+  desktop persona sends the desktop form, no viewport override and the
+  persona's `screenWidth` and `screenHeight`, on both engines),
+  `Emulation.setTouchEmulationEnabled` (a phone persona: touch events, the touch
+  points and, through Chrome's touch emulation, `pointer: coarse` and
+  `hover: none`), `Emulation.setEmulatedMedia` (the six features of
+  `media_features`, which `matchMedia` and `@media` rules both obey),
   `Emulation.setGeolocationOverride`, `Browser.grantPermissions`,
   `Network.setBlockedURLs`, `Page.setBypassCSP`,
   `Emulation.setFocusEmulationEnabled`; launch flags `--lang`, `--window-size`,
   `--user-agent`, `--force-webrtc-ip-handling-policy`, `--proxy-server`,
-  `--disable-blink-features=AutomationControlled`.
+  `--disable-blink-features=AutomationControlled`; a desktop persona's window
+  is a maximized browser window (`--window-size` is the available screen less
+  Chrome's tab strip and toolbar), and a phone persona's profile preference
+  `plugins.always_open_pdf_externally` (`LaunchSwitch::ExternalPdf`), so it lists
+  no plugins and says `pdfViewerEnabled: false`.
 - **Page script providers** (JavaScript, the window only):
   `navigator_props` (platform, userAgent, appVersion, hardwareConcurrency,
   deviceMemory, maxTouchPoints, vendor, productSub, oscpu, buildID),
   `permissions` (notifications), `plugins` (bootstrap only),
   `window_geometry` (`screen.*`, `outerWidth`/`outerHeight`, `devicePixelRatio`,
-  `colorDepth`), `webgl` (`UNMASKED_VENDOR_WEBGL`, `UNMASKED_RENDERER_WEBGL`
-  only), `canvas_noise`, `audio_noise`, `webrtc`, `battery`, `connection`,
-  `media_devices`, `fonts` (`document.fonts.check`/`load`, `FontFace`),
-  `speech`, `bluetooth`, `headless` (`matchMedia` for three queries,
-  `document.hidden`), `client_hints` (JS mode), `media_codecs` (`canPlayType`
-  for MP4, AAC and MP3), `timezone` and `localization` (JS mode),
-  `geolocation` (JS mode), `hairline`, `iframe`, `attach_shadow`,
-  `tracker_block`, `webdriver`, `cdp_marker`, `chrome_runtime`,
-  `native_tostring`.
+  `colorDepth`), `webgl` (`UNMASKED_VENDOR_WEBGL`, `UNMASKED_RENDERER_WEBGL`,
+  and for a phone GPU the extension list without S3TC, BPTC and RGTC),
+  `webgpu`, `canvas_noise`, `audio_noise`, `webrtc`, `battery` (the default is a
+  full battery on the charger), `connection`, `media_devices`, `fonts`
+  (`document.fonts.check`/`load`, `FontFace`), `speech`, `bluetooth`, `headless`
+  (`document.hidden`; it no longer touches `matchMedia`), `client_hints` (JS
+  mode), `media_codecs` (`canPlayType`, `MediaSource.isTypeSupported` and
+  `mediaCapabilities.decodingInfo`), `timezone` and `localization` (JS mode:
+  every Intl constructor and `toLocale*String` default to the first language),
+  `geolocation` (JS mode), `api_presence` (removes the operating-system APIs the
+  persona's system lacks and adds none), `keyboard_layout`
+  (`navigator.keyboard.getLayoutMap()`), `storage_quota`
+  (`navigator.storage.estimate()` and `webkitTemporaryStorage`), `hairline`,
+  `iframe`, `attach_shadow`, `tracker_block`, `webdriver`, `cdp_marker`,
+  `chrome_runtime`, `native_tostring`.
 
 The pure CDP engine never sends `Runtime.enable` or `Console.enable`
 (`src/sb_cdp/trace/capture.js` relies on it), never uses `Runtime.addBinding`
@@ -94,7 +110,9 @@ what the evasions do for it. "Contradiction" is what a spoofed persona (a
 Windows identity on a Mac, say) shows when only the setting is spoofed. Rank
 is by how many detectors read the surface times how loud the contradiction is
 (a vendor string that names the other machine is loud; a style preference is
-quiet).
+quiet). The table is the inventory as the lane found it: "Set today" and
+"Contradiction" describe the state before the lane, and
+[What is left](#what-is-left-in-rank-order) says which rows are closed.
 
 | # | Surface | Read by | Set today | Contradiction a spoofed persona shows | Rank |
 |---|---|---|---|---|---|
@@ -158,11 +176,86 @@ listed as expected, each with an assertion that flips when it is fixed.
 
 ## Identity linking (supercookies)
 
-What core controls and what the tests prove is in
-`tests/chrome/identity_linking_chrome.rs`; the findings are under "What is left"
-until that step lands.
+A tracker that cannot fingerprint a browser can still recognise it by what it
+stored on the first visit. `tests/chrome/identity_linking_chrome.rs` visits a
+fixture page (`tests/fixtures/identity/evercookie.html`) that writes one mark
+into every store a page can reach, and reports what each store held before. A
+second identity that finds the first one's mark anywhere is linked to it. All of
+it runs headless against the test's own loopback server.
+
+What the tests prove:
+
+- **The isolation units core gives hold.** A second `BrowserContext` of one
+  browser, and a second browser with its own profile folder, start with the
+  cookie, `localStorage`, `sessionStorage`, IndexedDB, the Cache API, service
+  workers and the HTTP cache (an `ETag` and a `Last-Modified` that name the
+  visitor, so a revalidation would show) all empty, and no request carries both
+  identities' cookies or a validator of the other's cache entry.
+- **The harness can see a link** (the control). Two launches that share one
+  profile folder are linked: the second visit finds the first one's mark in the
+  cookie, `localStorage`, IndexedDB and the Cache API, one service worker, and the
+  server is asked to revalidate the first one's cache entry. The control found one
+  thing the plan had not: the fixture's cookie was a session cookie, which dies
+  with the browser, so it now has an expiry, as a tracker's has.
+- **Sockets are not shared.** With HTTP/1.1 keep-alive, the first identity's two
+  visits share a connection, and the page of a second browser context comes on a
+  connection of its own (HTTP/2 needs TLS and is left out).
+- **A saved session carries what it holds.** A pool lease saves its cookies and
+  the local storage of the origin it is on; a second lease that loads it gets
+  those two and nothing else (`sessionStorage`, IndexedDB, the Cache API, service
+  workers and the HTTP cache stay empty), and a lease that loads nothing starts
+  empty.
+- **WebRTC.** With `shield_webrtc`, a page in the default context and one in a
+  new context gather no candidate. Without it, the host candidates of both are
+  `.local` names and never a private address; in the run these notes come from
+  the two contexts were handed different names (two each), so the names do not
+  link them. The test prints the comparison on every run. If a Chrome ever
+  hands both contexts one name, `shield_webrtc` or `webrtc(Spoof::Off)` is the
+  cure for identities that share one browser.
+
+What the tests do not cover, and why:
+
+- HSTS. Chrome keeps no HSTS entry for an origin with a certificate error and
+  the tests have no trusted certificate for a loopback server; a fresh profile
+  folder has no dynamic HSTS state by construction.
+- TLS session tickets and HTTP/2 connection reuse: the network layer of the
+  stealth repository.
+- The DNS cache: only a timing side channel reads it, and a loopback server
+  cannot show it reliably.
+- The favicon cache: headless Chrome asks for no favicon, so the test checks it
+  only when one was fetched.
+- `rotate_profile` and `rotate_egress`: they are not in this crate.
 
 ## What is left, in rank order
 
-Filled in at the end of the lane: see the section of the same name in the
-report of `lane/fp-consistency`, copied here when the lane merges.
+The rows of the inventory, by rank, with what the lane did. The rules still in
+`OPEN` in `tests/chrome/fingerprint_consistency_chrome.rs` are the four marked
+open; every other rule is in `CLOSED`, and the test fails if a preset shows one.
+
+| # | Surface | State |
+|---|---|---|
+| 1 | WebGPU against WebGL | closed: the `webgpu` provider |
+| 2 | Worker scope | **open** (`worker_vs_window`): the core count is sent through the protocol, but Chrome applies it to the page and not to a worker; a worker still reports the real platform, memory and GPU. A worker bootstrap changes target handling in `src/sb_cdp/browser.rs`, and a worker that never starts is worse than the tell, so it is its own lane |
+| 3 | Screen and window geometry | closed: a desktop persona's window is a maximized browser window, the desktop device-metrics form goes to both engines (`no_taskbar`, `viewport_is_screen`, `window_vs_screen`, `headless_screen`, `pixel_ratio_vs_device`). Under `StealthPolicy::native_only()` no script runs and `availHeight` is the screen's: documented, not fixed |
+| 4 | CSS media features | closed through `Emulation.setEmulatedMedia` (`media_features`; `media_query_lie`, `color_gamut_vs_os`, `forced_colors_vs_os`); a phone's touch emulation gives `pointer: coarse` and `hover: none`. **Open** on a host with a mouse: `any-pointer: fine` stays true (`media_pointer_vs_device`) |
+| 5 | Codecs | closed: `media_codecs` answers all three. A Safari persona's other-engine codecs are not spoofed |
+| 6 | Fonts | **open for good** (`fonts_vs_os`): a page measures the host's fonts, and no flag or script gives a Mac the metrics of Segoe UI. The cure is a host of the persona's system, or a persona of the host's |
+| 7 | API presence | closed for an API the persona never has (`api_present_vs_persona`: the provider removes, it never adds). **Open for good** for an API the host's Chrome lacks (`api_missing_vs_persona`): a stub a page can call is a lie the call reveals |
+| 8 | Plugins and the PDF viewer | closed: a phone persona opens PDFs outside the browser (a profile preference at launch), so it lists no plugin and says `pdfViewerEnabled: false` |
+| 9 | Touch | closed: a phone persona turns touch emulation on |
+| 10 | Intl against the language | closed in the script mode too: `localization` makes every Intl constructor and `toLocale*String` default to the first language |
+| 11 | Time zone offsets | closed on the protocol path; the script mode is as the inventory describes it |
+| 12 | User agent, platform, Client Hints | closed (unchanged: native) |
+| 13 | Speech voices | closed (`voices_vs_os`) |
+| 14 | Keyboard layout | closed: the `keyboard_layout` setting, filled from the locale, and its provider. The three maps are Windows's (KBDUS, KBDGR, KBDFR); a Mac's punctuation keys differ and no rule reads them |
+| 15 | WebGL extensions | closed for the texture compression of a phone GPU (S3TC, BPTC, RGTC). WebGL parameters beyond the list (`MAX_TEXTURE_SIZE` and the like) have no rule yet |
+| 16 | Storage quota | closed: the `storage_quota` setting and provider answer `estimate()` and `webkitTemporaryStorage`, also in a new browser context. The 60 % of the disk the setting draws is the share web.dev gives one origin; it was not confirmed through Context7 |
+| 17 | `doNotTrack` | none |
+| 18 | `eval.toString().length` | persona rule: nothing can be set, the engine is V8 |
+| 19 | Battery shape | closed: the default battery is a full one on the charger |
+| 20 | Automation markers | covered |
+
+Not done, and why: a vendored detector page (fetching one is a download nobody
+approved; the capture reads the same surfaces); an iOS persona test (a Safari
+persona on Chrome breaks the engine rule by design, so the four Chromium presets
+are the tests); `rotate_profile` and `rotate_egress` (the stealth repository's).
