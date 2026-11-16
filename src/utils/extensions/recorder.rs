@@ -9,16 +9,13 @@
 /// [`extract_extension`](super::extract_extension) to load it into Chrome.
 ///
 /// For a recorder that needs no extension, see
-/// [`get_recorder_js`](crate::evasion::js::recorder_js::get_recorder_js).
+/// [`RECORDER_JS`](crate::evasion::js::recorder_js::RECORDER_JS).
 ///
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::utils::extensions::get_recorder_bytes;
+/// use seleniumbase_rs::utils::extensions::RECORDER_BYTES;
 ///
-/// assert!(get_recorder_bytes().starts_with(b"PK"));
+/// assert!(RECORDER_BYTES.starts_with(b"PK"));
 /// ```
-#[must_use]
-pub fn get_recorder_bytes() -> &'static [u8] {
-    include_bytes!("assets/recorder.zip")
-}
+pub const RECORDER_BYTES: &[u8] = include_bytes!("assets/recorder.zip");

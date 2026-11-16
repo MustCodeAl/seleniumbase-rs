@@ -12,11 +12,8 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::evasion::js::recorder_js::get_recorder_js;
+/// use seleniumbase_rs::evasion::js::recorder_js::RECORDER_JS;
 ///
-/// assert!(get_recorder_js().contains("recorded_actions"));
+/// assert!(RECORDER_JS.contains("recorded_actions"));
 /// ```
-#[must_use]
-pub fn get_recorder_js() -> &'static str {
-    crate::api::recorder::RECORDER_JS
-}
+pub const RECORDER_JS: &str = crate::api::recorder::RECORDER_JS;

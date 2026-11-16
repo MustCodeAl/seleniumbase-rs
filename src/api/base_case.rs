@@ -84,7 +84,7 @@ pub struct BaseCase {
     #[cfg(feature = "gui")]
     gui_held: Option<(i32, i32)>,
     /// The browsers of this case other than the active one, which is
-    /// `session`: the extra ones [`BaseCase::get_new_driver`] opened, and the
+    /// `session`: the extra ones [`BaseCase::new_driver`] opened, and the
     /// default one while another is active.
     drivers: DriverTable<BrowserSession>,
     /// The name of the test this case runs, from [`BaseCase::with_test_name`].
@@ -2627,7 +2627,7 @@ impl BaseCase {
     // --- JS Code Execution Helpers ---
 
     pub async fn execute_active_css_js(&mut self) -> Result<(), SeleniumBaseError> {
-        let js = crate::evasion::js::active_css_js::get_active_css_js();
+        let js = crate::evasion::js::active_css_js::ACTIVE_CSS_JS;
         self.execute_script(js).await?;
         Ok(())
     }

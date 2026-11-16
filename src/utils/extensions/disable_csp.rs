@@ -12,11 +12,8 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::utils::extensions::get_disable_csp_bytes;
+/// use seleniumbase_rs::utils::extensions::DISABLE_CSP_BYTES;
 ///
-/// assert!(get_disable_csp_bytes().starts_with(b"PK"));
+/// assert!(DISABLE_CSP_BYTES.starts_with(b"PK"));
 /// ```
-#[must_use]
-pub fn get_disable_csp_bytes() -> &'static [u8] {
-    include_bytes!("assets/disable_csp.zip")
-}
+pub const DISABLE_CSP_BYTES: &[u8] = include_bytes!("assets/disable_csp.zip");
