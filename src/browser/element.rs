@@ -710,7 +710,7 @@ impl DriverElement {
 ///   it goes stale when the page replaces the node, and its methods then fail
 ///   with [`SeleniumBaseError::StaleElement`], which names the selector the
 ///   element was found by.
-/// - On a direct DevTools attachment (`BrowserConfig::with_cdp_url`) it is a
+/// - On a direct DevTools attachment (`BrowserConfigBuilder::cdp_url`) it is a
 ///   `Locator` under a name: it looks again on every use, so it never goes
 ///   stale, and a match of a search for several is pinned to its position.
 ///

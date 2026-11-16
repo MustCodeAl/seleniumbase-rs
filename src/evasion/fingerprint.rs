@@ -1214,7 +1214,7 @@ impl Fingerprint {
     /// - Fonts, media devices and WebRTC addresses are left alone, and the proxy
     ///   is left off. Ask for them with [`Spoof::Random`] on a builder.
     /// - It describes an identity, not a browser. Give it to a browser with
-    ///   [`BrowserConfig::with_fingerprint`](crate::BrowserConfig::with_fingerprint)
+    ///   [`BrowserConfigBuilder::fingerprint`](crate::BrowserConfigBuilder::fingerprint)
     ///   (WebDriver and UC sessions), with
     ///   [`LaunchOptionsBuilder::fingerprint`](crate::sb_cdp::LaunchOptionsBuilder::fingerprint)
     ///   (the pure CDP engine, for every tab), or with the evasion registry. The

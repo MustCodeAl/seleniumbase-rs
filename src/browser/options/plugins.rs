@@ -5,7 +5,7 @@ use seleniumbase_rs_plugin::PluginSet;
 /// The browser plugins of a [`BrowserConfig`](crate::BrowserConfig): a
 /// [`PluginSet`] that a configuration can hold, clone and compare.
 ///
-/// Set it with [`BrowserConfig::with_plugins`](crate::BrowserConfig::with_plugins).
+/// Set it with [`BrowserConfigBuilder::plugins`](crate::BrowserConfigBuilder::plugins).
 /// Two values are equal when their plugins have the same names in the same
 /// order. A configuration file cannot name plugins: they are Rust values, so
 /// this is left out when a configuration is written or read.

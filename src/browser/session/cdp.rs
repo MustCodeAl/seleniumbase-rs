@@ -92,7 +92,7 @@ impl BrowserSession {
     /// use seleniumbase_rs::{BrowserConfig, BrowserSession};
     /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     /// let mut session = BrowserSession::connect(
-    ///     BrowserConfig::default().with_cdp_url("http://127.0.0.1:9222")
+    ///     BrowserConfig::builder().cdp_url("http://127.0.0.1:9222").build()?
     /// ).await?;
     /// if let Some(page) = session.pure_cdp_page() {
     ///     page.locator("#save").click().await?;
@@ -217,7 +217,7 @@ impl BrowserSession {
     /// first (Python's `driver.get_log("performance")`).
     ///
     /// The log exists only when the session was started with
-    /// [`BrowserConfig::with_cdp_events`] (`--log-cdp-events`,
+    /// [`cdp_events`](crate::BrowserConfigBuilder::cdp_events) (`--log-cdp-events`,
     /// `--uc-cdp-events`); chromedriver keeps nothing otherwise and the result
     /// is an error from the driver. Entries that are not events are skipped.
     ///

@@ -1,4 +1,4 @@
-//! A real-browser check of `--reuse-session` (`BrowserConfig::with_reuse_session`).
+//! A real-browser check of `--reuse-session` (`BrowserConfigBuilder::reuse_session`).
 //!
 //! Two `#[tokio::test]` functions, each on its own Tokio runtime, share one
 //! Chrome started by one chromedriver. The first sets a cookie and an item of

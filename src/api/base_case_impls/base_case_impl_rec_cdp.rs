@@ -3,7 +3,7 @@
 
 impl BaseCase {
     /// Whether recordings are written as pure CDP code
-    /// ([`BrowserConfig::with_recording_sb_cdp`]).
+    /// ([`recording_sb_cdp`](crate::BrowserConfigBuilder::recording_sb_cdp)).
     #[must_use]
     pub fn rec_sb_cdp(&self) -> bool {
         self.config.recording_sb_cdp()

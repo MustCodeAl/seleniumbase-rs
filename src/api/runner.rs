@@ -38,7 +38,7 @@ use crate::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
 /// A test that ends with [`BaseCase::skip_test`] counts as passed: libtest has
 /// no way to report a skip, so the reason is logged and the test returns `Ok`.
 ///
-/// The run settings of the configuration ([`BrowserConfig::with_run_settings`])
+/// The run settings of the configuration ([`run_settings`](crate::BrowserConfigBuilder::run_settings))
 /// are the case's from the start, as they are for [`BaseCase::new`].
 ///
 /// # Errors

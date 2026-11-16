@@ -12,7 +12,7 @@
 //!
 //! #[tokio::main]
 //! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     let config = BrowserConfig::default().with_mode(DriverMode::Uc);
+//!     let config = BrowserConfig::builder().mode(DriverMode::Uc).build()?;
 //!     let mut sb = BaseCase::new(config).await?;
 //!     sb.open("https://example.com").await?;
 //!     sb.assert_title("Example Domain").await?;
@@ -124,7 +124,7 @@ pub mod ocr;
 /// Give a set of plugins to
 /// [`LaunchOptionsBuilder::plugins`](sb_cdp::LaunchOptionsBuilder::plugins)
 /// for the pure CDP engine, or to
-/// [`BrowserConfig::with_plugins`](crate::BrowserConfig::with_plugins) for the
+/// [`BrowserConfigBuilder::plugins`](crate::BrowserConfigBuilder::plugins) for the
 /// WebDriver engine (`BaseCase`). A plugin crate depends on `seleniumbase-rs-plugin` itself, never on this
 /// crate. Not to be confused with [`plugins`], the test-reporting plugins.
 #[cfg(feature = "plugins")]

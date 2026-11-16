@@ -15,7 +15,7 @@ use crate::error::SeleniumBaseError;
 /// host patterns separated by semicolons. Chrome understands the same patterns
 /// (`*.foo.com`, `.foo.com`, `10.0.0.0/8`, `<local>` for names without a dot).
 /// It only applies to a proxy named with
-/// [`with_proxy`](crate::BrowserConfig::with_proxy); a PAC file decides for
+/// [`proxy`](crate::BrowserConfigBuilder::proxy); a PAC file decides for
 /// itself which hosts skip the proxy.
 ///
 /// # Examples

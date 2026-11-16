@@ -12,7 +12,7 @@
 //! # use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
 //! # use seleniumbase_rs::api::master_qa::MasterQA;
 //! # async fn demo() -> Result<(), SeleniumBaseError> {
-//! let sb = BaseCase::new(BrowserConfig::default().with_headless(false)).await?;
+//! let sb = BaseCase::new(BrowserConfig::builder().headless(false).build()?).await?;
 //! let mut qa = MasterQA::new(sb)?;
 //! qa.open("https://example.com").await?; // a `BaseCase` method, through `Deref`
 //! qa.verify("Is the heading visible?").await?;

@@ -56,13 +56,13 @@
 //!
 //! Python's `--rcs` shares a browser among the tests of one class. Rust tests
 //! have no classes; the nearest thing is the module that holds them. With
-//! [`ReuseClass::TestModule`] (`BrowserConfig::with_reuse_module_session`,
+//! [`ReuseClass::TestModule`] (`BrowserConfigBuilder::reuse_module_session`,
 //! `sbrs --rcs`, `SB_REUSE_CLASS_SESSION`) the tests of one module share a
 //! browser: the module is read from the name libtest gives the thread a test
 //! runs on (`login::tests::valid_password` is in `login::tests`, and a test at
 //! the root of an integration test file is in the root module, which the whole
 //! file shares). With [`ReuseClass::Named`]
-//! (`BrowserConfig::with_reuse_class_session`) the tests that give the same name
+//! (`BrowserConfigBuilder::reuse_class_session`) the tests that give the same name
 //! share one, wherever they are.
 //!
 //! # What differs from Python

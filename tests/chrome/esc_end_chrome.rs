@@ -1,4 +1,4 @@
-//! A real-browser check of `--esc-end` (`BrowserConfig::with_esc_end`).
+//! A real-browser check of `--esc-end` (`BrowserConfigBuilder::esc_end`).
 //!
 //! With the setting on, `BaseCase` puts a key listener in the page, and the
 //! first call after a person presses ESC in the browser returns

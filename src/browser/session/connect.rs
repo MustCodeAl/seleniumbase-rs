@@ -28,7 +28,7 @@ impl BrowserSession {
     /// reuse (see [`crate::browser::reuse`]).
     ///
     /// With browser plugins (feature `plugins`,
-    /// `BrowserConfig::with_plugins`) the set is checked and `before_launch`
+    /// `BrowserConfigBuilder::plugins`) the set is checked and `before_launch`
     /// runs before the browser is asked for; once it runs, `on_browser` and,
     /// for its window, the packages and `on_page_created`. A refusal or a hook
     /// that fails stops the session with [`SeleniumBaseError::Plugin`] and

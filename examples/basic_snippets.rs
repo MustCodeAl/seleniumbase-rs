@@ -13,7 +13,7 @@
 //!
 //! It needs Chrome and a matching chromedriver on your `PATH` (`sbrs doctor`
 //! checks both) and does not need the network. The browser runs headless; call
-//! `.with_headless(false)` on the config to watch it work. The screenshot is
+//! `.headless(false)` on the config builder to watch it work. The screenshot is
 //! written to `latest_logs/`.
 
 mod local_site;

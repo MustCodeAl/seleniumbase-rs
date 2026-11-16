@@ -45,7 +45,7 @@ fn alert_is_open(error: &str) -> bool {
 
 impl BaseCase {
     /// Whether Recorder Mode is on: asked for by the configuration
-    /// ([`BrowserConfig::with_recorder_mode`], `--rec`), or switched on by
+    /// ([`recorder_mode`](crate::BrowserConfigBuilder::recorder_mode), `--rec`), or switched on by
     /// [`activate_recorder`](Self::activate_recorder).
     #[must_use]
     pub fn recorder_mode(&self) -> bool {
@@ -336,7 +336,7 @@ impl BaseCase {
     /// ```no_run
     /// # use seleniumbase_rs::{BaseCase, BrowserConfig};
     /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut sb = BaseCase::new(BrowserConfig::default().with_recorder_mode(true)).await?;
+    /// let mut sb = BaseCase::new(BrowserConfig::builder().recorder_mode(true).build()?).await?;
     /// sb.open("https://example.com").await?;
     /// sb.recorder_breakpoint("Click around, then press c here").await?;
     /// sb.quit().await?; // writes recordings/..._rec.rs

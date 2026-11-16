@@ -1,4 +1,4 @@
-//! What a session does on a direct DevTools attachment (`BrowserConfig::with_cdp_url`):
+//! What a session does on a direct DevTools attachment (`BrowserConfigBuilder::cdp_url`):
 //! the methods that have a CDP form answer through the pure CDP engine's
 //! [`Page`] instead of a WebDriver.
 //!

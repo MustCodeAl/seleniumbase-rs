@@ -103,9 +103,9 @@ pub struct BrowserSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub debugging_port: Option<u16>,
     /// Whether the remote debugger may take another port when `debugging_port` is in use.
-    /// Set by [`with_remote_debug`](crate::BrowserConfig::with_remote_debug), which asks for
+    /// Set by [`remote_debug`](crate::BrowserConfigBuilder::remote_debug), which asks for
     /// the default port only; a port named with
-    /// [`with_remote_debug_port`](crate::BrowserConfig::with_remote_debug_port) is an error
+    /// [`remote_debug_port`](crate::BrowserConfigBuilder::remote_debug_port) is an error
     /// when it is busy.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub debugging_any_port: bool,

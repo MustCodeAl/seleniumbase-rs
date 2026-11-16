@@ -91,7 +91,7 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::Unsupported`] unless the session is a
     /// Firefox one (Chromium browsers load their extensions at launch, through
-    /// [`BrowserConfig::with_extension_dir`]), and
+    /// [`extension_dir`](crate::BrowserConfigBuilder::extension_dir)), and
     /// [`SeleniumBaseError::InvalidConfig`] if `path` is empty, goes up through
     /// `..`, does not exist, or is neither an `.xpi` file nor a directory;
     /// nothing is sent to the driver in these cases. A refusal by geckodriver
@@ -150,7 +150,7 @@ impl BaseCase {
         Err(SeleniumBaseError::Unsupported(format!(
             "{what} needs a Firefox session, because add-ons are installed through geckodriver; \
              this one is {}. A Chromium browser loads its extensions at launch, with \
-             BrowserConfig::with_extension_dir or with_extension_archive.",
+             BrowserConfigBuilder::extension_dir or extension_archive.",
             self.config.browser.kind
         )))
     }

@@ -173,8 +173,8 @@ pub(super) fn start_virtual_display(
 /// Settles the port of Chrome's remote debugger before the browser starts.
 ///
 /// A browser this crate starts on this machine gets the port that was asked
-/// for when it is free. When it is busy, the default port (`with_remote_debug`)
-/// gives way to a free one, and a named port (`with_remote_debug_port`) is an
+/// for when it is free. When it is busy, the default port (`remote_debug`)
+/// gives way to a free one, and a named port (`remote_debug_port`) is an
 /// error. A browser on a WebDriver server of its own cannot be checked from
 /// here. Returns the port the session will have, or `None` for a browser with no
 /// remote debugger.
@@ -289,7 +289,7 @@ fn missing_browser_message(browser: Browser) -> String {
     match browser {
         Browser::ChromeForTesting | Browser::ChromeHeadlessShell => format!(
             "{browser} is not installed: nothing was found under {}/{}. Download it \
-             there, or name its program with BrowserConfig::with_browser_binary_path.",
+             there, or name its program with BrowserConfigBuilder::browser_binary_path.",
             binaries::DOWNLOADS_DIR,
             if browser == Browser::ChromeForTesting {
                 binaries::CHROME_FOR_TESTING_DIR
@@ -299,7 +299,7 @@ fn missing_browser_message(browser: Browser) -> String {
         ),
         _ => format!(
             "{browser} was not found in its usual install locations or on the PATH. \
-             Install it, or name its program with BrowserConfig::with_browser_binary_path."
+             Install it, or name its program with BrowserConfigBuilder::browser_binary_path."
         ),
     }
 }

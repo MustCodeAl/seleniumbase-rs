@@ -8,7 +8,7 @@ use serde_json::{json, Map, Value};
 /// A setting that is either on or off for a browser session.
 ///
 /// Each one is a Python SeleniumBase option that takes no value, such as
-/// `--block-images`. Turn them on with the matching `BrowserConfig::with_*`
+/// `--block-images`. Turn them on with the matching `BrowserConfigBuilder`
 /// method; [`BrowserSettings`](super::BrowserSettings) keeps the set that is on.
 ///
 /// # Examples

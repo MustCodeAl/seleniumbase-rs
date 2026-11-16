@@ -495,7 +495,7 @@ pub(crate) fn find_downloaded_or_on_path(
 }
 
 /// The proxy downloads go through: the session's, when
-/// [`with_proxy_for_driver_download`](BrowserConfig::with_proxy_for_driver_download)
+/// [`proxy_for_driver_download`](crate::BrowserConfigBuilder::proxy_for_driver_download)
 /// asks for it.
 fn download_proxy(config: &BrowserConfig) -> Option<String> {
     config
@@ -525,7 +525,7 @@ async fn ensure_geckodriver(config: &BrowserConfig) -> Result<PathBuf, SeleniumB
 /// The msedgedriver an Edge session runs.
 ///
 /// msedgedriver only drives the Edge of its own major version. A version named
-/// with [`with_driver_version`](BrowserConfig::with_driver_version) is fetched
+/// with [`driver_version`](crate::BrowserConfigBuilder::driver_version) is fetched
 /// as [`install_msedgedriver`] says. Otherwise the driver in
 /// `downloaded_drivers/` or on the `PATH` is used when it fits the installed
 /// Edge (or when either version cannot be read), and the driver for that Edge
@@ -632,11 +632,11 @@ impl std::fmt::Debug for ChromedriverPlan {
 /// Which chromedriver `config` calls for.
 ///
 /// A driver version named with
-/// [`with_driver_version`](BrowserConfig::with_driver_version) is pinned. Brave,
+/// [`driver_version`](crate::BrowserConfigBuilder::driver_version) is pinned. Brave,
 /// Comet, Chrome for Testing and `chrome-headless-shell` follow the version of
 /// their own program, since the Chrome that is installed is not the browser they
 /// run. A proxy for downloads
-/// ([`with_proxy_for_driver_download`](BrowserConfig::with_proxy_for_driver_download))
+/// ([`proxy_for_driver_download`](crate::BrowserConfigBuilder::proxy_for_driver_download))
 /// also needs a download of our own, to put the proxy in front of it.
 pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
     let proxy = download_proxy(config);
@@ -741,7 +741,7 @@ pub async fn launch_driver_for(
                     format!(
                         "{name} was not found in {DOWNLOADS_DIR}/, where the system keeps it, \
                          or on the PATH; put it in one of them, or start it and name its URL \
-                         with BrowserConfig::with_webdriver_url"
+                         with BrowserConfigBuilder::webdriver_url"
                     ),
                 )
             })?

@@ -24,7 +24,7 @@ impl BrowserSession {
     /// It does nothing when no ads are blocked.
     ///
     /// The hosts are the built-in [`AdBlockList`], or the list set with
-    /// [`BrowserConfig::with_ad_block_list`]. They go to the browser as
+    /// [`ad_block_list`](crate::BrowserConfigBuilder::ad_block_list). They go to the browser as
     /// `Network.enable` and `Network.setBlockedURLs`, through chromedriver's
     /// DevTools channel, which exists in every Chromium session whatever its
     /// mode. Firefox, Safari and Internet Explorer have none: nothing is sent
@@ -72,7 +72,7 @@ impl BrowserSession {
 
     /// Makes the window the session is on a phone, for an undetected-mode
     /// session that was asked to be mobile ([`BrowserSettings::mobile`](crate::browser::options::BrowserSettings::mobile) or
-    /// [`BrowserConfig::with_device_metrics`]).
+    /// [`device_metrics`](crate::BrowserConfigBuilder::device_metrics)).
     ///
     /// The other modes ask for the phone with the `mobileEmulation`
     /// capability when the browser starts. The undetected mode drops that

@@ -127,7 +127,7 @@ pub struct Settings {
     /// The browser plugins to turn on by name (the `[plugins]` table, and
     /// `SB_PLUGINS`, which replaces `enable`). A build without the feature
     /// `plugins` refuses a non-empty selection when it loads the settings. Turn
-    /// it into plugins with `BrowserConfig::with_plugin_selection` or
+    /// it into plugins with `BrowserConfigBuilder::plugin_selection` or
     /// `LaunchOptionsBuilder::plugin_selection` (feature `plugins`).
     #[serde(default, skip_serializing_if = "PluginSelection::is_empty")]
     pub plugins: PluginSelection,
@@ -683,7 +683,7 @@ impl Settings {
         {
             config.browser.window_size = None;
         }
-        // A phone screen is a phone: `BrowserConfig::with_device_metrics` turns mobile
+        // A phone screen is a phone: `BrowserConfigBuilder::device_metrics` turns mobile
         // emulation on too.
         if config.browser.device_metrics.is_some() {
             config.browser.mobile = true;

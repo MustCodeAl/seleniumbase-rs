@@ -157,7 +157,7 @@ impl BaseCase {
     /// reconnecting and for test-only construction.
     ///
     /// The case starts with the run settings of `config`
-    /// ([`BrowserConfig::with_run_settings`]): demo and slow mode, the message
+    /// ([`run_settings`](crate::BrowserConfigBuilder::run_settings)): demo and slow mode, the message
     /// duration and, if they carry one, the default timeout, in whole seconds
     /// rounded up, that [`set_timeout`](Self::set_timeout) would set.
     #[instrument(skip(config, session))]
@@ -856,7 +856,7 @@ impl BaseCase {
 
     /// Gives the window the session is on the packages and `on_page_created`
     /// of its browser plugins (feature `plugins`,
-    /// [`BrowserConfig::with_plugins`]).
+    /// [`plugins`](crate::BrowserConfigBuilder::plugins)).
     ///
     /// `BaseCase::new` does this for the first window, and
     /// [`open_new_window`](Self::open_new_window), `open_new_tab` and
@@ -1251,7 +1251,7 @@ impl BaseCase {
     ///
     /// A WebDriver Chromium session (UC mode included) answers the address its
     /// driver reported; a direct CDP attachment
-    /// ([`with_cdp_url`](BrowserConfig::with_cdp_url)) answers its browser's.
+    /// ([`cdp_url`](crate::BrowserConfigBuilder::cdp_url)) answers its browser's.
     ///
     /// # Errors
     ///

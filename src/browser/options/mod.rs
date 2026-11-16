@@ -7,7 +7,7 @@
 //! version, a remote debugging port, and a virtual display. A
 //! [`BrowserSettings`] holds what both engines start and a [`SessionSettings`]
 //! what only a WebDriver session reads; [`BrowserConfig`](crate::BrowserConfig)
-//! carries one of each, and its `with_*` methods are the usual way to set them.
+//! carries one of each, and the setters of [`BrowserConfigBuilder`](crate::BrowserConfigBuilder) are the usual way to set them.
 //!
 //! Every setting is a value with a name: an enum, or a newtype that checks
 //! what it is given when it is built, so a bad window size or driver version is
@@ -21,11 +21,12 @@
 //! use seleniumbase_rs::browser::options::{DeviceMetrics, PageLoadStrategy, WindowSize};
 //! use seleniumbase_rs::BrowserConfig;
 //!
-//! let config = BrowserConfig::default()
-//!     .with_block_images(true)
-//!     .with_page_load_strategy(PageLoadStrategy::Eager)
-//!     .with_window_size("1280,720".parse::<WindowSize>()?)
-//!     .with_device_metrics(DeviceMetrics::new(412, 732, 3.0));
+//! let config = BrowserConfig::builder()
+//!     .block_images(true)
+//!     .page_load_strategy(PageLoadStrategy::Eager)
+//!     .window_size("1280,720".parse::<WindowSize>()?)
+//!     .device_metrics(DeviceMetrics::new(412, 732, 3.0))
+//!     .build()?;
 //! assert!(config.browser.has(seleniumbase_rs::browser::options::LaunchSwitch::BlockImages));
 //! assert_eq!(config.session.page_load_strategy, Some(PageLoadStrategy::Eager));
 //! # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())

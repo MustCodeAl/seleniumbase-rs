@@ -33,7 +33,7 @@ const ESC_END_CHECK_SCRIPT: &str = "return document.sb_esc_end;";
 
 impl BaseCase {
     /// Whether pressing ESC in the browser ends the test
-    /// ([`BrowserConfig::with_esc_end`]).
+    /// ([`esc_end`](crate::BrowserConfigBuilder::esc_end)).
     #[must_use]
     pub fn esc_end(&self) -> bool {
         self.config.esc_end()

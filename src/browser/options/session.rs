@@ -164,8 +164,8 @@ pub struct SessionSettings {
     /// [`reuse::idle_timeout`](crate::browser::reuse::idle_timeout) or at
     /// [`shutdown_reused_sessions`](crate::shutdown_reused_sessions). The `sbrs` flag,
     /// `Settings` and `SB_REUSE_SESSION` set it;
-    /// [`with_reuse_class_session`](crate::BrowserConfig::with_reuse_class_session) and
-    /// [`with_reuse_module_session`](crate::BrowserConfig::with_reuse_module_session) narrow
+    /// [`reuse_class_session`](crate::BrowserConfigBuilder::reuse_class_session) and
+    /// [`reuse_module_session`](crate::BrowserConfigBuilder::reuse_module_session) narrow
     /// who shares (`--rcs`). See [`crate::browser::reuse`] for how it works and what differs
     /// from Python.
     pub reuse: bool,

@@ -150,7 +150,7 @@ impl BrowserSession {
     /// Where Chrome's remote debugger listens (`localhost:9222`), when the
     /// configuration opened one (`--remote-debug`); open `chrome://inspect` in
     /// another Chrome to see the session. With
-    /// [`with_remote_debug`](crate::BrowserConfig::with_remote_debug) the port is
+    /// [`remote_debug`](crate::BrowserConfigBuilder::remote_debug) the port is
     /// the free one taken in place of a busy 9222.
     #[must_use]
     pub fn remote_debug_address(&self) -> Option<String> {

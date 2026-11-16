@@ -11,7 +11,7 @@ use super::emulation::fingerprint_blocklist;
 use super::BrowserSession;
 
 /// Browser plugins (feature `plugins`, ADR 004); see
-/// [`BrowserConfig::with_plugins`].
+/// [`BrowserConfigBuilder::plugins`](crate::BrowserConfigBuilder::plugins).
 impl BrowserSession {
     /// Gives the window the session is on the packages and `on_page_created`
     /// of its browser plugins (feature `plugins`).

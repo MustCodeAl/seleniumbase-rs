@@ -1,4 +1,4 @@
-//! `BaseCase` on a direct DevTools attachment (`BrowserConfig::with_cdp_url`), against a real
+//! `BaseCase` on a direct DevTools attachment (`BrowserConfigBuilder::cdp_url`), against a real
 //! headless Chrome: the pure CDP engine runs the whole `BaseCase` API, with no WebDriver.
 //!
 //! A browser is started with the pure CDP engine and a case attaches to it, as it would to the
