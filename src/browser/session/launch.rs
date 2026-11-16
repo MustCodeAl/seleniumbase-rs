@@ -328,7 +328,7 @@ async fn patch_chrome_binary_if_needed(
         .ok_or_else(|| {
             SeleniumBaseError::invalid_config(
                 "native_spoofing requires a Chrome/Chromium binary but none was found. \
-                 Set SB_CHROME_BIN or BrowserConfig::browser_binary_path."
+                 Set SB_CHROME_BIN or BrowserConfigBuilder::browser_binary_path."
                     .to_owned(),
             )
         })?;

@@ -45,7 +45,8 @@ fn alert_is_open(error: &str) -> bool {
 
 impl BaseCase {
     /// Whether Recorder Mode is on: asked for by the configuration
-    /// ([`recorder_mode`](crate::BrowserConfigBuilder::recorder_mode), `--rec`), or switched on by
+    /// ([`BrowserConfigBuilder::recorder_mode`](crate::BrowserConfigBuilder::recorder_mode),
+    /// `--rec`), or switched on by
     /// [`activate_recorder`](Self::activate_recorder).
     #[must_use]
     pub fn recorder_mode(&self) -> bool {

@@ -856,7 +856,7 @@ impl BaseCase {
 
     /// Gives the window the session is on the packages and `on_page_created`
     /// of its browser plugins (feature `plugins`,
-    /// [`plugins`](crate::BrowserConfigBuilder::plugins)).
+    /// [`BrowserConfigBuilder::plugins`](crate::BrowserConfigBuilder::plugins)).
     ///
     /// `BaseCase::new` does this for the first window, and
     /// [`open_new_window`](Self::open_new_window), `open_new_tab` and
