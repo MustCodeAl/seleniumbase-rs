@@ -1180,6 +1180,9 @@ mod driver_program_tests {
         };
         let text = error.to_string();
         assert!(text.contains("operadriver"), "{text}");
-        assert!(text.contains("with_webdriver_url"), "{text}");
+        assert!(
+            text.contains("BrowserConfigBuilder::webdriver_url"),
+            "{text}"
+        );
     }
 }

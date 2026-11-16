@@ -779,7 +779,7 @@ mod tests_pure_cdp {
         for (error, method, alternative) in [
             (version, "chromedriver_version", "browser_version"),
             (events, "cdp_events", "Page::events"),
-            (addon, "install_addon", "with_extension_dir"),
+            (addon, "install_addon", "extension_dir"),
         ] {
             assert!(
                 matches!(error, SeleniumBaseError::Unsupported(_)),

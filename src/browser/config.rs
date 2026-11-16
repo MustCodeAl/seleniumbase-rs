@@ -518,8 +518,7 @@ impl BrowserConfig {
 mod tests {
     use super::*;
     use crate::browser::options::{
-        CapabilityOverrides, DeviceMetrics, PageLoadStrategy, VirtualDisplay, WindowPosition,
-        WindowSize,
+        CapabilityOverrides, DeviceMetrics, PageLoadStrategy, VirtualDisplay,
     };
     use crate::browser::reuse::ReuseClass;
 

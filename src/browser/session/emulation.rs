@@ -681,7 +681,13 @@ mod mobile_tests {
             .build()
             .expect("a valid config");
         assert!(mobile_commands(&mobile).is_empty());
-        assert!(mobile_commands(&BrowserConfig::default().with_mode(DriverMode::Uc)).is_empty());
+        assert!(mobile_commands(
+            &BrowserConfig::builder()
+                .mode(DriverMode::Uc)
+                .build()
+                .expect("a valid config")
+        )
+        .is_empty());
 
         let uc = mobile
             .clone()

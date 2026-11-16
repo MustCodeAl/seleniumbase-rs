@@ -104,7 +104,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   name is `Plugin`). A later `webdriver_url` or `session_settings` replaces a `grid`, and a later
   `plugins` replaces the names added before it. `build()` does not call `validate()`. The getters
   of `BrowserConfig` (`esc_end`, `recorder_mode`, `run_settings`, `plugins`, ...) stay, and so do
-  `from_env`, `from_vars` and `validate`.
+  `from_env`, `from_vars` and `validate`. The `uc_config!`, `cdp_config!` and `sb_config!` macros
+  expand to the builder, so they evaluate to a `Result`: `uc_config!()?`.
 
 
 - **Breaking: a plugin error and a database driver error keep their cause.**

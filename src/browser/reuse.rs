@@ -923,9 +923,22 @@ mod tests {
             .expect("a valid config");
         assert_eq!(
             key(&base),
-            key(&base.clone().with_start_page("https://example.com"))
+            key(&base
+                .clone()
+                .into_builder()
+                .start_page("https://example.com")
+                .build()
+                .expect("a valid config"))
         );
-        assert_eq!(key(&base), key(&base.clone().with_reuse_session(false)));
+        assert_eq!(
+            key(&base),
+            key(&base
+                .clone()
+                .into_builder()
+                .reuse_session(false)
+                .build()
+                .expect("a valid config"))
+        );
     }
 
     #[test]
@@ -963,7 +976,14 @@ mod tests {
             .expect("a valid config");
         assert_ne!(key(&base), key(&login));
         assert_ne!(key(&login), key(&cart));
-        assert_eq!(key(&login), key(&base.with_reuse_class_session("Login")));
+        assert_eq!(
+            key(&login),
+            key(&base
+                .into_builder()
+                .reuse_class_session("Login")
+                .build()
+                .expect("a valid config"))
+        );
     }
 
     #[test]
