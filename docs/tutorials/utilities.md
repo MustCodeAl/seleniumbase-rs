@@ -292,27 +292,27 @@ The macro quits for you, so do not call `sb_quit!` inside it.
 
 ### `uc_config!`
 
-Returns a `BrowserConfig` with UC mode enabled.
+Returns a `Result` of a `BrowserConfig` with UC mode enabled (`BrowserConfig::builder().mode(..).build()`).
 
 ```rust
 use seleniumbase_rs::uc_config;
 
-let config = uc_config!();
+let config = uc_config!()?;
 ```
 
 ### `cdp_config!`
 
-Returns a `BrowserConfig` with CDP mode enabled.
+Returns a `Result` of a `BrowserConfig` with CDP mode enabled (`BrowserConfig::builder().mode(..).build()`).
 
 ```rust
 use seleniumbase_rs::cdp_config;
 
-let config = cdp_config!();
+let config = cdp_config!()?;
 ```
 
 ### `sb_config!`
 
-Builds a `BrowserConfig` using common field
+Builds a `BrowserConfig` (a `Result`, as `BrowserConfigBuilder::build` returns it) using common field
 permutations. Fields can be chained in any order supported by the macro.
 
 ```rust
@@ -322,7 +322,7 @@ let config = sb_config! {
     mode: DriverMode::Uc,
     headless: true,
     browser: Browser::Chrome,
-};
+}?;
 ```
 
 ### `fingerprint!`

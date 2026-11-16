@@ -67,6 +67,23 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Breaking
 
+- **Breaking: `BrowserConfig` is built with `BrowserConfig::builder()` and `into_builder()`.** The
+  new hand-written type `BrowserConfigBuilder` (no bon) has one setter for each `with_*` method
+  `BrowserConfig` had, named without the prefix (`headless`, `mode`, `proxy`, `switch`, `plugins`;
+  `push_extra_arg` is `extra_arg`), and `build()` returns the configuration:
+  `BrowserConfig::builder().headless(false).mode(DriverMode::Uc).build()?`. A configuration you
+  hold, such as `Settings::to_browser_config()` or `BrowserConfig::from_env()`, goes on through
+  `config.into_builder().mode(DriverMode::Uc).build()?`. The `with_*` methods of `BrowserConfig`
+  are gone, with no alias. The checks that `with_grid`, `with_plugins_named` and
+  `with_plugin_selection` ran, and returned as a `Result`, moved to `build()`: `grid` and the two
+  plugin setters return the builder, and `build()` returns the first error in the order the
+  setters were called (an empty Selenium Grid server name is `InvalidConfig`, an unknown plugin
+  name is `Plugin`). A later `webdriver_url` or `session_settings` replaces a `grid`, and a later
+  `plugins` replaces the names added before it. `build()` does not call `validate()`. The getters
+  of `BrowserConfig` (`esc_end`, `recorder_mode`, `run_settings`, `plugins`, ...) stay, and so do
+  `from_env`, `from_vars` and `validate`.
+
+
 - **Breaking: the getters of `BrowserSession` and `BeautifulSoup` drop `get_`**, as `BaseCase`'s
   did. `BrowserSession::cookies`, `cookie`, `attribute`, `property`, `window_size` and
   `alert_text`; `api::html::BeautifulSoup::text` and `attribute`.
