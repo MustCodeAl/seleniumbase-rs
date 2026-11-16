@@ -75,7 +75,7 @@ On a finished `PoolOptions`: `max_browsers()`, `contexts_per_browser()` and `cap
 
 ## Session and SessionStore
 
-A `Session` is cookies plus, optionally, one origin's `localStorage`. `Session::new(cookies)` starts from the cookies. `with_local_storage(origin, entries)` adds a `BTreeMap<String, String>` for that origin. `cookies()`, `origin()` and `local_storage()` read them back. `without_expired(now)` drops cookies whose `expires` is at or before `now` (Unix seconds, `f64`). A cookie with no expiry is kept.
+A `Session` is cookies plus, optionally, one origin's `localStorage`. `Session::new(cookies)` starts from the cookies. `Session::builder()` (or `session.into_builder()`) sets them with `cookies(vec)`, and `local_storage(origin, entries)` adds a `BTreeMap<String, String>` for that origin; `build()` returns the `Session`. `cookies()`, `origin()` and `local_storage()` read them back. `without_expired(now)` drops cookies whose `expires` is at or before `now` (Unix seconds, `f64`). A cookie with no expiry is kept.
 
 A `SessionStore` is an in-memory map. `SessionStore::new()` is empty.
 

@@ -521,7 +521,10 @@ impl Lease {
         if origin.starts_with("http") {
             let entries = self.page.local_storage().entries().await?;
             if !entries.is_empty() {
-                session = session.with_local_storage(origin, entries);
+                session = session
+                    .into_builder()
+                    .local_storage(origin, entries)
+                    .build();
             }
         }
         self.shared.sessions.save(name, session);
