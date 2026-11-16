@@ -132,7 +132,7 @@ const UNIX_PATH_DIR: &str = "/usr/local/bin";
 /// ```
 /// use seleniumbase_rs::cli::scripts::sb_install::{DriverName, InstallRequest};
 ///
-/// let request = InstallRequest::new(DriverName::Chromium).with_revision(1_725_796);
+/// let request = InstallRequest::new(DriverName::Chromium).revision(1_725_796);
 /// assert_eq!(request.revision, Some(1_725_796));
 /// assert!(!request.copy_to_path);
 /// ```
@@ -164,14 +164,14 @@ impl InstallRequest {
 
     /// Asks for `version`.
     #[must_use]
-    pub fn with_version(mut self, version: impl Into<String>) -> Self {
+    pub fn version(mut self, version: impl Into<String>) -> Self {
         self.version = Some(version.into());
         self
     }
 
     /// Asks for a Chromium snapshot `revision`.
     #[must_use]
-    pub const fn with_revision(mut self, revision: u64) -> Self {
+    pub const fn revision(mut self, revision: u64) -> Self {
         self.revision = Some(revision);
         self
     }
@@ -188,7 +188,7 @@ impl InstallRequest {
 
     /// Asks for the driver to be copied into the `--path` folder.
     #[must_use]
-    pub const fn with_copy_to_path(mut self, copy: bool) -> Self {
+    pub const fn copy_to_path(mut self, copy: bool) -> Self {
         self.copy_to_path = copy;
         self
     }
@@ -661,7 +661,7 @@ mod tests {
             .into_iter()
             .filter(|n| *n != DriverName::Chromium)
         {
-            let error = InstallRequest::new(name).with_revision(1).validate();
+            let error = InstallRequest::new(name).revision(1).validate();
             let error = error.unwrap_err().to_string();
             assert!(
                 error.contains("--revision applies to chromium only"),
@@ -673,17 +673,17 @@ mod tests {
             .validate()
             .is_err());
         for name in EVERY_NAME {
-            let result = InstallRequest::new(name).with_copy_to_path(true).validate();
+            let result = InstallRequest::new(name).copy_to_path(true).validate();
             assert_eq!(result.is_err(), name.is_browser(), "{name}");
         }
     }
 
     #[tokio::test]
     async fn a_contradiction_is_refused_before_anything_is_downloaded() {
-        let request = InstallRequest::new(DriverName::Cft).with_copy_to_path(true);
+        let request = InstallRequest::new(DriverName::Cft).copy_to_path(true);
         let error = install(&request).await.unwrap_err().to_string();
         assert!(error.contains("--path copies drivers"), "{error}");
-        let request = InstallRequest::new(DriverName::Chromedriver).with_revision(5);
+        let request = InstallRequest::new(DriverName::Chromedriver).revision(5);
         assert!(install(&request).await.is_err());
     }
 
