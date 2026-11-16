@@ -210,7 +210,7 @@ impl Fingerprint {
 
     /// Whether the browser a capture was taken in presents this fingerprint:
     /// the settings it claims against `observed`, the fingerprint of a
-    /// [`CapturedFingerprint`](crate::evasion::capture::CapturedFingerprint).
+    /// [`CapturedFingerprint`].
     ///
     /// It is [`diff`](Self::diff) with two differences, so that the answer
     /// cannot overstate. A setting this fingerprint claims that the capture could
