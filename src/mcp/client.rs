@@ -629,7 +629,7 @@ impl McpClient {
     ///
     /// [`SeleniumBaseError::InvalidConfig`] if there is no such prompt or an argument is
     /// missing; [`SeleniumBaseError::Mcp`] on a transport or protocol failure.
-    pub async fn get_prompt(
+    pub async fn prompt(
         &self,
         name: &str,
         arguments: Map<String, Value>,

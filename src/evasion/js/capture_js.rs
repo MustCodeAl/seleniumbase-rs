@@ -21,11 +21,8 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::evasion::js::capture_js::get_capture_js;
+/// use seleniumbase_rs::evasion::js::capture_js::CAPTURE_JS;
 ///
-/// assert!(get_capture_js().contains("getHighEntropyValues"));
+/// assert!(CAPTURE_JS.contains("getHighEntropyValues"));
 /// ```
-#[must_use]
-pub fn get_capture_js() -> &'static str {
-    include_str!("capture.js")
-}
+pub const CAPTURE_JS: &str = include_str!("capture.js");

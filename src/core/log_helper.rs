@@ -280,15 +280,15 @@ pub struct MasterTime {
 ///
 /// ```
 /// use jiff::{civil::date, tz::TimeZone};
-/// use seleniumbase_rs::core::log_helper::get_master_time;
+/// use seleniumbase_rs::core::log_helper::master_time;
 ///
 /// let now = date(2026, 10, 22).at(15, 24, 1, 0).to_zoned(TimeZone::UTC).unwrap();
-/// let time = get_master_time(&now);
+/// let time = master_time(&now);
 /// assert_eq!(time.date, "Thursday, 22 October 2026");
 /// assert_eq!(time.time, "3:24:01 PM  (UTC+00:00)");
 /// ```
 #[must_use]
-pub fn get_master_time(now: &Zoned) -> MasterTime {
+pub fn master_time(now: &Zoned) -> MasterTime {
     MasterTime {
         timestamp: now.timestamp().as_second().to_string(),
         date: now.strftime("%A, %d %B %Y").to_string(),
@@ -366,7 +366,7 @@ pub fn render_failure_info(info: &FailureInfo, time: &MasterTime) -> String {
 ///
 /// Returns the I/O error if the folder or the file cannot be written.
 pub fn log_test_failure_data(dir: &Path, info: &FailureInfo) -> io::Result<PathBuf> {
-    let text = render_failure_info(info, &get_master_time(&Zoned::now()));
+    let text = render_failure_info(info, &master_time(&Zoned::now()));
     write_file(dir, BASIC_INFO_FILE, text.as_bytes())
 }
 
@@ -377,7 +377,7 @@ pub fn log_test_failure_data(dir: &Path, info: &FailureInfo) -> io::Result<PathB
 ///
 /// Returns the I/O error if the folder or the file cannot be written.
 pub fn log_skipped_test_data(dir: &Path, info: &FailureInfo, reason: &str) -> io::Result<PathBuf> {
-    let mut lines = header(info, &get_master_time(&Zoned::now()));
+    let mut lines = header(info, &master_time(&Zoned::now()));
     lines.push(format!("Skip Reason: {reason}"));
     let mut text = lines.join("\r\n");
     text.push_str("\r\n");
@@ -620,12 +620,12 @@ mod tests {
 
     #[test]
     fn the_master_time_names_the_offset_of_its_zone() {
-        let east = get_master_time(&at(TimeZone::fixed(jiff::tz::offset(2))));
+        let east = master_time(&at(TimeZone::fixed(jiff::tz::offset(2))));
         assert_eq!(east.timestamp, "1792675441", "13:24:01 UTC");
         assert_eq!(east.date, "Thursday, 22 October 2026");
         assert_eq!(east.time, "3:24:01 PM  (UTC+02:00)");
 
-        let west = get_master_time(&at(TimeZone::fixed(jiff::tz::offset(-5))));
+        let west = master_time(&at(TimeZone::fixed(jiff::tz::offset(-5))));
         assert_eq!(west.timestamp, "1792700641", "20:24:01 UTC");
         assert_eq!(west.time, "3:24:01 PM  (UTC-05:00)");
 
@@ -633,13 +633,13 @@ mod tests {
             .at(9, 5, 7, 0)
             .to_zoned(TimeZone::UTC)
             .expect("a valid time in UTC");
-        let morning = get_master_time(&morning);
+        let morning = master_time(&morning);
         assert_eq!(morning.date, "Monday, 05 January 2026");
         assert_eq!(morning.time, "9:05:07 AM  (UTC+00:00)");
     }
 
     fn fixed_time() -> MasterTime {
-        get_master_time(&at(TimeZone::UTC))
+        master_time(&at(TimeZone::UTC))
     }
 
     #[test]

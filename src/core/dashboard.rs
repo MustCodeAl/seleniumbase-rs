@@ -37,7 +37,7 @@ use std::io;
 use std::path::{Component, Path, PathBuf};
 
 use crate::artifacts::LATEST_LOGS_DIR;
-use crate::core::log_helper::{get_master_time, relative_link};
+use crate::core::log_helper::{master_time, relative_link};
 use crate::core::report_helper::{
     html_escape, write_atomically, write_atomically_async, FailureDetails, ReportSummary,
     RunSnapshot, TestResult, TestStatus,
@@ -203,7 +203,7 @@ pub fn render_dashboard(run: &RunSnapshot, options: &PageOptions) -> String {
     counts_table(&mut html, &summary);
     let rows = dashboard_order(&run.results);
     results_table(&mut html, &rows, &run, options);
-    let when = get_master_time(&run.updated_at);
+    let when = master_time(&run.updated_at);
     let _ = writeln!(
         html,
         "<p class=\"updated\"><b>Last updated:</b> {} at {}</p>",

@@ -20,11 +20,11 @@ use std::thread;
 use std::time::Duration;
 
 use base64::Engine as _;
-use seleniumbase_rs::evasion::js::active_css_js::get_active_css_js;
+use seleniumbase_rs::evasion::js::active_css_js::ACTIVE_CSS_JS;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::utils::extensions::{
-    extract_extension, get_ad_block_bytes, get_disable_csp_bytes, get_recorder_bytes,
-    get_sbase_ext_bytes, proxy_auth_background_js, write_proxy_auth_extension,
+    extract_extension, proxy_auth_background_js, write_proxy_auth_extension, AD_BLOCK_BYTES,
+    DISABLE_CSP_BYTES, RECORDER_BYTES, SBASE_EXT_BYTES,
 };
 use serde_json::{json, Value};
 
@@ -133,7 +133,7 @@ impl Lab {
 async fn active_selector(lab: &Lab, selector: &str) -> String {
     let focus = format!("document.querySelector({}).focus(); 1", json!(selector));
     lab.page.evaluate(focus).await.expect("focus the element");
-    lab.run(get_active_css_js())
+    lab.run(ACTIVE_CSS_JS)
         .await
         .as_str()
         .expect("the script returns a string")
@@ -157,7 +157,7 @@ async fn active_element_selector_names_the_focused_element() {
         .evaluate("document.activeElement.blur(); 1")
         .await
         .expect("blur");
-    assert_eq!(lab.run(get_active_css_js()).await, json!("body"));
+    assert_eq!(lab.run(ACTIVE_CSS_JS).await, json!("body"));
 
     lab.close().await;
 }
@@ -167,7 +167,7 @@ async fn active_element_selector_names_the_focused_element() {
 #[serial_test::serial(chrome)]
 async fn active_element_selector_always_finds_its_element() {
     let lab = lab("/messy").await;
-    let script = serde_json::to_string(get_active_css_js()).expect("a string");
+    let script = serde_json::to_string(ACTIVE_CSS_JS).expect("a string");
     let probe = format!(
         r##"(() => {{
             const script = {script};
@@ -418,10 +418,10 @@ async fn every_script_in_the_bundled_extensions_parses() {
     let lab = lab("/").await;
     let mut checked = 0;
     for (name, archive) in [
-        ("ad_block", get_ad_block_bytes()),
-        ("disable_csp", get_disable_csp_bytes()),
-        ("recorder", get_recorder_bytes()),
-        ("sbase_ext", get_sbase_ext_bytes()),
+        ("ad_block", AD_BLOCK_BYTES),
+        ("disable_csp", DISABLE_CSP_BYTES),
+        ("recorder", RECORDER_BYTES),
+        ("sbase_ext", SBASE_EXT_BYTES),
     ] {
         let dir = tempfile::tempdir().expect("a temporary folder");
         extract_extension(archive, dir.path()).expect("unpacks");

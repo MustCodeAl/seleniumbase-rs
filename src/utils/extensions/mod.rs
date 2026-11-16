@@ -3,13 +3,13 @@
 //!
 //! The Chromium archives are SeleniumBase's own, embedded unchanged:
 //!
-//! | Accessor | Extension (manifest v3) | What it does |
+//! | Constant | Extension (manifest v3) | What it does |
 //! |---|---|---|
-//! | [`get_ad_block_bytes`] | Simple Ad Blocker 1.0.0 | Blocks requests to `doubleclick.net` and `googleadservices.com` |
-//! | [`get_disable_csp_bytes`] | Disable CSP 1.0.0 | Removes the `Content-Security-Policy` response headers |
-//! | [`get_recorder_bytes`] | SeleniumBase Recorder 1.0.0 | Saves the page's actions to `sessionStorage` with CSS selectors |
-//! | [`get_sbase_ext_bytes`] | SBase Extension 1.0.0 | Does nothing; for testing extension loading |
-//! | [`get_firefox_addon_bytes`] | A signed Firefox add-on (`.xpi`) | Does nothing; for testing |
+//! | [`AD_BLOCK_BYTES`] | Simple Ad Blocker 1.0.0 | Blocks requests to `doubleclick.net` and `googleadservices.com` |
+//! | [`DISABLE_CSP_BYTES`] | Disable CSP 1.0.0 | Removes the `Content-Security-Policy` response headers |
+//! | [`RECORDER_BYTES`] | SeleniumBase Recorder 1.0.0 | Saves the page's actions to `sessionStorage` with CSS selectors |
+//! | [`SBASE_EXT_BYTES`] | SBase Extension 1.0.0 | Does nothing; for testing extension loading |
+//! | [`FIREFOX_ADDON_BYTES`] | A signed Firefox add-on (`.xpi`) | Does nothing; for testing |
 //!
 //! Chrome loads an extension from a folder (`--load-extension=<folder>`), not
 //! from an archive, so unpack one first with [`extract_extension`].
@@ -22,7 +22,7 @@
 //! readable zip, that its `manifest.json` parses and that every file the
 //! manifest names is in the archive.
 //!
-//! [`write_proxy_auth_extension`] and [`get_proxy_auth_extension`] are
+//! [`write_proxy_auth_extension`] and [`proxy_auth_extension`] are
 //! different: they generate a small extension each time, because it has to
 //! carry the proxy's credentials.
 
@@ -38,14 +38,13 @@ pub mod proxy_auth;
 pub mod recorder;
 pub mod sbase_ext;
 
-pub use ad_block::get_ad_block_bytes;
-pub use disable_csp::get_disable_csp_bytes;
+pub use ad_block::AD_BLOCK_BYTES;
+pub use disable_csp::DISABLE_CSP_BYTES;
 pub use proxy_auth::{
-    get_proxy_auth_extension, proxy_auth_background_js, proxy_auth_manifest,
-    write_proxy_auth_extension,
+    proxy_auth_background_js, proxy_auth_extension, proxy_auth_manifest, write_proxy_auth_extension,
 };
-pub use recorder::get_recorder_bytes;
-pub use sbase_ext::{get_firefox_addon_bytes, get_sbase_ext_bytes};
+pub use recorder::RECORDER_BYTES;
+pub use sbase_ext::{FIREFOX_ADDON_BYTES, SBASE_EXT_BYTES};
 
 /// The most an unpacked extension may take up: far more than any real one,
 /// and little enough that an archive built to fill the disk is refused.
@@ -68,11 +67,11 @@ const MAX_UNPACKED_BYTES: u64 = 64 * 1024 * 1024;
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::utils::extensions::{extract_extension, get_ad_block_bytes};
+/// use seleniumbase_rs::utils::extensions::{extract_extension, AD_BLOCK_BYTES};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let dir = std::env::temp_dir().join(format!("sb-doc-ad-block-{}", std::process::id()));
-/// extract_extension(get_ad_block_bytes(), &dir)?;
+/// extract_extension(AD_BLOCK_BYTES, &dir)?;
 /// assert!(dir.join("manifest.json").is_file());
 /// # std::fs::remove_dir_all(&dir)?;
 /// # Ok(())
@@ -150,11 +149,11 @@ mod tests {
     /// Every embedded archive, with the name used in the failure message.
     fn assets() -> [(&'static str, &'static [u8]); 5] {
         [
-            ("ad_block.zip", get_ad_block_bytes()),
-            ("disable_csp.zip", get_disable_csp_bytes()),
-            ("recorder.zip", get_recorder_bytes()),
-            ("sbase_ext.zip", get_sbase_ext_bytes()),
-            ("firefox_addon.xpi", get_firefox_addon_bytes()),
+            ("ad_block.zip", AD_BLOCK_BYTES),
+            ("disable_csp.zip", DISABLE_CSP_BYTES),
+            ("recorder.zip", RECORDER_BYTES),
+            ("sbase_ext.zip", SBASE_EXT_BYTES),
+            ("firefox_addon.xpi", FIREFOX_ADDON_BYTES),
         ]
     }
 
@@ -295,7 +294,7 @@ mod tests {
 
     #[test]
     fn the_firefox_addon_still_carries_its_mozilla_signature() {
-        let present = names_in(get_firefox_addon_bytes());
+        let present = names_in(FIREFOX_ADDON_BYTES);
         for file in ["META-INF/mozilla.rsa", "META-INF/manifest.mf", "inject.js"] {
             assert!(present.contains(file), "{file} is missing: {present:?}");
         }
