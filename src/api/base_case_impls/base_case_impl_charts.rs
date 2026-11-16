@@ -291,17 +291,7 @@ impl<'a> std::future::IntoFuture for CreateChart<'a> {
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
             let name = chart_lib::name_or_default(self.chart_name).to_owned();
-            let chart = Chart::new(self.title, self.chart_type)
-                .with_subtitle(self.subtitle)
-                .with_data_name(self.data_name)
-                .with_unit(self.unit)
-                .with_zero(self.zero)
-                .with_libs(self.libs)
-                .with_labels(self.labels)
-                .with_legend(self.legend)
-                // One canvas id per chart name, so that charts that share a
-                // slide deck or a page do not draw on each other.
-                .with_id(&format!("sb-chart-{name}"));
+            let chart = Chart::new(self.title, self.chart_type).subtitle(self.subtitle).data_name(self.data_name).unit(self.unit).zero(self.zero).libs(self.libs).labels(self.labels).legend(self.legend).canvas_id(&format!("sb-chart-{name}"));
             self.sb.charts.insert(name, chart);
             Ok(())
         })
