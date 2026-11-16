@@ -109,7 +109,7 @@ When `native_spoofing` is true:
   connection, speech, Bluetooth, the `navigator.webdriver` getter and the
   marker cleanup.
 * A WebDriver session (Chrome, Chromium or Edge) also launches a patched copy of
-  the browser. If `BrowserConfig::browser_binary_path` is unset, the session
+  the browser. If `BrowserConfigBuilder::browser_binary_path` is unset, the session
   finds the system Chrome (`SB_CHROME_BIN`, else `find_system_chrome()`), writes a
   patched copy through `ChromeBinaryPatcher` with `EnginePatch::chrome_binary()`
   (webdriver markers, `navigator.webdriver` assignments and the `HeadlessChrome`

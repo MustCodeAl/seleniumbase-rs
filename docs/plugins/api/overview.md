@@ -305,7 +305,7 @@ The host side, in seleniumbase-rs:
 | `src/lib.rs` | `plugin_api`, `builtin_plugins` (re-exports) | [Host](/plugins/api/host) |
 | `src/sb_cdp/launch.rs` | `LaunchOptionsBuilder::plugins`, `plugins_named`, `plugin_selection` | [Host](/plugins/api/host) |
 | `src/sb_cdp/browser.rs` | `Browser::connect_with_plugins` | [Host](/plugins/api/host) |
-| `src/browser/config.rs` | `BrowserConfigBuilder::plugins`, `plugins_named`, `plugin_selection`, `plugins` | [Host](/plugins/api/host) |
+| `src/browser/config/builder.rs`, `src/browser/config.rs` | `BrowserConfigBuilder::plugins`, `plugins_named`, `plugin_selection`; `BrowserConfig::plugins` | [Host](/plugins/api/host) |
 | `src/plugin_host/` | `builtin_registry`, `build`, `build_with`; the request guard | [Host](/plugins/api/host) |
 | `src/error.rs` | `SeleniumBaseError::Plugin` | [Host](/plugins/api/host) |
 | `src/config/plugins.rs` | `PluginSelection`, `PLUGINS_ENV` | [Selection](/plugins/api/selection) |

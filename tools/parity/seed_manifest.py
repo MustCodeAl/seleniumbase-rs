@@ -290,11 +290,11 @@ OPTION_GROUPS = [
         "composed", "BrowserConfig::extra_args", FLAG_NOTE,
     ),
     (
-        ("window_size",), "composed", "BrowserConfig::with_window_size",
+        ("window_size",), "composed", "BrowserConfigBuilder::window_size",
         "Chrome's `--window-size`; a Firefox window is resized once it runs.",
     ),
     (
-        ("window_position",), "composed", "BrowserConfig::with_window_position",
+        ("window_position",), "composed", "BrowserConfigBuilder::window_position",
         "Chrome's `--window-position`; a Firefox window is moved once it runs.",
     ),
     (
