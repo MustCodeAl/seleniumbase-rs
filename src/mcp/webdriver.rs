@@ -171,9 +171,7 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     let plugins = ctx.settings().plugin_selection();
     plugins.ensure_supported()?;
     #[cfg(feature = "plugins")]
-    {
-        builder = builder.plugin_selection(plugins);
-    }
+    let builder = builder.plugin_selection(plugins);
     let config = builder.build()?;
 
     let started = ctx

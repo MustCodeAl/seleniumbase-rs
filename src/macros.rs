@@ -278,29 +278,34 @@ macro_rules! fingerprint {
     };
 }
 
-/// Builds a [`BrowserConfig`](crate::BrowserConfig) with UC mode enabled.
+/// Builds a [`BrowserConfig`](crate::BrowserConfig) with UC mode enabled: a `Result`, as
+/// [`BrowserConfigBuilder::build`](crate::BrowserConfigBuilder::build) returns it.
 ///
 /// ```ignore
 /// use seleniumbase_rs::uc_config;
 ///
-/// let config = uc_config!();
+/// let config = uc_config!()?;
 /// ```
 #[macro_export]
 macro_rules! uc_config {
     () => {
-        $crate::BrowserConfig::default().with_mode($crate::DriverMode::Uc)
+        $crate::BrowserConfig::builder()
+            .mode($crate::DriverMode::Uc)
+            .build()
     };
 }
 
-/// Builds a [`BrowserConfig`](crate::BrowserConfig) with CDP mode enabled.
+/// Builds a [`BrowserConfig`](crate::BrowserConfig) with CDP mode enabled: a `Result`.
 #[macro_export]
 macro_rules! cdp_config {
     () => {
-        $crate::BrowserConfig::default().with_mode($crate::DriverMode::Cdp)
+        $crate::BrowserConfig::builder()
+            .mode($crate::DriverMode::Cdp)
+            .build()
     };
 }
 
-/// Builds a [`BrowserConfig`](crate::BrowserConfig) using chained options.
+/// Builds a [`BrowserConfig`](crate::BrowserConfig) using chained options: a `Result`.
 ///
 /// ```ignore
 /// use seleniumbase_rs::{sb_config, DriverMode, Browser};
@@ -309,37 +314,40 @@ macro_rules! cdp_config {
 ///     mode: DriverMode::Uc,
 ///     headless: true,
 ///     browser: Browser::Chrome,
-/// };
+/// }?;
 /// ```
 #[macro_export]
 macro_rules! sb_config {
     () => {
-        $crate::BrowserConfig::default()
+        $crate::BrowserConfig::builder().build()
     };
     (headless: $h:expr) => {
-        $crate::BrowserConfig::default().with_headless($h)
+        $crate::BrowserConfig::builder().headless($h).build()
     };
     (mode: $m:expr) => {
-        $crate::BrowserConfig::default().with_mode($m)
+        $crate::BrowserConfig::builder().mode($m).build()
     };
     (browser: $b:expr) => {
-        $crate::BrowserConfig::default().with_browser($b)
+        $crate::BrowserConfig::builder().browser($b).build()
     };
     (headless: $h:expr, mode: $m:expr) => {
-        $crate::BrowserConfig::default()
-            .with_headless($h)
-            .with_mode($m)
+        $crate::BrowserConfig::builder()
+            .headless($h)
+            .mode($m)
+            .build()
     };
     (mode: $m:expr, headless: $h:expr) => {
-        $crate::BrowserConfig::default()
-            .with_mode($m)
-            .with_headless($h)
+        $crate::BrowserConfig::builder()
+            .mode($m)
+            .headless($h)
+            .build()
     };
     (mode: $m:expr, headless: $h:expr, browser: $b:expr) => {
-        $crate::BrowserConfig::default()
-            .with_mode($m)
-            .with_headless($h)
-            .with_browser($b)
+        $crate::BrowserConfig::builder()
+            .mode($m)
+            .headless($h)
+            .browser($b)
+            .build()
     };
 }
 
