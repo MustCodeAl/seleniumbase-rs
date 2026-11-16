@@ -37,7 +37,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, BrowserPool, LaunchOptions, Page, PoolOptions};
+use seleniumbase_rs::sb_cdp::{
+    AddressKind, Browser, BrowserPool, CandidateKind, LaunchOptions, Page, PoolOptions,
+};
 use serde_json::Value;
 
 const PAGE: &str = include_str!("../fixtures/identity/evercookie.html");
@@ -543,6 +545,101 @@ async fn a_saved_session_restores_cookies_and_local_storage_and_nothing_else() {
     lease_c.release().await;
 
     pool.close().await;
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn two_shielded_contexts_gather_no_candidate() {
+    // WebRTC is the one channel that tells a server about the machine whatever the contexts
+    // hold: the candidates a page gathers list the interfaces the contexts share. A shield
+    // makes every connection relay-only, so neither identity gathers a candidate.
+    let base = serve(Arc::default());
+    let browser = Browser::launch(options()).await.expect("Chrome starts");
+    let first = browser.default_page().await.expect("a tab");
+    first
+        .goto(format!("{base}blank"))
+        .await
+        .expect("the blank page loads");
+    first.shield_webrtc().await.expect("the shield goes on");
+
+    let context = browser.new_context().await.expect("a context");
+    let second = context.new_page().await.expect("a page in the context");
+    second
+        .goto(format!("{base}blank"))
+        .await
+        .expect("the blank page loads");
+    second.shield_webrtc().await.expect("the shield goes on");
+
+    for (name, page) in [("default context", &first), ("new context", &second)] {
+        let report = page.webrtc_report().await.expect("the probe runs");
+        assert!(report.is_clean(), "{name} leaks: {report:?}");
+        assert!(
+            report.candidates().is_empty(),
+            "{name} gathered a candidate: {report:?}"
+        );
+    }
+    context.dispose().await.expect("the context closes");
+    browser.close().await.expect("Chrome closes");
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
+async fn two_contexts_without_a_shield_show_only_mdns_host_names() {
+    // Without a shield Chrome hides the interfaces behind `.local` names. Two identities in
+    // one browser that were handed the same name would be linked by it, so the test prints
+    // whether they were.
+    let base = serve(Arc::default());
+    let browser = Browser::launch(options()).await.expect("Chrome starts");
+    let first = browser.default_page().await.expect("a tab");
+    first
+        .goto(format!("{base}blank"))
+        .await
+        .expect("the blank page loads");
+    let context = browser.new_context().await.expect("a context");
+    let second = context.new_page().await.expect("a page in the context");
+    second
+        .goto(format!("{base}blank"))
+        .await
+        .expect("the blank page loads");
+
+    let mut names = Vec::new();
+    for (name, page) in [("default context", &first), ("new context", &second)] {
+        let report = page.webrtc_report().await.expect("the probe runs");
+        let hosts: Vec<_> = report
+            .candidates()
+            .iter()
+            .filter(|candidate| candidate.kind == CandidateKind::Host)
+            .collect();
+        for candidate in &hosts {
+            assert_eq!(
+                candidate.address_kind,
+                AddressKind::Mdns,
+                "{name} showed an address of the machine, not a `.local` name: {candidate:?}"
+            );
+        }
+        names.push(
+            hosts
+                .iter()
+                .map(|candidate| candidate.address.clone())
+                .collect::<BTreeSet<_>>(),
+        );
+    }
+    println!(
+        "the host names of the default context: {:?}, of the new context: {:?}, {}",
+        names[0],
+        names[1],
+        if names[0].is_empty() || names[1].is_empty() {
+            "no name was gathered in one of them, so there is nothing to compare"
+        } else if names[0].is_disjoint(&names[1]) {
+            "the two contexts have different names"
+        } else {
+            "the two contexts share a name, which links the identities"
+        }
+    );
+    context.dispose().await.expect("the context closes");
+    browser.close().await.expect("Chrome closes");
 }
 
 #[tokio::test]
