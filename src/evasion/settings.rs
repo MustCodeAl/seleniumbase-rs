@@ -321,7 +321,7 @@ impl KeyboardLayout {
     pub fn for_locale(locale: &str) -> Option<Self> {
         let mut parts = locale.split(['-', '_']);
         let language = parts.next().unwrap_or_default().to_ascii_lowercase();
-        let region = parts.last().unwrap_or_default().to_ascii_uppercase();
+        let region = parts.next_back().unwrap_or_default().to_ascii_uppercase();
         match language.as_str() {
             "de" | "cs" | "sk" | "hu" | "sl" | "hr" => Some(Self::Qwertz),
             "fr" if region != "CA" && region != "CH" => Some(Self::Azerty),
