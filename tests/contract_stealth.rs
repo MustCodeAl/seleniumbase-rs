@@ -138,6 +138,9 @@ mod imports {
         use seleniumbase_rs::sb_cdp::LaunchOptionsBuilder;
     };
     const _: () = {
+        use seleniumbase_rs::browser::config::Browser;
+    };
+    const _: () = {
         use seleniumbase_rs::sb_cdp;
     };
     // Items the stealth tests and its examples import, which need `test-util` here.
@@ -211,6 +214,8 @@ mod imports {
         let _ = seleniumbase_rs::SeleniumBaseError::stealth("a stealth failure".to_owned());
         let _ = seleniumbase_rs::evasion::randomize::chromium_hints(120).brands;
         let _ = seleniumbase_rs::sb_cdp::Proxy::has_credentials;
+        // The identity file and the wire measurements spell a browser with `as_str`.
+        let _ = seleniumbase_rs::browser::config::Browser::Chrome.as_str();
         let _ = goto_is_called_with_a_str;
         let _: Option<seleniumbase_rs::sb_cdp::BrowserPool> = None;
         let _: Option<seleniumbase_rs::sb_cdp::SessionStore> = None;
