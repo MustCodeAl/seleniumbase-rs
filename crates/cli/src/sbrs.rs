@@ -4424,7 +4424,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
 
             // Refuse a bad name before a browser starts.
             if let Err(message) = options.check() {
-                eprintln!("{}", sb_recorder::error_banner(&message, stderr_color));
+                eprintln!(
+                    "{}",
+                    sb_recorder::error_banner(&message.to_string(), stderr_color)
+                );
                 std::process::exit(1);
             }
             let outcome = sb_recorder::run_mkrec(config, &options, &mut std::io::stdout()).await?;

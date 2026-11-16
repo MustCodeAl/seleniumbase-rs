@@ -285,7 +285,7 @@ mod tests {
 
         let tampered = Command::new(&path).arg("--help").output().unwrap();
         if !killed_by_the_system(tampered.status) {
-            eprintln!("this system did not kill the altered binary; nothing to repair");
+            tracing::info!("this system did not kill the altered binary; nothing to repair");
             return;
         }
 

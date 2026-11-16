@@ -139,8 +139,7 @@ mod s3 {
 
     /// Uploads the folder of a test's logs when its last attempt ends.
     struct Upload {
-        bucket: String,
-        region: String,
+        plugin: S3LoggingPlugin,
         prefix: String,
         folder: PathBuf,
         id: String,
@@ -148,16 +147,15 @@ mod s3 {
 
     pub(super) fn finalizer(folder: &Path, id: &str) -> Option<Arc<dyn Finalizer>> {
         let var = crate::config::env_vars::text;
-        let Some(bucket) = var("SB_S3_BUCKET") else {
-            tracing::warn!("SB_WITH_S3_LOGGING is on, but SB_S3_BUCKET names no bucket");
-            return None;
+        let plugin = match S3LoggingPlugin::from_lookup(var) {
+            Ok(plugin) => plugin,
+            Err(error) => {
+                tracing::warn!(%error, "SB_WITH_S3_LOGGING is on, but the S3 target is incomplete");
+                return None;
+            }
         };
-        let region = var("SB_S3_REGION")
-            .or_else(|| var("AWS_REGION"))
-            .unwrap_or_else(|| "us-east-1".to_owned());
         Some(Arc::new(Upload {
-            bucket,
-            region,
+            plugin,
             prefix: normalized(&var("SB_S3_PREFIX").unwrap_or_default()),
             folder: folder.to_path_buf(),
             id: id.to_owned(),
@@ -198,9 +196,7 @@ mod s3 {
             for name in names {
                 let key = key(&self.prefix, &self.id, &name);
                 let path = self.folder.join(&name);
-                if let Err(error) =
-                    S3LoggingPlugin::upload_file(&self.bucket, &key, &path, &self.region).await
-                {
+                if let Err(error) = self.plugin.upload(&path, &key).await {
                     tracing::warn!(%error, %key, "a log was not uploaded");
                 }
             }

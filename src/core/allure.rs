@@ -62,7 +62,7 @@ use std::fmt;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 use std::{fs, io};
 
@@ -447,7 +447,7 @@ impl AllureSink {
     /// The uuid of the attempt of test `id`. With `restart`, an attempt that
     /// ended is followed by a new one.
     fn attempt(&self, id: &str, restart: bool) -> String {
-        let mut attempts = ATTEMPTS.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut attempts = crate::common::poison::locked(&ATTEMPTS);
         let key = (self.dir.clone(), id.to_owned());
         if let Some(attempt) = attempts.get_mut(&key) {
             if restart && attempt.finished {
@@ -468,7 +468,7 @@ impl AllureSink {
     }
 
     fn mark_finished(&self, id: &str) {
-        let mut attempts = ATTEMPTS.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut attempts = crate::common::poison::locked(&ATTEMPTS);
         if let Some(attempt) = attempts.get_mut(&(self.dir.clone(), id.to_owned())) {
             attempt.finished = true;
         }

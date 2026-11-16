@@ -53,7 +53,7 @@ soon as it listens: also before the app's window has loaded its page. That is
 the moment to start a session, which then waits for the page (see
 [New session](/ecosystem/tauri-api/sessions#new-session)). The end-to-end test
 of the `tauri-profile-manager` example waited for this answer before it started
-`BaseCase`. That example is no longer in this repository.
+`BaseCase`. That example now lives in the plugin's repository, under `examples/`.
 
 **Path and headers**
 

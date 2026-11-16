@@ -7,6 +7,10 @@
 //! 98 actions of SeleniumBase 4.56.2's `sbase/steps.py` (written once with
 //! `python3 -I`, one `action<TAB>wording` per line).
 #![cfg(feature = "bdd")]
+#![expect(
+    clippy::disallowed_methods,
+    reason = "rstest-bdd's step macros wrap a step that is not async in `catch_unwind`"
+)]
 
 use std::collections::BTreeSet;
 use std::io::{Read, Write};

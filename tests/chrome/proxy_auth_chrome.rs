@@ -18,7 +18,7 @@
 //! Set `SB_WEBDRIVER_URL` to use a chromedriver you started yourself.
 
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use base64::engine::general_purpose::STANDARD;
@@ -102,7 +102,7 @@ async fn serve(mut tcp: TcpStream, seen: Arc<Mutex<Seen>>) {
     let mut buffered = Vec::new();
     while let Some(head) = read_head(&mut tcp, &mut buffered).await {
         let answer = {
-            let mut state = seen.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut state = seen.lock().expect("the test lock");
             let website_login = header(&head, "authorization");
             if let Some(login) = website_login {
                 state.website_logins.push(login.to_owned());
@@ -199,7 +199,7 @@ async fn a_page_loads_through_a_proxy_that_asks_for_a_password() {
     proxy.abort();
 
     assert_eq!(title, "through the proxy");
-    let seen = seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let seen = seen.lock().expect("the test lock");
     assert!(seen.proxy_logins >= 1, "the proxy never saw the login");
 }
 
@@ -247,7 +247,7 @@ async fn a_tab_the_page_opens_loads_through_the_proxy_too() {
     proxy.abort();
 
     loaded.expect("the tab the page opened loaded through the proxy");
-    let seen = seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let seen = seen.lock().expect("the test lock");
     assert!(
         seen.served.contains(&"/second".to_owned()),
         "{:?}",
@@ -271,7 +271,7 @@ async fn a_website_that_asks_for_a_password_never_gets_the_proxy_account() {
     sb.quit().await.expect("quit");
     proxy.abort();
 
-    let seen = seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let seen = seen.lock().expect("the test lock");
     assert!(
         seen.proxy_logins >= 1,
         "Chrome never logged in to the proxy"

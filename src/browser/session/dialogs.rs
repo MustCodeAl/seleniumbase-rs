@@ -8,7 +8,7 @@
 //! [`PureDialogs`] answers the open dialog (`Page.handleJavaScriptDialog`).
 
 use std::future::Future;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
 use tokio::sync::watch;
@@ -52,11 +52,7 @@ pub(crate) struct DialogWatch {
 
 impl Drop for DialogWatch {
     fn drop(&mut self) {
-        let listener = self
-            .listener
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take();
+        let listener = crate::common::poison::locked(&self.listener).take();
         if let Some(listener) = listener {
             listener.abort();
         }
@@ -100,7 +96,7 @@ impl DialogWatch {
                 }
             }
         });
-        *this.listener.lock().unwrap_or_else(PoisonError::into_inner) = Some(listener);
+        *crate::common::poison::locked(&this.listener) = Some(listener);
         this
     }
 

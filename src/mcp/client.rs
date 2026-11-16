@@ -41,7 +41,7 @@ use std::fmt;
 
 use std::path::PathBuf;
 use std::process::Stdio;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use base64::Engine;
@@ -271,7 +271,7 @@ impl ClientHandler for Handler {
             message: value["message"].as_str().map(str::to_owned),
         });
         if let Some(report) = report {
-            let mut slot = self.progress.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut slot = crate::common::poison::locked(&self.progress);
             if let Some(callback) = slot.as_mut() {
                 callback(report);
             }
@@ -517,7 +517,7 @@ impl McpClient {
     }
 
     fn set_progress(&self, callback: Option<ProgressCallback>) {
-        *self.progress.lock().unwrap_or_else(PoisonError::into_inner) = callback;
+        *crate::common::poison::locked(&self.progress) = callback;
     }
 
     /// Every resource and resource template of the server.

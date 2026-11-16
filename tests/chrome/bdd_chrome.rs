@@ -70,6 +70,11 @@ fn a_failed_scenario_leaves_the_three_files_of_its_page() {
     let folder = std::path::Path::new("latest_logs").join(&id);
     drop(std::fs::remove_dir_all(&folder));
 
+    // The test runs a scenario that panics and checks the evidence folder.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test checks the evidence a panicking scenario leaves"
+    )]
     let failed = std::panic::catch_unwind(the_wrong_title);
 
     assert!(failed.is_err(), "the scenario fails");

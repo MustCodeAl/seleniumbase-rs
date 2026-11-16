@@ -39,6 +39,29 @@ work, `docs/parity.md` the per-API status).
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
   constant `CURRENT_STABLE_MAJOR` and a test that fails when the table is older.
 
+- Dropping a `DriverProcess` or an `XvfbProcess` no longer waits on the thread that drops it when a
+  Tokio runtime is current. The process is still killed, and `Child::wait` runs on the runtime's
+  blocking pool (`Handle::spawn_blocking`; dropping the join handle detaches the wait, it does not
+  cancel it). With no runtime, the drop still waits until the process is reaped, so a session that
+  failed to start does not leave the driver running.
+
+- A poisoned mutex is recovered in one place, `common::poison::locked`. The cleanup list, a reused
+  session, the test logs, the proxy list and the report attempts still answer after a panic held
+  their lock. Clippy disallows `std::panic::catch_unwind`, `FutureExt::catch_unwind` and
+  `PoisonError::into_inner` unless the call carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+
+- `logs_root_with` takes the lookup for `SB_REPORT_ROOT`. A missing or blank value is still the
+  empty path. `logs_root` reads the environment through that function.
+
+- `ProxySettings`, `ChromiumSettings` and `BrowserSettings` live in files named after them, and so do `SbCase`, `SbCdpCase`, `ScriptImport` and `ScriptImportOptions`. Each is re-exported from the module it left, so the paths are unchanged. `profile_payloads` names each re-export. The crate docs list the functions that change process-wide state (`install_tls_provider`, the `init_tracing` functions, `shutdown_reused_sessions`). A driver-repair test that finds the system did not kill the altered binary logs that with `tracing` instead of printing it.
+
+- `common`, `config`, `utils` and `utilities` have module docs. Each public module of `utilities` has one too.
+
+- The crate root inlines its own re-exports, so the root page of the docs lists the items. `tokio` stays a link. `IdeCommand` names its three fields, and `parse_ide_html` has an example. `ProfileParams` and `Parameters` document each field.
+
+
+
+
 
 ### Breaking
 
@@ -58,6 +81,42 @@ work, `docs/parity.md` the per-API status).
   of `BrowserConfig` (`esc_end`, `recorder_mode`, `run_settings`, `plugins`, ...) stay, and so do
   `from_env`, `from_vars` and `validate`.
 
+
+- **Breaking: a plugin error and a database driver error keep their cause.**
+  `SeleniumBaseError::Plugin` has a `source`. `plugin()` still builds one with no
+  source, and the message is still `plugin error: {reason}`. Converting a plugin
+  error keeps it as `source()`. A `turso` error is `DatabaseDriver` (`database error:`
+  plus the driver's message, and `source()` is the driver error). `Database(String)`
+  is unchanged. `S3UploadError`, `AzureUploadError` and `GcsUploadError` are
+  `#[non_exhaustive]`. An S3 or Azure store error is `Upload` or `Bucket` with that
+  error as `source()`, and a blob URL that is not a URL is `MalformedUrl`.
+- **Breaking: `sb_context` keeps the cause.** `ResultExt` requires
+  `E: Error + Send + Sync + 'static`. The error is `SeleniumBaseError::Context`.
+  The message is still `{context}: {error}`, and `source()` is the original error.
+  When that error is a `SeleniumBaseError`, the category, the exit code, the hint
+  and whether it is transient follow the cause. Any other cause is category
+  `context` and exit code 2.
+- **Breaking: example lookup, recorder paths and Selenium IDE parsing return typed
+  errors.** `find_examples` returns `ExamplesError` (the text is unchanged; a failed
+  start of `cargo metadata` and metadata that is not UTF-8 keep their source).
+  `validate_file_name`, `MkrecOptions::check` and `check_in` return `RecorderPathError`,
+  whose text is still the message Python prints after `ERROR: `. `parse_ide_file`
+  returns `IdeParseError`, which displays the operating-system error and keeps it as
+  `source()`. `parse_ide_html` returns the commands. It does not fail.
+- **Breaking: the cloud logging plugins take an upload target.** `S3LoggingPlugin`,
+  `AzureLoggingPlugin` and `GcpLoggingPlugin` are no longer empty values, and `upload_file`, `new`
+  and `Default` are gone. `from_env` reads the account (`SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`, optional `SB_S3_REGION`, `AWS_REGION` and `AWS_ENDPOINT_URL`;
+  `AZURE_BLOB_URL`; `SB_GCS_BUCKET` and `GCS_ACCESS_TOKEN`). `from_lookup` takes the same names from
+  a closure. `upload` writes one file. `Debug` does not include the secret or the access token.
+
+- **Breaking: dropping a `TestRecorder` no longer writes the result.** A panic used to be recorded
+  as failed (`the test panicked`, and `basic_test_info.txt` was written) and a plain drop as
+  unreported (`the test did not finish`). Call `TestRecorder::finish` with the outcome, or
+  `TestRecorder::abandon` when the test never reached one. `abandon` records unreported and does
+  not write `basic_test_info.txt`. `TestRun::finalize` still records a started test that has no end
+  as unreported. A second `test_started` on the reports plugin abandons the previous recorder
+  before it starts the next one.
 
 - **Breaking: the getters of `BrowserSession` and `BeautifulSoup` drop `get_`**, as `BaseCase`'s
   did. `BrowserSession::cookies`, `cookie`, `attribute`, `property`, `window_size` and
@@ -1566,7 +1625,7 @@ work, `docs/parity.md` the per-API status).
   the channel's page is `default_page()`, its commands carry no `sessionId`, ordered commands
   wait for each answer, and it opens no tabs. `Page::apply_fingerprint` now asks for the tab's
   browser context only when the fingerprint grants a permission. See
-  [the Tauri guide](docs/ecosystem/tauri.md#stealth-inside-the-app-with-no-debugging-port).
+  [the Tauri guide](docs/ecosystem/tauri-browser.md#give-your-shipped-webview-a-fingerprint).
 - **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
   checks the result.** The widget is looked for in the page, its open shadow roots and the frames
   it may read, by the id and title Cloudflare gives its frame as well as by address; a page that

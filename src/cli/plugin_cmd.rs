@@ -641,10 +641,10 @@ fn unknown(name: &str, registry: &Registry) -> SeleniumBaseError {
 #[cfg(feature = "plugins")]
 fn as_usage_error(error: SeleniumBaseError) -> SeleniumBaseError {
     match error {
-        SeleniumBaseError::Plugin { plugin, reason } if plugin.is_empty() => {
+        SeleniumBaseError::Plugin { plugin, reason, .. } if plugin.is_empty() => {
             SeleniumBaseError::invalid_config(reason)
         }
-        SeleniumBaseError::Plugin { plugin, reason } => {
+        SeleniumBaseError::Plugin { plugin, reason, .. } => {
             SeleniumBaseError::invalid_config(format!("plugin `{plugin}`: {reason}"))
         }
         other => other,
@@ -933,10 +933,7 @@ impl seleniumbase_rs_plugin::Sink for JsonlSink {
         let mut text = serde_json::to_string(line)
             .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))?;
         text.push('\n');
-        let mut out = self
-            .out
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut out = crate::common::poison::locked(&self.out);
         out.write_all(text.as_bytes())
             .and_then(|()| out.flush())
             .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))

@@ -35,7 +35,7 @@
 use std::fs;
 use std::io;
 use std::path::{Component, Path, PathBuf};
-use std::sync::{Mutex, PoisonError};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::error::SeleniumBaseError;
@@ -77,8 +77,17 @@ pub const ARCHIVED_REPORTS_DIR: &str = "archived_reports";
 /// runs the tests of each package from that package's folder.
 #[must_use]
 pub fn logs_root() -> PathBuf {
-    std::env::var(REPORT_ROOT_VARIABLE)
-        .ok()
+    logs_root_with(|name| std::env::var(name).ok())
+}
+
+/// The folder [`logs_root`] would return when `lookup` answers for
+/// [`REPORT_ROOT_VARIABLE`].
+///
+/// A missing or blank answer is the empty path, the current folder. A test
+/// passes a closure and does not change the process environment.
+#[must_use]
+pub fn logs_root_with(lookup: impl FnOnce(&str) -> Option<String>) -> PathBuf {
+    lookup(REPORT_ROOT_VARIABLE)
         .filter(|root| !root.trim().is_empty())
         .map(PathBuf::from)
         .unwrap_or_default()
@@ -92,18 +101,13 @@ static ACTIVE_TEST_LOGS: Mutex<Vec<(std::thread::ThreadId, PathBuf)>> = Mutex::n
 /// thread, and returns the thread to hand to [`deactivate_test_logs`].
 pub(crate) fn activate_test_logs(dir: &Path) -> std::thread::ThreadId {
     let thread = std::thread::current().id();
-    ACTIVE_TEST_LOGS
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
-        .push((thread, dir.to_path_buf()));
+    crate::common::poison::locked(&ACTIVE_TEST_LOGS).push((thread, dir.to_path_buf()));
     thread
 }
 
 /// Undoes [`activate_test_logs`]. It may run on any thread.
 pub(crate) fn deactivate_test_logs(thread: std::thread::ThreadId, dir: &Path) {
-    let mut active = ACTIVE_TEST_LOGS
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
+    let mut active = crate::common::poison::locked(&ACTIVE_TEST_LOGS);
     if let Some(index) = active
         .iter()
         .position(|(owner, folder)| *owner == thread && folder == dir)
@@ -149,9 +153,7 @@ pub fn ensure_test_logs_dir_for(test_id: &str) -> Result<PathBuf, SeleniumBaseEr
 /// thread. `None` as `test_id` asks for the calling thread's test only.
 fn active_test_logs(test_id: Option<&str>) -> Option<PathBuf> {
     let thread = std::thread::current().id();
-    let active = ACTIVE_TEST_LOGS
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner);
+    let active = crate::common::poison::locked(&ACTIVE_TEST_LOGS);
     let named = |own_thread: bool| {
         let id = test_id?;
         active.iter().rev().find(|(owner, folder)| {
@@ -429,7 +431,7 @@ fn next_stamp() -> (u128, u32) {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_or(0, |elapsed| elapsed.as_millis());
-    let mut last = LAST.lock().unwrap_or_else(PoisonError::into_inner);
+    let mut last = crate::common::poison::locked(&LAST);
     let millis = now.max(last.0);
     let sequence = if millis == last.0 { last.1 + 1 } else { 0 };
     *last = (millis, sequence);
@@ -555,6 +557,19 @@ mod tests {
     use std::collections::HashSet;
 
     use super::*;
+
+    #[test]
+    fn logs_root_with_uses_the_lookup() {
+        assert_eq!(
+            logs_root_with(|name| {
+                assert_eq!(name, REPORT_ROOT_VARIABLE);
+                Some("reports".to_owned())
+            }),
+            PathBuf::from("reports")
+        );
+        assert_eq!(logs_root_with(|_| Some("   ".to_owned())), PathBuf::new());
+        assert_eq!(logs_root_with(|_| None), PathBuf::new());
+    }
 
     #[test]
     fn a_plain_file_name_is_accepted() {

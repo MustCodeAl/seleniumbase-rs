@@ -10,7 +10,7 @@
 //! a person spends at a prompt does not count: a [`Suspension`] holds the clock
 //! while `breakpoint()`, `--trace` or `--pdb` waits for an answer.
 
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
 use tokio::sync::Notify;
@@ -63,7 +63,7 @@ impl Deadline {
     }
 
     fn lock(&self) -> MutexGuard<'_, State> {
-        self.state.lock().unwrap_or_else(PoisonError::into_inner)
+        crate::common::poison::locked(&self.state)
     }
 
     /// The limit, if there is one.

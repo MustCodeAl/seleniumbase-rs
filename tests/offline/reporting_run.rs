@@ -407,10 +407,15 @@ fn a_skip_is_recorded_with_its_reason_and_is_not_a_failure() {
 }
 
 #[test]
-fn a_test_that_panics_is_failed_and_one_never_finished_is_unreported() {
+fn a_dropped_recorder_writes_nothing_and_abandon_records_unreported() {
     let root = tempfile::tempdir().unwrap();
     let run = open(root.path(), "A");
 
+    // The test drops a recorder during a panic and checks that the drop writes nothing.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the test drops a recorder while a panic is unwinding"
+    )]
     let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         let _recorder = run.start(TestId::named("p::boom")).unwrap();
         panic!("the test body panicked");
@@ -419,15 +424,47 @@ fn a_test_that_panics_is_failed_and_one_never_finished_is_unreported() {
     drop(run.start(TestId::named("p::forgot")).unwrap());
 
     let results = run.snapshot().unwrap().results;
-    assert_eq!(results.len(), 2);
-    assert_eq!(results[0].status, TestStatus::Failed);
-    assert_eq!(results[0].message, "the test panicked");
-    assert!(root
-        .path()
-        .join("latest_logs/p.boom/basic_test_info.txt")
-        .is_file());
-    assert_eq!(results[1].status, TestStatus::Unreported);
-    assert_eq!(results[1].message, "the test did not finish");
+    assert_eq!(results.len(), 2, "{results:?}");
+    assert!(
+        results
+            .iter()
+            .all(|result| { result.status == TestStatus::Untested && result.message.is_empty() }),
+        "drop recorded an end event: {results:?}"
+    );
+    assert!(
+        !root
+            .path()
+            .join("latest_logs/p.boom/basic_test_info.txt")
+            .is_file(),
+        "drop wrote basic_test_info.txt"
+    );
+
+    run.start(TestId::named("p::left"))
+        .unwrap()
+        .abandon()
+        .unwrap();
+    let results = run.snapshot().unwrap().results;
+    let left = results
+        .iter()
+        .find(|result| result.name == "p::left")
+        .expect("abandon recorded nothing");
+    assert_eq!(left.status, TestStatus::Unreported);
+    assert_eq!(left.message, "the test did not finish");
+    assert_eq!(
+        results
+            .iter()
+            .filter(|result| result.status == TestStatus::Untested)
+            .count(),
+        2,
+        "drop recorded an end event: {results:?}"
+    );
+    assert!(
+        !root
+            .path()
+            .join("latest_logs/p.left/basic_test_info.txt")
+            .is_file(),
+        "abandon wrote basic_test_info.txt"
+    );
 }
 
 #[test]

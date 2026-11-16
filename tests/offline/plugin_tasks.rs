@@ -178,7 +178,7 @@ async fn a_task_that_fails_names_its_plugin_keeps_its_results_and_closes_the_bro
         .await
         .unwrap_err();
 
-    let SeleniumBaseError::Plugin { plugin, reason } = &error else {
+    let SeleniumBaseError::Plugin { plugin, reason, .. } = &error else {
         panic!("expected a plugin error, got {error:?}");
     };
     assert_eq!(plugin, "worker");
@@ -197,7 +197,7 @@ async fn a_task_that_panics_is_an_error_and_the_browser_still_closes() {
         .await
         .unwrap_err();
 
-    let SeleniumBaseError::Plugin { plugin, reason } = &error else {
+    let SeleniumBaseError::Plugin { plugin, reason, .. } = &error else {
         panic!("expected a plugin error, got {error:?}");
     };
     assert_eq!(plugin, "worker");
@@ -278,7 +278,7 @@ async fn a_plugin_whose_task_lacks_the_capability_is_refused_before_any_browser_
     .await
     .unwrap_err();
 
-    let SeleniumBaseError::Plugin { plugin, reason } = &error else {
+    let SeleniumBaseError::Plugin { plugin, reason, .. } = &error else {
         panic!("expected a plugin error, got {error:?}");
     };
     assert_eq!(plugin, "sneaky");
