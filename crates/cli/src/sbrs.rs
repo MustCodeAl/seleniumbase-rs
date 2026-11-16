@@ -2734,7 +2734,7 @@ async fn run_doctor(options: &DoctorArgs) -> Result<(), Box<dyn std::error::Erro
     let cache_dir = args_doctor::patch_cache_directory(runtime.patch_cache_dir.clone());
     println!("Patch cache");
     if let Some(path) = &chrome_bin {
-        let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(&cache_dir);
+        let patcher = ChromeBinaryPatcher::new(path).cache_dir(&cache_dir);
         match patcher.patched_path() {
             Ok(p) => {
                 if p.exists() {
@@ -4077,7 +4077,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 cache_dir,
                 seleniumbase_rs::config::env_vars::text("SB_PATCH_CACHE_DIR"),
             );
-            let patcher = ChromeBinaryPatcher::new(path).with_cache_dir(cache);
+            let patcher = ChromeBinaryPatcher::new(path).cache_dir(cache);
             let patched = patcher.patch(EnginePatch::chrome_binary())?;
             println!("Patched Chrome binary available at: {}", patched.display());
         }

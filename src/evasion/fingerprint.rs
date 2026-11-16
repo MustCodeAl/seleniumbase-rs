@@ -1498,7 +1498,7 @@ macro_rules! setters {
 /// # Policy
 ///
 /// How the claims are delivered is the [`StealthPolicy`]. [`policy`](Self::policy)
-/// gives the base, and [`with_policy`](Self::with_policy) and the shortcuts
+/// gives the base, and [`change_policy`](Self::change_policy) and the shortcuts
 /// ([`canvas_noise`](Self::canvas_noise), [`grant_permissions`](Self::grant_permissions)
 /// and the others) change it. They are applied after the base, in the order they
 /// were called, whatever their order against `policy`. A policy never changes a
@@ -1534,7 +1534,7 @@ pub struct FingerprintBuilder {
     seed: Option<u64>,
     /// The base policy given with [`policy`](Self::policy).
     policy: StealthPolicy,
-    /// The changes given with [`with_policy`](Self::with_policy) and the
+    /// The changes given with [`change_policy`](Self::change_policy) and the
     /// shortcuts, in order.
     changes: Vec<PolicyChange>,
 }
@@ -1757,7 +1757,7 @@ impl FingerprintBuilder {
     /// Sets the base [`StealthPolicy`], such as [`StealthPolicy::balanced`].
     ///
     /// It is a base: the order of this call against the settings does not
-    /// matter, and [`with_policy`](Self::with_policy) and the shortcuts apply on
+    /// matter, and [`change_policy`](Self::change_policy) and the shortcuts apply on
     /// top of it whenever they were called.
     #[must_use]
     pub fn policy(mut self, base: StealthPolicy) -> Self {
@@ -1768,7 +1768,7 @@ impl FingerprintBuilder {
     /// Changes the policy after the base has been set. Several calls, and the
     /// shortcuts, run in the order they were made.
     #[must_use]
-    pub fn with_policy(
+    pub fn change_policy(
         mut self,
         change: impl Fn(StealthPolicy) -> StealthPolicy + Send + Sync + 'static,
     ) -> Self {
@@ -1781,62 +1781,62 @@ impl FingerprintBuilder {
     #[must_use]
     pub fn webrtc_policy(self, policy: impl Into<Option<WebRtcPolicy>>) -> Self {
         let policy = policy.into();
-        self.with_policy(move |p| p.webrtc_policy(policy))
+        self.change_policy(move |p| p.webrtc_policy(policy))
     }
 
     /// Sets the canvas read-back noise.
     #[must_use]
     pub fn canvas_noise(self, noise: CanvasNoise) -> Self {
-        self.with_policy(move |p| p.canvas_noise(noise))
+        self.change_policy(move |p| p.canvas_noise(noise))
     }
 
     /// Sets the audio read-back noise.
     #[must_use]
     pub fn audio_noise(self, noise: AudioNoise) -> Self {
-        self.with_policy(move |p| p.audio_noise(noise))
+        self.change_policy(move |p| p.audio_noise(noise))
     }
 
     /// Delivers the claims through CDP and launch arguments instead of
     /// JavaScript where the browser can, so a page finds no override to inspect.
     #[must_use]
     pub fn native_spoofing(self, on: bool) -> Self {
-        self.with_policy(move |p| p.native_spoofing(on))
+        self.change_policy(move |p| p.native_spoofing(on))
     }
 
     /// Grants common permissions at start, so no permission prompt fires.
     #[must_use]
     pub fn grant_permissions(self, on: bool) -> Self {
-        self.with_policy(move |p| p.grant_permissions(on))
+        self.change_policy(move |p| p.grant_permissions(on))
     }
 
     /// Blocks the default tracker hosts, or stops blocking.
     #[must_use]
     pub fn block_trackers(self, on: bool) -> Self {
-        self.with_policy(move |p| p.block_trackers(on))
+        self.change_policy(move |p| p.block_trackers(on))
     }
 
     /// Blocks these hosts instead of the default ones.
     #[must_use]
     pub fn blocked_trackers(self, hosts: Vec<String>) -> Self {
-        self.with_policy(move |p| p.blocked_trackers(hosts.clone()))
+        self.change_policy(move |p| p.blocked_trackers(hosts.clone()))
     }
 
     /// Sets the ports the browser may not reach on the loopback names.
     #[must_use]
     pub fn blocked_ports(self, ports: Vec<u16>) -> Self {
-        self.with_policy(move |p| p.blocked_ports(ports.clone()))
+        self.change_policy(move |p| p.blocked_ports(ports.clone()))
     }
 
     /// Bypasses Content-Security-Policy for the page context, or not.
     #[must_use]
     pub fn disable_csp(self, on: bool) -> Self {
-        self.with_policy(move |p| p.disable_csp(on))
+        self.change_policy(move |p| p.disable_csp(on))
     }
 
     /// Sets how QUIC is handled.
     #[must_use]
     pub fn quic(self, mode: QuicMode) -> Self {
-        self.with_policy(move |p| p.quic(mode))
+        self.change_policy(move |p| p.quic(mode))
     }
 
     /// Builds the fingerprint.
@@ -2992,11 +2992,11 @@ mod tests {
     }
 
     #[test]
-    fn with_policy_changes_run_in_order_after_the_base() {
+    fn change_policy_changes_run_in_order_after_the_base() {
         let fp = built(
             Fingerprint::builder()
-                .with_policy(|p| p.grant_permissions(true))
-                .with_policy(|p| p.grant_permissions(false).disable_csp(true))
+                .change_policy(|p| p.grant_permissions(true))
+                .change_policy(|p| p.grant_permissions(false).disable_csp(true))
                 .policy(StealthPolicy::max()),
         );
         assert!(!fp.policy().grant_permissions);

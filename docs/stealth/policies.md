@@ -19,7 +19,7 @@ let fp = Fingerprint::builder()
     .canvas_noise(CanvasNoise::Low)        // a shortcut, applied after the base...
     .grant_permissions(true)
     .policy(StealthPolicy::balanced())      // ...whatever the order
-    .with_policy(|p| p.disable_csp(true))   // any change, in order
+    .change_policy(|p| p.disable_csp(true))   // any change, in order
     .build()?;
 assert!(fp.policy().chrome_runtime && fp.policy().disable_csp);
 Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())

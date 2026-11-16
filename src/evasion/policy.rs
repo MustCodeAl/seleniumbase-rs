@@ -91,7 +91,7 @@ impl AudioNoise {
 /// The fields can be read; a policy is changed by the methods of the same
 /// names, which take and return the policy, or through the builder
 /// ([`FingerprintBuilder::policy`](crate::evasion::fingerprint::FingerprintBuilder::policy),
-/// [`with_policy`](crate::evasion::fingerprint::FingerprintBuilder::with_policy)
+/// [`change_policy`](crate::evasion::fingerprint::FingerprintBuilder::change_policy)
 /// and its shortcuts).
 ///
 /// # Examples

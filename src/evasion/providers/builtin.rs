@@ -2070,7 +2070,7 @@ mod tests {
     #[test]
     fn the_hairline_fix_follows_the_headless_fixes_of_the_policy() {
         assert!(HairlineProvider.applies(&Fingerprint::windows_desktop()));
-        let off = windows_with(|b| b.with_policy(|p| p.headless_fixes(false)));
+        let off = windows_with(|b| b.change_policy(|p| p.headless_fixes(false)));
         assert!(!HairlineProvider.applies(&off));
     }
 
