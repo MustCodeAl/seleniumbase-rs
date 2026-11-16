@@ -235,7 +235,7 @@ similarity is below 0.999; the failure leaves two more files next to the baselin
 
 A screenshot of another size fails without
 a comparison: set a fixed window size for visual tests. Run once with
-`RunSettings::with_visual_baseline_reset(true)` to accept intended changes, as
+`RunSettingsBuilder::reset_visual_baseline(true)` to accept intended changes, as
 for `check_window`.
 
 For another folder or threshold, or with the pure CDP engine, use
@@ -245,7 +245,7 @@ For another folder or threshold, or with the pure CDP engine, use
 ```rust
 use seleniumbase_rs::visual::{VisualBaseline, VisualOutcome};
 
-let baselines = VisualBaseline::new("tests/visual").with_threshold(0.9995);
+let baselines = VisualBaseline::builder().dir("tests/visual").threshold(0.9995).build()?;
 match baselines.check_page("checkout", &page).await? {
     VisualOutcome::Created { baseline } => println!("saved {}", baseline.display()),
     VisualOutcome::Matched { score } => println!("matched, {score:.5}"),

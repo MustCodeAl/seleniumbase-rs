@@ -421,7 +421,7 @@ async fn the_html_report_escapes_what_a_test_printed() {
 async fn a_failed_test_is_reported_with_its_page_its_hint_and_linked_evidence() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("report.html");
-    let mut plugins = Plugins::new().with(ReportPlugin::html(&path).with_evidence());
+    let mut plugins = Plugins::new().with(ReportPlugin::html(&path).evidence());
 
     plugins
         .failed("checkout", &boom(), &FakePage::working())
@@ -467,7 +467,7 @@ async fn a_failed_test_is_reported_with_its_page_its_hint_and_linked_evidence() 
 async fn a_failure_on_a_page_that_has_gone_is_still_explained() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("report.json");
-    let mut plugins = Plugins::new().with(ReportPlugin::json(&path).with_evidence());
+    let mut plugins = Plugins::new().with(ReportPlugin::json(&path).evidence());
 
     plugins.failed("checkout", &boom(), &FakePage::gone()).await;
     plugins
