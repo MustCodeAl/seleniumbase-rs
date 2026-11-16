@@ -1974,10 +1974,10 @@ impl BaseCase {
         default_download_dir()
     }
 
-    /// Returns the configured browser type.
-    pub fn get_browser(&self) -> BrowserConfig {
-        self.config.clone()
-    }
+    /// The browser settings this test was built with, borrowed.
+    pub fn browser_config(&self) -> &BrowserConfig {
+            &self.config
+        }
 
     // ========================================================================
     // More aliases
