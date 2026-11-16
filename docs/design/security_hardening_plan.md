@@ -385,7 +385,8 @@ pub struct HttpOptions {
     pub token: Option<SecretString>,
     // other fields unchanged
 }
-pub fn with_token(mut self, token: impl Into<String>) -> Self {
+// HttpOptionsBuilder: the setter takes a plain string and keeps it as a secret.
+pub fn token(mut self, token: impl Into<String>) -> Self {
     self.token = Some(SecretString::from(token.into()));
     self
 }
@@ -482,7 +483,7 @@ never written to a log or by `Debug`, and its memory is wiped when the server en
   `Option<SecretString>`, `mcp::generate_token` returns a `SecretString`, and
   `mcp::client::Target::Http::bearer` is `Option<SecretString>`; `Target` no longer implements
   `PartialEq` and `Eq`. `seleniumbase_rs::mcp` re-exports `SecretString` and `ExposeSecret` (read a
-  token with `expose_secret()`). `HttpOptions::with_token` still takes a string. `Debug` never shows
+  token with `expose_secret()`). `HttpOptionsBuilder::token` still takes a string. `Debug` never shows
   a token, and its memory is wiped when it is dropped.
 ```
 

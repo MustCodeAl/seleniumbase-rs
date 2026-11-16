@@ -498,7 +498,7 @@ impl<S> ToolDef<S> {
     /// a schema must be an object schema; one that is not a JSON object is
     /// ignored and logged. [`Schema`] stays the type of the input.
     #[must_use]
-    pub fn with_output_schema(mut self, schema: Value) -> Self {
+    pub fn declare_output_schema(mut self, schema: Value) -> Self {
         if let Value::Object(schema) = schema {
             self.output_schema = Some(Arc::new(schema));
         } else {

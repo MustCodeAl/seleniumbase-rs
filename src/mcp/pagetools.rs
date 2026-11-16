@@ -81,7 +81,7 @@ pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
                 ),
             page_snapshot::<S>,
         )
-        .with_output_schema(snapshot_schema())
+        .declare_output_schema(snapshot_schema())
         .untrusted(),
         ToolDef::new(
             "read_page_text",
@@ -111,7 +111,7 @@ pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
                 ),
             read_page_text::<S>,
         )
-        .with_output_schema(text_schema())
+        .declare_output_schema(text_schema())
         .untrusted(),
         ToolDef::new(
             "extract_links",
@@ -138,7 +138,7 @@ pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
                 ),
             extract_links::<S>,
         )
-        .with_output_schema(links_schema())
+        .declare_output_schema(links_schema())
         .untrusted(),
         ToolDef::new(
             "extract_tables",
@@ -163,7 +163,7 @@ pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
                 ),
             extract_tables::<S>,
         )
-        .with_output_schema(tables_schema())
+        .declare_output_schema(tables_schema())
         .untrusted(),
         ToolDef::new(
             "extract_forms",
@@ -175,7 +175,7 @@ pub(super) fn tools<S: DevSession>() -> Vec<ToolDef<S>> {
             Schema::new().optional("scope", scope_prop()),
             extract_forms::<S>,
         )
-        .with_output_schema(forms_schema())
+        .declare_output_schema(forms_schema())
         .untrusted(),
     ]
 }

@@ -77,10 +77,10 @@ async fn a_token_from_the_environment_is_required_and_checked() {
 
     let without = Mcp::new(&server.url).post(&ping).await;
     assert_eq!(without.status(), StatusCode::UNAUTHORIZED);
-    let wrong = Mcp::new(&server.url).with_token("not-it").post(&ping).await;
+    let wrong = Mcp::new(&server.url).token("not-it").post(&ping).await;
     assert_eq!(wrong.status(), StatusCode::UNAUTHORIZED);
 
-    let mut client = Mcp::new(&server.url).with_token(TOKEN);
+    let mut client = Mcp::new(&server.url).token(TOKEN);
     client.initialize().await;
     assert!(
         !server.log().contains(TOKEN),
@@ -132,9 +132,9 @@ async fn a_token_file_wins_over_the_environment_and_its_newline_is_not_part_of_i
     );
 
     let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
-    let from_environment = Mcp::new(&server.url).with_token(TOKEN).post(&ping).await;
+    let from_environment = Mcp::new(&server.url).token(TOKEN).post(&ping).await;
     assert_eq!(from_environment.status(), StatusCode::UNAUTHORIZED);
-    let mut client = Mcp::new(&server.url).with_token("the-token-in-the-file");
+    let mut client = Mcp::new(&server.url).token("the-token-in-the-file");
     client.initialize().await;
 }
 
@@ -220,7 +220,7 @@ async fn a_loopback_server_without_a_token_makes_one_and_requires_it() {
     let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
     let without = Mcp::new(&server.url).post(&ping).await;
     assert_eq!(without.status(), StatusCode::UNAUTHORIZED);
-    let mut client = Mcp::new(&server.url).with_token(token);
+    let mut client = Mcp::new(&server.url).token(token);
     client.initialize().await;
 }
 
@@ -270,7 +270,7 @@ async fn an_address_others_can_reach_starts_with_a_token_and_warns() {
         server.before_ready
     );
     // The same machine is still loopback for the `Host` check.
-    let mut client = Mcp::new(&format!("http://127.0.0.1:{}/mcp", server.port)).with_token(TOKEN);
+    let mut client = Mcp::new(&format!("http://127.0.0.1:{}/mcp", server.port)).token(TOKEN);
     client.initialize().await;
 }
 

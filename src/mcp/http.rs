@@ -107,7 +107,7 @@ pub struct HttpOptions {
     /// Whether a loopback listener may run without a bearer token. Off by
     /// default: a token is required on every address, and `sbrs-mcp` makes one
     /// for a loopback listener given none. Only the operator's explicit opt-out
-    /// ([`with_no_token`](Self::with_no_token)) turns it on, and never for an
+    /// ([`no_token`](HttpOptionsBuilder::no_token)) turns it on, and never for an
     /// address other machines can reach.
     pub allow_no_token: bool,
 }
@@ -143,64 +143,36 @@ impl fmt::Debug for HttpOptions {
 }
 
 impl HttpOptions {
-    /// Listens on `listen`.
+    /// Starts building options from the defaults: loopback on port 8931, the
+    /// path `/mcp`, no token, four sessions and an idle time of fifteen minutes.
+    /// [`build`](HttpOptionsBuilder::build) checks them.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::mcp::HttpOptions;
+    ///
+    /// let options = HttpOptions::builder()
+    ///     .listen("127.0.0.1:0".parse()?)
+    ///     .token("s3cret")
+    ///     .max_sessions(2)
+    ///     .build()?;
+    /// assert_eq!(options.max_sessions, 2);
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     #[must_use]
-    pub fn with_listen(mut self, listen: SocketAddr) -> Self {
-        self.listen = listen;
-        self
+    pub fn builder() -> HttpOptionsBuilder {
+        HttpOptionsBuilder::default()
     }
 
-    /// Mounts the endpoint at `path`.
+    /// Starts building from these options, to change some of them.
     #[must_use]
-    pub fn with_path(mut self, path: impl Into<String>) -> Self {
-        self.path = path.into();
-        self
+    pub fn into_builder(self) -> HttpOptionsBuilder {
+        HttpOptionsBuilder { options: self }
     }
+}
 
-    /// Requires `Authorization: Bearer <token>` on every request.
-    #[must_use]
-    pub fn with_token(mut self, token: impl Into<String>) -> Self {
-        self.token = Some(token.into());
-        self
-    }
-
-    /// Lets requests from `origin` (`scheme://host[:port]`) in.
-    #[must_use]
-    pub fn with_allow_origin(mut self, origin: impl Into<String>) -> Self {
-        self.allow_origins.push(origin.into());
-        self
-    }
-
-    /// Accepts `host` (a name, optionally with `:port`) in the `Host` header.
-    #[must_use]
-    pub fn with_allow_host(mut self, host: impl Into<String>) -> Self {
-        self.allow_hosts.push(host.into());
-        self
-    }
-
-    /// Holds at most `max_sessions` sessions.
-    #[must_use]
-    pub fn with_max_sessions(mut self, max_sessions: usize) -> Self {
-        self.max_sessions = max_sessions;
-        self
-    }
-
-    /// Ends a session after `idle` of silence.
-    #[must_use]
-    pub fn with_idle(mut self, idle: Duration) -> Self {
-        self.idle = idle;
-        self
-    }
-
-    /// Serves a loopback listener without a bearer token: the operator's
-    /// explicit opt-out, for a machine they trust every local process on. An
-    /// address other machines can reach still needs a token.
-    #[must_use]
-    pub fn with_no_token(mut self) -> Self {
-        self.allow_no_token = true;
-        self
-    }
-
+impl HttpOptions {
     /// Checks that these options may be served.
     ///
     /// # Errors
@@ -208,7 +180,7 @@ impl HttpOptions {
     /// Returns [`SeleniumBaseError::InvalidConfig`] (exit status 2) for a path
     /// that is not an absolute URL path, a session cap of 0, an idle time of 0,
     /// an empty token or one with spaces, an origin or host that does not
-    /// parse, a `listen` address that is not loopback while no token is set, and no token at all unless [`with_no_token`](Self::with_no_token) was called.
+    /// parse, a `listen` address that is not loopback while no token is set, and no token at all unless [`no_token`](HttpOptionsBuilder::no_token) was called.
     pub fn validate(&self) -> Result<(), SeleniumBaseError> {
         if self.max_sessions == 0 {
             return Err(SeleniumBaseError::invalid_config(
@@ -268,6 +240,103 @@ impl HttpOptions {
                      this server speaks plain HTTP, so keep the token secret and put TLS in front of it",
                     self.listen
                 ))
+    }
+}
+
+/// Builds [`HttpOptions`]: [`HttpOptions::builder`] starts from the defaults,
+/// [`HttpOptions::into_builder`] from options you hold. A setter takes the
+/// builder and gives it back; [`build`](Self::build) checks the options with
+/// [`HttpOptions::validate`] and returns them.
+///
+/// The token is never written by `Debug`.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::mcp::HttpOptions;
+///
+/// // A listener other machines can reach needs a token.
+/// let refused = HttpOptions::builder()
+///     .listen("0.0.0.0:8931".parse()?)
+///     .build();
+/// assert!(refused.is_err());
+///
+/// let options = HttpOptions::builder()
+///     .listen("0.0.0.0:8931".parse()?)
+///     .token("s3cret")
+///     .allow_host("mcp.example.com")
+///     .build()?;
+/// assert_eq!(options.allow_hosts, ["mcp.example.com"]);
+/// # Ok::<(), Box<dyn std::error::Error>>(())
+/// ```
+#[derive(Debug, Clone, Default)]
+#[must_use = "a builder does nothing until `build` is called"]
+pub struct HttpOptionsBuilder {
+    options: HttpOptions,
+}
+
+impl HttpOptionsBuilder {
+    /// Listens on `listen`. Port 0 picks a free port.
+    pub fn listen(mut self, listen: SocketAddr) -> Self {
+        self.options.listen = listen;
+        self
+    }
+
+    /// Mounts the endpoint at `path`.
+    pub fn path(mut self, path: impl Into<String>) -> Self {
+        self.options.path = path.into();
+        self
+    }
+
+    /// Requires `Authorization: Bearer <token>` on every request.
+    pub fn token(mut self, token: impl Into<String>) -> Self {
+        self.options.token = Some(token.into());
+        self
+    }
+
+    /// Lets requests from `origin` (`scheme://host[:port]`) in, besides the
+    /// ones already allowed.
+    pub fn allow_origin(mut self, origin: impl Into<String>) -> Self {
+        self.options.allow_origins.push(origin.into());
+        self
+    }
+
+    /// Accepts `host` (a name, optionally with `:port`) in the `Host` header,
+    /// besides the ones already accepted.
+    pub fn allow_host(mut self, host: impl Into<String>) -> Self {
+        self.options.allow_hosts.push(host.into());
+        self
+    }
+
+    /// Holds at most `max_sessions` sessions.
+    pub fn max_sessions(mut self, max_sessions: usize) -> Self {
+        self.options.max_sessions = max_sessions;
+        self
+    }
+
+    /// Ends a session after `idle` of silence.
+    pub fn idle(mut self, idle: Duration) -> Self {
+        self.options.idle = idle;
+        self
+    }
+
+    /// Serves a loopback listener without a bearer token: the operator's
+    /// explicit opt-out, for a machine they trust every local process on. An
+    /// address other machines can reach still needs a token.
+    pub fn no_token(mut self) -> Self {
+        self.options.allow_no_token = true;
+        self
+    }
+
+    /// The options, after [`HttpOptions::validate`] has checked them.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::InvalidConfig`] (exit status 2) for the
+    /// reasons [`HttpOptions::validate`] lists.
+    pub fn build(self) -> Result<HttpOptions, SeleniumBaseError> {
+        self.options.validate()?;
+        Ok(self.options)
     }
 }
 
@@ -751,7 +820,7 @@ impl HttpServer {
     /// Gives shutdown `grace` to close the sessions' browsers, instead of
     /// [`timeout_from_env`].
     #[must_use]
-    pub fn with_grace(mut self, grace: Duration) -> Self {
+    pub fn grace(mut self, grace: Duration) -> Self {
         self.grace = grace;
         self
     }
@@ -1122,10 +1191,10 @@ mod tests {
         text.parse().expect("a socket address")
     }
 
-    fn options() -> HttpOptions {
+    fn options() -> HttpOptionsBuilder {
         // The operator's opt-out: these tests are about the other checks; the
         // token policy has tests of its own.
-        HttpOptions::default().with_no_token()
+        HttpOptions::builder().no_token()
     }
 
     fn headers(pairs: &[(&str, &str)]) -> HeaderMap {
@@ -1143,6 +1212,11 @@ mod tests {
         Gate::new(options, options.listen)
     }
 
+    /// The options of `builder`, which must pass the checks.
+    fn built(builder: HttpOptionsBuilder) -> HttpOptions {
+        builder.build().expect("these options are valid")
+    }
+
     /// The gate's answer for a `POST /mcp` with these headers.
     fn check(gate: &Gate, pairs: &[(&str, &str)]) -> Result<(), Refusal> {
         gate.check("/mcp", &headers(pairs))
@@ -1153,15 +1227,12 @@ mod tests {
         let error = HttpOptions::default().validate().unwrap_err().to_string();
         assert!(error.contains("without a bearer token"), "{error}");
         options()
-            .with_no_token()
-            .validate()
+            .no_token()
+            .build()
             .expect("the opt-out serves loopback");
-        options()
-            .with_token("t0ken")
-            .validate()
-            .expect("a token serves");
-        let exposed = options().with_listen(addr("0.0.0.0:8931")).with_no_token();
-        let error = exposed.validate().unwrap_err().to_string();
+        options().token("t0ken").build().expect("a token serves");
+        let exposed = options().listen(addr("0.0.0.0:8931")).no_token();
+        let error = exposed.build().unwrap_err().to_string();
         assert!(
             error.contains("refusing to listen on 0.0.0.0:8931 without a token"),
             "{error}"
@@ -1177,8 +1248,8 @@ mod tests {
         assert_ne!(first, second);
     }
 
-    fn refused(options: &HttpOptions) -> String {
-        let error = options.validate().expect_err("these options are refused");
+    fn refused(builder: HttpOptionsBuilder) -> String {
+        let error = builder.build().expect_err("these options are refused");
         assert_eq!(error.exit_code(), 2, "an operator mistake exits 2: {error}");
         error.to_string()
     }
@@ -1189,7 +1260,7 @@ mod tests {
 
     #[test]
     fn the_defaults_are_servable_and_loopback() {
-        let defaults = options();
+        let defaults = built(options());
         defaults.validate().expect("the defaults are valid");
         assert_eq!(defaults.listen, addr(LOCAL));
         assert_eq!(defaults.path, "/mcp");
@@ -1210,16 +1281,16 @@ mod tests {
             "192.168.1.5:8931",
             "10.0.0.2:0",
         ] {
-            let message = refused(&options().with_listen(addr(listen)));
+            let message = refused(options().listen(addr(listen)));
             assert!(
                 message.contains("refusing to listen on") && message.contains(listen),
                 "{message}"
             );
             assert!(message.contains("token"), "{message}");
             options()
-                .with_listen(addr(listen))
-                .with_token("s3cret")
-                .validate()
+                .listen(addr(listen))
+                .token("s3cret")
+                .build()
                 .expect("a token makes it servable");
         }
     }
@@ -1233,8 +1304,8 @@ mod tests {
             "[::ffff:127.0.0.1]:8931",
         ] {
             options()
-                .with_listen(addr(listen))
-                .validate()
+                .listen(addr(listen))
+                .build()
                 .unwrap_or_else(|e| panic!("{listen}: {e}"));
         }
     }
@@ -1243,40 +1314,37 @@ mod tests {
     fn a_path_is_an_absolute_plain_url_path() {
         for path in ["/", "/mcp", "/a-b_c.d/e~f"] {
             options()
-                .with_path(path)
-                .validate()
+                .path(path)
+                .build()
                 .unwrap_or_else(|e| panic!("{path}: {e}"));
         }
         for path in [
             "", "mcp", "/mcp/", "/a//b", "/a/../b", "/a/./b", "/mcp?x=1", "/mcp#top", "/m cp",
             "/mcp\n",
         ] {
-            let message = refused(&options().with_path(path));
+            let message = refused(options().path(path));
             assert!(message.contains("path"), "{path:?}: {message}");
         }
     }
 
     #[test]
     fn a_session_cap_or_an_idle_time_of_zero_is_refused() {
-        assert!(refused(&options().with_max_sessions(0)).contains("max"));
-        assert!(refused(&options().with_idle(Duration::ZERO)).contains("idle"));
-        options()
-            .with_max_sessions(1)
-            .validate()
-            .expect("one is fine");
+        assert!(refused(options().max_sessions(0)).contains("max"));
+        assert!(refused(options().idle(Duration::ZERO)).contains("idle"));
+        options().max_sessions(1).build().expect("one is fine");
     }
 
     #[test]
     fn a_token_is_one_non_empty_word() {
         for token in ["", " ", "a b", "a\tb", "a\nb", "tok\r\n"] {
             assert!(
-                refused(&options().with_token(token)).contains("token"),
+                refused(options().token(token)).contains("token"),
                 "{token:?}"
             );
         }
         options()
-            .with_token("s3cret-_.~+/=")
-            .validate()
+            .token("s3cret-_.~+/=")
+            .build()
             .expect("a plain token");
     }
 
@@ -1284,8 +1352,8 @@ mod tests {
     fn an_allowed_origin_is_a_scheme_a_host_and_maybe_a_port() {
         for origin in ["https://app.example.com", "http://localhost:3000", "null"] {
             options()
-                .with_allow_origin(origin)
-                .validate()
+                .allow_origin(origin)
+                .build()
                 .unwrap_or_else(|e| panic!("{origin}: {e}"));
         }
         for origin in [
@@ -1296,7 +1364,7 @@ mod tests {
             "https://u:p@app.example.com",
             "https://app.example.com?x=1",
         ] {
-            let message = refused(&options().with_allow_origin(origin));
+            let message = refused(options().allow_origin(origin));
             assert!(message.contains("origin"), "{origin:?}: {message}");
         }
     }
@@ -1305,12 +1373,12 @@ mod tests {
     fn an_allowed_host_is_a_name_with_an_optional_port() {
         for host in ["mcp.example.com", "mcp.example.com:8443", "[::1]:80"] {
             options()
-                .with_allow_host(host)
-                .validate()
+                .allow_host(host)
+                .build()
                 .unwrap_or_else(|e| panic!("{host}: {e}"));
         }
         for host in ["", "a b", "a/b", "host:notaport", "http://host", "u@host"] {
-            let message = refused(&options().with_allow_host(host));
+            let message = refused(options().allow_host(host));
             assert!(message.contains("host"), "{host:?}: {message}");
         }
     }
@@ -1318,22 +1386,25 @@ mod tests {
     #[test]
     fn only_an_address_others_can_reach_gets_an_exposure_warning() {
         for listen in ["0.0.0.0:8931", "192.168.1.5:8931", "[::]:8931"] {
-            let warning = options()
-                .with_listen(addr(listen))
-                .with_token("s3cret")
+            let warning = built(options().listen(addr(listen)).token("s3cret"))
                 .exposure_warning()
                 .unwrap_or_else(|| panic!("{listen} is reachable"));
             assert!(warning.contains(listen), "{warning}");
             assert!(!warning.contains("s3cret"), "{warning}");
         }
         for listen in ["127.0.0.1:8931", "[::1]:8931"] {
-            assert_eq!(options().with_listen(addr(listen)).exposure_warning(), None);
+            assert_eq!(
+                built(options().listen(addr(listen))).exposure_warning(),
+                None
+            );
         }
     }
 
     #[test]
     fn debug_never_shows_the_token() {
-        let shown = format!("{:?}", options().with_token("hunter2-hunter2"));
+        let shown = format!("{:?}", built(options().token("hunter2-hunter2")));
+        let building = format!("{:?}", options().token("hunter2-hunter2"));
+        assert!(!building.contains("hunter2"), "{building}");
         assert!(!shown.contains("hunter2"), "{shown}");
         assert!(shown.contains("redacted"), "{shown}");
     }
@@ -1344,7 +1415,7 @@ mod tests {
 
     #[test]
     fn loopback_hosts_are_accepted_on_any_port() {
-        let gate = gate(&options());
+        let gate = gate(&built(options()));
         for host in [
             "127.0.0.1:8931",
             "127.0.0.1",
@@ -1361,7 +1432,7 @@ mod tests {
     fn a_host_that_only_looks_like_loopback_is_refused() {
         // The shape of a DNS rebinding attack: the page's own name resolves to
         // the loopback address, so the browser sends that name in `Host`.
-        let gate = gate(&options());
+        let gate = gate(&built(options()));
         for host in [
             "evil.test",
             "evil.test:8931",
@@ -1382,16 +1453,21 @@ mod tests {
 
     #[test]
     fn a_request_without_a_host_is_refused() {
-        assert_eq!(check(&gate(&options()), &[]), Err(Refusal::ForeignHost));
+        assert_eq!(
+            check(&gate(&built(options())), &[]),
+            Err(Refusal::ForeignHost)
+        );
     }
 
     #[test]
     fn the_listen_address_and_the_allowed_hosts_are_accepted() {
-        let options = options()
-            .with_listen(addr("192.168.1.5:8931"))
-            .with_token("s3cret")
-            .with_allow_host("mcp.example.com")
-            .with_allow_host("other.example.com:9000");
+        let options = built(
+            options()
+                .listen(addr("192.168.1.5:8931"))
+                .token("s3cret")
+                .allow_host("mcp.example.com")
+                .allow_host("other.example.com:9000"),
+        );
         let gate = gate(&options);
         let token = ("authorization", "Bearer s3cret");
         for host in [
@@ -1414,7 +1490,7 @@ mod tests {
 
     #[test]
     fn a_request_without_an_origin_and_loopback_origins_get_in() {
-        let gate = gate(&options());
+        let gate = gate(&built(options()));
         let host = ("host", LOCAL);
         assert_eq!(check(&gate, &[host]), Ok(()));
         for origin in [
@@ -1433,7 +1509,7 @@ mod tests {
 
     #[test]
     fn a_foreign_origin_is_refused() {
-        let gate = gate(&options());
+        let gate = gate(&built(options()));
         for origin in [
             "https://evil.test",
             "http://localhost.evil.test",
@@ -1453,9 +1529,11 @@ mod tests {
 
     #[test]
     fn an_allowed_origin_matches_on_scheme_host_and_port() {
-        let options = options()
-            .with_allow_origin("https://app.example.com")
-            .with_allow_origin("http://tool.example.com:8080");
+        let options = built(
+            options()
+                .allow_origin("https://app.example.com")
+                .allow_origin("http://tool.example.com:8080"),
+        );
         let gate = gate(&options);
         let ok = |origin| check(&gate, &[("host", LOCAL), ("origin", origin)]);
         assert_eq!(ok("https://app.example.com"), Ok(()));
@@ -1475,7 +1553,7 @@ mod tests {
 
     #[test]
     fn the_token_is_a_bearer_credential_and_must_match_exactly() {
-        let gate = gate(&options().with_token("s3cret"));
+        let gate = gate(&built(options().token("s3cret")));
         let host = ("host", LOCAL);
         let with = |value| check(&gate, &[host, ("authorization", value)]);
         assert_eq!(check(&gate, &[host]), Err(Refusal::Unauthorized));
@@ -1502,7 +1580,7 @@ mod tests {
 
     #[test]
     fn without_a_token_an_authorization_header_is_ignored() {
-        let gate = gate(&options());
+        let gate = gate(&built(options()));
         assert_eq!(
             check(&gate, &[("host", LOCAL), ("authorization", "Bearer x")]),
             Ok(())
@@ -1511,7 +1589,7 @@ mod tests {
 
     #[test]
     fn host_and_origin_are_checked_before_the_token() {
-        let gate = gate(&options().with_token("s3cret"));
+        let gate = gate(&built(options().token("s3cret")));
         assert_eq!(
             check(&gate, &[("host", LOCAL), ("origin", "https://evil.test")]),
             Err(Refusal::ForeignOrigin),
@@ -1525,7 +1603,7 @@ mod tests {
 
     #[test]
     fn only_the_endpoint_path_is_served() {
-        let gate = gate(&options().with_path("/sbrs"));
+        let gate = gate(&built(options().path("/sbrs")));
         let host = headers(&[("host", LOCAL)]);
         assert_eq!(gate.check("/sbrs", &host), Ok(()));
         for path in ["/", "/mcp", "/sbrs/", "/sbrs/x", "/SBRS"] {
@@ -1560,7 +1638,7 @@ mod tests {
 
     #[test]
     fn a_protocol_version_without_sessions_is_refused() {
-        let gate = gate(&options());
+        let gate = gate(&built(options()));
         let with = |version| check(&gate, &[("host", LOCAL), ("mcp-protocol-version", version)]);
         for version in [
             "2025-03-26",

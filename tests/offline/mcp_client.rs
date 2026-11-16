@@ -79,7 +79,7 @@ async fn tools_are_listed_with_their_schemas() {
     let declared = tool("declared", |_, _| async {
         Ok(Output::Json(json!({ "title": "Home" })))
     })
-    .with_output_schema(json!({ "type": "object", "required": ["title"] }));
+    .declare_output_schema(json!({ "type": "object", "required": ["title"] }));
     let client = connect(host_with(vec![
         declared,
         tool("plain", |_, _| async { Ok(Output::from("ok")) }),
