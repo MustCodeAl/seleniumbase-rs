@@ -10,14 +10,11 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::utils::extensions::get_sbase_ext_bytes;
+/// use seleniumbase_rs::utils::extensions::SBASE_EXT_BYTES;
 ///
-/// assert!(get_sbase_ext_bytes().starts_with(b"PK"));
+/// assert!(SBASE_EXT_BYTES.starts_with(b"PK"));
 /// ```
-#[must_use]
-pub fn get_sbase_ext_bytes() -> &'static [u8] {
-    include_bytes!("assets/sbase_ext.zip")
-}
+pub const SBASE_EXT_BYTES: &[u8] = include_bytes!("assets/sbase_ext.zip");
 
 /// A signed Firefox add-on (`.xpi`) that does nothing a person would notice.
 ///
@@ -29,11 +26,8 @@ pub fn get_sbase_ext_bytes() -> &'static [u8] {
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::utils::extensions::get_firefox_addon_bytes;
+/// use seleniumbase_rs::utils::extensions::FIREFOX_ADDON_BYTES;
 ///
-/// assert!(get_firefox_addon_bytes().starts_with(b"PK"));
+/// assert!(FIREFOX_ADDON_BYTES.starts_with(b"PK"));
 /// ```
-#[must_use]
-pub fn get_firefox_addon_bytes() -> &'static [u8] {
-    include_bytes!("assets/firefox_addon.xpi")
-}
+pub const FIREFOX_ADDON_BYTES: &[u8] = include_bytes!("assets/firefox_addon.xpi");

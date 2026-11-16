@@ -126,8 +126,8 @@ impl Bundled {
     /// The extension's archive, as SeleniumBase packs it.
     pub(crate) fn archive(self) -> &'static [u8] {
         match self {
-            Self::DisableCsp => crate::utils::extensions::get_disable_csp_bytes(),
-            Self::Recorder => crate::utils::extensions::get_recorder_bytes(),
+            Self::DisableCsp => crate::utils::extensions::DISABLE_CSP_BYTES,
+            Self::Recorder => crate::utils::extensions::RECORDER_BYTES,
         }
     }
 

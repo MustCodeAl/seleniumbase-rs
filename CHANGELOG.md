@@ -122,6 +122,15 @@ work, `docs/parity.md` the per-API status).
   of `BrowserConfig` (`esc_end`, `recorder_mode`, `run_settings`, `plugins`, ...) stay, and so do
   `from_env`, `from_vars` and `validate`. The `uc_config!`, `cdp_config!` and `sb_config!` macros
   expand to the builder, so they evaluate to a `Result`: `uc_config!()?`.
+- **Breaking: the last public getters lose `get_`.** `BaseCase::get_browser()` is
+  `browser_config()` and borrows the configuration (`&BrowserConfig`) instead of cloning it.
+  `CdpClient::get_cookies(url)` is `cookies(url)`, `McpClient::get_prompt` is `prompt`,
+  `get_master_time` is `master_time`, `get_master_dict` is `master_dict` and
+  `get_proxy_auth_extension` is `proxy_auth_extension`. The page scripts and the bundled extension
+  archives are constants: `ACTIVE_CSS_JS`, `CAPTURE_JS`, `RECORDER_JS`, `AD_BLOCK_BYTES`,
+  `DISABLE_CSP_BYTES`, `RECORDER_BYTES`, `SBASE_EXT_BYTES` and `FIREFOX_ADDON_BYTES` replace the
+  `get_*_js()` and `get_*_bytes()` functions. No alias is kept. The MCP tool names, which are wire
+  names, do not change.
 
 
 - **Breaking: a plugin error and a database driver error keep their cause.**

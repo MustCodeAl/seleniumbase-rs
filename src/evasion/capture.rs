@@ -55,7 +55,7 @@ use super::fingerprint::{
 };
 use super::fingerprint::{ColorGamut, ColorScheme, Contrast, KeyboardLayout, MediaFeatures};
 
-use super::js::capture_js::get_capture_js;
+use super::js::capture_js::CAPTURE_JS;
 use super::spoof::Spoof;
 use crate::error::SeleniumBaseError;
 
@@ -67,7 +67,7 @@ pub const PROBE_VERSION: u64 = 1;
 /// awaits the promise it gives back (the pure CDP engine).
 #[must_use]
 pub fn capture_expression() -> String {
-    format!("(async function () {{\n{}\n}})()", get_capture_js())
+    format!("(async function () {{\n{CAPTURE_JS}\n}})()")
 }
 
 /// The capture script as WebDriver's *Execute Async Script* takes it: it calls
@@ -77,10 +77,10 @@ pub fn capture_expression() -> String {
 pub fn capture_async_script() -> String {
     format!(
         "var sbrsDone = arguments[arguments.length - 1];\n\
-         (async function () {{\n{}\n}})().then(sbrsDone, function (error) {{\n\
+         (async function () {{\n{CAPTURE_JS}\n}})().then(sbrsDone, function (error) {{\n\
          sbrsDone({{ version: {PROBE_VERSION}, failure: String((error && error.message) || error) }});\n\
          }});",
-        get_capture_js()
+
     )
 }
 
@@ -1704,7 +1704,7 @@ mod tests {
 
     #[test]
     fn the_script_asks_for_no_permission_and_writes_nothing() {
-        let script = get_capture_js();
+        let script = CAPTURE_JS;
 
         for forbidden in [
             "requestPermission",

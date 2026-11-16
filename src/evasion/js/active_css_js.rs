@@ -16,15 +16,12 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::evasion::js::active_css_js::get_active_css_js;
+/// use seleniumbase_rs::evasion::js::active_css_js::ACTIVE_CSS_JS;
 ///
-/// let script = get_active_css_js();
+/// let script = ACTIVE_CSS_JS;
 /// assert!(script.trim_end().ends_with("return sbBestSelector(document.activeElement);"));
 /// ```
-#[must_use]
-pub fn get_active_css_js() -> &'static str {
-    concat!(
-        include_str!("best_selector.js"),
-        "\nreturn sbBestSelector(document.activeElement);\n"
-    )
-}
+pub const ACTIVE_CSS_JS: &str = concat!(
+    include_str!("best_selector.js"),
+    "\nreturn sbBestSelector(document.activeElement);\n"
+);

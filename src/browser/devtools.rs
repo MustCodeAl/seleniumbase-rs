@@ -109,7 +109,7 @@ impl CdpClient {
     /// # Errors
     ///
     /// [`SeleniumBaseError::CdpDriver`] when the browser refuses it.
-    pub async fn get_cookies(&self, url: &str) -> Result<Value, SeleniumBaseError> {
+    pub async fn cookies(&self, url: &str) -> Result<Value, SeleniumBaseError> {
         self.send("Network.getCookies", json!({ "urls": [url] }))
             .await
     }

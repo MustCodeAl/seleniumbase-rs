@@ -320,7 +320,7 @@ pub fn prompt(args: PromptArgs) -> i32 {
         if !offers(client, "prompts") {
             return MISTAKE;
         }
-        match client.get_prompt(&name, arguments).await {
+        match client.prompt(&name, arguments).await {
             Ok(rendered) => finish(output::write_prompt(
                 &rendered,
                 raw,

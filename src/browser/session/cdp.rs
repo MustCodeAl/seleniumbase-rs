@@ -201,7 +201,7 @@ impl BrowserSession {
         }
         if let Ok(cdp) = self.cdp_client() {
             let url = self.webdriver()?.current_url().await?;
-            let response = cdp.get_cookies(url.as_str()).await?;
+            let response = cdp.cookies(url.as_str()).await?;
             let cookies = response["cookies"].as_array().ok_or_else(|| {
                 SeleniumBaseError::CdpDriver(
                     "Network.getCookies answered no list of cookies".to_owned(),

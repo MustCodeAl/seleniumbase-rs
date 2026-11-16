@@ -146,10 +146,7 @@ pub fn write_proxy_auth_extension(
 /// # Errors
 ///
 /// Returns [`SeleniumBaseError::Io`] if the folder or a file cannot be written.
-pub fn get_proxy_auth_extension(
-    username: &str,
-    password: &str,
-) -> Result<PathBuf, SeleniumBaseError> {
+pub fn proxy_auth_extension(username: &str, password: &str) -> Result<PathBuf, SeleniumBaseError> {
     let dir = tempfile::Builder::new()
         .prefix("sb-proxy-auth-")
         .tempdir()?
@@ -261,8 +258,8 @@ mod tests {
 
     #[test]
     fn each_call_makes_a_new_folder_outside_the_working_directory() {
-        let first = get_proxy_auth_extension("user", "secret").expect("first");
-        let second = get_proxy_auth_extension("user", "secret").expect("second");
+        let first = proxy_auth_extension("user", "secret").expect("first");
+        let second = proxy_auth_extension("user", "secret").expect("second");
         assert_ne!(first, second);
         let cwd = std::env::current_dir().expect("a working directory");
         for dir in [&first, &second] {

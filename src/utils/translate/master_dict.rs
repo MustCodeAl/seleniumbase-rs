@@ -277,7 +277,7 @@ pub fn english_of(word: &str) -> Option<&'static str> {
 /// Every name the dictionary accepts, mapped to the `BaseCase` method it
 /// stands for: each method to itself, and each [alias](aliases) to its method.
 #[must_use]
-pub fn get_master_dict() -> HashMap<&'static str, &'static str> {
+pub fn master_dict() -> HashMap<&'static str, &'static str> {
     ENTRIES
         .iter()
         .map(|entry| (entry.en, entry.en))
@@ -625,7 +625,7 @@ mod tests {
 
     #[test]
     fn the_master_dict_lists_every_accepted_name() {
-        let dict = get_master_dict();
+        let dict = master_dict();
         assert_eq!(dict.len(), entries().len() + aliases().len());
         assert_eq!(dict.get("click"), Some(&"click"));
         assert_eq!(dict.get("type"), Some(&"type_text"));

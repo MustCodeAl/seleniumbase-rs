@@ -10,11 +10,8 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::utils::extensions::get_ad_block_bytes;
+/// use seleniumbase_rs::utils::extensions::AD_BLOCK_BYTES;
 ///
-/// assert!(get_ad_block_bytes().starts_with(b"PK"));
+/// assert!(AD_BLOCK_BYTES.starts_with(b"PK"));
 /// ```
-#[must_use]
-pub fn get_ad_block_bytes() -> &'static [u8] {
-    include_bytes!("assets/ad_block.zip")
-}
+pub const AD_BLOCK_BYTES: &[u8] = include_bytes!("assets/ad_block.zip");
