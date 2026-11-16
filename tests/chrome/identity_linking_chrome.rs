@@ -29,8 +29,10 @@
 //!   --test chrome identity_linking_chrome:: -- --ignored --test-threads=1 --nocapture
 //! ```
 
+use std::collections::BTreeSet;
 use std::io::{Read, Write};
 use std::net::TcpListener;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
@@ -331,6 +333,134 @@ async fn a_kept_profile_folder_links_two_visits() {
 #[ignore = "requires a local Chrome"]
 #[serial_test::serial(chrome)]
 
+async fn a_second_browser_context_opens_its_own_connections() {
+    // HTTP/1.1 keep-alive: a socket a page left open is reused by the next request to the
+    // same origin of the same network context. A socket two identities shared would be a
+    // link a server sees without reading a single cookie. (HTTP/2 needs TLS and is not
+    // tested here.)
+    let requests: Requests = Arc::default();
+    let phase = Arc::new(AtomicU8::new(0));
+    let base = serve_keep_alive(Arc::clone(&requests), Arc::clone(&phase));
+    let browser = Browser::launch(options()).await.expect("Chrome starts");
+
+    // The first identity visits twice, as the default context.
+    phase.store(1, Ordering::SeqCst);
+    let page = browser.default_page().await.expect("a tab");
+    for visit in 1..=2 {
+        page.goto(format!("{base}?visit={visit}"))
+            .await
+            .expect("the page loads");
+    }
+    // The second identity, in a browser context beside it.
+    phase.store(2, Ordering::SeqCst);
+    let context = browser.new_context().await.expect("a context");
+    let second_page = context.new_page().await.expect("a page in the context");
+    for visit in 3..=4 {
+        second_page
+            .goto(format!("{base}?visit={visit}"))
+            .await
+            .expect("the page loads");
+    }
+
+    // The pages each identity asked for, by the number in the address: a late request of the
+    // first identity's page (a favicon) may come in the second phase and is not the second
+    // identity's.
+    let log = requests.lock().expect("the log").clone();
+    let pages_of = |visits: std::ops::RangeInclusive<u32>| -> Vec<usize> {
+        log.iter()
+            .filter(|(_, _, target)| {
+                visits
+                    .clone()
+                    .any(|visit| target.ends_with(&format!("?visit={visit}")))
+            })
+            .map(|(connection, _, _)| *connection)
+            .collect()
+    };
+    let (first, second) = (pages_of(1..=2), pages_of(3..=4));
+    assert_eq!(first.len(), 2, "the first identity's pages: {log:?}");
+    assert_eq!(second.len(), 2, "the second identity's pages: {log:?}");
+    assert_eq!(
+        first[0], first[1],
+        "the control: the first identity's two visits shared a connection, so reuse is visible: {log:?}"
+    );
+    let (first, second): (BTreeSet<_>, BTreeSet<_>) =
+        (first.into_iter().collect(), second.into_iter().collect());
+    assert!(
+        first.is_disjoint(&second),
+        "the two identities shared a connection: {first:?} and {second:?} in {log:?}"
+    );
+    // Whatever else was asked in the second phase came on the second identity's sockets or
+    // was the first identity's own late request; print it so a run shows it.
+    println!("the requests of the run: {log:?}");
+    context.dispose().await.expect("the context closes");
+    browser.close().await.expect("Chrome closes");
+}
+
+/// Every request the keep-alive server answered: the connection it came on, numbered from 1 in
+/// the order the sockets were accepted, the phase the test was in and the request target.
+type Requests = Arc<Mutex<Vec<(usize, u8, String)>>>;
+
+/// The end of a request head (`\r\n\r\n`), as an offset past it.
+fn end_of_head(bytes: &[u8]) -> Option<usize> {
+    bytes
+        .windows(4)
+        .position(|window| window == b"\r\n\r\n")
+        .map(|at| at + 4)
+}
+
+/// Serves a page and keeps each connection open: one thread per socket reads requests in a loop
+/// and answers each with a length-delimited body, logging `(connection, phase, target)`.
+fn serve_keep_alive(log: Requests, phase: Arc<AtomicU8>) -> String {
+    let listener = TcpListener::bind("127.0.0.1:0").expect("bind a loopback port");
+    let address = listener.local_addr().expect("bound address");
+    thread::spawn(move || {
+        let mut accepted = 0;
+        for stream in listener.incoming() {
+            let Ok(mut stream) = stream else { continue };
+            accepted += 1;
+            let connection = accepted;
+            let (log, phase) = (Arc::clone(&log), Arc::clone(&phase));
+            thread::spawn(move || {
+                let mut pending = Vec::new();
+                let mut buffer = [0_u8; 8192];
+                loop {
+                    match stream.read(&mut buffer) {
+                        Ok(0) | Err(_) => return,
+                        Ok(read) => pending.extend_from_slice(&buffer[..read]),
+                    }
+                    while let Some(end) = end_of_head(&pending) {
+                        let head = String::from_utf8_lossy(&pending[..end]).into_owned();
+                        let target = head
+                            .lines()
+                            .next()
+                            .and_then(|line| line.split_whitespace().nth(1))
+                            .unwrap_or_default()
+                            .to_owned();
+                        pending.drain(..end);
+                        log.lock().expect("the log").push((
+                            connection,
+                            phase.load(Ordering::SeqCst),
+                            target,
+                        ));
+                        let body = "<!doctype html><title>keep-alive</title><p>keep-alive</p>";
+                        let answer = format!(
+                            "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: keep-alive\r\n\r\n{body}",
+                            body.len()
+                        );
+                        if stream.write_all(answer.as_bytes()).is_err() {
+                            return;
+                        }
+                    }
+                }
+            });
+        }
+    });
+    format!("http://{address}/")
+}
+
+#[tokio::test]
+#[ignore = "requires a local Chrome"]
+#[serial_test::serial(chrome)]
 async fn a_second_browser_with_its_own_profile_starts_with_every_store_empty() {
     let seen = Arc::new(Mutex::new(Seen::default()));
     let base = serve(Arc::clone(&seen));
