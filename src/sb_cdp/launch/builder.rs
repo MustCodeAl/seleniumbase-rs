@@ -605,7 +605,7 @@ impl LaunchOptionsBuilder {
     /// use seleniumbase_rs::sb_cdp::LaunchOptions;
     /// use seleniumbase_rs::BrowserConfig;
     ///
-    /// let config = BrowserConfig::default().with_headless(true).with_mobile(true);
+    /// let config = BrowserConfig::builder().headless(true).mobile(true).build()?;
     /// let options = LaunchOptions::builder().browser_config(&config).build()?;
     /// assert!(options.is_headless());
     /// assert!(options
