@@ -230,7 +230,8 @@ mod debug_prompt_tests {
                 _ => Reply::Value(Value::Null),
             }
         });
-        let mut sb = driver.base_case().await.with_test_name("login.valid_login");
+        let mut sb = driver.base_case().await;
+                sb.set_test_name("login.valid_login");
         let mut at_prompt = prompt(
             vec!["u", "s", "src", "js 1 + 1", "c"],
             Duration::ZERO,

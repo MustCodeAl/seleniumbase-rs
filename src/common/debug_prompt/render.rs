@@ -246,14 +246,12 @@ impl Scene {
     /// assert_eq!(scene.spot().map(SourceSpot::line), Some(11));
     /// assert!(scene.failure().is_none());
     /// ```
-    #[must_use]
     pub fn builder() -> SceneBuilder {
         SceneBuilder::default()
     }
 
     /// Starts building from this scene, to change some of it: a failure is
     /// added with `scene.into_builder().failure(failure).build()`.
-    #[must_use]
     pub fn into_builder(self) -> SceneBuilder {
         SceneBuilder { scene: self }
     }

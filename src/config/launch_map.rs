@@ -290,15 +290,16 @@ mod tests {
                 ("SB_REC_SLEEP", "true".to_owned()),
             ])
             .unwrap();
-        let expected = RunSettings::default()
-            .with_default_timeout(Duration::from_secs(4))
-            .with_demo_mode(true)
-            .with_slow_mode(true)
-            .with_demo_sleep(Duration::from_millis(500))
-            .with_message_duration(Duration::from_secs(3))
-            .with_skip_js_waits(true)
-            .with_record_sleep(true)
-            .with_visual_baseline_reset(true);
+        let expected = RunSettings::builder()
+            .default_timeout(Duration::from_secs(4))
+            .demo_mode(true)
+            .slow_mode(true)
+            .demo_sleep(Duration::from_millis(500))
+            .message_duration(Duration::from_secs(3))
+            .skip_js_waits(true)
+            .record_sleep(true)
+            .reset_visual_baseline(true)
+            .build();
         assert_eq!(settings.run, expected);
         assert_eq!(settings.to_browser_config().run_settings(), &expected);
     }
@@ -318,15 +319,16 @@ mod tests {
                 ("SB_TIMEOUT", "10".to_owned()),
             ])
             .unwrap();
-        let expected = RunSettings::default()
-            .with_default_timeout(Duration::from_secs(10))
-            .with_highlights(3)
-            .with_interval(Duration::from_millis(1500))
-            .with_verify_delay(Duration::ZERO)
-            .with_check_js(true)
-            .with_wait_for_angularjs(true)
-            .with_disable_beforeunload(true)
-            .with_timeout_multiplier(2.0);
+        let expected = RunSettings::builder()
+            .default_timeout(Duration::from_secs(10))
+            .highlights(3)
+            .interval(Duration::from_millis(1500))
+            .verify_delay(Duration::ZERO)
+            .check_js(true)
+            .wait_for_angularjs(true)
+            .disable_beforeunload(true)
+            .timeout_multiplier(2.0)
+            .build();
         let config = settings.to_browser_config();
         assert_eq!(config.run_settings(), &expected);
         assert_eq!(config.run_settings().scale_timeout(10), 20);

@@ -680,7 +680,7 @@ mod tests {
     #[test]
 
     fn run_settings_are_set_by_a_builder_and_stay_out_of_config_files() {
-        let demo = RunSettings::default().with_demo_mode(true);
+        let demo = RunSettings::builder().demo_mode(true).build();
         let config = BrowserConfig::builder()
             .run_settings(demo.clone())
             .build()

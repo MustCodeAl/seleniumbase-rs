@@ -138,7 +138,7 @@ async fn check_window_compares_the_structure_of_the_page_and_not_its_pixels() {
     ));
 
     // A reset makes the page as it is now the baseline.
-    sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
+    sb.set_run_settings(RunSettings::builder().reset_visual_baseline(true).build());
     sb.check_window("home", 3).await.expect("reset");
     sb.set_run_settings(RunSettings::default());
     assert!(!differs(&mut sb, 3).await, "the reset page is the baseline");

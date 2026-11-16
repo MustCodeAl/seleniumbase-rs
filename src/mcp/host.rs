@@ -96,7 +96,6 @@ impl Settings {
     /// assert!(settings.output_dir().ends_with("out"));
     /// assert!(settings.browser_binary().is_some());
     /// ```
-    #[must_use]
     pub fn builder() -> SettingsBuilder {
         SettingsBuilder {
             settings: Self::new(DEFAULT_OUTPUT_DIR),
@@ -105,7 +104,6 @@ impl Settings {
 
     /// Starts building from these settings, to change some of them (what
     /// [`from_env`](Self::from_env) read, for one).
-    #[must_use]
     pub fn into_builder(self) -> SettingsBuilder {
         SettingsBuilder { settings: self }
     }
@@ -162,7 +160,9 @@ impl Settings {
     }
 }
 
-/// Builds [`Settings`]: [`Settings::builder`] starts from the defaults,
+/// Builds [`Settings`].
+///
+/// [`Settings::builder`] starts from the defaults,
 /// [`Settings::into_builder`] from settings you hold (what
 /// [`Settings::from_env`] read, for one). A setter takes the builder and gives
 /// it back; [`build`](Self::build) returns the settings.
@@ -212,7 +212,6 @@ impl SettingsBuilder {
 
     /// The settings.
     #[must_use]
-
     pub fn build(self) -> Settings {
         self.settings
     }

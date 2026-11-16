@@ -654,7 +654,7 @@ mod tests {
     #[test]
     fn a_request_asks_only_for_what_its_program_can_do() {
         assert!(InstallRequest::new(DriverName::Chromium)
-            .with_revision(1_725_796)
+            .revision(1_725_796)
             .validate()
             .is_ok());
         for name in EVERY_NAME
@@ -669,7 +669,7 @@ mod tests {
             );
         }
         assert!(InstallRequest::new(DriverName::Chromium)
-            .with_revision(0)
+            .revision(0)
             .validate()
             .is_err());
         for name in EVERY_NAME {

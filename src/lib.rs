@@ -218,7 +218,7 @@ pub use api::chart::{Chart, ChartType};
 #[doc(inline)]
 pub use api::gui::Gui;
 #[doc(inline)]
-pub use api::run_settings::{PauseKind, RunSettings};
+pub use api::run_settings::{PauseKind, RunSettings, RunSettingsBuilder};
 #[doc(inline)]
 pub use api::runner::{run_browser_test, run_cdp_test};
 #[doc(inline)]

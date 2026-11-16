@@ -26,17 +26,19 @@ lists the limits.
 
 <Visibility for="agents">
 
-Summary for AI exports: `RunSettings` carries the run-wide knobs of Python's pytest options as plain data: `with_demo_mode`, `with_slow_mode`, `with_demo_sleep`, `with_message_duration`, `with_default_timeout`, `with_skip_js_waits`, `with_record_sleep` and `with_visual_baseline_reset`. Pass them with `BrowserConfigBuilder::run_settings` or `BaseCase::set_run_settings`. `RunSettings::default()` changes nothing. Nothing reads them from the command line, the environment or a config file. Keep demo and slow mode out of CI.
+Summary for AI exports: `RunSettings` carries the run-wide knobs of Python's pytest options as plain data, built with `RunSettings::builder()` and its setters `demo_mode`, `slow_mode`, `demo_sleep`, `message_duration`, `default_timeout`, `skip_js_waits`, `record_sleep` and `reset_visual_baseline`, then `build()`. Pass the result with `BrowserConfigBuilder::run_settings` or `BaseCase::set_run_settings`. `RunSettings::default()` changes nothing. Nothing reads them from the command line, the environment or a config file. Keep demo and slow mode out of CI.
 
 </Visibility>
 
 ## The settings
 
 `RunSettings` and `PauseKind` are at the crate root (`seleniumbase_rs::RunSettings`;
-the module is `seleniumbase_rs::api::run_settings`). Every method below is a
-builder that takes and returns `RunSettings`.
+the module is `seleniumbase_rs::api::run_settings`). Every setting below is a
+setter of `RunSettingsBuilder`: `RunSettings::builder()` starts from the default
+(or `settings.into_builder()` from settings you hold), each setter takes and
+returns the builder, and `build()` returns the `RunSettings`.
 
-<ParamField body="with_demo_mode" type="bool" default="off">
+<ParamField body="demo_mode" type="bool" default="off">
 
 Python option: `--demo` (also `--demo-mode`, `--demo_mode`).
 
@@ -44,7 +46,7 @@ Outlines the element before the interactive calls, then pauses after them. [Whic
 
 </ParamField>
 
-<ParamField body="with_slow_mode" type="bool" default="off">
+<ParamField body="slow_mode" type="bool" default="off">
 
 Python option: `--slow` (also `--slow-mode`, `--slow_mode`, `--slowmo`).
 
@@ -52,7 +54,7 @@ The same pauses, without the outline.
 
 </ParamField>
 
-<ParamField body="with_demo_sleep" type="Duration" default="0.5 s">
+<ParamField body="demo_sleep" type="Duration" default="0.5 s">
 
 Python option: `--demo-sleep` (also `--demo_sleep`).
 
@@ -60,7 +62,7 @@ How long the demo and slow pauses last. Python takes a number of seconds; here i
 
 </ParamField>
 
-<ParamField body="with_message_duration" type="Duration" default="2.55 s">
+<ParamField body="message_duration" type="Duration" default="2.55 s">
 
 Python option: `--message-duration` (also `--message_duration`).
 
@@ -68,7 +70,7 @@ How long `post_message` and its relatives keep a message on the page, to the mil
 
 </ParamField>
 
-<ParamField body="with_default_timeout" type="Duration" default="10 s">
+<ParamField body="default_timeout" type="Duration" default="10 s">
 
 Python option: none (Rust only; `SB_TIMEOUT` sets it from the environment).
 
@@ -76,7 +78,7 @@ The default wait of the `BaseCase`, as `set_timeout` sets it, in whole seconds (
 
 </ParamField>
 
-<ParamField body="with_skip_js_waits" type="bool" default="off">
+<ParamField body="skip_js_waits" type="bool" default="off">
 
 Python option: `--skip-js-waits` (also `--skip_js_waits`, `--sjw`).
 
@@ -84,7 +86,7 @@ Makes `wait_for_ready_state_complete` return at once.
 
 </ParamField>
 
-<ParamField body="with_record_sleep" type="bool" default="off">
+<ParamField body="record_sleep" type="bool" default="off">
 
 Python option: `--record-sleep` (also `--rec-sleep`).
 
@@ -92,7 +94,7 @@ Puts `BaseCase::sleep` calls into the recording.
 
 </ParamField>
 
-<ParamField body="with_visual_baseline_reset" type="bool" default="off">
+<ParamField body="reset_visual_baseline" type="bool" default="off">
 
 Python option: `--visual-baseline` (also `--visual_baseline`).
 
@@ -112,9 +114,10 @@ action that did not (1/3.4 of the time in demo mode):
 use std::time::Duration;
 use seleniumbase_rs::api::run_settings::{PauseKind, RunSettings};
 
-let settings = RunSettings::default()
-    .with_slow_mode(true)
-    .with_demo_sleep(Duration::from_millis(500));
+let settings = RunSettings::builder()
+    .slow_mode(true)
+    .demo_sleep(Duration::from_millis(500))
+    .build();
 
 // How long a navigating action would pause, and how long a quiet one would.
 assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_millis(500));
@@ -148,10 +151,11 @@ async fn login_for_a_demo() -> Result<()> {
     let config = BrowserConfig::builder()
         .headless(false)
         .run_settings(
-            RunSettings::default()
-                .with_demo_mode(true)
-                .with_demo_sleep(Duration::from_millis(800))
-                .with_message_duration(Duration::from_secs(2)),
+            RunSettings::builder()
+                .demo_mode(true)
+                .demo_sleep(Duration::from_millis(800))
+                .message_duration(Duration::from_secs(2))
+                .build(),
         )
         .build()?;
 
@@ -174,7 +178,7 @@ a third of that, 0.8 s / 3.4 or about 0.24 s (demo mode divides the time by 3.4
 after an action that left the page where it was, as Python does).
 `assert_text_visible` has no pause, so the run moves on at once.
 
-Replace `with_demo_mode(true)` with `with_slow_mode(true)` for the same pauses
+Replace `demo_mode(true)` with `slow_mode(true)` for the same pauses
 without the outline. Slow mode always pauses for the full time.
 
 `set_run_settings` replaces the whole value, it does not merge. To undo a
@@ -196,21 +200,21 @@ fn run_settings_from_env() -> RunSettings {
     let on = |name: &str| {
         std::env::var(name).is_ok_and(|value| matches!(value.as_str(), "1" | "true" | "on"))
     };
-    let mut settings = RunSettings::default()
-        .with_demo_mode(on("MY_DEMO"))
-        .with_slow_mode(on("MY_SLOW"))
-        .with_skip_js_waits(on("MY_SKIP_JS_WAITS"))
-        .with_record_sleep(on("MY_RECORD_SLEEP"))
-        .with_visual_baseline_reset(on("MY_VISUAL_BASELINE"));
+    let mut settings = RunSettings::builder()
+        .demo_mode(on("MY_DEMO"))
+        .slow_mode(on("MY_SLOW"))
+        .skip_js_waits(on("MY_SKIP_JS_WAITS"))
+        .record_sleep(on("MY_RECORD_SLEEP"))
+        .reset_visual_baseline(on("MY_VISUAL_BASELINE"));
     // try_from_secs_f64 refuses a negative or non-finite number instead of panicking.
     let pause = std::env::var("MY_DEMO_SLEEP")
         .ok()
         .and_then(|value| value.parse::<f64>().ok())
         .and_then(|seconds| Duration::try_from_secs_f64(seconds).ok());
     if let Some(pause) = pause {
-        settings = settings.with_demo_sleep(pause);
+        settings = settings.demo_sleep(pause);
     }
-    settings
+    settings.build()
 }
 ```
 
@@ -296,7 +300,7 @@ skipping changes nothing for ordinary navigation. A direct call to
 use seleniumbase_rs::api::run_settings::RunSettings;
 use seleniumbase_rs::BaseCase;
 async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    sb.set_run_settings(RunSettings::default().with_record_sleep(true));
+    sb.set_run_settings(RunSettings::builder().record_sleep(true).build());
     sb.sleep(2.0).await;
     let actions = sb.recorded_actions()?;
     assert!(actions.iter().any(|action| action.name == "sleep"));
@@ -315,7 +319,7 @@ accept the page as it is now, then go back to the default:
 use seleniumbase_rs::api::run_settings::RunSettings;
 use seleniumbase_rs::BaseCase;
 async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
+    sb.set_run_settings(RunSettings::builder().reset_visual_baseline(true).build());
     sb.check_window("home", 3).await?; // saves the baseline
     sb.set_run_settings(RunSettings::default());
     sb.check_window("home", 3).await?; // compares with it
@@ -354,7 +358,7 @@ times longer. Keep them off unless a person is watching.
 - **One outline.** Python's `--highlights` (how many times to animate) has no
   counterpart; the outline is drawn once.
 - **Not a speed-up.** There is no switch that removes the pauses of demo and
-  slow mode except turning them off. `with_skip_js_waits` removes one wait, at
+  slow mode except turning them off. `skip_js_waits` removes one wait, at
   the cost of more flaky clicks on pages that are still loading.
 
 ## What is tested
@@ -388,7 +392,7 @@ times longer. Keep them off unless a person is watching.
 
 <Card color="#199f43" title="Waits and Assertions" icon="clock" href="/tutorials/utilities#waits-and-assertions">
 
-The waits that `with_skip_js_waits` leaves alone.
+The waits that `skip_js_waits` leaves alone.
 
 </Card>
 

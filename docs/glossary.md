@@ -635,7 +635,7 @@ See [Waits and Assertions](/tutorials/utilities#soft-assertions).
 
 <Badge color="green">Testing</Badge>
 
-A run setting (`RunSettings::with_demo_mode`) that outlines each element before an interactive call and pauses after it, so a person can follow the test. Never leave it on in CI, because the run waits on purpose.
+A run setting (`RunSettingsBuilder::demo_mode`) that outlines each element before an interactive call and pauses after it, so a person can follow the test. Never leave it on in CI, because the run waits on purpose.
 
 See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 
@@ -1765,7 +1765,7 @@ See [Robots, sitemaps and status codes](/concepts/crawlers-and-seo#robots-sitema
 
 <Badge color="green">Testing</Badge>
 
-A run setting (`RunSettings::with_slow_mode`) that pauses after interactive calls as [demo mode](#demo-mode) does, but without outlining the element.
+A run setting (`RunSettingsBuilder::slow_mode`) that pauses after interactive calls as [demo mode](#demo-mode) does, but without outlining the element.
 
 See [Run Settings: Demo, Slow and Fast Runs](/tutorials/run_settings).
 

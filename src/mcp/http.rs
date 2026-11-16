@@ -160,13 +160,11 @@ impl HttpOptions {
     /// assert_eq!(options.max_sessions, 2);
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    #[must_use]
     pub fn builder() -> HttpOptionsBuilder {
         HttpOptionsBuilder::default()
     }
 
     /// Starts building from these options, to change some of them.
-    #[must_use]
     pub fn into_builder(self) -> HttpOptionsBuilder {
         HttpOptionsBuilder { options: self }
     }
@@ -243,7 +241,9 @@ impl HttpOptions {
     }
 }
 
-/// Builds [`HttpOptions`]: [`HttpOptions::builder`] starts from the defaults,
+/// Builds [`HttpOptions`].
+///
+/// [`HttpOptions::builder`] starts from the defaults,
 /// [`HttpOptions::into_builder`] from options you hold. A setter takes the
 /// builder and gives it back; [`build`](Self::build) checks the options with
 /// [`HttpOptions::validate`] and returns them.

@@ -87,7 +87,7 @@ pub struct BaseCase {
     /// `session`: the extra ones [`BaseCase::get_new_driver`] opened, and the
     /// default one while another is active.
     drivers: DriverTable<BrowserSession>,
-    /// The name of the test this case runs, from [`BaseCase::with_test_name`].
+    /// The name of the test this case runs, from [`BaseCase::set_test_name`].
     test_name: Option<String>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
@@ -195,29 +195,17 @@ impl BaseCase {
             recording: RecorderState::default(),
         }
     }
+}
 
+impl BaseCase {
     /// Names the test this case runs. [`check_window`](Self::check_window)
-    /// keeps its baselines in `visual_baseline/<name>`, so tests of the same
-    /// function name in different modules or files, and tests that do not run
-    /// on a thread named after them (`#[tokio::main]`, `tokio::spawn`), keep
-    /// separate baselines. [`sb_test!`](crate::sb_test) names its test.
-    ///
-    /// Without a name the folder is the function name of the thread that runs
-    /// the test, as in Python.
-    #[must_use]
-    pub fn with_test_name(mut self, name: impl Into<String>) -> Self {
-        self.test_name = Some(name.into());
-        self
-    }
-
-    /// [`with_test_name`](Self::with_test_name) for a case that already exists,
-    /// such as the one a test runner hands to a test. [`sb_test!`](crate::sb_test)
-    /// uses it.
+    /// keeps its baselines in `visual_baseline/<name>`, so tests of the same function name in different modules or files, and tests that do not run on a thread named after them (`#[tokio::main]`, `tokio::spawn`), keep separate baselines. [`sb_test!`](crate::sb_test)
+    /// names its test. Without a name the folder is the function name of the thread that runs the test, as in Python.
     pub fn set_test_name(&mut self, name: impl Into<String>) {
         self.test_name = Some(name.into());
     }
 
-    /// The name given by [`with_test_name`](Self::with_test_name), if any.
+    /// The name given by [`set_test_name`](Self::set_test_name), if any.
     #[must_use]
     pub fn test_name(&self) -> Option<&str> {
         self.test_name.as_deref()
@@ -1674,7 +1662,7 @@ impl BaseCase {
     /// the person.
     #[cfg(any(test, feature = "test-util"))]
     #[must_use]
-    pub fn with_somebody_watching(mut self) -> Self {
+    pub fn somebody_watching(mut self) -> Self {
         self.somebody_watching = true;
         self
     }
@@ -2642,7 +2630,7 @@ impl BaseCase {
     ///
     /// Corresponds to Python's `check_window`. The baseline is the folder
     /// `visual_baseline/<test>/<name>` in the working directory, where the
-    /// test is the name given by [`with_test_name`](Self::with_test_name)
+    /// test is the name given by [`set_test_name`](Self::set_test_name)
     /// (what [`sb_test!`](crate::sb_test) does), or else the name of the
     /// running test (the last part of the thread's name under `cargo test`,
     /// the function), as in Python: two tests of the same function name
@@ -2720,8 +2708,10 @@ impl BaseCase {
         use crate::api::run_settings::visual_match_folder;
         use crate::visual::VisualBaseline;
 
-        let baselines = VisualBaseline::new(visual_match_folder())
-            .update_baselines(self.run_settings.reset_visual_baseline());
+        let baselines = VisualBaseline::builder()
+            .dir(visual_match_folder())
+            .update_baselines(self.run_settings.reset_visual_baseline())
+            .build()?;
         // As check_window does, let the page settle before it is captured.
         let _ = self.wait_for_ready_state_complete().await;
         baselines.check_page(name, &*self).await.map(|_| ())

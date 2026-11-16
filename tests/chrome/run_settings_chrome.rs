@@ -51,7 +51,7 @@ fn test_config(settings: RunSettings) -> BrowserConfig {
 #[serial_test::serial(chrome)]
 async fn check_js_fails_the_open_of_a_page_that_throws() {
     let _guard = BROWSER_LOCK.lock().await;
-    let mut sb = BaseCase::new(test_config(RunSettings::default().with_check_js(true)))
+    let mut sb = BaseCase::new(test_config(RunSettings::builder().check_js(true).build()))
         .await
         .expect("connect to browser");
 
@@ -90,7 +90,7 @@ async fn without_check_js_a_page_that_throws_opens() {
 async fn disable_beforeunload_clears_the_handler_of_the_page_that_was_opened() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config(
-        RunSettings::default().with_disable_beforeunload(true),
+        RunSettings::builder().disable_beforeunload(true).build(),
     ))
     .await
     .expect("connect to browser");
@@ -120,7 +120,7 @@ async fn disable_beforeunload_clears_the_handler_of_the_page_that_was_opened() {
 async fn the_timeout_multiplier_stretches_the_wait_for_an_element_that_never_comes() {
     let _guard = BROWSER_LOCK.lock().await;
     let mut sb = BaseCase::new(test_config(
-        RunSettings::default().with_timeout_multiplier(2.0),
+        RunSettings::builder().timeout_multiplier(2.0).build(),
     ))
     .await
     .expect("connect to browser");

@@ -63,13 +63,11 @@ impl Session {
     /// assert_eq!(session.cookies().len(), 1);
     /// assert_eq!(session.origin(), Some("https://example.com"));
     /// ```
-    #[must_use]
     pub fn builder() -> SessionBuilder {
         SessionBuilder::default()
     }
 
     /// Starts building from this session, to change some of it.
-    #[must_use]
     pub fn into_builder(self) -> SessionBuilder {
         SessionBuilder { session: self }
     }
@@ -104,7 +102,9 @@ impl Session {
     }
 }
 
-/// Builds a [`Session`]: [`Session::builder`] starts empty,
+/// Builds a [`Session`].
+///
+/// [`Session::builder`] starts empty,
 /// [`Session::into_builder`] from a session you hold. A setter takes the
 /// builder and gives it back; [`build`](Self::build) returns the session. Like
 /// the session, its `Debug` output never shows a cookie value.
