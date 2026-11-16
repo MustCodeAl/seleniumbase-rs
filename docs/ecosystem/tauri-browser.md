@@ -24,7 +24,7 @@ from your app's Rust code, read
 
 <Visibility for="agents">
 
-Summary for AI exports: this applies to an app that owns a Chromium runtime, CEF (`tauri-runtime-cef`) or WebView2 on Windows. Attach from a test: enable the plugin's `cdp` Cargo feature, call `CdpStealthConfig::default()` and `unsafe { config.apply_env() }` before any thread or runtime start (CEF: pass the returned arguments to CEF), read the port from `GET /{token}/cdp`, and attach with `BrowserConfig::with_webdriver_url(..).with_cdp_discovery(true)` or `LaunchOptions::builder().cdp_url(..)` and `Browser::launch`. Fingerprint in a shipped app: enable the plugin's `stealth` feature (Rust 1.99), add `StealthPlan::new(&fingerprint)`'s init script with `.stealth_script(&plan)` on the `WebviewWindowBuilder`, send the overrides with `DevToolsChannel::apply`, and get a `Page` from `DevToolsChannel::page`. WKWebView and WebKitGTK speak no CDP: use the driver guide.
+Summary for AI exports: this applies to an app that owns a Chromium runtime, CEF (`tauri-runtime-cef`) or WebView2 on Windows. Attach from a test: enable the plugin's `cdp` Cargo feature, call `CdpStealthConfig::default()` and `unsafe { config.apply_env() }` before any thread or runtime start (CEF: pass the returned arguments to CEF), read the port from `GET /{token}/cdp`, and attach with `BrowserConfigBuilder::webdriver_url(..).cdp_discovery(true)` or `LaunchOptions::builder().cdp_url(..)` and `Browser::launch`. Fingerprint in a shipped app: enable the plugin's `stealth` feature (Rust 1.99), add `StealthPlan::new(&fingerprint)`'s init script with `.stealth_script(&plan)` on the `WebviewWindowBuilder`, send the overrides with `DevToolsChannel::apply`, and get a `Page` from `DevToolsChannel::page`. WKWebView and WebKitGTK speak no CDP: use the driver guide.
 
 </Visibility>
 
@@ -135,10 +135,11 @@ async fn drive_the_app() -> Result<(), SeleniumBaseError> {
         .to_builder()
         .native_spoofing(true)
         .build()?;
-    let config = BrowserConfig::default()
-        .with_webdriver_url("http://127.0.0.1:4445/secret/")
-        .with_cdp_discovery(true)
-        .with_fingerprint(fingerprint);
+    let config = BrowserConfig::builder()
+        .webdriver_url("http://127.0.0.1:4445/secret/")
+        .cdp_discovery(true)
+        .fingerprint(fingerprint)
+        .build()?;
     let mut sb = BaseCase::new(config).await?;
     let title = sb.title().await?;
     println!("{title}");
@@ -147,7 +148,7 @@ async fn drive_the_app() -> Result<(), SeleniumBaseError> {
 }
 ```
 
-The fingerprint is optional. Without discovery, `BrowserConfig::with_cdp_url`
+The fingerprint is optional. Without discovery, `BrowserConfigBuilder::cdp_url`
 takes the debugger's HTTP or browser WebSocket URL directly, and it takes
 precedence over discovery.
 
@@ -176,14 +177,15 @@ async fn drive_the_page() -> Result<(), SeleniumBaseError> {
 <Step title="Pick the window" icon="window-restore">
 
 An app can have several windows. Without a choice, the first one is driven.
-Pick another with `BrowserConfig::with_cdp_target`, which takes a target id or
+Pick another with `BrowserConfigBuilder::cdp_target`, which takes a target id or
 part of the window's URL, or with `Browser::select_page` on a `Browser`:
 
 ```rust Pick a window
-let config = BrowserConfig::default()
-    .with_webdriver_url("http://127.0.0.1:4445/secret/")
-    .with_cdp_discovery(true)
-    .with_cdp_target("/settings");
+let config = BrowserConfig::builder()
+    .webdriver_url("http://127.0.0.1:4445/secret/")
+    .cdp_discovery(true)
+    .cdp_target("/settings")
+    .build()?;
 ```
 
 </Step>

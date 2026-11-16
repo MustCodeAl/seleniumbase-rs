@@ -20,7 +20,7 @@ drive the app's own Chromium webview over CDP, or give it a fingerprint, read
 
 <Visibility for="agents">
 
-Summary for AI exports: add `tauri-plugin-sbrs-automation` to the Tauri app behind an optional Cargo feature `e2e`, register `tauri_plugin_sbrs_automation::init()` on the builder only with the feature, grant `sbrs-automation:default` in `src-tauri/capabilities/e2e/automation.json`, let `build.rs` read the capabilities folder recursively only with the feature, and on Tauri 3 name the runtime with `.runtime(tauri_runtime_wry::Wry::default())`. Start the app with `SBRS_AUTOMATION_TOKEN=secret cargo tauri dev --features e2e`. The test builds `BrowserConfig::default().with_webdriver_url("http://127.0.0.1:4445/secret/")` (the URL ends with a slash) and passes it to `BaseCase::new`.
+Summary for AI exports: add `tauri-plugin-sbrs-automation` to the Tauri app behind an optional Cargo feature `e2e`, register `tauri_plugin_sbrs_automation::init()` on the builder only with the feature, grant `sbrs-automation:default` in `src-tauri/capabilities/e2e/automation.json`, let `build.rs` read the capabilities folder recursively only with the feature, and on Tauri 3 name the runtime with `.runtime(tauri_runtime_wry::Wry::default())`. Start the app with `SBRS_AUTOMATION_TOKEN=secret cargo tauri dev --features e2e`. The test builds `BrowserConfig::builder().webdriver_url("http://127.0.0.1:4445/secret/").build()?` (the URL ends with a slash) and passes it to `BaseCase::new`.
 
 </Visibility>
 
@@ -190,7 +190,7 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, SeleniumBaseError};
 #[tokio::test]
 #[ignore = "needs the app, started with the e2e feature"]
 async fn saving_a_profile() -> Result<(), SeleniumBaseError> {
-    let config = BrowserConfig::default().with_webdriver_url("http://127.0.0.1:4445/secret/");
+    let config = BrowserConfig::builder().webdriver_url("http://127.0.0.1:4445/secret/").build()?;
     let mut sb = BaseCase::new(config).await?;
     sb.type_text("#name", "Work").await?;
     sb.click("#save").await?;

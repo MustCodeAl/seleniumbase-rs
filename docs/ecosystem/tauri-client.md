@@ -39,7 +39,7 @@ Summary for AI exports: add `seleniumbase-rs` to the app's `src-tauri/Cargo.toml
 | Engine | What the app needs | Calls |
 |---|---|---|
 | Pure CDP | Chrome or Chromium installed; each launch starts its own Chrome | `seleniumbase_rs::sb_cdp::Browser::launch` |
-| WebDriver | A WebDriver server at a URL, such as a Selenium container | `BaseCase` with `BrowserConfig::with_webdriver_url` |
+| WebDriver | A WebDriver server at a URL, such as a Selenium container | `BaseCase` with `BrowserConfigBuilder::webdriver_url` |
 
 The steps below use pure CDP. [Use BaseCase instead](#use-basecase-instead)
 shows the WebDriver form.
@@ -206,9 +206,10 @@ use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
 
 #[tauri::command]
 async fn page_title_webdriver(url: String) -> Result<String, String> {
-    let config = BrowserConfig::default()
-        .with_webdriver_url("http://localhost:4444")
-        .with_headless(true);
+    let config = BrowserConfig::builder()
+        .webdriver_url("http://localhost:4444")
+        .headless(true)
+        .build()?;
     let mut sb = BaseCase::new(config)
         .await
         .map_err(|error| error.to_string())?;
