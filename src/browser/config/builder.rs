@@ -120,8 +120,8 @@ impl BrowserConfigBuilder {
     /// # Errors
     ///
     /// [`SeleniumBaseError::InvalidConfig`] when [`grid`](Self::grid) was given an empty server
-    /// name; [`SeleniumBaseError::Plugin`] for a name [`plugins_named`](Self::plugins_named) or
-    /// [`plugin_selection`](Self::plugin_selection) was given that this build does not have,
+    /// name; [`SeleniumBaseError::Plugin`] for a name `plugins_named` or
+    /// `plugin_selection` (feature `plugins`) was given that this build does not have,
     /// options a plugin refuses, or a plugin that is in the set already. The first setting that
     /// fails, in the order the setters were called, is the error.
     ///
@@ -1194,6 +1194,68 @@ mod tests {
         let text = format!("{builder:?}");
         assert!(!text.contains("GRIDKEY"), "{text}");
         assert!(!text.contains("PROXYPW"), "{text}");
+    }
+
+    #[test]
+    fn a_later_webdriver_url_drops_a_refused_grid() {
+        let config = BrowserConfig::builder()
+            .grid(GridProtocol::Http, "", 4444)
+            .webdriver_url("http://other.test:4444/wd/hub")
+            .build()
+            .expect("the URL replaces the refused grid");
+        assert_eq!(
+            config.session.webdriver_url(),
+            "http://other.test:4444/wd/hub"
+        );
+    }
+
+    #[test]
+    fn the_last_of_two_grids_decides_the_address() {
+        let config = config_of(
+            BrowserConfig::builder()
+                .grid(GridProtocol::Http, "first.test", 4444)
+                .grid(GridProtocol::Http, "second.test", 4444),
+        );
+        assert_eq!(
+            config.session.webdriver_url(),
+            "http://second.test:4444/wd/hub"
+        );
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn the_first_failing_setter_in_call_order_is_the_error() {
+        let grid_first = BrowserConfig::builder()
+            .grid(GridProtocol::Http, "", 4444)
+            .plugins_named(["no-such-plugin"])
+            .build()
+            .expect_err("both settings fail");
+        assert!(
+            matches!(grid_first, SeleniumBaseError::InvalidConfig { .. }),
+            "{grid_first:?}"
+        );
+        let plugins_first = BrowserConfig::builder()
+            .plugins_named(["no-such-plugin"])
+            .grid(GridProtocol::Http, "", 4444)
+            .build()
+            .expect_err("both settings fail");
+        assert!(
+            matches!(plugins_first, SeleniumBaseError::Plugin { .. }),
+            "{plugins_first:?}"
+        );
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn the_debug_text_hides_the_options_of_a_plugin() {
+        use crate::config::plugins::PluginSelection;
+        let selection = PluginSelection::new()
+            .enable("tokened")
+            .with_options("tokened", serde_json::json!({ "token": "PLUGINSECRET" }));
+        let builder = BrowserConfig::builder().plugin_selection(&selection);
+        let text = format!("{builder:?}");
+        assert!(!text.contains("PLUGINSECRET"), "{text}");
+        assert!(text.contains("tokened"), "{text}");
     }
 
     #[cfg(feature = "plugins")]
