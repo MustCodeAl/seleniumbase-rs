@@ -135,6 +135,9 @@ mod imports {
         use seleniumbase_rs::sb_cdp::{Browser, ContextOptions, LaunchOptions, Page};
     };
     const _: () = {
+        use seleniumbase_rs::sb_cdp::LaunchOptionsBuilder;
+    };
+    const _: () = {
         use seleniumbase_rs::sb_cdp;
     };
     // Items the stealth tests and its examples import, which need `test-util` here.
