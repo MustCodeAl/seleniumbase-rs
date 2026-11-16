@@ -2,21 +2,43 @@ use regex::{Captures, Regex};
 use std::fs;
 use std::path::Path;
 use std::sync::OnceLock;
+use thiserror::Error;
 
 /// A command extracted from a Selenium IDE HTML test case.
 #[derive(Debug, Clone, PartialEq)]
 pub struct IdeCommand {
+    /// The command name, such as `open` or `click`.
     pub command: String,
+    /// The selector or URL the command acts on.
     pub target: String,
+    /// The text or option the command takes. Empty when the command has none.
     pub value: String,
 }
 
+/// The HTML file could not be read.
+///
+/// [`Display`](std::fmt::Display) is the operating-system error's text.
+/// [`Error::source`](std::error::Error::source) is that error.
+#[derive(Debug, Error)]
+#[non_exhaustive]
+pub enum IdeParseError {
+    /// Reading the file failed.
+    #[error("{source}")]
+    Read {
+        /// The operating-system error.
+        #[from]
+        source: std::io::Error,
+    },
+}
+
 /// Parse a legacy Selenium IDE HTML file and extract commands.
-pub fn parse_ide_file<P: AsRef<Path>>(
-    path: P,
-) -> Result<Vec<IdeCommand>, Box<dyn std::error::Error>> {
+///
+/// # Errors
+///
+/// Returns [`IdeParseError::Read`] when the file cannot be read.
+pub fn parse_ide_file<P: AsRef<Path>>(path: P) -> Result<Vec<IdeCommand>, IdeParseError> {
     let html = fs::read_to_string(path)?;
-    parse_ide_html(&html)
+    Ok(parse_ide_html(&html))
 }
 
 /// Compiles `pattern` once and reuses it.
@@ -29,8 +51,23 @@ fn cached(cell: &'static OnceLock<Regex>, pattern: &str) -> &'static Regex {
 /// A row with at least three cells is a command: the command name, its target
 /// and its value. Tags are removed from the cells and HTML entities decoded, so
 /// `&amp;` in a URL comes out as `&`. Rows may span lines, as Selenium IDE writes
-/// them.
-pub fn parse_ide_html(html: &str) -> Result<Vec<IdeCommand>, Box<dyn std::error::Error>> {
+/// them. HTML that is not a table yields an empty list. Reading a string
+/// cannot fail.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utilities::selenium_ide::parse_ide_html;
+///
+/// let commands = parse_ide_html(
+///     "<table><tr><td>open</td><td>/login</td><td></td></tr></table>",
+/// );
+/// assert_eq!(commands[0].command, "open");
+/// assert_eq!(commands[0].target, "/login");
+/// assert!(commands[0].value.is_empty());
+/// ```
+#[must_use]
+pub fn parse_ide_html(html: &str) -> Vec<IdeCommand> {
     static ROW: OnceLock<Regex> = OnceLock::new();
     static CELL: OnceLock<Regex> = OnceLock::new();
     // `s` lets `.` match a newline; `i` accepts `<TR>` as well as `<tr>`.
@@ -50,7 +87,7 @@ pub fn parse_ide_html(html: &str) -> Result<Vec<IdeCommand>, Box<dyn std::error:
             });
         }
     }
-    Ok(commands)
+    commands
 }
 
 fn strip_tags(s: &str) -> String {
@@ -99,7 +136,7 @@ mod tests {
             <tr><td>open</td><td>/login</td><td></td></tr>
             <tr><td>type</td><td>id=user</td><td>admin</td></tr>
         </table>"#;
-        let cmds = parse_ide_html(html).unwrap();
+        let cmds = parse_ide_html(html);
         assert_eq!(cmds.len(), 2);
         assert_eq!(cmds[0].command, "open");
         assert_eq!(cmds[1].target, "id=user");
@@ -108,7 +145,7 @@ mod tests {
     #[test]
     fn rows_that_span_lines_are_read_as_selenium_ide_writes_them() {
         let html = "<table>\n<thead><tr><td rowspan=\"1\" colspan=\"3\">My test</td></tr></thead>\n<tbody>\n<TR>\n\t<td>open</td>\n\t<td>/</td>\n\t<td></td>\n</TR>\n<tr>\n\t<td>click</td>\n\t<td>css=a.go\n\t</td>\n\t<td></td>\n</tr>\n</tbody></table>";
-        let cmds = parse_ide_html(html).unwrap();
+        let cmds = parse_ide_html(html);
         assert_eq!(
             cmds,
             vec![
@@ -130,7 +167,7 @@ mod tests {
     #[test]
     fn entities_in_a_cell_are_decoded() {
         let html = "<tr><td>open</td><td>/search?a=1&amp;b=2</td><td>&lt;b&gt; &quot;hi&quot; &#39;x&#39; &#x41;&nbsp;</td></tr>";
-        let cmds = parse_ide_html(html).unwrap();
+        let cmds = parse_ide_html(html);
         assert_eq!(cmds[0].target, "/search?a=1&b=2");
         assert_eq!(cmds[0].value, "<b> \"hi\" 'x' A");
     }
@@ -144,6 +181,17 @@ mod tests {
     #[test]
     fn the_datalist_a_newer_export_adds_does_not_leak_into_the_target() {
         let html = "<tr><td>click</td><td>css=a<datalist><option value=\"css=a\"></option></datalist></td><td></td></tr>";
-        assert_eq!(parse_ide_html(html).unwrap()[0].target, "css=a");
+        assert_eq!(parse_ide_html(html)[0].target, "css=a");
+    }
+
+    #[test]
+    fn a_missing_file_keeps_the_io_error() {
+        let error = parse_ide_file("/no/such/selenium-ide.html").unwrap_err();
+        let source = std::error::Error::source(&error).expect("the io error");
+        let io = source
+            .downcast_ref::<std::io::Error>()
+            .expect("an io error");
+        assert_eq!(io.kind(), std::io::ErrorKind::NotFound);
+        assert_eq!(error.to_string(), io.to_string());
     }
 }

@@ -79,7 +79,7 @@ use seleniumbase_rs::plugin_api::PluginSet;
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 let plugins = PluginSet::new().with(Hello)?;
-let mut sb = BaseCase::new(BrowserConfig::default().with_plugins(plugins)).await?;
+let mut sb = BaseCase::new(BrowserConfig::builder().plugins(plugins).build()?).await?;
 sb.open("https://example.com").await?;
 sb.quit().await?;
 ```
@@ -105,7 +105,7 @@ sb.quit().await?;
 
 <Visibility for="agents">
 
-Summary for AI agents. Crate `seleniumbase-rs-plugin` 0.1.3 (git https://github.com/MustCodeAl/seleniumbase-rs-plugins, rev 0666904475f4f1f422f8f426f169f6a0e533e824), re-exported by seleniumbase-rs as `seleniumbase_rs::plugin_api` (feature `plugins`). Items: `Plugin` (trait; only `name` required; hooks `before_launch(&mut LaunchSettings)`, `on_browser(&dyn BrowserHandle)`, `on_page_created(&dyn PageHandle)`, `on_close()`; declarations `dependencies`, `requirements`, `metadata`, `per_launch`, `packages`; since 0.1.3 also `network`, `protocol_events`, `task`, `job_runner`, `before_context`, `on_context_created`, `on_context_closed`, `before_navigate`, `after_navigate`, `on_request`, `on_response`, `on_protocol_event`, `before_close`, `on_test_start`, `on_test_end`, see the plugin-trait page), `Result<T>`, `PluginError`, `PluginSet`, `AuditRow`, `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy`, `BrowserHandle`, `PageHandle`, `Requirements`, `Package`, `Configurable`, `Descriptor`, `PluginSpec`, `Registry`, `Metadata`, `Category`, `Phase`, `Seals`, `Budgets`, `Capability`, `CapabilitySet`, `HostScope`, `NetScope`, `PathScope`, `RawKind`, `Risk`, `Enforcement`, `ParseCapabilityError`, `HostInfo`, `HostKind`, `ExtensionWorker`, module `switch_policy`, and the `async_trait` macro. Test crate `seleniumbase-rs-plugin-testing`: `RecordingPage`, `RecordingBrowser`, `Call`, `block_on`, `block_on_advancing`, `ManualTimer`, `VecSink`. Host side in seleniumbase-rs: `LaunchOptionsBuilder::plugins`/`plugins_named`/`plugin_selection`, `BrowserConfig::with_plugins`/`with_plugins_named`/`with_plugin_selection`, `Browser::connect_with_plugins`, `plugin_host::builtin_registry`/`build`/`build_with`, `config::plugins::PluginSelection`, `PLUGINS_ENV` (`SB_PLUGINS`), `cli::plugin_cmd`, `SeleniumBaseError::Plugin`.
+Summary for AI agents. Crate `seleniumbase-rs-plugin` 0.1.3 (git https://github.com/MustCodeAl/seleniumbase-rs-plugins, rev 0666904475f4f1f422f8f426f169f6a0e533e824), re-exported by seleniumbase-rs as `seleniumbase_rs::plugin_api` (feature `plugins`). Items: `Plugin` (trait; only `name` required; hooks `before_launch(&mut LaunchSettings)`, `on_browser(&dyn BrowserHandle)`, `on_page_created(&dyn PageHandle)`, `on_close()`; declarations `dependencies`, `requirements`, `metadata`, `per_launch`, `packages`; since 0.1.3 also `network`, `protocol_events`, `task`, `job_runner`, `before_context`, `on_context_created`, `on_context_closed`, `before_navigate`, `after_navigate`, `on_request`, `on_response`, `on_protocol_event`, `before_close`, `on_test_start`, `on_test_end`, see the plugin-trait page), `Result<T>`, `PluginError`, `PluginSet`, `AuditRow`, `LaunchContext`, `LaunchSettings`, `ProfileView`, `Engine`, `BrowserFamily`, `WebRtcPolicy`, `BrowserHandle`, `PageHandle`, `Requirements`, `Package`, `Configurable`, `Descriptor`, `PluginSpec`, `Registry`, `Metadata`, `Category`, `Phase`, `Seals`, `Budgets`, `Capability`, `CapabilitySet`, `HostScope`, `NetScope`, `PathScope`, `RawKind`, `Risk`, `Enforcement`, `ParseCapabilityError`, `HostInfo`, `HostKind`, `ExtensionWorker`, module `switch_policy`, and the `async_trait` macro. Test crate `seleniumbase-rs-plugin-testing`: `RecordingPage`, `RecordingBrowser`, `Call`, `block_on`, `block_on_advancing`, `ManualTimer`, `VecSink`. Host side in seleniumbase-rs: `LaunchOptionsBuilder::plugins`/`plugins_named`/`plugin_selection`, `BrowserConfigBuilder::plugins`/`plugins_named`/`plugin_selection`, `Browser::connect_with_plugins`, `plugin_host::builtin_registry`/`build`/`build_with`, `config::plugins::PluginSelection`, `PLUGINS_ENV` (`SB_PLUGINS`), `cli::plugin_cmd`, `SeleniumBaseError::Plugin`.
 
 </Visibility>
 
@@ -305,7 +305,7 @@ The host side, in seleniumbase-rs:
 | `src/lib.rs` | `plugin_api`, `builtin_plugins` (re-exports) | [Host](/plugins/api/host) |
 | `src/sb_cdp/launch.rs` | `LaunchOptionsBuilder::plugins`, `plugins_named`, `plugin_selection` | [Host](/plugins/api/host) |
 | `src/sb_cdp/browser.rs` | `Browser::connect_with_plugins` | [Host](/plugins/api/host) |
-| `src/browser/config.rs` | `BrowserConfig::with_plugins`, `with_plugins_named`, `with_plugin_selection`, `plugins` | [Host](/plugins/api/host) |
+| `src/browser/config/builder.rs`, `src/browser/config.rs` | `BrowserConfigBuilder::plugins`, `plugins_named`, `plugin_selection`; `BrowserConfig::plugins` | [Host](/plugins/api/host) |
 | `src/plugin_host/` | `builtin_registry`, `build`, `build_with`; the request guard | [Host](/plugins/api/host) |
 | `src/error.rs` | `SeleniumBaseError::Plugin` | [Host](/plugins/api/host) |
 | `src/config/plugins.rs` | `PluginSelection`, `PLUGINS_ENV` | [Selection](/plugins/api/selection) |

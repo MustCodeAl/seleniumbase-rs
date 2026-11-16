@@ -32,9 +32,13 @@ use crate::evasion::patcher::find_system_chrome;
 /// start does not leave it running, on every system. On Unix the driver and the
 /// browser it starts also end with this program when the program is killed
 /// without quitting them.
+/// With no Tokio runtime current, dropping waits until the process is reaped.
+/// On a runtime, the wait runs on the blocking pool, so a worker is not stalled.
 pub struct DriverProcess {
     pub url: String,
-    child: Child,
+    /// Taken when the process is reaped, so `kill` can move it onto the blocking pool.
+    child: Option<Child>,
+    pid: u32,
     _guard: OrphanGuard,
 }
 
@@ -42,13 +46,18 @@ impl DriverProcess {
     /// The operating system's id of the driver process.
     #[must_use]
     pub fn id(&self) -> u32 {
-        self.child.id()
+        self.pid
     }
 
-    /// Best-effort kill of the underlying driver process.
+    /// Ends the driver.
+    ///
+    /// `Child::wait` blocks. A current Tokio runtime reaps the process on its
+    /// blocking pool, so a worker is not stalled. With no runtime, this thread
+    /// waits.
     pub fn kill(&mut self) {
-        let _ = self.child.kill();
-        let _ = self.child.wait();
+        if let Some(child) = self.child.take() {
+            reap_child(child);
+        }
     }
 }
 
@@ -56,6 +65,61 @@ impl Drop for DriverProcess {
     fn drop(&mut self) {
         // Ending an exited process again only returns an error, ignored here.
         self.kill();
+    }
+}
+
+/// Ends `child` and reaps it.
+///
+/// `Child::wait` blocks. A current Tokio runtime reaps on its blocking pool, so a
+/// worker is not stalled. With no runtime, this thread waits, and dropping the
+/// handle still ends the process before it returns.
+pub(crate) fn reap_child(mut child: Child) {
+    let _ = child.kill();
+    hand_off(move || {
+        let _ = child.wait();
+    });
+}
+
+/// Runs `wait` now, or on the runtime's blocking pool when one is current.
+///
+/// `tokio::task::spawn_blocking` panics outside a runtime. [`Handle::try_current`]
+/// returns that absence, so a drop with no runtime still reaps before it returns.
+/// Dropping the [`JoinHandle`] detaches the wait. It is not cancelled, and a
+/// `spawn_blocking` task cannot be aborted once it has started.
+///
+/// [`Handle::try_current`]: tokio::runtime::Handle::try_current
+/// [`JoinHandle`]: tokio::task::JoinHandle
+fn hand_off(wait: impl FnOnce() + Send + 'static) {
+    match tokio::runtime::Handle::try_current() {
+        Ok(handle) => drop(handle.spawn_blocking(wait)),
+        Err(_outside_a_runtime) => wait(),
+    }
+}
+
+#[cfg(test)]
+mod hand_off_tests {
+    use std::sync::mpsc;
+    use std::time::Duration;
+
+    use super::hand_off;
+
+    /// On a current runtime the wait must still be blocked when `hand_off` returns.
+    #[tokio::test(flavor = "current_thread")]
+    async fn a_wait_on_a_runtime_is_not_finished_when_hand_off_returns() {
+        let (gate_tx, gate_rx) = mpsc::channel();
+        let (done_tx, done_rx) = mpsc::channel();
+        hand_off(move || {
+            let _ = gate_rx.recv_timeout(Duration::from_millis(500));
+            let _ = done_tx.send(());
+        });
+        assert!(
+            done_rx.try_recv().is_err(),
+            "the wait finished before hand_off returned"
+        );
+        let _ = gate_tx.send(());
+        done_rx
+            .recv_timeout(Duration::from_secs(2))
+            .expect("the blocking pool never finished the wait");
     }
 }
 
@@ -82,7 +146,8 @@ mod driver_process_tests {
         let pid = child.id();
         let driver = DriverProcess {
             url: "http://127.0.0.1:1".to_owned(),
-            child,
+            child: Some(child),
+            pid,
             // A watcher with nothing enrolled, so only the drop can end `sleep`.
             _guard: OrphanGuard::start(),
         };
@@ -157,10 +222,14 @@ pub async fn launch_chromedriver_at(
         }
     }
 
-    Ok(DriverProcess {
-        url,
-        child,
-        _guard: guard,
+    Ok({
+        let pid = child.id();
+        DriverProcess {
+            url,
+            child: Some(child),
+            pid,
+            _guard: guard,
+        }
     })
 }
 
@@ -426,7 +495,7 @@ pub(crate) fn find_downloaded_or_on_path(
 }
 
 /// The proxy downloads go through: the session's, when
-/// [`with_proxy_for_driver_download`](BrowserConfig::with_proxy_for_driver_download)
+/// [`proxy_for_driver_download`](crate::BrowserConfigBuilder::proxy_for_driver_download)
 /// asks for it.
 fn download_proxy(config: &BrowserConfig) -> Option<String> {
     config
@@ -456,7 +525,7 @@ async fn ensure_geckodriver(config: &BrowserConfig) -> Result<PathBuf, SeleniumB
 /// The msedgedriver an Edge session runs.
 ///
 /// msedgedriver only drives the Edge of its own major version. A version named
-/// with [`with_driver_version`](BrowserConfig::with_driver_version) is fetched
+/// with [`driver_version`](crate::BrowserConfigBuilder::driver_version) is fetched
 /// as [`install_msedgedriver`] says. Otherwise the driver in
 /// `downloaded_drivers/` or on the `PATH` is used when it fits the installed
 /// Edge (or when either version cannot be read), and the driver for that Edge
@@ -563,11 +632,11 @@ impl std::fmt::Debug for ChromedriverPlan {
 /// Which chromedriver `config` calls for.
 ///
 /// A driver version named with
-/// [`with_driver_version`](BrowserConfig::with_driver_version) is pinned. Brave,
+/// [`driver_version`](crate::BrowserConfigBuilder::driver_version) is pinned. Brave,
 /// Comet, Chrome for Testing and `chrome-headless-shell` follow the version of
 /// their own program, since the Chrome that is installed is not the browser they
 /// run. A proxy for downloads
-/// ([`with_proxy_for_driver_download`](BrowserConfig::with_proxy_for_driver_download))
+/// ([`proxy_for_driver_download`](crate::BrowserConfigBuilder::proxy_for_driver_download))
 /// also needs a download of our own, to put the proxy in front of it.
 pub(crate) fn chromedriver_plan(config: &BrowserConfig) -> ChromedriverPlan {
     let proxy = download_proxy(config);
@@ -672,7 +741,7 @@ pub async fn launch_driver_for(
                     format!(
                         "{name} was not found in {DOWNLOADS_DIR}/, where the system keeps it, \
                          or on the PATH; put it in one of them, or start it and name its URL \
-                         with BrowserConfig::with_webdriver_url"
+                         with BrowserConfigBuilder::webdriver_url"
                     ),
                 )
             })?
@@ -727,10 +796,14 @@ async fn launch_driver_binary(
             }
         }
     }
-    Ok(DriverProcess {
-        url,
-        child,
-        _guard: guard,
+    Ok({
+        let pid = child.id();
+        DriverProcess {
+            url,
+            child: Some(child),
+            pid,
+            _guard: guard,
+        }
     })
 }
 
@@ -767,16 +840,25 @@ mod driver_program_tests {
             ChromedriverPlan::Default
         );
         // A proxy alone changes nothing: it is for the session, not the download.
-        let proxied = BrowserConfig::default().with_proxy("u:p@proxy.test:8080");
+        let proxied = BrowserConfig::builder()
+            .proxy("u:p@proxy.test:8080")
+            .build()
+            .expect("a valid config");
         assert_eq!(chromedriver_plan(&proxied), ChromedriverPlan::Default);
         // The switch with no proxy to use changes nothing either.
-        let switch_only = BrowserConfig::default().with_proxy_for_driver_download(true);
+        let switch_only = BrowserConfig::builder()
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(chromedriver_plan(&switch_only), ChromedriverPlan::Default);
     }
 
     #[test]
     fn a_driver_version_pins_the_driver() {
-        let config = BrowserConfig::default().with_driver_version("126".parse().unwrap());
+        let config = BrowserConfig::builder()
+            .driver_version("126".parse().unwrap())
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chromedriver_plan(&config),
             ChromedriverPlan::Pinned {
@@ -795,9 +877,11 @@ mod driver_program_tests {
             Browser::ChromeForTesting,
             Browser::ChromeHeadlessShell,
         ] {
-            let config = BrowserConfig::default()
-                .with_browser(browser)
-                .with_browser_binary_path("/opt/browser/program");
+            let config = BrowserConfig::builder()
+                .browser(browser)
+                .browser_binary_path("/opt/browser/program")
+                .build()
+                .expect("a valid config");
             assert_eq!(
                 chromedriver_plan(&config),
                 ChromedriverPlan::Pinned {
@@ -809,9 +893,11 @@ mod driver_program_tests {
             );
         }
         // An explicit version still wins.
-        let pinned = BrowserConfig::default()
-            .with_browser(Browser::Brave)
-            .with_driver_version(DriverVersion::Milestone(120));
+        let pinned = BrowserConfig::builder()
+            .browser(Browser::Brave)
+            .driver_version(DriverVersion::Milestone(120))
+            .build()
+            .expect("a valid config");
         assert!(matches!(
             chromedriver_plan(&pinned),
             ChromedriverPlan::Pinned {
@@ -823,9 +909,11 @@ mod driver_program_tests {
 
     #[test]
     fn the_session_proxy_is_used_for_downloads_only_when_asked_and_never_printed() {
-        let config = BrowserConfig::default()
-            .with_proxy("user:hunter2@proxy.test:8080")
-            .with_proxy_for_driver_download(true);
+        let config = BrowserConfig::builder()
+            .proxy("user:hunter2@proxy.test:8080")
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         let plan = chromedriver_plan(&config);
         assert_eq!(
             plan,
@@ -895,9 +983,16 @@ mod driver_program_tests {
 
     #[test]
     fn the_download_proxy_is_the_session_proxy_only_when_asked() {
-        let proxied = BrowserConfig::default().with_proxy("u:p@proxy.test:8080");
+        let proxied = BrowserConfig::builder()
+            .proxy("u:p@proxy.test:8080")
+            .build()
+            .expect("a valid config");
         assert_eq!(download_proxy(&proxied), None);
-        let asked = proxied.with_proxy_for_driver_download(true);
+        let asked = proxied
+            .into_builder()
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             download_proxy(&asked).as_deref(),
             Some("u:p@proxy.test:8080")
@@ -906,7 +1001,10 @@ mod driver_program_tests {
 
     #[test]
     fn keep_and_previous_are_planned_without_a_pin_for_keep() {
-        let keep = BrowserConfig::default().with_driver_version(DriverVersion::Keep);
+        let keep = BrowserConfig::builder()
+            .driver_version(DriverVersion::Keep)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chromedriver_plan(&keep),
             ChromedriverPlan::Keep {
@@ -915,9 +1013,12 @@ mod driver_program_tests {
             }
         );
         let named = keep
-            .with_browser_binary_path("/opt/chrome/chrome")
-            .with_proxy("u:p@proxy.test:8080")
-            .with_proxy_for_driver_download(true);
+            .into_builder()
+            .browser_binary_path("/opt/chrome/chrome")
+            .proxy("u:p@proxy.test:8080")
+            .proxy_for_driver_download(true)
+            .build()
+            .expect("a valid config");
         let plan = chromedriver_plan(&named);
         assert_eq!(
             plan,
@@ -928,7 +1029,10 @@ mod driver_program_tests {
         );
         assert!(!format!("{plan:?}").contains("proxy.test"), "{plan:?}");
 
-        let previous = BrowserConfig::default().with_driver_version(DriverVersion::Previous);
+        let previous = BrowserConfig::builder()
+            .driver_version(DriverVersion::Previous)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             chromedriver_plan(&previous),
             ChromedriverPlan::Pinned {
@@ -1067,12 +1171,18 @@ mod driver_program_tests {
         if which::which("operadriver").is_ok() {
             return;
         }
-        let config = BrowserConfig::default().with_browser(Browser::Opera);
+        let config = BrowserConfig::builder()
+            .browser(Browser::Opera)
+            .build()
+            .expect("a valid config");
         let Err(error) = launch_driver_for(&config, None).await else {
             panic!("operadriver was found where none should be");
         };
         let text = error.to_string();
         assert!(text.contains("operadriver"), "{text}");
-        assert!(text.contains("with_webdriver_url"), "{text}");
+        assert!(
+            text.contains("BrowserConfigBuilder::webdriver_url"),
+            "{text}"
+        );
     }
 }

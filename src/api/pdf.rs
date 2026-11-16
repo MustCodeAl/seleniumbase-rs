@@ -158,6 +158,10 @@ impl PdfReader {
 /// The parser has code paths that panic on malformed files (a page tree with
 /// no `MediaBox`, for one). A PDF is untrusted input, so a panic there is
 /// reported as an error instead of ending the caller's test run.
+#[expect(
+    clippy::disallowed_methods,
+    reason = "a panic in the parser on an untrusted PDF becomes an error, not the end of the run"
+)]
 fn guarded<T>(
     work: impl FnOnce() -> Result<T, pdf_extract::OutputError>,
 ) -> Result<T, SeleniumBaseError> {

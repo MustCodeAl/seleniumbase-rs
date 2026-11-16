@@ -31,7 +31,7 @@ pub(crate) struct MkpresArgs {
 impl MkpresArgs {
     /// The test file the arguments describe.
     pub(crate) fn presentation_file(&self) -> Result<PresentationFile, ScaffoldError> {
-        let file = PresentationFile::new(&self.file)?;
+        let file = PresentationFile::try_new(&self.file)?;
         Ok(match self.language {
             Some(language) => file.language(language.language()),
             None => file,
@@ -56,7 +56,7 @@ pub(crate) struct MkchartArgs {
 impl MkchartArgs {
     /// The test file the arguments describe.
     pub(crate) fn chart_file(&self) -> Result<ChartFile, ScaffoldError> {
-        let file = ChartFile::new(&self.file)?;
+        let file = ChartFile::try_new(&self.file)?;
         Ok(match self.language {
             Some(language) => file.language(language.language()),
             None => file,

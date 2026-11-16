@@ -36,7 +36,10 @@ async fn main() -> Result<()> {
     // The first argument, if there is one, is the public page to try.
     let public_url = std::env::args().nth(1);
     let url = public_url.clone().unwrap_or_else(|| site.url(DEMO_PATH));
-    let config = BrowserConfig::default().with_mode(DriverMode::Uc);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .build()
+        .expect("a valid config");
     run_browser_test(config, async |sb| demo(sb, url, public_url.is_none()).await).await
 }
 
@@ -48,7 +51,7 @@ async fn demo(sb: &mut BaseCase, url: String, own_page: bool) -> Result<()> {
     sb.wait_for_ready_state_complete().await?;
     sb.wait_for_element_visible("body", 10).await?;
 
-    let title = sb.get_title().await?;
+    let title = sb.title().await?;
     println!("Title: {title}");
     if own_page {
         ensure(title == "Web Testing Page", "the demo page loaded")?;

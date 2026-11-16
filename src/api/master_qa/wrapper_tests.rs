@@ -94,9 +94,11 @@ fn page_driver(
 }
 
 async fn case(driver: &MockWebDriver, headless: bool) -> BaseCase {
-    let mut config = BrowserConfig::default()
-        .with_headless(headless)
-        .with_webdriver_url(driver.url().to_owned());
+    let mut config = BrowserConfig::builder()
+        .headless(headless)
+        .webdriver_url(driver.url().to_owned())
+        .build()
+        .expect("a valid config");
     config.session.auto_start_driver = false;
     let mut sb = BaseCase::new(config)
         .await

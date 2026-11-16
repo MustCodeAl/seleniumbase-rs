@@ -46,7 +46,7 @@ async fn what_a_test_writes_with_an_element(element: &Element) -> seleniumbase_r
     element.find(".remove").await?.click().await?;
     element.press(Key::Enter).await?;
     element.select_option(SelectBy::Text("Two")).await?;
-    let raw: &WebElement = element.as_webdriver_element();
+    let raw: &WebElement = element.as_webdriver_element().expect("a WebDriver element");
     println!("{} is {}", element, raw.element_id());
     Ok(())
 }
@@ -59,7 +59,10 @@ fn capabilities_of_a_custom_launch_are_given_with_our_types() {
         CapabilityOverrides::from_text(r#"{"goog:chromeOptions": {"args": ["--headless=new"]}}"#)
             .expect("JSON capabilities");
     assert!(caps.keys().any(|key| key == "goog:chromeOptions"));
-    let _config = seleniumbase_rs::BrowserConfig::default().with_capabilities(caps);
+    let _config = seleniumbase_rs::BrowserConfig::builder()
+        .capabilities(caps)
+        .build()
+        .expect("a valid config");
 }
 
 #[test]
@@ -126,10 +129,10 @@ async fn what_a_test_writes_with_a_cookie(sb: &BaseCase) -> seleniumbase_rs::Res
     sb.add_cookie(&Cookie::new("session", "abc123").http_only(true))
         .expiry(true)
         .await?;
-    if let Some(cookie) = sb.get_cookie("session").await? {
+    if let Some(cookie) = sb.cookie("session").await? {
         println!("{cookie:?}");
     }
-    for cookie in sb.get_cookies().await? {
+    for cookie in sb.cookies().await? {
         println!("{} expires {:?}", cookie.name, cookie.expires);
     }
     Ok(())

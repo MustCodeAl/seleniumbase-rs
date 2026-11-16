@@ -27,9 +27,11 @@ const PAGE: &str = "data:text/html,<html><head><title>CDP page</title></head>\
 #[ignore = "requires a local Chrome and chromedriver"]
 #[serial_test::serial(chrome)]
 async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
-    let mut config = BrowserConfig::default()
-        .with_headless(true)
-        .with_mode(DriverMode::Cdp);
+    let mut config = BrowserConfig::builder()
+        .headless(true)
+        .mode(DriverMode::Cdp)
+        .build()
+        .expect("a valid config");
     config.session.auto_start_driver = true;
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(PAGE).await.unwrap();
@@ -113,9 +115,11 @@ async fn the_cdp_helpers_click_read_select_and_report_what_is_missing() {
 #[ignore = "requires a local Chrome and chromedriver"]
 #[serial_test::serial(chrome)]
 async fn cdp_click_hits_the_button_on_a_page_scrolled_down() {
-    let mut config = BrowserConfig::default()
-        .with_headless(true)
-        .with_mode(DriverMode::Cdp);
+    let mut config = BrowserConfig::builder()
+        .headless(true)
+        .mode(DriverMode::Cdp)
+        .build()
+        .expect("a valid config");
     config.session.auto_start_driver = true;
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(PAGE).await.unwrap();

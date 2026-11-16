@@ -58,6 +58,24 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 - A phone GPU's WebGL lists no S3TC, BPTC or RGTC texture compression (`webgl_extensions_vs_renderer`
   is closed): the `webgl` provider drops those extensions when the renderer is an Adreno, Mali or
   PowerVR.
+  dependencies: `owo-colors` writes every style (a style puts its colours before its
+  attributes, as in `ESC[31;1m`), and
+  the `rich_helper` printers write through `anstream`, which strips the escape codes when the
+  stream is piped or `NO_COLOR` is set.
+- **`BaseCase` runs on a direct DevTools attachment** (`BrowserConfig::with_cdp_url`,
+  `with_cdp_discovery`: the stealthy browser, a Tauri or Electron window), as Python's CDP Mode
+  gives `sb.cdp` the methods of `sb`. Navigation, finding and clicking, typing, the waits and
+  assertions, text and attributes, frames, windows and tabs (a handle is the target id), cookies,
+  scripts (also `execute_async_script`), screenshots, alerts (a `Page.javascriptDialogOpening`
+  listener answers `accept_alert`, `dismiss_alert`, `switch_to_alert` and the rest), the mouse
+  (`hover`, `double_click`, `context_click`, the clicks at an offset, `drag_and_drop_with_offset`,
+  `click_chain`) and the downloads folder all go through the pure CDP engine. A method that
+  needs a driver (`cdp_events`, `chromedriver_version`, `install_addon`, Recorder Mode) answers
+  `SeleniumBaseError::Unsupported`, naming the method and the alternative. The design is
+  `docs/design/basecase_over_cdp.md`; `tests/chrome/basecase_cdp_chrome.rs` runs it against a
+  headless Chrome.
+
+
 
 ### Changed
 
@@ -75,6 +93,29 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
   constant `CURRENT_STABLE_MAJOR` and a test that fails when the table is older.
 
+- Dropping a `DriverProcess` or an `XvfbProcess` no longer waits on the thread that drops it when a
+  Tokio runtime is current. The process is still killed, and `Child::wait` runs on the runtime's
+  blocking pool (`Handle::spawn_blocking`; dropping the join handle detaches the wait, it does not
+  cancel it). With no runtime, the drop still waits until the process is reaped, so a session that
+  failed to start does not leave the driver running.
+
+- A poisoned mutex is recovered in one place, `common::poison::locked`. The cleanup list, a reused
+  session, the test logs, the proxy list and the report attempts still answer after a panic held
+  their lock. Clippy disallows `std::panic::catch_unwind`, `FutureExt::catch_unwind` and
+  `PoisonError::into_inner` unless the call carries `#[expect(clippy::disallowed_methods, reason = "...")]`.
+
+- `logs_root_with` takes the lookup for `SB_REPORT_ROOT`. A missing or blank value is still the
+  empty path. `logs_root` reads the environment through that function.
+
+- `ProxySettings`, `ChromiumSettings` and `BrowserSettings` live in files named after them, and so do `SbCase`, `SbCdpCase`, `ScriptImport` and `ScriptImportOptions`. Each is re-exported from the module it left, so the paths are unchanged. `profile_payloads` names each re-export. The crate docs list the functions that change process-wide state (`install_tls_provider`, the `init_tracing` functions, `shutdown_reused_sessions`). A driver-repair test that finds the system did not kill the altered binary logs that with `tracing` instead of printing it.
+
+- `common`, `config`, `utils` and `utilities` have module docs. Each public module of `utilities` has one too.
+
+- The crate root inlines its own re-exports, so the root page of the docs lists the items. `tokio` stays a link. `IdeCommand` names its three fields, and `parse_ide_html` has an example. `ProfileParams` and `Parameters` document each field.
+
+
+
+
 
 ### Fixed
 
@@ -89,6 +130,94 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 
 ### Breaking
+
+- **Breaking: `BrowserConfig` is built with `BrowserConfig::builder()` and `into_builder()`.** The
+  new hand-written type `BrowserConfigBuilder` (no bon) has one setter for each `with_*` method
+  `BrowserConfig` had, named without the prefix (`headless`, `mode`, `proxy`, `switch`, `plugins`;
+  `push_extra_arg` is `extra_arg`), and `build()` returns the configuration:
+  `BrowserConfig::builder().headless(false).mode(DriverMode::Uc).build()?`. A configuration you
+  hold, such as `Settings::to_browser_config()` or `BrowserConfig::from_env()`, goes on through
+  `config.into_builder().mode(DriverMode::Uc).build()?`. The `with_*` methods of `BrowserConfig`
+  are gone, with no alias. The checks that `with_grid`, `with_plugins_named` and
+  `with_plugin_selection` ran, and returned as a `Result`, moved to `build()`: `grid` and the two
+  plugin setters return the builder, and `build()` returns the first error in the order the
+  setters were called (an empty Selenium Grid server name is `InvalidConfig`, an unknown plugin
+  name is `Plugin`). A later `webdriver_url` or `session_settings` replaces a `grid`, and a later
+  `plugins` replaces the names added before it. `build()` does not call `validate()`. The getters
+  of `BrowserConfig` (`esc_end`, `recorder_mode`, `run_settings`, `plugins`, ...) stay, and so do
+  `from_env`, `from_vars` and `validate`. The `uc_config!`, `cdp_config!` and `sb_config!` macros
+  expand to the builder, so they evaluate to a `Result`: `uc_config!()?`.
+
+
+- **Breaking: a plugin error and a database driver error keep their cause.**
+  `SeleniumBaseError::Plugin` has a `source`. `plugin()` still builds one with no
+  source, and the message is still `plugin error: {reason}`. Converting a plugin
+  error keeps it as `source()`. A `turso` error is `DatabaseDriver` (`database error:`
+  plus the driver's message, and `source()` is the driver error). `Database(String)`
+  is unchanged. `S3UploadError`, `AzureUploadError` and `GcsUploadError` are
+  `#[non_exhaustive]`. An S3 or Azure store error is `Upload` or `Bucket` with that
+  error as `source()`, and a blob URL that is not a URL is `MalformedUrl`.
+- **Breaking: `sb_context` keeps the cause.** `ResultExt` requires
+  `E: Error + Send + Sync + 'static`. The error is `SeleniumBaseError::Context`.
+  The message is still `{context}: {error}`, and `source()` is the original error.
+  When that error is a `SeleniumBaseError`, the category, the exit code, the hint
+  and whether it is transient follow the cause. Any other cause is category
+  `context` and exit code 2.
+- **Breaking: example lookup, recorder paths and Selenium IDE parsing return typed
+  errors.** `find_examples` returns `ExamplesError` (the text is unchanged; a failed
+  start of `cargo metadata` and metadata that is not UTF-8 keep their source).
+  `validate_file_name`, `MkrecOptions::check` and `check_in` return `RecorderPathError`,
+  whose text is still the message Python prints after `ERROR: `. `parse_ide_file`
+  returns `IdeParseError`, which displays the operating-system error and keeps it as
+  `source()`. `parse_ide_html` returns the commands. It does not fail.
+- **Breaking: the cloud logging plugins take an upload target.** `S3LoggingPlugin`,
+  `AzureLoggingPlugin` and `GcpLoggingPlugin` are no longer empty values, and `upload_file`, `new`
+  and `Default` are gone. `from_env` reads the account (`SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`,
+  `AWS_SECRET_ACCESS_KEY`, optional `SB_S3_REGION`, `AWS_REGION` and `AWS_ENDPOINT_URL`;
+  `AZURE_BLOB_URL`; `SB_GCS_BUCKET` and `GCS_ACCESS_TOKEN`). `from_lookup` takes the same names from
+  a closure. `upload` writes one file. `Debug` does not include the secret or the access token.
+
+- **Breaking: dropping a `TestRecorder` no longer writes the result.** A panic used to be recorded
+  as failed (`the test panicked`, and `basic_test_info.txt` was written) and a plain drop as
+  unreported (`the test did not finish`). Call `TestRecorder::finish` with the outcome, or
+  `TestRecorder::abandon` when the test never reached one. `abandon` records unreported and does
+  not write `basic_test_info.txt`. `TestRun::finalize` still records a started test that has no end
+  as unreported. A second `test_started` on the reports plugin abandons the previous recorder
+  before it starts the next one.
+
+- **Breaking: the getters of `BrowserSession` and `BeautifulSoup` drop `get_`**, as `BaseCase`'s
+  did. `BrowserSession::cookies`, `cookie`, `attribute`, `property`, `window_size` and
+  `alert_text`; `api::html::BeautifulSoup::text` and `attribute`.
+
+- **Breaking: `Element` runs on either engine.** On a direct DevTools attachment it wraps a
+  `sb_cdp::Locator`, which looks again on every use, so it is never stale. `as_webdriver_element`
+  and `into_webdriver_element` answer `Option` (`None` on that engine), and
+  `BrowserSession::webdriver()` keeps answering `Unsupported` for such a session.
+
+- **Breaking: conversion, accessor and constructor names follow the API rules** (R2, R1 and R4
+  of the API guidelines page). The `name()` of `Browser`, `DriverMode`, the Chrome for Testing
+  artifact and the proxy scheme is `as_str()`, like the other `&'static str` names of the crate;
+  `BrowserConfig::rec_sb_cdp` is `recording_sb_cdp`; a `new` that returns a `Result` is
+  `try_new` (`ExtensionArchive`, `AllureSink`, `RunReporterPlugin`, the scaffold's `RelativeName`
+  and the file types of `sbrs mkdir`, `mkfile` (`TestFile`), `mkchart` and `mkpres`
+  (`PresentationFile`)). `Browser`, `DriverMode` and `Cookie` are `#[non_exhaustive]`: a `match`
+  outside the crate needs a `_` arm, and a `Cookie` is built with `Cookie::new` and its setters
+  (`domain`, `path`, `expires`, `http_only`, `secure`, `same_site`). Rename the calls; the
+  behaviour is the same.
+
+
+- **Breaking: the getters of `BaseCase` have no `get_` prefix** (rule C-GETTER of the API
+  guidelines: a Rust getter is named after what it returns). `get_text` is `text`, `get_title` is
+  `title`, `get_current_url` is `current_url`, and so on for the 78 `get_*` methods of `BaseCase`,
+  its capability traits (`BrowserApi::title` and `url`, `ElementApi::text` and `attribute`) and
+  `CdpPage` (`get_all_links` is `all_links`, `get_cookies` is `cookies`, `get_jqc_text_input` is
+  `jqc_text_input`, `get_new_driver` is `new_driver`). Kept: `get_browser` (it returns a
+  `BrowserConfig` copy and is redesigned apart), `html::get_text` and `get_attribute`, and the
+  names of the MCP tools. The Python names are unchanged and stay findable through
+  `parity/api.toml`, the Python importer and the `find_api` and `parity_lookup` tools. Where
+  the plain name was taken, the old private helper was dropped (`current_window_handle` of the
+  recorder was the same call). Rename the calls; the behaviour is the same.
+
 
 - **Breaking: the `BrowserConfig` setters spell their words out.** `with_rec_sb_cdp`, `with_rec_print`,
   `with_rec_behave` and `with_rec_sb_mgr` are now `with_recording_sb_cdp`, `with_recording_print`,
@@ -1620,7 +1749,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
   the channel's page is `default_page()`, its commands carry no `sessionId`, ordered commands
   wait for each answer, and it opens no tabs. `Page::apply_fingerprint` now asks for the tab's
   browser context only when the fingerprint grants a permission. See
-  [the Tauri guide](/ecosystem/tauri#stealth-inside-the-app-with-no-debugging-port).
+  [the Tauri guide](/ecosystem/tauri-browser#give-your-shipped-webview-a-fingerprint).
 - **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
   checks the result.** The widget is looked for in the page, its open shadow roots and the frames
   it may read, by the id and title Cloudflare gives its frame as well as by address; a page that

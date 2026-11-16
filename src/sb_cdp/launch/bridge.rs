@@ -124,7 +124,7 @@ impl Layer {
         if !config.browser.kind.is_chromium_based() {
             tracing::warn!(
                 "the pure CDP engine drives Chromium browsers only; {} is not used",
-                config.browser.kind.name()
+                config.browser.kind.as_str()
             );
         }
         Self {
@@ -288,7 +288,10 @@ mod tests {
 
     #[test]
     fn a_bad_proxy_in_a_config_fails_the_build_without_echoing_the_password() {
-        let config = BrowserConfig::default().with_proxy("user:hunter2@host:notaport");
+        let config = BrowserConfig::builder()
+            .proxy("user:hunter2@host:notaport")
+            .build()
+            .expect("a valid config");
         let error = LaunchOptionsBuilder::default()
             .browser_config(&config)
             .build()

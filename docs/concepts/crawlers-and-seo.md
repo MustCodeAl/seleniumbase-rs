@@ -402,8 +402,8 @@ The library does **not** have a crawler today: no frontier, no depth limit, no
 robots.txt parser. What it has are the building blocks of a link check, on
 `BaseCase`:
 
-- `get_all_links()` returns the `href` of every `a` element on the current page.
-- `get_link_status_code(url)` returns the HTTP status of a link. It sends a
+- `all_links()` returns the `href` of every `a` element on the current page.
+- `link_status_code(url)` returns the HTTP status of a link. It sends a
   `HEAD` request, repeats it as `GET` when the server answers 405 or 501, and
   does **not** follow redirects, so a moved page shows as 301 or 302. This
   matches Python SeleniumBase.
@@ -416,7 +416,7 @@ robots.txt parser. What it has are the building blocks of a link check, on
 sb.open("https://example.com").await?;
 
 // Check one page: every same-site link must not be a 404.
-let links = sb.get_all_links().await?;
+let links = sb.all_links().await?;
 for link in links.iter().filter(|l| l.starts_with("https://example.com")) {
     sb.assert_link_status_code_is_not_404(link).await?;
 }
@@ -446,10 +446,10 @@ The library has no SEO audit, and nothing to check a canonical link, a meta
 description, the robots tag or JSON-LD directly. It gives you the pieces to read
 them from the live page.
 
-- **Title.** `BaseCase::get_title`, `assert_title(expected)` and
+- **Title.** `BaseCase::title`, `assert_title(expected)` and
   `assert_title_contains(expected)`. The pure CDP engine has `Page::title()` and
   page expectations `to_have_title` and `to_contain_title`.
-- **Tags in the head.** `BaseCase::get_attribute(css, attribute)` returns the
+- **Tags in the head.** `BaseCase::attribute(css, attribute)` returns the
   attribute of an element as an `Option<String>`. It first waits for the element
   to be present, so it suits tags that must exist. For a tag that may be absent,
   read it with `execute_script`, or `Page::evaluate` on the pure CDP engine.
@@ -470,10 +470,10 @@ use seleniumbase_rs::api::html_inspector::HtmlInspector;
 sb.open("https://example.com/shoes/trail-runner").await?;
 sb.assert_title_contains("Trail Runner").await?;
 
-// Tags that must exist: get_attribute waits for them.
-let description = sb.get_attribute("meta[name=description]", "content").await?;
+// Tags that must exist: attribute waits for them.
+let description = sb.attribute("meta[name=description]", "content").await?;
 assert!(description.is_some_and(|text| (50..=160).contains(&text.len())));
-let canonical = sb.get_attribute("link[rel=canonical]", "href").await?;
+let canonical = sb.attribute("link[rel=canonical]", "href").await?;
 assert_eq!(canonical.as_deref(), Some("https://example.com/shoes/trail-runner"));
 
 // A tag that may be absent: read it with a script instead.

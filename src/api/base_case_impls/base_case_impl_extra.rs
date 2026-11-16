@@ -471,7 +471,7 @@ impl BaseCase {
         &mut self,
         substring: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if url.contains(substring) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Expected URL '{}' to not contain '{}'",
@@ -488,7 +488,7 @@ impl BaseCase {
     ) -> Result<(), SeleniumBaseError> {
         let re = regex::Regex::new(regex)
             .map_err(|e| SeleniumBaseError::AssertionFailed(e.to_string()))?;
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if !re.is_match(&url) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Expected URL '{}' to match regex '{}'",
@@ -630,6 +630,44 @@ impl BaseCase {
         Ok(visible)
     }
 
+    /// The element `script` returns (`return document.querySelector(..);`) as
+    /// an `Element` called `name`, or `None` if it returns none.
+    ///
+    /// A WebDriver session gets an element reference back from the script. A
+    /// CDP session cannot be handed a node, so the script's node is marked in
+    /// the page and looked up by the mark.
+    async fn element_from_script(
+        &mut self,
+        script: &str,
+        name: String,
+    ) -> Result<Option<Element>, SeleniumBaseError> {
+        if self.session.pure_cdp_page().is_none() {
+            let result = self.execute_script(script).await?;
+            return self.element_from_script_result(result, name).await;
+        }
+        let mark_attr = format!("sb-find-mark-{}", rand::rng().random::<u64>());
+        let marked = format!(
+            "var __found = (function() {{ {script}\n}})(); \
+             if (!__found || !__found.setAttribute) {{ return false; }} \
+             __found.setAttribute('{mark_attr}', '1'); return true;"
+        );
+        if self.execute_script(&marked).await? != Value::Bool(true) {
+            return Ok(None);
+        }
+        let selector = SelectorBuf::css(format!("[{mark_attr}='1']"));
+        let Ok(element) = self.session.find(selector).await else {
+            return Ok(None);
+        };
+        let _ = element
+            .run_script(
+                "arguments[0].removeAttribute(arguments[1]);",
+                &[Value::String(mark_attr)],
+            )
+            .await;
+        Ok(Some(element.named(name)))
+    }
+
+
     /// Helper to convert a WebDriver element JSON response into an `Element` called `name`: the
     /// temporary marker it is looked up by is taken off again, so it cannot name the element.
     async fn element_from_script_result(
@@ -655,12 +693,12 @@ impl BaseCase {
         match self.session.find(selector).await {
             Ok(el) => {
                 // Remove the marker attribute.
-                let _ = self.session.webdriver()?
-                    .execute(
-                        "arguments[0].removeAttribute(arguments[1]);",
-                        vec![el.reference()?, Value::String(mark_attr)],
-                    )
-                    .await;
+                let _ = el
+                                    .run_script(
+                                        "arguments[0].removeAttribute(arguments[1]);",
+                                        &[Value::String(mark_attr)],
+                                    )
+                                    .await;
                 Ok(Some(el.named(name)))
             }
             Err(_) => Ok(None),
@@ -682,7 +720,10 @@ impl BaseCase {
             let Ok(element) = self.session.find(shadow_find::checked(css)?).await else {
                 return Ok(false);
             };
-            return Ok(element.as_webdriver_element().attr(attribute).await?.is_some());
+            return Ok(match element.as_webdriver_element() {
+                            Some(raw) => raw.attr(attribute).await?.is_some(),
+                            None => element.attribute(attribute).await?.is_some(),
+                        });
         }
         let script = format!(
             "var el = document.querySelector({}); return !!(el && el.hasAttribute({}));",
@@ -934,7 +975,7 @@ impl BaseCase {
 
     /// Switches focus to the tab/window with index `index` (0-based).
     pub async fn switch_to_tab(&self, index: usize) -> Result<(), SeleniumBaseError> {
-        let handles = self.get_all_window_handles().await?;
+        let handles = self.all_window_handles().await?;
         let handle = handles.get(index).ok_or_else(|| {
             SeleniumBaseError::AssertionFailed(format!("No tab at index {}", index))
         })?;
@@ -948,7 +989,7 @@ impl BaseCase {
 
     /// Switches focus to the most recently opened tab/window.
     pub async fn switch_to_newest_tab(&self) -> Result<(), SeleniumBaseError> {
-        let handles = self.get_all_window_handles().await?;
+        let handles = self.all_window_handles().await?;
         let last = handles.last().ok_or_else(|| {
             SeleniumBaseError::AssertionFailed("No windows available".to_owned())
         })?;
@@ -956,20 +997,17 @@ impl BaseCase {
     }
 
     /// Returns all open window/tab handles.
-    pub async fn get_all_window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
-        let handles = self.session.webdriver()?
-            .windows()
-            .await?;
-        Ok(handles.into_iter().map(|h| h.to_string()).collect())
-    }
+    pub async fn all_window_handles(&self) -> Result<Vec<String>, SeleniumBaseError> {
+            self.session.window_handles().await
+        }
 
     /// Returns the handle of the currently focused window/tab.
-    pub async fn get_current_window_handle(&self) -> Result<String, SeleniumBaseError> {
-        let handle = self.session.webdriver()?
-            .window()
-            .await?;
-        Ok(handle.to_string())
-    }
+    pub async fn current_window_handle(&self) -> Result<String, SeleniumBaseError> {
+            self.session.window_handle().await
+        }
+    
+
+    
 
     /// Raises the z-index of the element `css` to 999999 once it is visible.
     /// Use it when a click fails with "Other element would receive the
@@ -994,11 +1032,15 @@ impl BaseCase {
 
     /// Focuses the current browser window.
     pub(crate) async fn focus_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?
-            .execute("window.focus();", vec![])
-            .await?;
-        Ok(())
-    }
+            if let Some(page) = self.session.pure_cdp_page() {
+                return page.bring_to_front().await;
+            }
+            self.session
+                .webdriver()?
+                .execute("window.focus();", vec![])
+                .await.map_err(SeleniumBaseError::from)?;
+            Ok(())
+        }
 
     // ========================================================================
     // Frame helpers
@@ -1033,6 +1075,19 @@ impl BaseCase {
         FrameSwitch::new(self, frame.into())
     }
 
+    /// The attribute `name` of `element`: the markup's, as a
+    /// WebDriver session reads it, and the page's `getAttribute` on a CDP one.
+    async fn markup_attribute(
+            element: &Element,
+            name: &str,
+        ) -> Result<Option<String>, SeleniumBaseError> {
+            match element.as_webdriver_element() {
+                Some(raw) => Ok(raw.attr(name).await?),
+                None => element.attribute(name).await,
+            }
+        }
+
+
     /// Switches into the `<iframe>` or `<frame>` that holds the element `css`
     /// and returns the frame's `name` (or its `id`, or an empty string if it
     /// has neither). Returns `None`, and switches nothing, when the element is
@@ -1049,32 +1104,35 @@ impl BaseCase {
     /// current document holds the element; the frame context is then as it
     /// was.
     pub async fn switch_to_frame_of_element(
-        &mut self,
-        css: &str,
-    ) -> Result<Option<String>, SeleniumBaseError> {
-        if self.is_element_present(css).await? {
-            return Ok(None);
-        }
-        let frames = self.session.find_all(SelectorBuf::css("iframe, frame")).await?;
-        for frame in frames {
-            let frame = frame.into_webdriver_element();
-            let name = frame.attr("name").await?.filter(|name| !name.is_empty());
-            let identifier = match name {
-                Some(name) => name,
-                None => frame.attr("id").await?.unwrap_or_default(),
-            };
-            if frame.enter_frame().await.is_err() {
-                continue;
+            &mut self,
+            css: &str,
+        ) -> Result<Option<String>, SeleniumBaseError> {
+            if self.is_element_present(css).await? {
+                return Ok(None);
             }
-            if self.is_element_present(css).await.unwrap_or(false) {
-                return Ok(Some(identifier));
+            let frames = self.session.find_all(SelectorBuf::css("iframe, frame")).await?;
+            for frame in frames {
+                let name = Self::markup_attribute(&frame, "name")
+                    .await?
+                    .filter(|name| !name.is_empty());
+                let identifier = match name {
+                    Some(name) => name,
+                    None => Self::markup_attribute(&frame, "id")
+                        .await?
+                        .unwrap_or_default(),
+                };
+                if self.session.enter_frame_element(&frame).await.is_err() {
+                    continue;
+                }
+                if self.is_element_present(css).await.unwrap_or(false) {
+                    return Ok(Some(identifier));
+                }
+                self.switch_to_parent_frame().await?;
             }
-            self.switch_to_parent_frame().await?;
+            Err(SeleniumBaseError::AssertionFailed(format!(
+                "Could not switch to an iframe containing element '{css}'"
+            )))
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "Could not switch to an iframe containing element '{css}'"
-        )))
-    }
 
     // ========================================================================
     // Console log capture (JS-based, no CDP required)
@@ -1112,7 +1170,7 @@ impl BaseCase {
     }
 
     /// Returns all console log lines recorded so far.
-    pub async fn get_recorded_console_logs(&self) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn recorded_console_logs(&self) -> Result<Vec<String>, SeleniumBaseError> {
         let result = self
             .execute_script("return window.__sbConsoleLogs || [];")
             .await?;
@@ -1133,7 +1191,7 @@ impl BaseCase {
     // ========================================================================
 
     /// Generates the current TOTP code for `secret`.
-    pub fn get_totp_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
+    pub fn totp_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
@@ -1141,20 +1199,20 @@ impl BaseCase {
         generate_totp(secret, now)
     }
 
-    /// Alias for `get_totp_code`.
-    pub fn get_mfa_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
-        self.get_totp_code(secret)
+    /// Alias for `totp_code`.
+    pub fn mfa_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
+        self.totp_code(secret)
     }
 
-    /// Alias for `get_totp_code` (Google Authenticator uses standard TOTP).
-    pub fn get_google_auth_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
-        self.get_totp_code(secret)
+    /// Alias for `totp_code` (Google Authenticator uses standard TOTP).
+    pub fn google_auth_code(&self, secret: &str) -> Result<String, SeleniumBaseError> {
+        self.totp_code(secret)
     }
 
-    /// Alias for `get_totp_code`: Python's `get_google_auth_password(totp_key)`
+    /// Alias for `totp_code`: Python's `get_google_auth_password(totp_key)`
     /// is the same call as its `get_mfa_code`.
-    pub fn get_google_auth_password(&self, totp_key: &str) -> Result<String, SeleniumBaseError> {
-        self.get_mfa_code(totp_key)
+    pub fn google_auth_password(&self, totp_key: &str) -> Result<String, SeleniumBaseError> {
+        self.mfa_code(totp_key)
     }
 
 
@@ -1166,7 +1224,7 @@ impl BaseCase {
         css: &str,
         secret: &str,
     ) -> Result<(), SeleniumBaseError> {
-        let code = self.get_totp_code(secret)?;
+        let code = self.totp_code(secret)?;
         self.type_text(css, &format!("{code}\n")).await
     }
 
@@ -1199,7 +1257,7 @@ impl BaseCase {
     // ========================================================================
 
     /// Returns the list of files in the browser's default download folder.
-    pub fn get_downloaded_files(
+    pub fn downloaded_files(
         &self,
     ) -> Result<Vec<PathBuf>, SeleniumBaseError> {
         let dir = default_download_dir();
@@ -1260,7 +1318,7 @@ impl BaseCase {
         url: &str,
         filename: &str,
         timeout_secs: u64,
-    ) -> Result<PathBuf, SeleniumBaseError> { let original = self.get_current_window_handle().await?;
+    ) -> Result<PathBuf, SeleniumBaseError> { let original = self.current_window_handle().await?;
     self.session.switch_to_new_window().await?;
     self.open(url).await?;
     let expected = crate::artifacts::confined_path(&default_download_dir(), filename)?;
@@ -1318,7 +1376,7 @@ impl BaseCase {
         };
         let folder = folder.map_or_else(default_download_dir, Path::to_path_buf);
         let path = crate::artifacts::confined_path(&folder, &name)?;
-        let agent = self.get_user_agent().await?;
+        let agent = self.user_agent().await?;
         let body = fetch_bytes(file_url, &agent).await?;
         fs::create_dir_all(&folder)?;
         fs::write(&path, body)?;
@@ -1482,6 +1540,71 @@ impl BaseCase {
         self.click_at_offset(action, css, offset, double, options).await
     }
 
+    /// The click of [`click_at_offset`](Self::click_at_offset) on a CDP session:
+    /// `x` and `y` pixels from the centre of `element`, with real mouse events.
+    async fn click_at_offset_cdp(
+        &self,
+        element: &Element,
+        x: i64,
+        y: i64,
+        double: bool,
+    ) -> Result<(), SeleniumBaseError> {
+        let at = Self::cdp_offset_point(element, x, y).await?;
+        let mouse = element
+            .as_locator()
+            .ok_or_else(|| SeleniumBaseError::Unsupported("not a CDP element".to_owned()))?
+            .page()
+            .mouse();
+        if double {
+            mouse.double_click(at).await?;
+        } else {
+            mouse.click(at).await?;
+        }
+        self.demo_pause(PauseKind::Full).await;
+        Ok(())
+    }
+
+    /// The drag of [`drag_and_drop_with_offset`](Self::drag_and_drop_with_offset)
+    /// on a CDP session: from the centre of `element` by `x` and `y` pixels.
+    async fn drag_by_offset_cdp(
+        &self,
+        element: &Element,
+        x: i64,
+        y: i64,
+    ) -> Result<(), SeleniumBaseError> {
+        let from = Self::cdp_offset_point(element, 0, 0).await?;
+        let to = crate::sb_cdp::Point {
+            x: from.x + x as f64,
+            y: from.y + y as f64,
+        };
+        element
+            .as_locator()
+            .ok_or_else(|| SeleniumBaseError::Unsupported("not a CDP element".to_owned()))?
+            .page()
+            .mouse()
+            .drag(from, to)
+            .await
+    }
+
+    /// The point `x` and `y` pixels from the centre of the CDP element
+    /// `element`, in the window's viewport, after scrolling it into view.
+    async fn cdp_offset_point(
+        element: &Element,
+        x: i64,
+        y: i64,
+    ) -> Result<crate::sb_cdp::Point, SeleniumBaseError> {
+        let locator = element
+            .as_locator()
+            .ok_or_else(|| SeleniumBaseError::Unsupported("not a CDP element".to_owned()))?;
+        locator.scroll_into_view().await?;
+        let rect = locator.viewport_rect().await?;
+        Ok(crate::sb_cdp::Point {
+            x: rect.x + rect.width / 2.0 + x as f64,
+            y: rect.y + rect.height / 2.0 + y as f64,
+        })
+    }
+
+
     /// The click behind [`click_with_offset`](Self::click_with_offset) and
     /// [`double_click_with_offset`](Self::double_click_with_offset). It records
     /// `action` with the offset as `x, y`, or `x, y, center` for an offset from
@@ -1544,9 +1667,14 @@ impl BaseCase {
             self.execute_script(&script).await?;
         }
         let (from_x, from_y) = offset_from_center((x, y), (size.width, size.height), center);
-        let chain = self.session.webdriver()?
-            .action_chain()
-            .move_to_element_with_offset(element.as_webdriver_element(), from_x, from_y);
+        let Some(raw) = element.as_webdriver_element() else {
+                    return self.click_at_offset_cdp(&element, from_x, from_y, double).await;
+                };
+                let chain = self
+                    .session
+                    .webdriver()?
+                    .action_chain()
+                    .move_to_element_with_offset(raw, from_x, from_y);
         let chain = if double {
             chain.double_click()
         } else {
@@ -1589,27 +1717,42 @@ impl BaseCase {
         self.record("drag_and_drop_with_offset", Some(css), None);
         self.demo_highlight(css).await?;
         let element = self.session.find(selector).await?;
-        self.session.webdriver()?
-            .action_chain()
-            .drag_and_drop_element_by_offset(element.as_webdriver_element(), x, y)
-            .perform()
-            .await?;
+        match element.as_webdriver_element() {
+                    Some(raw) => {
+                        self.session
+                            .webdriver()?
+                            .action_chain()
+                            .drag_and_drop_element_by_offset(raw, x, y)
+                            .perform()
+                            .await.map_err(SeleniumBaseError::from)?;
+                    }
+                    None => self.drag_by_offset_cdp(&element, x, y).await?,
+                }
         self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
     /// Clicks a sequence of elements in order.
     pub async fn click_chain(&mut self, css_list: &[&str]) -> Result<(), SeleniumBaseError> {
-        let mut chain = self.session.webdriver()?.action_chain();
-        for css in css_list {
-            let selector = shadow_find::checked(*css)?;
-            let element = self.session.find(selector).await?;
-            chain = chain
-                .move_to_element_center(element.as_webdriver_element())
-                .click();
+            if self.session.pure_cdp_page().is_some() {
+                // The DevTools engine has no action chain: each element is clicked in turn.
+                for css in css_list {
+                    let selector = shadow_find::checked(*css)?;
+                    self.session.find(selector).await?.click().await?;
+                }
+                return Ok(());
+            }
+            let mut chain = self.session.webdriver()?.action_chain();
+            for css in css_list {
+                let selector = shadow_find::checked(*css)?;
+                let element = self.session.find(selector).await?;
+                let Some(raw) = element.as_webdriver_element() else {
+                    continue;
+                };
+                chain = chain.move_to_element_center(raw).click();
+            }
+            chain.perform().await.map_err(SeleniumBaseError::from)
         }
-        chain.perform().await.map_err(SeleniumBaseError::from)
-    }
 
     // ========================================================================
     // Wait helpers (additional variants)
@@ -1727,7 +1870,7 @@ impl BaseCase {
             self.effective_timeout(timeout_secs),
             format!("Title did not contain '{substring}'"),
             || async {
-                let title = self.session.webdriver()?.title().await?;
+                let title = self.session.current_title().await?;
                 Ok(if title.contains(substring) {
                     Polled::Found(())
                 } else {
@@ -1822,12 +1965,12 @@ impl BaseCase {
     }
 
     /// Returns the path to the latest logs directory.
-    pub fn get_log_path(&self) -> Result<PathBuf, SeleniumBaseError> {
+    pub fn log_path(&self) -> Result<PathBuf, SeleniumBaseError> {
         ensure_latest_logs_dir()
     }
 
     /// Returns the browser download folder path.
-    pub fn get_browser_downloads_folder(&self) -> PathBuf {
+    pub fn browser_downloads_folder(&self) -> PathBuf {
         default_download_dir()
     }
 
@@ -1855,22 +1998,22 @@ impl BaseCase {
         self.refresh().await
     }
 
-    /// Alias for `get_current_url`.
-    pub async fn get_url(&mut self) -> Result<String, SeleniumBaseError> {
-        self.get_current_url().await
+    /// Alias for `current_url`.
+    pub async fn url(&mut self) -> Result<String, SeleniumBaseError> {
+        self.current_url().await
     }
 
-    /// Alias for `get_title`.
-    pub async fn get_page_title(&mut self) -> Result<String, SeleniumBaseError> {
-        self.get_title().await
+    /// Alias for `title`.
+    pub async fn page_title(&mut self) -> Result<String, SeleniumBaseError> {
+        self.title().await
     }
 
-    /// Alias for `get_text`.
-    pub async fn get_text_of_element(
+    /// Alias for `text`.
+    pub async fn text_of_element(
         &mut self,
         css: &str,
     ) -> Result<String, SeleniumBaseError> {
-        self.get_text(css).await
+        self.text(css).await
     }
 }
 

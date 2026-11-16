@@ -211,7 +211,7 @@ impl RunReporterPlugin {
     ///
     /// Returns the error that made the run: the settings could not be read or
     /// the run folder could not be used.
-    pub fn new() -> Result<Self> {
+    pub fn try_new() -> Result<Self> {
         Ok(Self::with_run(TestRun::current()?))
     }
 
@@ -228,6 +228,11 @@ impl RunReporterPlugin {
 #[async_trait]
 impl TestPlugin for RunReporterPlugin {
     async fn test_started(&mut self, test: &str) -> Result<()> {
+        if let Some(previous) = self.recorder.take()
+            && let Err(error) = previous.abandon()
+        {
+            tracing::warn!(%error, "the previous test's result could not be written");
+        }
         self.recorder = Some(self.run.start(TestId::named(test))?);
         Ok(())
     }

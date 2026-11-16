@@ -1,8 +1,6 @@
 //! Finding elements and acting on them: clicks, typing, selects, drags and
 //! the questions asked of an element.
 
-use thirtyfour::prelude::WebElement;
-
 use crate::browser::element::Element;
 use crate::sb_cdp::SelectBy;
 use crate::utils::selectors::SelectorBuf;
@@ -159,6 +157,10 @@ impl BrowserSession {
         &self,
         selector: impl Into<SelectorBuf>,
     ) -> Result<Element, SeleniumBaseError> {
+        if let Some(page) = self.pure_cdp_page() {
+            return Box::pin(self.cdp_find(&page, selector.into())).await;
+        }
+
         let driver = self.webdriver()?;
         let selector = selector.into();
         let by = shadow_find::by_of(&selector)?;
@@ -179,6 +181,10 @@ impl BrowserSession {
         &self,
         selector: impl Into<SelectorBuf>,
     ) -> Result<Vec<Element>, SeleniumBaseError> {
+        if let Some(page) = self.pure_cdp_page() {
+            return Box::pin(self.cdp_find_all(&page, selector.into())).await;
+        }
+
         let driver = self.webdriver()?;
         let selector = selector.into();
         let by = shadow_find::by_of(&selector)?;
@@ -201,14 +207,13 @@ impl BrowserSession {
     }
 
     /// WebDriver interaction: `get_attribute`.
-    pub async fn get_attribute(
+    pub async fn attribute(
         &mut self,
         selector: impl Into<SelectorBuf>,
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.find(selector).await?;
-        self.attribute_or_property(element.as_webdriver_element(), attribute_name)
-            .await
+        self.attribute_or_property(&element, attribute_name).await
     }
 
     /// The value of `name` on `element`, as Selenium's `get_attribute` gives it:
@@ -227,14 +232,11 @@ impl BrowserSession {
     /// Returns an error if the driver fails.
     pub(crate) async fn attribute_or_property(
         &self,
-        element: &WebElement,
+        element: &Element,
         name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        let value = self
-            .webdriver()?
-            .execute(GET_ATTRIBUTE, vec![element.to_json()?, json!(name)])
-            .await?;
-        Ok(value.json().as_str().map(str::to_owned))
+        let value = element.run_script(GET_ATTRIBUTE, &[json!(name)]).await?;
+        Ok(value.as_str().map(str::to_owned))
     }
 
     /// Clicks `element` with a script (`element.click()`), which reaches an
@@ -247,15 +249,12 @@ impl BrowserSession {
         &self,
         element: &Element,
     ) -> Result<(), SeleniumBaseError> {
-        let reference = element.reference()?;
-        self.webdriver()?
-            .execute("arguments[0].click();", vec![reference])
-            .await?;
+        element.run_script("arguments[0].click();", &[]).await?;
         Ok(())
     }
 
     /// WebDriver interaction: `get_property`.
-    pub async fn get_property(
+    pub async fn property(
         &mut self,
         selector: impl Into<SelectorBuf>,
         property_name: &str,
@@ -362,7 +361,10 @@ mod tests {
     }
 
     async fn session(driver: &MockWebDriver) -> BrowserSession {
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         BrowserSession::connect(config).await.expect("connects")
     }
@@ -375,7 +377,14 @@ mod tests {
         let found = session.find("#a").await.unwrap();
 
         assert_eq!(found.to_string(), "#a");
-        assert_eq!(found.as_webdriver_element().element_id().to_string(), "e1");
+        assert_eq!(
+            found
+                .as_webdriver_element()
+                .unwrap()
+                .element_id()
+                .to_string(),
+            "e1"
+        );
         let rows = session.find_all(".row").await.unwrap();
         assert_eq!(rows.len(), 2);
         assert!(rows.iter().all(|row| row.to_string() == ".row"));

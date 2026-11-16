@@ -874,26 +874,33 @@ mod conversion_tests {
             }
         );
 
-        let grid = BrowserConfig::default()
-            .with_headless(false)
-            .with_webdriver_url("http://grid.example.com:4444/wd/hub");
+        let grid = BrowserConfig::builder()
+            .headless(false)
+            .webdriver_url("http://grid.example.com:4444/wd/hub")
+            .build()
+            .expect("a valid config");
         let context = launch_context(&grid, BrowserFamily::Chromium);
         assert!(context.connecting, "a remote server starts the browser");
         assert!(!context.headless);
 
         // Safari always has a window, whatever the headless setting says.
-        let safari = BrowserConfig::default().with_browser(Browser::Safari);
+        let safari = BrowserConfig::builder()
+            .browser(Browser::Safari)
+            .build()
+            .expect("a valid config");
         assert!(!launch_context(&safari, BrowserFamily::Safari).headless);
     }
 
     fn chrome() -> BrowserConfig {
-        BrowserConfig::default()
-            .with_extra_args(["--mute-audio"])
-            .with_capabilities(caps(
+        BrowserConfig::builder()
+            .extra_args(["--mute-audio"])
+            .capabilities(caps(
                 r#"{"goog:chromeOptions": {"prefs": {"intl.accept_languages": "de-DE"}}}"#,
             ))
-            .with_extension_dir("/opt/ext/a,/opt/ext/b")
-            .with_proxy("alice:s3cret@proxy.example.com:8080")
+            .extension_dir("/opt/ext/a,/opt/ext/b")
+            .proxy("alice:s3cret@proxy.example.com:8080")
+            .build()
+            .expect("a valid config")
     }
 
     #[test]
@@ -913,7 +920,10 @@ mod conversion_tests {
     #[test]
     fn settings_left_alone_change_nothing() {
         let firefox = {
-            let mut config = BrowserConfig::default().with_browser(Browser::Firefox);
+            let mut config = BrowserConfig::builder()
+                .browser(Browser::Firefox)
+                .build()
+                .expect("a valid config");
             config.session.firefox.add_args("width=800").unwrap();
             config
                 .session
@@ -927,7 +937,10 @@ mod conversion_tests {
             (BrowserConfig::default(), BrowserFamily::Chromium),
             (firefox, BrowserFamily::Firefox),
             (
-                BrowserConfig::default().with_browser(Browser::Safari),
+                BrowserConfig::builder()
+                    .browser(Browser::Safari)
+                    .build()
+                    .expect("a valid config"),
                 BrowserFamily::Safari,
             ),
         ] {
@@ -999,7 +1012,10 @@ mod conversion_tests {
 
     #[test]
     fn edge_preferences_go_to_its_own_options() {
-        let mut config = BrowserConfig::default().with_browser(Browser::Edge);
+        let mut config = BrowserConfig::builder()
+            .browser(Browser::Edge)
+            .build()
+            .expect("a valid config");
         let mut settings = settings_of(&config, BrowserFamily::Chromium);
         settings
             .prefs
@@ -1040,7 +1056,10 @@ mod conversion_tests {
 
     #[test]
     fn firefox_takes_arguments_and_preferences_as_its_own_options() {
-        let mut config = BrowserConfig::default().with_browser(Browser::Firefox);
+        let mut config = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .build()
+            .expect("a valid config");
         config.session.firefox.add_preferences("a.b:1").unwrap();
         let mut settings = settings_of(&config, BrowserFamily::Firefox);
         assert_eq!(settings.prefs["a.b"], 1);
@@ -1069,7 +1088,10 @@ mod conversion_tests {
 
     #[test]
     fn a_firefox_preference_that_is_not_a_flag_number_or_text_is_refused() {
-        let mut config = BrowserConfig::default().with_browser(Browser::Firefox);
+        let mut config = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .build()
+            .expect("a valid config");
         let mut settings = settings_of(&config, BrowserFamily::Firefox);
         settings
             .prefs
@@ -1086,7 +1108,10 @@ mod conversion_tests {
     #[test]
     fn what_firefox_and_safari_cannot_take_at_launch_is_refused() {
         let refused = |browser: Browser, family: BrowserFamily, change: fn(&mut LaunchSettings)| {
-            let mut config = BrowserConfig::default().with_browser(browser);
+            let mut config = BrowserConfig::builder()
+                .browser(browser)
+                .build()
+                .expect("a valid config");
             let mut settings = settings_of(&config, family);
             change(&mut settings);
             let error = apply_settings(&mut config, family, settings).unwrap_err();
@@ -1150,7 +1175,10 @@ mod conversion_tests {
     #[tokio::test]
     async fn before_launch_changes_the_config_the_session_starts_with() {
         let (plugins, log) = recorder(Requirements::empty(), true);
-        let config = BrowserConfig::default().with_plugins(plugins);
+        let config = BrowserConfig::builder()
+            .plugins(plugins)
+            .build()
+            .expect("a valid config");
 
         let config = before_launch(config).await.unwrap();
 
@@ -1163,7 +1191,10 @@ mod conversion_tests {
     #[tokio::test]
     async fn a_refused_plugin_runs_no_hook() {
         let (plugins, log) = recorder(Requirements::HEADFUL, false);
-        let config = BrowserConfig::default().with_plugins(plugins);
+        let config = BrowserConfig::builder()
+            .plugins(plugins)
+            .build()
+            .expect("a valid config");
 
         let error = before_launch(config).await.unwrap_err();
 
@@ -1177,9 +1208,11 @@ mod conversion_tests {
     #[tokio::test]
     async fn a_remote_server_is_refused_to_a_launch_only_plugin() {
         let (plugins, _) = recorder(Requirements::LAUNCH_ONLY, false);
-        let config = BrowserConfig::default()
-            .with_webdriver_url("http://grid.example.com:4444")
-            .with_plugins(plugins);
+        let config = BrowserConfig::builder()
+            .webdriver_url("http://grid.example.com:4444")
+            .plugins(plugins)
+            .build()
+            .expect("a valid config");
 
         let error = before_launch(config).await.unwrap_err();
 
@@ -1189,9 +1222,11 @@ mod conversion_tests {
     #[tokio::test]
     async fn plugins_and_reuse_session_are_refused_together() {
         let (plugins, log) = recorder(Requirements::empty(), false);
-        let config = BrowserConfig::default()
-            .with_reuse_session(true)
-            .with_plugins(plugins);
+        let config = BrowserConfig::builder()
+            .reuse_session(true)
+            .plugins(plugins)
+            .build()
+            .expect("a valid config");
 
         let error = before_launch(config).await.unwrap_err();
 
@@ -1204,9 +1239,11 @@ mod conversion_tests {
 
     #[tokio::test]
     async fn a_config_without_plugins_is_returned_as_it_is() {
-        let config = BrowserConfig::default()
-            .with_reuse_session(true)
-            .with_browser(Browser::InternetExplorer);
+        let config = BrowserConfig::builder()
+            .reuse_session(true)
+            .browser(Browser::InternetExplorer)
+            .build()
+            .expect("a valid config");
 
         assert_eq!(before_launch(config.clone()).await.unwrap(), config);
     }
@@ -1235,7 +1272,10 @@ mod conversion_tests {
 
     #[test]
     fn plugin_switches_reach_a_chromium_configuration_once_each() {
-        let mut config = BrowserConfig::default().with_extra_args(["--mute-audio"]);
+        let mut config = BrowserConfig::builder()
+            .extra_args(["--mute-audio"])
+            .build()
+            .expect("a valid config");
 
         applied(&mut config, |settings| {
             settings.host_resolver_rules = vec![
@@ -1269,12 +1309,15 @@ mod conversion_tests {
 
     #[test]
     fn plugin_switches_join_the_ones_the_configuration_already_has() {
-        let mut config = BrowserConfig::default().with_extra_args([
-            "--host-resolver-rules=MAP own.example 127.0.0.1",
-            "disable-features=Own",
-            "--force-webrtc-ip-handling-policy=default_public_interface_only",
-            "--disable-quic",
-        ]);
+        let mut config = BrowserConfig::builder()
+            .extra_args([
+                "--host-resolver-rules=MAP own.example 127.0.0.1",
+                "disable-features=Own",
+                "--force-webrtc-ip-handling-policy=default_public_interface_only",
+                "--disable-quic",
+            ])
+            .build()
+            .expect("a valid config");
 
         applied(&mut config, |settings| {
             settings.host_resolver_rules = vec!["MAP a.example ^NOTFOUND".to_owned()];
@@ -1331,7 +1374,10 @@ mod conversion_tests {
             (Browser::Safari, BrowserFamily::Safari),
         ] {
             for change in changes {
-                let mut config = BrowserConfig::default().with_browser(browser);
+                let mut config = BrowserConfig::builder()
+                    .browser(browser)
+                    .build()
+                    .expect("a valid config");
                 let mut settings = settings_of(&config, family);
                 change(&mut settings);
 
@@ -1348,7 +1394,10 @@ mod conversion_tests {
 
     #[test]
     fn the_profile_plugins_see_follows_the_configurations_folder() {
-        let kept = BrowserConfig::default().with_user_data_dir("/var/profile");
+        let kept = BrowserConfig::builder()
+            .user_data_dir("/var/profile")
+            .build()
+            .expect("a valid config");
         assert_eq!(
             settings_of(&kept, BrowserFamily::Chromium).profile(),
             &ProfileView::Persistent(PathBuf::from("/var/profile"))
@@ -1478,8 +1527,10 @@ mod conversion_tests {
 
     #[tokio::test]
     async fn a_capability_the_webdriver_engine_cannot_provide_stops_the_launch() {
-        let config =
-            BrowserConfig::default().with_plugins(PluginSet::new().with(ObservesNetwork).unwrap());
+        let config = BrowserConfig::builder()
+            .plugins(PluginSet::new().with(ObservesNetwork).unwrap())
+            .build()
+            .expect("a valid config");
 
         let error = before_launch(config).await.unwrap_err();
 
@@ -1528,15 +1579,18 @@ mod conversion_tests {
     #[tokio::test]
     async fn each_launch_of_a_shared_configuration_gets_fresh_per_launch_plugins() {
         let log = Arc::new(Mutex::new(Vec::new()));
-        let shared = BrowserConfig::default().with_plugins(
-            PluginSet::new()
-                .with(Numbered {
-                    number: 0,
-                    issued: Arc::default(),
-                    log: Arc::clone(&log),
-                })
-                .unwrap(),
-        );
+        let shared = BrowserConfig::builder()
+            .plugins(
+                PluginSet::new()
+                    .with(Numbered {
+                        number: 0,
+                        issued: Arc::default(),
+                        log: Arc::clone(&log),
+                    })
+                    .unwrap(),
+            )
+            .build()
+            .expect("a valid config");
 
         let first = before_launch(shared.clone()).await.unwrap();
         let second = before_launch(shared.clone()).await.unwrap();
@@ -1687,10 +1741,12 @@ mod session_tests {
     }
 
     fn config_for(driver: &MockWebDriver, browser: Browser, plugins: PluginSet) -> BrowserConfig {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url())
-            .with_browser(browser)
-            .with_plugins(plugins);
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .browser(browser)
+            .plugins(plugins)
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -1852,7 +1908,7 @@ mod session_tests {
                 .unwrap();
 
             assert!(
-                matches!(&error, SeleniumBaseError::Plugin { plugin, reason } if plugin == "probe" && reason.contains(hook)),
+                matches!(&error, SeleniumBaseError::Plugin { plugin, reason, .. } if plugin == "probe" && reason.contains(hook)),
                 "{error:?}"
             );
             assert_eq!(
@@ -1872,7 +1928,10 @@ mod session_tests {
             .map(|i| format!("host{i}.com"))
             .collect();
         let config = config_for(&driver, Browser::Chrome, plugins)
-            .with_ad_block_list(AdBlockList::from_hosts(hosts).unwrap());
+            .into_builder()
+            .ad_block_list(AdBlockList::from_hosts(hosts).unwrap())
+            .build()
+            .expect("a valid config");
 
         let connected = BrowserSession::connect(config).await;
 
@@ -2159,7 +2218,10 @@ mod session_tests {
             .with(blocks("second", &["*://b.example/*", "*://a.example/*"]))
             .unwrap();
         let config = config_for(&driver, Browser::Chrome, plugins)
-            .with_ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap());
+            .into_builder()
+            .ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap())
+            .build()
+            .expect("a valid config");
 
         let mut session = BrowserSession::connect(config).await.unwrap();
 
@@ -2216,7 +2278,10 @@ mod session_tests {
         let driver = two_window_driver();
         let plugins = PluginSet::new().with(blocks("images", &["*.png"])).unwrap();
         let config = config_for(&driver, Browser::Chrome, plugins)
-            .with_ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap());
+            .into_builder()
+            .ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap())
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config).await.unwrap();
         let library = blocklists(&driver)
             .first()
@@ -2262,7 +2327,10 @@ mod session_tests {
             .with(FirstOnly(std::sync::atomic::AtomicBool::new(false)))
             .unwrap();
         let config = config_for(&driver, Browser::Chrome, plugins)
-            .with_ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap());
+            .into_builder()
+            .ad_block_list(AdBlockList::from_hosts(["ads.example"]).unwrap())
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config).await.unwrap();
         let library = blocklists(&driver).first().unwrap().clone();
 

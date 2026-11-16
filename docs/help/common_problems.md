@@ -71,7 +71,7 @@ Verify with `needs_patch()`.
 
 <Step title="Add engine spoofing args" icon="flag">
 
-Pass `engine_spoofing_args()` through `BrowserConfig::with_extra_args` or
+Pass `engine_spoofing_args()` through `BrowserConfigBuilder::extra_args` or
 `StealthOptions::extra_args`.
 
 </Step>
@@ -203,9 +203,10 @@ sites that still refuse it:
 ```rust
 use seleniumbase_rs::{BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_headless(false);
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .headless(false)
+    .build()?;
 ```
 
 Combine this with a `Fingerprint` and binary patching. On a server with no

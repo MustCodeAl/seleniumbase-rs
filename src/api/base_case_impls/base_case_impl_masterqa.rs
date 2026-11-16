@@ -133,7 +133,7 @@ impl BaseCase {
 
         let deadline = std::time::Instant::now() + max_idle;
         loop {
-            match self.get_alert_text().await {
+            match self.alert_text().await {
                 // Python lets any alert that is not the question pass.
                 Ok(text) if !text.contains('?') => break,
                 Ok(_) => {}
@@ -159,7 +159,7 @@ impl BaseCase {
     /// The address of the page, as a result row records it: the current URL,
     /// or the page's own idea of it when the driver cannot say.
     pub(crate) async fn masterqa_page_url(&self) -> String {
-        match self.get_current_url().await {
+        match self.current_url().await {
             Ok(url) => url,
             Err(_) => self
                 .execute_script("return document.URL")
@@ -172,14 +172,14 @@ impl BaseCase {
 
     /// The name of the browser as a result row records it (`chrome`).
     pub(crate) fn masterqa_browser(&self) -> &'static str {
-        self.config.browser.kind.name()
+        self.config.browser.kind.as_str()
     }
 
     /// Closes the second window, if another one was opened, and goes back to
     /// the first, as Python's MasterQA does after an error. It does what it
     /// can and ignores a failure.
     pub(crate) async fn masterqa_close_extra_window(&mut self) {
-        let Ok(handles) = self.get_all_window_handles().await else {
+        let Ok(handles) = self.all_window_handles().await else {
             return;
         };
         if handles.len() < 2 {

@@ -19,11 +19,16 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `sb.quit().await` | Ends the session; closes a browser it launched, or detaches from an external app and leaves it running. |
 | `sb.reconnect().await` | Replaces the WebDriver session while keeping the driver process. |
 
-For a [direct CDP attachment](/ecosystem/tauri-api/cdp), use `cdp_*` methods or
-`BrowserSession::pure_cdp_page()` for the full page API. `reconnect()` remains a
-WebDriver operation; to attach afresh, call `quit()` and create a new case with
-the same remote configuration. WebDriver session reuse and Recorder Mode are
-refused for direct attachments.
+On a [direct CDP attachment](/ecosystem/tauri-api/cdp) (`BrowserConfigBuilder::cdp_url`,
+`cdp_discovery`) the whole `BaseCase` API runs through the pure CDP engine, as Python's
+CDP Mode gives `sb.cdp` the methods of `sb`: navigation, finding and clicking, typing, the
+waits and assertions, frames, windows and tabs (a window handle is the target id), cookies,
+scripts, screenshots, alerts and the mouse. `BrowserSession::pure_cdp_page()` gives the
+`sb_cdp::Page` for what `BaseCase` has no method for. A method that needs a driver
+(`chromedriver_version`, `cdp_events`, `install_addon`) answers `SeleniumBaseError::Unsupported`
+and names the alternative. `reconnect()` re-attaches to the endpoint of the configuration.
+WebDriver session reuse and Recorder Mode are refused for direct attachments. The design is
+[BaseCase over pure CDP](/design/basecase_over_cdp).
 
 <Warning>
 
@@ -42,8 +47,8 @@ browser processes do not leak when a test fails.
 | `go_back()` | Browser back. |
 | `go_forward()` | Browser forward. |
 | `refresh_page()` | Reloads the page. |
-| `get_current_url()` | Returns the current URL. |
-| `get_title()` | Returns the page title. |
-| `get_page_source()` | Returns the full page source. |
+| `current_url()` | Returns the current URL. |
+| `title()` | Returns the page title. |
+| `page_source()` | Returns the full page source. |
 | `open_new_window()` | Opens a new browser window. |
 | `open_new_tab()` | Opens a new browser tab. |

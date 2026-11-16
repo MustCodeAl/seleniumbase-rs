@@ -133,9 +133,11 @@ async fn nowsecure_passes_with_the_uc_webdriver_engine() {
     if !live_enabled() {
         return;
     }
-    let config = BrowserConfig::default()
-        .with_headless(headless())
-        .with_mode(DriverMode::Uc);
+    let config = BrowserConfig::builder()
+        .headless(headless())
+        .mode(DriverMode::Uc)
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("start Chrome");
 
     let started = Instant::now();
@@ -157,8 +159,8 @@ async fn nowsecure_passes_with_the_uc_webdriver_engine() {
         }
         tokio::time::sleep(Duration::from_millis(250)).await;
     }
-    let cookies = sb.get_cookies().await.expect("cookies");
-    let title = sb.get_title().await.unwrap_or_default();
+    let cookies = sb.cookies().await.expect("cookies");
+    let title = sb.title().await.unwrap_or_default();
     println!(
         "uc: after {:.1?}: title {title:?}, real page {on_real_page}, cookies {cookies:?}",
         started.elapsed()

@@ -115,11 +115,11 @@ Generate PDFs from pages, parse HTML like BeautifulSoup, build interactive tours
 ```rust
 // Print the current page to PDF via CDP
 sb.print_to_pdf("page.pdf").await?;
-let text = sb.get_pdf_text("page.pdf")?;
+let text = sb.pdf_text("page.pdf")?;
 
 // Parse the current page source
-let soup = sb.get_beautiful_soup_object().await?;
-let heading = soup.get_text("h1")?;
+let soup = sb.beautiful_soup_object().await?;
+let heading = soup.text("h1")?;
 
 // Build a themed tour
 sb.create_tour_with_theme("Onboarding", TourTheme::Shepherd).await?;
@@ -223,7 +223,7 @@ waits for the element:
 ```rust
 sb.click("my-app::shadow .button").await?;
 sb.type_text("my-app::shadow form::shadow input", "value").await?;
-let text = sb.get_text("my-app::shadow .label").await?;
+let text = sb.text("my-app::shadow .label").await?;
 ```
 
 ## HTML Inspector

@@ -31,7 +31,7 @@ use seleniumbase_rs::{tokio, BaseCase, BrowserConfig};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut sb = BaseCase::new(BrowserConfig::default().with_headless(false)).await?;
+    let mut sb = BaseCase::new(BrowserConfig::builder().headless(false).build()?).await?;
     sb.open("https://seleniumbase.io/simple/login").await?;
 
     sb.start_qa_session("Verify Login Page");

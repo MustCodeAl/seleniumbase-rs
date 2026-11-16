@@ -22,7 +22,7 @@
 //! let grid: GridUrl = "grid.example.com".parse()?;
 //! assert_eq!(grid.to_string(), "http://grid.example.com:4444");
 //!
-//! let config = BrowserConfig::default().with_webdriver_url(grid.to_string());
+//! let config = BrowserConfig::builder().webdriver_url(grid.to_string()).build()?;
 //! assert_eq!(config.session.webdriver_url(), "http://grid.example.com:4444");
 //! # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 //! ```

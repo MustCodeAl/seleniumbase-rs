@@ -51,10 +51,10 @@ pub trait BrowserApi {
     async fn go_forward(&self) -> crate::Result<()>;
 
     /// Return the current page title.
-    async fn get_title(&mut self) -> crate::Result<String>;
+    async fn title(&mut self) -> crate::Result<String>;
 
     /// Return the current page URL.
-    async fn get_url(&mut self) -> crate::Result<String>;
+    async fn url(&mut self) -> crate::Result<String>;
 }
 
 /// Element finding and interaction operations.
@@ -70,10 +70,10 @@ pub trait ElementApi {
     async fn type_text(&mut self, css: &str, text: &str) -> crate::Result<()>;
 
     /// Return the visible text of the element matching `css`.
-    async fn get_text(&mut self, css: &str) -> crate::Result<String>;
+    async fn text(&mut self, css: &str) -> crate::Result<String>;
 
     /// Return the value of attribute `attr` on the element matching `css`, if any.
-    async fn get_attribute(&mut self, css: &str, attr: &str) -> crate::Result<Option<String>>;
+    async fn attribute(&mut self, css: &str, attr: &str) -> crate::Result<Option<String>>;
 }
 
 /// Assertion helpers used in tests.
@@ -126,12 +126,12 @@ impl BrowserApi for BaseCase {
         BaseCase::go_forward(self).await
     }
 
-    async fn get_title(&mut self) -> crate::Result<String> {
-        BaseCase::get_title(self).await
+    async fn title(&mut self) -> crate::Result<String> {
+        BaseCase::title(self).await
     }
 
-    async fn get_url(&mut self) -> crate::Result<String> {
-        BaseCase::get_url(self).await
+    async fn url(&mut self) -> crate::Result<String> {
+        BaseCase::url(self).await
     }
 }
 
@@ -149,12 +149,12 @@ impl ElementApi for BaseCase {
         BaseCase::type_text(self, css, text).await
     }
 
-    async fn get_text(&mut self, css: &str) -> crate::Result<String> {
-        BaseCase::get_text(self, css).await
+    async fn text(&mut self, css: &str) -> crate::Result<String> {
+        BaseCase::text(self, css).await
     }
 
-    async fn get_attribute(&mut self, css: &str, attr: &str) -> crate::Result<Option<String>> {
-        BaseCase::get_attribute(self, css, attr).await
+    async fn attribute(&mut self, css: &str, attr: &str) -> crate::Result<Option<String>> {
+        BaseCase::attribute(self, css, attr).await
     }
 }
 
@@ -218,12 +218,12 @@ impl BrowserApi for Page {
         self.forward().await
     }
 
-    async fn get_title(&mut self) -> crate::Result<String> {
-        self.title().await
+    async fn title(&mut self) -> crate::Result<String> {
+        Page::title(self).await
     }
 
-    async fn get_url(&mut self) -> crate::Result<String> {
-        self.url().await
+    async fn url(&mut self) -> crate::Result<String> {
+        Page::url(self).await
     }
 }
 
@@ -244,11 +244,11 @@ impl ElementApi for Page {
         field.type_text(text).await
     }
 
-    async fn get_text(&mut self, css: &str) -> crate::Result<String> {
+    async fn text(&mut self, css: &str) -> crate::Result<String> {
         self.locator(css).text().await
     }
 
-    async fn get_attribute(&mut self, css: &str, attr: &str) -> crate::Result<Option<String>> {
+    async fn attribute(&mut self, css: &str, attr: &str) -> crate::Result<Option<String>> {
         self.locator(css).attribute(attr).await
     }
 }

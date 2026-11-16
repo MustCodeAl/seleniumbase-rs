@@ -42,7 +42,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     sb.assert_text("Purple", "#pText").await?;
 
     // XPath selector: it starts with `/`, `./` or `(`.
-    let heading = sb.get_text("//h1").await?;
+    let heading = sb.text("//h1").await?;
     println!("h1 text: {heading}");
     sb.assert_exact_text("Demo Page", "//h1").await?;
 

@@ -39,7 +39,10 @@ const TITLE: &str = "Demo page manual verification";
 async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
     // A person has to see the page, so the browser must not be headless.
-    let config = BrowserConfig::default().with_headless(false);
+    let config = BrowserConfig::builder()
+        .headless(false)
+        .build()
+        .expect("a valid config");
     run_browser_test(config, async |sb| verify_by_hand(sb, url).await).await
 }
 

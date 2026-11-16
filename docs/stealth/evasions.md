@@ -109,7 +109,7 @@ When `native_spoofing` is true:
   connection, speech, Bluetooth, the `navigator.webdriver` getter and the
   marker cleanup.
 * A WebDriver session (Chrome, Chromium or Edge) also launches a patched copy of
-  the browser. If `BrowserConfig::browser_binary_path` is unset, the session
+  the browser. If `BrowserConfigBuilder::browser_binary_path` is unset, the session
   finds the system Chrome (`SB_CHROME_BIN`, else `find_system_chrome()`), writes a
   patched copy through `ChromeBinaryPatcher` with `EnginePatch::chrome_binary()`
   (webdriver markers, `navigator.webdriver` assignments and the `HeadlessChrome`
@@ -145,8 +145,8 @@ automation markers:
   `cdc_` and `__webdriver` signatures. See the
   [Binary Patching tutorial](/stealth/advanced/binary-patching).
 * Pass the extra Chromium flags returned by `engine_spoofing_args()` (a
-  `Vec<String>`) through `BrowserConfig::with_extra_args`, which replaces the
-  list (`push_extra_arg` adds one), or through `StealthOptions::extra_args`.
+  `Vec<String>`) through `BrowserConfigBuilder::extra_args`, which replaces the
+  list (`extra_arg` adds one), or through `StealthOptions::extra_args`.
 * Combining a `Fingerprint`, UC mode, binary patching, and engine args covers the
   most layers this crate offers. None of it guarantees that a given detector
   passes.

@@ -44,6 +44,7 @@ use thirtyfour::WebDriver;
 use crate::api::base_case::BaseCase;
 use crate::api::call::CallFuture;
 use crate::api::recorder::ActionRecorder;
+use crate::browser::session::PureDialogs;
 use crate::error::SeleniumBaseError;
 
 /// The frame Python's `switch_to_frame(frame)` is given: a selector, the `id`
@@ -104,10 +105,10 @@ impl fmt::Display for FrameRef {
 /// `sb.switch_to_window(-1)` the newest.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WindowRef {
-    /// A window handle, as [`BaseCase::get_current_window_handle`] and
-    /// [`BaseCase::get_all_window_handles`] give them.
+    /// A window handle, as [`BaseCase::current_window_handle`] and
+    /// [`BaseCase::all_window_handles`] give them.
     Handle(String),
-    /// The position of the window in [`BaseCase::get_all_window_handles`],
+    /// The position of the window in [`BaseCase::all_window_handles`],
     /// counting from 0. A negative number counts from the end, as a Python
     /// list index does: `-1` is the newest window, `-2` the one before.
     Index(i32),
@@ -273,7 +274,7 @@ impl<'a> FrameSwitch<'a> {
     /// # async fn demo(sb: &mut seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     /// let heading = sb
     ///     .frame_switch("iframe#content")
-    ///     .run(async |sb| sb.get_text("h1").await)
+    ///     .run(async |sb| sb.text("h1").await)
     ///     .await?;
     /// // Back in the page that holds the frame.
     /// sb.assert_text("Welcome", "#top").await?;
@@ -378,8 +379,16 @@ impl<'a> IntoFuture for SwitchToAlert<'a> {
 /// alert.
 #[derive(Clone)]
 pub struct Alert {
-    driver: WebDriver,
+    backend: Backend,
     recorder: Arc<Mutex<ActionRecorder>>,
+}
+
+/// What answers the alert: the driver of a WebDriver session, or the dialogs
+/// of a tab a direct CDP attachment drives.
+#[derive(Clone)]
+enum Backend {
+    WebDriver(WebDriver),
+    Cdp(PureDialogs),
 }
 
 impl fmt::Debug for Alert {
@@ -390,7 +399,18 @@ impl fmt::Debug for Alert {
 
 impl Alert {
     pub(crate) fn new(driver: WebDriver, recorder: Arc<Mutex<ActionRecorder>>) -> Self {
-        Self { driver, recorder }
+        Self {
+            backend: Backend::WebDriver(driver),
+            recorder,
+        }
+    }
+
+    /// An alert of a tab a direct CDP attachment drives.
+    pub(crate) fn over_cdp(dialogs: PureDialogs, recorder: Arc<Mutex<ActionRecorder>>) -> Self {
+        Self {
+            backend: Backend::Cdp(dialogs),
+            recorder,
+        }
     }
 
     /// Records the action for a recording of the case, as the case's own
@@ -407,10 +427,13 @@ impl Alert {
     ///
     /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn text(&self) -> Result<String, SeleniumBaseError> {
-        self.driver
-            .get_alert_text()
-            .await
-            .map_err(SeleniumBaseError::from)
+        match &self.backend {
+            Backend::WebDriver(driver) => driver
+                .get_alert_text()
+                .await
+                .map_err(SeleniumBaseError::from),
+            Backend::Cdp(dialogs) => dialogs.text(),
+        }
     }
 
     /// Accepts the alert (clicks OK). Python's `alert.accept()`.
@@ -420,10 +443,12 @@ impl Alert {
     /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn accept(&self) -> Result<(), SeleniumBaseError> {
         self.record("accept_alert", None);
-        self.driver
-            .accept_alert()
-            .await
-            .map_err(SeleniumBaseError::from)
+        match &self.backend {
+            Backend::WebDriver(driver) => {
+                driver.accept_alert().await.map_err(SeleniumBaseError::from)
+            }
+            Backend::Cdp(dialogs) => dialogs.accept().await,
+        }
     }
 
     /// Dismisses the alert (clicks Cancel). Python's `alert.dismiss()`.
@@ -433,10 +458,13 @@ impl Alert {
     /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no alert is open.
     pub async fn dismiss(&self) -> Result<(), SeleniumBaseError> {
         self.record("dismiss_alert", None);
-        self.driver
-            .dismiss_alert()
-            .await
-            .map_err(SeleniumBaseError::from)
+        match &self.backend {
+            Backend::WebDriver(driver) => driver
+                .dismiss_alert()
+                .await
+                .map_err(SeleniumBaseError::from),
+            Backend::Cdp(dialogs) => dialogs.dismiss().await,
+        }
     }
 
     /// Types `text` into the prompt. Python's `alert.send_keys(text)`.
@@ -446,10 +474,13 @@ impl Alert {
     /// A [`SeleniumBaseError::WebDriver`] of kind [`AlertNotFound`](crate::DriverErrorKind::AlertNotFound) if no prompt is open.
     pub async fn send_keys(&self, text: &str) -> Result<(), SeleniumBaseError> {
         self.record("type_alert_text", Some(text));
-        self.driver
-            .send_alert_text(text)
-            .await
-            .map_err(SeleniumBaseError::from)
+        match &self.backend {
+            Backend::WebDriver(driver) => driver
+                .send_alert_text(text)
+                .await
+                .map_err(SeleniumBaseError::from),
+            Backend::Cdp(dialogs) => dialogs.send_text(text),
+        }
     }
 }
 

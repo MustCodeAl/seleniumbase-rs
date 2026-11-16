@@ -294,6 +294,26 @@
     el.focus();
   }
 
+  // Puts the caret after what a text field holds, as a WebDriver `send_keys`
+  // does: focusing a field leaves it at the start of one nobody typed in.
+  function caretToEnd(el) {
+    try {
+      if (typeof el.setSelectionRange === "function" && typeof el.value === "string") {
+        el.setSelectionRange(el.value.length, el.value.length);
+      } else if (el.isContentEditable) {
+        const range = el.ownerDocument.createRange();
+        range.selectNodeContents(el);
+        range.collapse(false);
+        const selection = el.ownerDocument.defaultView.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+    } catch (error) {
+      // An input type that has no caret (a number, an email address) types where it is.
+    }
+  }
+
+
   function selectOption(el, by, wanted) {
     if (el.tagName !== "SELECT") throw new Error("sbcdp:not-interactable:the element is not a <select>");
     const options = Array.from(el.options);
@@ -334,7 +354,7 @@
 
   window.__sbcdp = {
     resolve, search, one, visible, info, center, frameOrigin, blockedSteps, blockedFrame,
-    setValue, focus, selectOption, flash,
+    setValue, focus, caretToEnd, selectOption, flash,
     textOf, fieldText, rectOf, attrs, errors,
   };
 })();

@@ -56,13 +56,13 @@
 //!
 //! Python's `--rcs` shares a browser among the tests of one class. Rust tests
 //! have no classes; the nearest thing is the module that holds them. With
-//! [`ReuseClass::TestModule`] (`BrowserConfig::with_reuse_module_session`,
+//! [`ReuseClass::TestModule`] (`BrowserConfigBuilder::reuse_module_session`,
 //! `sbrs --rcs`, `SB_REUSE_CLASS_SESSION`) the tests of one module share a
 //! browser: the module is read from the name libtest gives the thread a test
 //! runs on (`login::tests::valid_password` is in `login::tests`, and a test at
 //! the root of an integration test file is in the root module, which the whole
 //! file shares). With [`ReuseClass::Named`]
-//! (`BrowserConfig::with_reuse_class_session`) the tests that give the same name
+//! (`BrowserConfigBuilder::reuse_class_session`) the tests that give the same name
 //! share one, wherever they are.
 //!
 //! # What differs from Python
@@ -74,7 +74,7 @@
 //! next one sees. Python closes the shared browser when pytest ends, and the
 //! class's browser when the next class starts; here the idle timeout does both.
 
-use std::sync::{Arc, Mutex, MutexGuard, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, MutexGuard, OnceLock};
 use std::time::{Duration, Instant};
 
 use bytes::Bytes;
@@ -122,7 +122,7 @@ static CRUMBS: Mutex<Option<bool>> = Mutex::new(None);
 /// tests, which is Python's `--crumbs`. It is a setting of the process, like
 /// [`set_idle_timeout`], and takes precedence over [`CRUMBS_VAR`].
 pub fn set_crumbs(on: bool) {
-    *CRUMBS.lock().unwrap_or_else(PoisonError::into_inner) = Some(on);
+    *crate::common::poison::locked(&CRUMBS) = Some(on);
 }
 
 /// Whether a browser that is reused has its cookies deleted between tests
@@ -131,7 +131,7 @@ pub fn set_crumbs(on: bool) {
 /// and the page and its storage are reset either way.
 #[must_use]
 pub fn crumbs() -> bool {
-    let set = *CRUMBS.lock().unwrap_or_else(PoisonError::into_inner);
+    let set = *crate::common::poison::locked(&CRUMBS);
     set.unwrap_or_else(|| {
         static FROM_ENV: OnceLock<bool> = OnceLock::new();
         *FROM_ENV.get_or_init(|| {
@@ -369,7 +369,7 @@ fn registry() -> MutexGuard<'static, Registry> {
 
 fn lock(registry: &Mutex<Registry>) -> MutexGuard<'_, Registry> {
     // A panic while the registry was held cannot leave it half changed.
-    registry.lock().unwrap_or_else(PoisonError::into_inner)
+    crate::common::poison::locked(registry)
 }
 
 /// The idle timeout set with [`set_idle_timeout`], if one was.
@@ -378,7 +378,7 @@ static IDLE_TIMEOUT: Mutex<Option<Duration>> = Mutex::new(None);
 /// Sets how long a reused browser that no test holds stays open, for the whole
 /// process. It overrides [`IDLE_TIMEOUT_VAR`].
 pub fn set_idle_timeout(timeout: Duration) {
-    *IDLE_TIMEOUT.lock().unwrap_or_else(PoisonError::into_inner) = Some(timeout);
+    *crate::common::poison::locked(&IDLE_TIMEOUT) = Some(timeout);
 }
 
 /// How long a reused browser that no test holds stays open: what
@@ -386,7 +386,7 @@ pub fn set_idle_timeout(timeout: Duration) {
 /// [`DEFAULT_IDLE_TIMEOUT`].
 #[must_use]
 pub fn idle_timeout() -> Duration {
-    let set = *IDLE_TIMEOUT.lock().unwrap_or_else(PoisonError::into_inner);
+    let set = *crate::common::poison::locked(&IDLE_TIMEOUT);
     set.unwrap_or_else(|| {
         static FROM_ENV: OnceLock<Duration> = OnceLock::new();
         *FROM_ENV.get_or_init(|| {
@@ -855,22 +855,60 @@ mod tests {
 
     #[test]
     fn the_same_configuration_gives_the_same_key() {
-        let config = BrowserConfig::default().with_reuse_session(true);
+        let config = BrowserConfig::builder()
+            .reuse_session(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(key(&config), key(&config.clone()));
     }
 
     #[test]
     fn what_starts_the_browser_is_part_of_the_key() {
-        let base = BrowserConfig::default().with_reuse_session(true);
+        let base = BrowserConfig::builder()
+            .reuse_session(true)
+            .build()
+            .expect("a valid config");
         let different = [
-            base.clone().with_browser(Browser::Firefox),
-            base.clone().with_headless(!base.browser.headless),
-            base.clone().with_mode(DriverMode::Uc),
-            base.clone().with_proxy("proxy.test:8080"),
-            base.clone().with_user_agent("Agent/1.0"),
-            base.clone().with_extension_dir("/tmp/extension"),
-            base.clone().with_webdriver_url("http://grid.test:4444"),
-            base.clone().with_window_size("1280,720".parse().unwrap()),
+            base.clone()
+                .into_builder()
+                .browser(Browser::Firefox)
+                .build()
+                .expect("a valid config"),
+            base.clone()
+                .into_builder()
+                .headless(!base.browser.headless)
+                .build()
+                .expect("a valid config"),
+            base.clone()
+                .into_builder()
+                .mode(DriverMode::Uc)
+                .build()
+                .expect("a valid config"),
+            base.clone()
+                .into_builder()
+                .proxy("proxy.test:8080")
+                .build()
+                .expect("a valid config"),
+            base.clone()
+                .into_builder()
+                .user_agent("Agent/1.0")
+                .build()
+                .expect("a valid config"),
+            base.clone()
+                .into_builder()
+                .extension_dir("/tmp/extension")
+                .build()
+                .expect("a valid config"),
+            base.clone()
+                .into_builder()
+                .webdriver_url("http://grid.test:4444")
+                .build()
+                .expect("a valid config"),
+            base.clone()
+                .into_builder()
+                .window_size("1280,720".parse().unwrap())
+                .build()
+                .expect("a valid config"),
         ];
         for other in different {
             assert_ne!(key(&base), key(&other), "{other:?}");
@@ -879,31 +917,73 @@ mod tests {
 
     #[test]
     fn the_start_page_and_the_reuse_settings_are_not_part_of_the_key() {
-        let base = BrowserConfig::default().with_reuse_session(true);
+        let base = BrowserConfig::builder()
+            .reuse_session(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             key(&base),
-            key(&base.clone().with_start_page("https://example.com"))
+            key(&base
+                .clone()
+                .into_builder()
+                .start_page("https://example.com")
+                .build()
+                .expect("a valid config"))
         );
-        assert_eq!(key(&base), key(&base.clone().with_reuse_session(false)));
+        assert_eq!(
+            key(&base),
+            key(&base
+                .clone()
+                .into_builder()
+                .reuse_session(false)
+                .build()
+                .expect("a valid config"))
+        );
     }
 
     #[test]
     fn the_run_settings_are_not_part_of_the_key() {
-        let base = BrowserConfig::default().with_reuse_session(true);
-        let demo = base.clone().with_run_settings(
-            crate::api::run_settings::RunSettings::default().with_demo_mode(true),
-        );
+        let base = BrowserConfig::builder()
+            .reuse_session(true)
+            .build()
+            .expect("a valid config");
+        let demo = base
+            .clone()
+            .into_builder()
+            .run_settings(crate::api::run_settings::RunSettings::default().with_demo_mode(true))
+            .build()
+            .expect("a valid config");
         assert_eq!(key(&base), key(&demo));
     }
 
     #[test]
     fn a_class_is_part_of_the_key() {
-        let base = BrowserConfig::default().with_reuse_session(true);
-        let login = base.clone().with_reuse_class_session("Login");
-        let cart = base.clone().with_reuse_class_session("Cart");
+        let base = BrowserConfig::builder()
+            .reuse_session(true)
+            .build()
+            .expect("a valid config");
+        let login = base
+            .clone()
+            .into_builder()
+            .reuse_class_session("Login")
+            .build()
+            .expect("a valid config");
+        let cart = base
+            .clone()
+            .into_builder()
+            .reuse_class_session("Cart")
+            .build()
+            .expect("a valid config");
         assert_ne!(key(&base), key(&login));
         assert_ne!(key(&login), key(&cart));
-        assert_eq!(key(&login), key(&base.with_reuse_class_session("Login")));
+        assert_eq!(
+            key(&login),
+            key(&base
+                .into_builder()
+                .reuse_class_session("Login")
+                .build()
+                .expect("a valid config"))
+        );
     }
 
     #[test]
@@ -926,7 +1006,10 @@ mod tests {
 
     #[test]
     fn tests_of_two_modules_get_two_keys() {
-        let config = BrowserConfig::default().with_reuse_module_session(true);
+        let config = BrowserConfig::builder()
+            .reuse_module_session(true)
+            .build()
+            .expect("a valid config");
         let key_on = |thread: &str| {
             let config = config.clone();
             std::thread::Builder::new()
@@ -963,7 +1046,10 @@ mod tests {
         let chrome = BrowserConfig::default();
         let id = insert(&mut registry, &chrome, "s1");
         registry.release(id);
-        let firefox = BrowserConfig::default().with_browser(Browser::Firefox);
+        let firefox = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .build()
+            .expect("a valid config");
         assert!(registry.lease(&key(&firefox)).is_none());
         assert!(registry.lease(&key(&chrome)).is_some());
     }
@@ -1142,9 +1228,11 @@ mod tests_with_a_driver {
         // which is what crumbs ask for; the process-wide setting is on for all of
         // them, and `cookies_are_kept_unless_crumbs_are_on` calls `reset` itself.
         set_crumbs(true);
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url())
-            .with_reuse_session(true);
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .reuse_session(true)
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -1332,7 +1420,11 @@ mod tests_with_a_driver {
                 _ => Reply::Value(Value::Null),
             }
         });
-        let config = reusing(&driver).with_browser(Browser::Firefox);
+        let config = reusing(&driver)
+            .into_builder()
+            .browser(Browser::Firefox)
+            .build()
+            .expect("a valid config");
         BaseCase::new(config.clone())
             .await
             .unwrap()
@@ -1421,7 +1513,11 @@ mod tests_with_a_driver {
     #[tokio::test]
     async fn without_reuse_every_case_starts_and_ends_its_own_session() {
         let driver = mock_with_windows(&["w1"]);
-        let config = reusing(&driver).with_reuse_session(false);
+        let config = reusing(&driver)
+            .into_builder()
+            .reuse_session(false)
+            .build()
+            .expect("a valid config");
         BaseCase::new(config.clone())
             .await
             .unwrap()
@@ -1438,7 +1534,7 @@ mod tests_with_a_driver {
         let driver = mock_with_windows(&["w1"]);
         let config = reusing(&driver);
         let mut sb = BaseCase::new(config.clone()).await.unwrap();
-        sb.get_new_driver().await.unwrap();
+        sb.new_driver().await.unwrap();
         sb.quit().await.unwrap();
         assert_eq!(
             ended_sessions(&driver),
@@ -1456,7 +1552,10 @@ mod tests_with_a_driver {
     async fn shutdown_ends_the_idle_sessions_and_forgets_them() {
         let driver = mock_with_windows(&["w1"]);
         let registry = Mutex::new(Registry::new(Arc::new(SystemClock)));
-        let config = BrowserConfig::default().with_webdriver_url(driver.url());
+        let config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .build()
+            .expect("a valid config");
         {
             let mut registry = registry.lock().unwrap();
             let address = SessionAddress {

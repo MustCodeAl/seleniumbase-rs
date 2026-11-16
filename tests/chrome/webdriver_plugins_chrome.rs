@@ -88,9 +88,11 @@ async fn a_plugin_reaches_chrome_through_webdriver_and_its_devtools_channel() {
             log: Arc::clone(&log),
         })
         .unwrap();
-    let mut config = BrowserConfig::default()
-        .with_headless(true)
-        .with_plugins(plugins);
+    let mut config = BrowserConfig::builder()
+        .headless(true)
+        .plugins(plugins)
+        .build()
+        .expect("a valid config");
     config.session.auto_start_driver = true;
 
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");

@@ -183,7 +183,7 @@ server (`find_api`) before you write the call.
    `page.locator(".spinner").wait_for(State::Absent)`.
 5. **Assert with the retrying assertions:** `sb.assert_text(text, selector)` (text
    first), `assert_exact_text`, `assert_element`, `assert_title`; pure CDP
-   `locator.expect().to_have_text(..)`. Not `get_text` plus `assert_eq!`: it reads
+   `locator.expect().to_have_text(..)`. Not `text` plus `assert_eq!`: it reads
    once. End every call with `?`.
 6. **Scope the query and know how many match.** A selector or a `Locator` acts on
    the first match. Put the container in the selector
@@ -217,7 +217,7 @@ server (`find_api`) before you write the call.
     on one tab or one `Page`. Use `BrowserPool::acquire()` per flow (a `Lease` is an
     isolated context and a tab) or `browser.new_context()`.
 11. **Headless in CI, set outside the code:** `SB_HEADLESS=true cargo test`. The
-    fixtures read it. Do not write `.with_headless(false)` or `.headless(false)`
+    fixtures read it. Do not write `BrowserConfigBuilder::headless(false)` or `LaunchOptionsBuilder::headless(false)`
     in a committed test.
 12. **Write a body that is safe to run twice.** `SB_RERUNS` calls the closure
     again, so it must not move out of what it captures (`for p in &paths`, not

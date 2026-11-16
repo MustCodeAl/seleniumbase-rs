@@ -26,7 +26,7 @@ The crate root exposes the following modules:
 | `common` | Decorators, obfuscation, and shared exception types. |
 | `config` | Settings, proxy lists, and ad-block lists. |
 | `core` | Test result records and the JSON and HTML reports made from them. |
-| `drivers` | The raw WebDriver types of the escape hatches: `WebElement` behind an `Element` (`as_webdriver_element()`), `WebDriver` behind a session (`BrowserSession::webdriver()`), and `WebDriverError` for the calls made on them, so a project needs no `thirtyfour` line. Extra capabilities are `browser::options::CapabilityOverrides`, given to `BrowserConfig::with_capabilities`. See [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies). |
+| `drivers` | The raw WebDriver types of the escape hatches: `WebElement` behind an `Element` (`as_webdriver_element()`), `WebDriver` behind a session (`BrowserSession::webdriver()`), and `WebDriverError` for the calls made on them, so a project needs no `thirtyfour` line. Extra capabilities are `browser::options::CapabilityOverrides`, given to `BrowserConfigBuilder::capabilities`. See [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies). |
 
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
 | `evasion` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is <Badge color="orange">Experimental</Badge>: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
@@ -91,8 +91,8 @@ mentions an engine's own types:
 
 | Trait | Responsibility |
 |---|---|
-| `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `get_title`, `get_url`. |
-| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `get_text`, `get_attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns an `Element`, a `Page` offers `locator(..)`.) |
+| `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `title`, `url`. |
+| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `text`, `attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns an `Element`, a `Page` offers `locator(..)`.) |
 | `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
 | `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
 

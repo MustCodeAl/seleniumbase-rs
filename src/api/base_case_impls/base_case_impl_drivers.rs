@@ -1,7 +1,7 @@
 // Multi-driver session management helpers.
 
 /// Names one of the browsers of a [`BaseCase`]: the one it started with
-/// ([`DriverId::DEFAULT`]) or one that [`BaseCase::get_new_driver`] opened.
+/// ([`DriverId::DEFAULT`]) or one that [`BaseCase::new_driver`] opened.
 ///
 /// An id names the same browser for as long as the case lives, whichever
 /// browser is active, and it is never given to another browser after its
@@ -160,7 +160,7 @@ impl BaseCase {
     /// active one. Returns its [`DriverId`]; the browser that was active stays
     /// open, and [`switch_to_driver`](Self::switch_to_driver) or
     /// [`switch_to_default_driver`](Self::switch_to_default_driver) goes back
-    /// to it. Use [`get_new_driver_with`](Self::get_new_driver_with) for
+    /// to it. Use [`new_driver_with`](Self::new_driver_with) for
     /// another configuration.
     ///
     /// The new browser is never one kept for reuse, as in Python: the
@@ -169,17 +169,17 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the browser cannot be started.
-    pub async fn get_new_driver(&mut self) -> Result<DriverId, SeleniumBaseError> {
-        self.get_new_driver_with(self.config.clone()).await
+    pub async fn new_driver(&mut self) -> Result<DriverId, SeleniumBaseError> {
+        self.new_driver_with(self.config.clone()).await
     }
 
     /// Opens a new browser as `config` describes and makes it the active one.
-    /// See [`get_new_driver`](Self::get_new_driver).
+    /// See [`new_driver`](Self::new_driver).
     ///
     /// # Errors
     ///
     /// Returns an error if the browser cannot be started.
-    pub async fn get_new_driver_with(
+    pub async fn new_driver_with(
         &mut self,
         mut config: BrowserConfig,
     ) -> Result<DriverId, SeleniumBaseError> {
@@ -211,7 +211,7 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Quits the browser `id`, which [`get_new_driver`](Self::get_new_driver)
+    /// Quits the browser `id`, which [`new_driver`](Self::new_driver)
     /// opened. If it is the active one, the case switches to the default
     /// browser, as Python's `quit_extra_driver` does.
     ///
@@ -362,7 +362,7 @@ mod tests_drivers {
 
     /// The configuration of a case that uses `driver`.
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url().to_owned());
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).build().expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -372,25 +372,25 @@ mod tests_drivers {
         let (first, second) = (titled("first"), titled("second"));
         let mut sb = first.base_case().await;
         assert_eq!((sb.driver_count(), sb.active_driver()), (1, DriverId::DEFAULT));
-        assert_eq!(sb.get_title().await.unwrap(), "first");
+        assert_eq!(sb.title().await.unwrap(), "first");
 
-        let other = sb.get_new_driver_with(config_for(&second)).await.unwrap();
+        let other = sb.new_driver_with(config_for(&second)).await.unwrap();
         assert_eq!((other, sb.active_driver(), sb.driver_count()), (DriverId(1), DriverId(1), 2));
-        assert_eq!(sb.get_title().await.unwrap(), "second");
+        assert_eq!(sb.title().await.unwrap(), "second");
 
         // However often it is asked, the default is the first browser.
         for _ in 0..3 {
             sb.switch_to_default_driver().await.unwrap();
-            assert_eq!(sb.get_title().await.unwrap(), "first");
+            assert_eq!(sb.title().await.unwrap(), "first");
         }
         sb.switch_to_driver(other).await.unwrap();
         sb.switch_to_driver(other).await.unwrap();
-        assert_eq!(sb.get_title().await.unwrap(), "second");
+        assert_eq!(sb.title().await.unwrap(), "second");
 
         // Quitting the active extra browser falls back to the default one.
         sb.quit_extra_driver(other).await.unwrap();
         assert_eq!((sb.active_driver(), sb.driver_count()), (DriverId::DEFAULT, 1));
-        assert_eq!(sb.get_title().await.unwrap(), "first");
+        assert_eq!(sb.title().await.unwrap(), "first");
         assert_eq!(second.requests("").len(), 1, "the second browser got a delete-session");
         assert!(sb.switch_to_driver(other).await.is_err());
         assert!(sb.quit_extra_driver(other).await.is_err());
@@ -404,7 +404,7 @@ mod tests_drivers {
     async fn quit_closes_every_browser() {
         let (first, second) = (titled("first"), titled("second"));
         let mut sb = first.base_case().await;
-        sb.get_new_driver_with(config_for(&second)).await.unwrap();
+        sb.new_driver_with(config_for(&second)).await.unwrap();
         sb.quit().await.unwrap();
         for driver in [&first, &second] {
             let deleted = driver

@@ -930,7 +930,7 @@ fn finding_8_the_browser_config_carries_no_threads() {
     assert_eq!(settings.test.threads, Some(3));
 }
 
-/// Finding 9: `Settings` and `BrowserConfig::with_grid` built a Grid address with two functions.
+/// Finding 9: `Settings` and `BrowserConfigBuilder::grid` built a Grid address with two functions.
 #[test]
 fn finding_9_one_function_builds_a_grid_address() {
     let address = |port: u16, protocol: &str| {

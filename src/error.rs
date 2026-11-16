@@ -196,6 +196,18 @@ pub enum SeleniumBaseError {
     #[error("database error: {0}")]
     Database(String),
 
+    /// The database driver failed. The text is `database error:` plus the
+    /// driver's message, and the driver error is
+    /// [`Error::source`](std::error::Error::source).
+    #[error("database error: {message}")]
+    DatabaseDriver {
+        /// What the driver reported.
+        message: String,
+        /// The driver error.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
+    },
+
     /// A plugin (feature `plugins`, ADR 004) refused to go on, or one of its
     /// hooks failed, so the launch or the tab it was preparing was stopped.
     #[error("plugin error: {reason}")]
@@ -204,6 +216,20 @@ pub enum SeleniumBaseError {
         plugin: String,
         /// What went wrong, as the plugin set reported it.
         reason: String,
+        /// The plugin error, when this was converted from one.
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync + 'static>>,
+    },
+
+    /// An operation failed. `context` names the step, and the cause is kept
+    /// as [`Error::source`](std::error::Error::source).
+    #[error("{context}: {source}")]
+    Context {
+        /// What the caller was doing.
+        context: String,
+        /// The error that caused this one.
+        #[source]
+        source: Box<dyn std::error::Error + Send + Sync + 'static>,
     },
 }
 
@@ -257,6 +283,13 @@ impl DriverError {
     }
 
     /// A driver error of `kind` that says `message`, with no WebDriver library error behind it.
+    #[cfg_attr(
+        all(not(feature = "mcp-server"), not(test)),
+        expect(
+            dead_code,
+            reason = "only the dev MCP server builds a DriverError by hand"
+        )
+    )]
     pub(crate) fn new(kind: DriverErrorKind, message: impl Into<String>) -> Self {
         Self {
             kind,
@@ -469,17 +502,25 @@ impl From<seleniumbase_rs_plugin::PluginError> for SeleniumBaseError {
             // adds later falls here too, with its message and no name.
             _ => String::new(),
         };
-        Self::plugin(plugin, error.to_string())
+        let reason = error.to_string();
+        Self::Plugin {
+            plugin,
+            reason,
+            source: Some(Box::new(error)),
+        }
     }
 }
 
 #[cfg(feature = "turso")]
 impl From<turso::Error> for SeleniumBaseError {
     fn from(error: turso::Error) -> Self {
-        Self::Database(error.to_string())
+        let message = error.to_string();
+        Self::DatabaseDriver {
+            message,
+            source: Box::new(error),
+        }
     }
 }
-
 impl SeleniumBaseError {
     // ------------------------------------------------------------------
     // Constructors
@@ -651,11 +692,13 @@ impl SeleniumBaseError {
     }
 
     /// Construct a plugin error for the plugin named `plugin` (empty when
-    /// unknown).
+    /// unknown). This value has no [`Error::source`](std::error::Error::source).
+    /// A conversion from a plugin error keeps that error as the source.
     pub fn plugin(plugin: impl Into<String>, reason: impl Into<String>) -> Self {
         Self::Plugin {
             plugin: plugin.into(),
             reason: reason.into(),
+            source: None,
         }
     }
 
@@ -685,6 +728,11 @@ impl SeleniumBaseError {
 
     /// Returns true if this error represents a recoverable transient condition.
     pub fn is_transient(&self) -> bool {
+        if let Self::Context { source, .. } = self {
+            return source
+                .downcast_ref::<Self>()
+                .is_some_and(Self::is_transient);
+        }
         matches!(
             self,
             Self::BrowserDisconnected { .. }
@@ -761,8 +809,12 @@ impl SeleniumBaseError {
             Self::PythonMigration(_) => "python_migration",
             Self::Skipped(_) => "skipped",
             Self::TestLifecycle(_) => "test_lifecycle",
-            Self::Database(_) => "database",
+            Self::Database(_) | Self::DatabaseDriver { .. } => "database",
             Self::Plugin { .. } => "plugin",
+            Self::Context { source, .. } => source
+                .downcast_ref::<Self>()
+                .map(Self::category)
+                .unwrap_or("context"),
         }
     }
 
@@ -799,7 +851,7 @@ impl SeleniumBaseError {
     /// | Code | Meaning | Categories |
     /// |---|---|---|
     /// | 1 | a check or a test failed | `assertion_failed`, `test_lifecycle`, `skipped` |
-    /// | 2 | the input was wrong | `invalid_config`, `invalid_selector`, `parse`, `json`, `unsupported`, `python_migration` |
+    /// | 2 | the input was wrong | `invalid_config`, `invalid_selector`, `parse`, `json`, `unsupported`, `python_migration`, `context` |
     /// | 3 | an element could not be used | `element_not_found`, `element_not_interactable`, `stale_element`, `strict_mode_violation`, `wait_timeout` |
     /// | 4 | the browser or its driver failed | `browser_launch`, `browser_disconnected`, `session_not_started`, `webdriver`, `cdp_driver`, `playwright`, `patcher`, `stealth`, `gui`, `screenshot`, `pdf`, `plugin` |
     /// | 5 | the network or a site failed | `navigation`, `network`, `download`, `authentication`, `captcha` |
@@ -807,7 +859,8 @@ impl SeleniumBaseError {
     /// | 7 | the MCP server failed | `mcp` |
     ///
     /// Code 2 is also what the argument parser uses for a mistyped option, so
-    /// "fix what you typed" is one number either way.
+    /// "fix what you typed" is one number either way. A `Context` whose cause is a
+    /// `SeleniumBaseError` uses that cause's code. Any other cause is code 2.
     ///
     /// # Examples
     ///
@@ -849,7 +902,11 @@ impl SeleniumBaseError {
             | Self::Download { .. }
             | Self::Captcha { .. }
             | Self::Authentication(_) => 5,
-            Self::Io(_) | Self::Database(_) => 6,
+            Self::Io(_) | Self::Database(_) | Self::DatabaseDriver { .. } => 6,
+            Self::Context { source, .. } => source
+                .downcast_ref::<Self>()
+                .map(Self::exit_code)
+                .unwrap_or(2),
             Self::Mcp { .. } => 7,
         }
     }
@@ -1014,11 +1071,20 @@ impl SeleniumBaseError {
                  each message, starting with the test's own error, since a later failure is \
                  often a consequence of the first."
                 .to_owned(),
-            Self::Database(_) => "The results or profile database could not be read or \
+            Self::Database(_) | Self::DatabaseDriver { .. } => {
+                "The results or profile database could not be read or \
                  written. Check its path (--db or SB_REPORT_DB), that no other program holds it \
                  open, and the free disk space."
-                .to_owned(),
+                .to_owned()
+            }
             Self::Plugin { plugin, .. } => plugin_hint(plugin),
+            Self::Context { source, .. } => source
+                .downcast_ref::<Self>()
+                .and_then(Self::hint)
+                .unwrap_or_else(|| {
+                    "Read the message for the step that failed, then the error after the colon."
+                        .to_owned()
+                }),
         })
     }
 }
@@ -1316,17 +1382,29 @@ fn io_hint(kind: std::io::ErrorKind) -> &'static str {
 
 /// Extension trait for attaching context to `Result<T, E>` without losing the
 /// original error source.
+///
+/// `E` is [`Error`](std::error::Error) + [`Send`] + [`Sync`] + `'static`, so the
+/// cause can be stored and moved onto another task.
 pub trait ResultExt<T, E>: Sized {
-    /// Map an error into `SeleniumBaseError` with additional context.
+    /// Map an error into [`SeleniumBaseError::Context`].
+    ///
+    /// The message is `{context}: {error}`. [`Error::source`](std::error::Error::source)
+    /// is the original error.
     fn sb_context(self, context: impl Into<String>) -> Result<T>;
     /// Log any error with structured tracing fields and return the original
     /// error.
     fn log_err(self) -> Self;
 }
 
-impl<T, E: std::fmt::Display> ResultExt<T, E> for std::result::Result<T, E> {
+impl<T, E> ResultExt<T, E> for std::result::Result<T, E>
+where
+    E: std::error::Error + Send + Sync + 'static,
+{
     fn sb_context(self, context: impl Into<String>) -> Result<T> {
-        self.map_err(|e| SeleniumBaseError::InvalidConfig(format!("{}: {}", context.into(), e)))
+        self.map_err(|error| SeleniumBaseError::Context {
+            context: context.into(),
+            source: Box::new(error),
+        })
     }
 
     fn log_err(self) -> Self {
@@ -1882,7 +1960,7 @@ mod tests {
         let hint = error.hint().expect("a hint");
         assert_eq!(
             error.debug_with_color(true),
-            format!("\x1b[1;31m{error}\x1b[0m\n\x1b[1;33mhint:\x1b[0m \x1b[2m{hint}\x1b[0m")
+            format!("\x1b[31;1m{error}\x1b[0m\n\x1b[33;1mhint:\x1b[0m \x1b[2m{hint}\x1b[0m")
         );
         assert_eq!(
             error.debug_with_color(false),
@@ -1906,10 +1984,59 @@ mod tests {
     fn result_ext_attaches_context() {
         let res: std::result::Result<(), std::io::Error> =
             Err(std::io::Error::new(std::io::ErrorKind::NotFound, "oops"));
-        let sb = res.sb_context("reading config");
-        assert!(sb.is_err());
-        let msg = sb.unwrap_err().to_string();
-        assert!(msg.contains("reading config"));
-        assert!(msg.contains("oops"));
+        let error = res.sb_context("reading config").unwrap_err();
+        let msg = error.to_string();
+        assert!(msg.contains("reading config"), "{msg}");
+        assert!(msg.contains("oops"), "{msg}");
+        let source = std::error::Error::source(&error).expect("the io error");
+        assert_eq!(source.to_string(), "oops");
+        assert_eq!(error.category(), "context");
+        assert_eq!(error.exit_code(), 2);
+
+        let inner: Result<()> = Err(SeleniumBaseError::wait_timeout("visible #x", None));
+        let wrapped = inner.sb_context("opening the page").unwrap_err();
+        assert_eq!(wrapped.category(), "wait_timeout");
+        assert_eq!(wrapped.exit_code(), 3);
+        assert!(wrapped.is_transient());
+    }
+
+    #[test]
+    fn a_plugin_value_without_a_cause_has_no_source() {
+        let error = SeleniumBaseError::plugin("adblock", "refused");
+        assert_eq!(error.to_string(), "plugin error: refused");
+        assert!(std::error::Error::source(&error).is_none());
+    }
+
+    #[test]
+    fn a_database_driver_error_keeps_its_cause() {
+        let cause = std::io::Error::other("locked");
+        let error = SeleniumBaseError::DatabaseDriver {
+            message: cause.to_string(),
+            source: Box::new(cause),
+        };
+        assert_eq!(error.to_string(), "database error: locked");
+        assert_eq!(error.category(), "database");
+        assert_eq!(error.exit_code(), 6);
+        let source = std::error::Error::source(&error).expect("the driver error");
+        assert_eq!(source.to_string(), "locked");
+    }
+
+    #[cfg(feature = "plugins")]
+    #[test]
+    fn converting_a_plugin_error_keeps_it() {
+        use seleniumbase_rs_plugin::PluginError;
+        let error = SeleniumBaseError::from(PluginError::DuplicateName("twice".to_owned()));
+        assert!(error.to_string().starts_with("plugin error:"));
+        match &error {
+            SeleniumBaseError::Plugin { plugin, source, .. } => {
+                assert_eq!(plugin, "twice");
+                assert!(source.is_some());
+            }
+            other => panic!("{other}"),
+        }
+        assert!(std::error::Error::source(&error)
+            .expect("the plugin error")
+            .downcast_ref::<PluginError>()
+            .is_some());
     }
 }

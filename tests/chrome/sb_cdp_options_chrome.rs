@@ -12,7 +12,7 @@
 
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, TcpListener};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -64,10 +64,7 @@ fn serve(answer: fn(&str) -> String) -> (u16, Heads) {
                 }
                 let head = String::from_utf8_lossy(&buffer[..read]).into_owned();
                 let reply = answer(&head);
-                record
-                    .lock()
-                    .unwrap_or_else(PoisonError::into_inner)
-                    .push(head);
+                record.lock().expect("the test lock").push(head);
                 let _ = stream.write_all(reply.as_bytes());
             });
         }
@@ -342,7 +339,7 @@ async fn a_host_on_the_bypass_list_skips_the_proxy() {
     );
     browser.close().await.expect("Chrome closes");
 
-    let proxied = proxy_heads.lock().unwrap_or_else(PoisonError::into_inner);
+    let proxied = proxy_heads.lock().expect("the test lock");
     assert!(
         proxied.iter().any(|head| head.contains("proxied.test")),
         "the proxy never saw the first page: {proxied:?}"
@@ -351,7 +348,7 @@ async fn a_host_on_the_bypass_list_skips_the_proxy() {
         !proxied.iter().any(|head| head.contains("bypassed.test")),
         "a bypassed host went to the proxy: {proxied:?}"
     );
-    let direct = direct_heads.lock().unwrap_or_else(PoisonError::into_inner);
+    let direct = direct_heads.lock().expect("the test lock");
     assert!(
         direct.iter().any(|head| head.contains("bypassed.test")),
         "the bypassed host was never asked for directly: {direct:?}"

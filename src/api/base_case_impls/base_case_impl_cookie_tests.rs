@@ -93,9 +93,7 @@ mod tests_cookie_calls {
 
     /// A [`BaseCase`] in DevTools mode on `driver`.
     async fn devtools_case(driver: &MockWebDriver) -> BaseCase {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_mode(DriverMode::Cdp);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).mode(DriverMode::Cdp).build().expect("a valid config");
         config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await
@@ -115,8 +113,7 @@ mod tests_cookie_calls {
     #[tokio::test]
     async fn a_cookie_that_is_not_there_is_not_an_error() {
         let sb = page_with_sid().base_case().await;
-        let found = sb
-            .get_cookie("missing")
+        let found = sb.cookie("missing")
             .await
             .expect("a missing cookie is not an error");
         assert!(found.is_none(), "{found:?}");
@@ -125,21 +122,21 @@ mod tests_cookie_calls {
     #[tokio::test]
     async fn any_other_driver_error_is_still_an_error() {
         let sb = page_with_sid().base_case().await;
-        let error = sb.get_cookie("broken").await.unwrap_err();
+        let error = sb.cookie("broken").await.unwrap_err();
         assert!(matches!(error, SeleniumBaseError::WebDriver(_)), "{error:?}");
     }
 
     #[tokio::test]
     async fn a_cookie_that_is_there_comes_back_field_by_field() {
         let sb = page_with_sid().base_case().await;
-        assert_eq!(sb.get_cookie("sid").await.unwrap(), Some(sid()));
+        assert_eq!(sb.cookie("sid").await.unwrap(), Some(sid()));
     }
 
     #[tokio::test]
     async fn the_cookies_of_a_plain_webdriver_session_are_ours() {
         let driver = page_with_cookies();
         let sb = driver.base_case().await;
-        assert_eq!(sb.get_cookies().await.unwrap(), [sid(), theme()]);
+        assert_eq!(sb.cookies().await.unwrap(), [sid(), theme()]);
         assert!(
             driver.requests("/goog/cdp/execute").is_empty(),
             "no DevTools in this mode"
@@ -150,7 +147,7 @@ mod tests_cookie_calls {
     async fn the_cookies_of_a_devtools_session_are_ours_too() {
         let driver = page_with_cookies();
         let sb = devtools_case(&driver).await;
-        assert_eq!(sb.get_cookies().await.unwrap(), [sid(), theme()]);
+        assert_eq!(sb.cookies().await.unwrap(), [sid(), theme()]);
         assert!(
             driver.requests("/cookie").is_empty(),
             "not asked through WebDriver"
@@ -168,13 +165,11 @@ mod tests_cookie_calls {
     async fn both_paths_give_equal_cookies_for_the_same_cookies() {
         let over_webdriver = page_with_cookies()
             .base_case()
-            .await
-            .get_cookies()
+            .await.cookies()
             .await
             .unwrap();
         let over_devtools = devtools_case(&page_with_cookies())
-            .await
-            .get_cookies()
+            .await.cookies()
             .await
             .unwrap();
         assert_eq!(over_webdriver, over_devtools);
@@ -187,7 +182,7 @@ mod tests_cookie_calls {
     async fn cookies_that_were_read_go_back_in_as_they_are() {
         let driver = page_with_cookies();
         let sb = driver.base_case().await;
-        for cookie in sb.get_cookies().await.unwrap() {
+        for cookie in sb.cookies().await.unwrap() {
             sb.add_cookie(&cookie)
                 .expiry(CookieExpiry::Saved)
                 .await
@@ -286,7 +281,7 @@ mod tests_cookie_calls {
         });
         let sb = devtools_case(&driver).await;
 
-        let error = sb.get_cookies().await.unwrap_err();
+        let error = sb.cookies().await.unwrap_err();
 
         assert!(matches!(error, SeleniumBaseError::CdpDriver(_)), "{error:?}");
     }
@@ -296,7 +291,7 @@ mod tests_cookie_calls {
         let driver = page_with_cookies();
         let sb = devtools_case(&driver).await;
 
-        sb.get_cookies().await.unwrap();
+        sb.cookies().await.unwrap();
 
         let asked: Vec<Value> = driver
             .requests("/goog/cdp/execute")

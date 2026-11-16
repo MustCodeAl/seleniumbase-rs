@@ -73,7 +73,10 @@ impl Settings {
         config.fingerprint = self.load_fingerprint()?;
         #[cfg(feature = "plugins")]
         {
-            config = config.with_plugin_selection(&self.plugins)?;
+            config = config
+                .into_builder()
+                .plugin_selection(&self.plugins)
+                .build()?;
         }
         LaunchOptions::builder().browser_config(&config).build()
     }

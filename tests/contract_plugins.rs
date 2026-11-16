@@ -11,7 +11,7 @@
 //!   the path, when the sources use one that is not here, so a new use of the plugin API cannot
 //!   go unpinned.
 //! * `a_plugin_as_the_host_sees_it`: a plugin written against the trait, put into a set and given
-//!   to both launch paths (`LaunchOptionsBuilder::plugins`, `BrowserConfig::with_plugins`).
+//!   to both launch paths (`LaunchOptionsBuilder::plugins`, `BrowserConfigBuilder::plugins`).
 //! * `the_imap_plugin_as_the_email_tool_uses_it` (feature `plugin-imap`): what the
 //!   `wait_for_email` tool of `src/mcp/email.rs` imports of the `imap` plugin and the clock of the
 //!   plugin API, the calls it makes, and a wait against a mailbox held in memory.
@@ -234,7 +234,7 @@ mod a_plugin_as_the_host_sees_it {
         assert!(refused.to_string().contains("dummy"), "{refused}");
     }
 
-    /// `LaunchOptionsBuilder::plugins` and `BrowserConfig::with_plugins`, the two launch paths.
+    /// `LaunchOptionsBuilder::plugins` and `BrowserConfigBuilder::plugins`, the two launch paths.
     #[test]
     fn both_launch_paths_take_the_set() {
         let set = PluginSet::new().with(Worker).expect("a plugin");
@@ -242,7 +242,10 @@ mod a_plugin_as_the_host_sees_it {
             .plugins(set.clone())
             .build()
             .expect("options with plugins build");
-        let _config: BrowserConfig = BrowserConfig::default().with_plugins(set);
+        let _config: BrowserConfig = BrowserConfig::builder()
+            .plugins(set)
+            .build()
+            .expect("a valid config");
         // The re-export is the same crate: one `PluginSet` type, not two.
         let again: seleniumbase_rs::plugin_api::PluginSet = PluginSet::new();
         let _ = again;

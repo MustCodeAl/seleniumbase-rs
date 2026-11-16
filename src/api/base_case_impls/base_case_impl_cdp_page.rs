@@ -83,7 +83,7 @@ impl BaseCase {
     /// Returns the text of the first element matching `selector`: an input's or a textarea's
     /// value, as Python's `sb.cdp.get_text` gives it, else the rendered text.
     pub async fn cdp_get_text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
-        CdpPage::new(&self.session).get_text(selector).await
+        CdpPage::new(&self.session).text(selector).await
     }
 
     /// Returns the named HTML attribute of the first matching element.
@@ -92,8 +92,7 @@ impl BaseCase {
         selector: &str,
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        CdpPage::new(&self.session)
-            .get_attribute(selector, attribute)
+        CdpPage::new(&self.session).attribute(selector, attribute)
             .await
     }
 
@@ -103,19 +102,18 @@ impl BaseCase {
         selector: &str,
         property: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
-        CdpPage::new(&self.session)
-            .get_property(selector, property)
+        CdpPage::new(&self.session).property(selector, property)
             .await
     }
 
     /// Returns the current page title via CDP.
     pub async fn cdp_get_title(&self) -> Result<String, SeleniumBaseError> {
-        CdpPage::new(&self.session).get_title().await
+        CdpPage::new(&self.session).title().await
     }
 
     /// Returns the current page URL via CDP.
     pub async fn cdp_get_url(&self) -> Result<String, SeleniumBaseError> {
-        CdpPage::new(&self.session).get_url().await
+        CdpPage::new(&self.session).url().await
     }
 
     /// Evaluates `expression` in the page context via CDP `Runtime.evaluate`.

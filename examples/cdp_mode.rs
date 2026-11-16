@@ -38,7 +38,10 @@ async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
 
     println!("== CDP mode in BaseCase ==");
-    let config = BrowserConfig::default().with_mode(DriverMode::Cdp);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Cdp)
+        .build()
+        .expect("a valid config");
     let page_url = url.clone();
     run_browser_test(config, async |sb| base_case_cdp(sb, page_url).await).await?;
 

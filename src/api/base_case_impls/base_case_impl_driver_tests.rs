@@ -244,7 +244,7 @@ mod tests_page_scripts {
                 "window.localStorage.setItem(S, S);",
                 &[&key, text],
             );
-            sb.get_local_storage_item(&key).await.unwrap();
+            sb.local_storage_item(&key).await.unwrap();
             assert_inert(
                 &last_script(&driver),
                 "return window.localStorage.getItem(S);",
@@ -353,7 +353,7 @@ mod tests_page_scripts {
                 "window.sessionStorage.setItem(S, S);",
                 &[&key, text],
             );
-            sb.get_session_storage_item(&key).await.unwrap();
+            sb.session_storage_item(&key).await.unwrap();
             assert_inert(
                 &last_script(&driver),
                 "return window.sessionStorage.getItem(S);",
@@ -436,7 +436,7 @@ mod tests_page_scripts {
         assert_script!(
             driver,
             css,
-            sb.get_parent(css),
+            sb.parent(css),
             "return document.querySelector(S)?.parentElement;",
             [css]
         );
@@ -885,9 +885,8 @@ mod tests_element_names {
         let driver = driver();
         let mut sb = driver.base_case().await;
 
-        let parent = sb.get_parent("#a").await.unwrap().expect("a parent");
-        let at_point = sb
-            .get_element_at_x_y(10, 20)
+        let parent = sb.parent("#a").await.unwrap().expect("a parent");
+        let at_point = sb.element_at_x_y(10, 20)
             .await
             .unwrap()
             .expect("an element");
@@ -910,7 +909,7 @@ mod tests_element_names {
         let driver = driver();
         let mut sb = driver.base_case().await;
 
-        sb.get_parent("#a").await.unwrap().expect("a parent");
+        sb.parent("#a").await.unwrap().expect("a parent");
 
         let scripts: Vec<String> = driver
             .requests("/execute/sync")
@@ -1158,7 +1157,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn a_browser_that_is_not_chromium_has_no_log_and_no_dialog_to_switch_off() {
         let driver = page(json!([]));
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url().to_owned());
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).build().expect("a valid config");
         config.session.auto_start_driver = false;
         config.browser.kind = Browser::Firefox;
         let mut sb = BaseCase::new(config).await.unwrap();
@@ -1257,8 +1256,7 @@ mod tests_page_load_hooks {
 
     #[tokio::test]
     async fn the_multiplier_of_the_browser_config_reaches_the_case() {
-        let config = BrowserConfig::default()
-            .with_run_settings(RunSettings::default().with_timeout_multiplier(2.0));
+        let config = BrowserConfig::builder().run_settings(RunSettings::default().with_timeout_multiplier(2.0)).build().expect("a valid config");
         assert_eq!(BaseCase::without_session(config).default_wait_secs(), 20);
     }
 

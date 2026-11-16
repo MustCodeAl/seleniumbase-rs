@@ -39,10 +39,7 @@ impl BaseCase {
         let path = crate::artifacts::confined_path(&dir, filename)?;
         let selector = shadow_find::checked(css)?;
         let element = self.session.find(selector).await?;
-        element
-            .as_webdriver_element()
-            .screenshot(&path)
-            .await?;
+        fs::write(&path, element.screenshot_png().await?)?;
         Ok(path)
     }
 
@@ -64,7 +61,7 @@ impl BaseCase {
     /// Reads the contents of a file from the logs directory.
     ///
     /// `filename` must be a plain file name, as for [`Self::save_screenshot`].
-    pub fn get_file_data(&self, filename: &str) -> Result<String, SeleniumBaseError> {
+    pub fn file_data(&self, filename: &str) -> Result<String, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
         Ok(fs::read_to_string(&path)?)

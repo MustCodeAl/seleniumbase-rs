@@ -6,3 +6,25 @@ doc-valid-idents = [
     "WebView2", "WebKitGTK", "WKWebView",
     "..",
 ]
+
+# D11 and D12. A new call fails the gate unless it carries
+# `#[expect(clippy::disallowed_methods, reason = "...")]`.
+# `FutureExt::catch_unwind` is defined in the private module `future::future`
+# and re-exported as `futures_util::future::FutureExt` (futures-util 0.3.34).
+disallowed-methods = [
+    {
+        path = "std::panic::catch_unwind",
+        reason = "a panic stops the caller; catch one only where the comment says why",
+        replacement = "let the panic propagate",
+    },
+    {
+        path = "futures_util::future::future::FutureExt::catch_unwind",
+        reason = "a panic stops the caller; catch one only where the comment says why",
+        replacement = "let the panic propagate",
+    },
+    {
+        path = "std::sync::PoisonError::into_inner",
+        reason = "a poisoned lock stays poisoned, except in common::poison::locked",
+        replacement = "crate::common::poison::locked",
+    },
+]

@@ -196,19 +196,22 @@ System WKWebView and WebKitGTK use the WebDriver bridge instead of CDP.
 
 | Existing client surface | Configuration |
 |---|---|
-| `BrowserConfig::with_cdp_url(url)` | Direct HTTP or browser WebSocket debugger URL; an authenticated plugin base URL also supports discovery. |
-| `BrowserConfig::with_cdp_discovery(true)` | Discover through the existing `webdriver_url`. Explicit `cdp_url` takes precedence. |
+| `BrowserConfigBuilder::cdp_url(url)` | Direct HTTP or browser WebSocket debugger URL; an authenticated plugin base URL also supports discovery. |
+| `BrowserConfigBuilder::cdp_discovery(true)` | Discover through the existing `webdriver_url`. Explicit `cdp_url` takes precedence. |
 | `LaunchOptionsBuilder::cdp_url(url)` | `Browser::launch(options)` attaches without launching a process. |
 | `LaunchOptionsBuilder::browser_config(&config)` | Carries CDP selection, fingerprint and plugins into the pure engine. |
 | `BrowserSession::pure_cdp_page()` | Access the full attached `Page` and its `Browser`. |
 | `CdpDriver::attach(&mut self, browser)` | An instance method, not a static call: `let mut driver = CdpDriver::new(); driver.attach(browser).await?;` drives the attached browser's first window. |
-| `BrowserConfig::with_cdp_target(window)` | The window `BaseCase` drives: a target id or part of its URL. Without it, the first window. |
+| `BrowserConfigBuilder::cdp_target(window)` | The window `BaseCase` drives: a target id or part of its URL. Without it, the first window. |
 | `Browser::select_page(window)` | The same choice on a `Browser`: a target id, else the first window whose URL contains the text. |
 
-Use `BaseCase::cdp_*` methods for the directly attached page. Fingerprints use
+On a directly attached page the whole `BaseCase` API works (`open`, `click`, `type_text`,
+the waits, `switch_to_frame`, `cookies`, `accept_alert`, `save_screenshot`, and the rest; see
+[BaseCase over pure CDP](/design/basecase_over_cdp)); the `BaseCase::cdp_*` methods stay for
+code written against them. Fingerprints use
 the existing evasion provider registry for future documents and already-open
 contexts, plus native CDP overrides when `native_spoofing` is enabled.
-`with_plugins(...)` or `LaunchOptionsBuilder::plugins(...)` enables the existing
+`plugins(...)` or `LaunchOptionsBuilder::plugins(...)` enables the existing
 attach-compatible plugin hooks and packages (feature `plugins`). Launch-only
 plugins are refused, and `before_launch` is not called.
 
@@ -221,7 +224,7 @@ windows:
   window. The fingerprint, emulation and plugins reach a window when the
   automation opens it (`new_page`, `new_window`) or picks it: `default_page()`
   (the first window), `page(id)`, `select_page(id_or_url_part)`,
-  `BrowserConfig::with_cdp_target(...)` for `BaseCase`, or `pages()`, which
+  `BrowserConfigBuilder::cdp_target(...)` for `BaseCase`, or `pages()`, which
   asks for every window. `list_pages()` only lists them. The app's other
   windows are left as they are.
 - **A proxy is refused.** The app's network settings are not the test's to
@@ -241,8 +244,9 @@ windows:
 - **`reconnect()` re-attaches** to the endpoint in the configuration; it does
   not start a browser or a driver.
 
-WebDriver-only helpers return `SeleniumBaseError::Unsupported` on such a
-session instead of panicking (see [CDP and UC helpers](/api/cdp-uc)).
+The helpers that need a driver (`chromedriver_version`, `cdp_events`, `install_addon`,
+Recorder Mode) return `SeleniumBaseError::Unsupported` on such a session, naming the method
+and the alternative, instead of panicking (see [CDP and UC helpers](/api/cdp-uc)).
 
 <Warning>
 
@@ -253,11 +257,11 @@ never in a release build.
 
 </Warning>
 
-See the [Tauri setup guide](/ecosystem/tauri#app-owned-chromium-cef-and-webview2)
+See the [Tauri browser guide](/ecosystem/tauri-browser#attach-to-the-webview-from-a-test)
 for complete client examples. Launch flags and binary patches must be applied
 before the app starts. This integration is covered by mock HTTP/CDP tests;
 real CEF/WebView2 app behavior has not been verified in this change.
 
 The `stealth` feature is a different path: fingerprint stealth inside the
 app's process, with no debugging port and no automation gate. See
-[Stealth inside the app](/ecosystem/tauri#stealth-inside-the-app-with-no-debugging-port).
+[Give your shipped webview a fingerprint](/ecosystem/tauri-browser#give-your-shipped-webview-a-fingerprint).

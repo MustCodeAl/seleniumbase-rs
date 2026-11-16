@@ -38,7 +38,7 @@ use crate::{BaseCase, BrowserConfig, Result, SeleniumBaseError};
 /// A test that ends with [`BaseCase::skip_test`] counts as passed: libtest has
 /// no way to report a skip, so the reason is logged and the test returns `Ok`.
 ///
-/// The run settings of the configuration ([`BrowserConfig::with_run_settings`])
+/// The run settings of the configuration ([`run_settings`](crate::BrowserConfigBuilder::run_settings))
 /// are the case's from the start, as they are for [`BaseCase::new`].
 ///
 /// # Errors
@@ -176,6 +176,10 @@ pub(crate) async fn drive_with<C>(
     // Each closure's future is boxed, so it is not laid out inside this one:
     // nested in a test's future they made rustc overflow its query depth limit.
     let running = Box::pin(test(&mut *case));
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the runner records a panicking test, closes its browser, then raises the panic again"
+    )]
     let (test_result, panic) = match AssertUnwindSafe(running).catch_unwind().await {
         Ok(result) => (result, None),
         Err(payload) => {
@@ -334,6 +338,10 @@ mod tests {
         assert_eq!(evidence_taken(), 1, "a panic is a failure for the plugins");
         let shown = ended.outcome().as_ref().unwrap_err().to_string();
         assert!(shown.contains("assertion failed in the test"), "{shown}");
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the test checks that the runner raises the panic again"
+        )]
         let raised = std::panic::catch_unwind(AssertUnwindSafe(|| ended.finish()));
         let payload = raised.expect_err("the panic is raised again");
         assert_eq!(

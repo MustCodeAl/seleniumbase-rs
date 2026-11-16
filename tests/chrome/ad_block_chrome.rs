@@ -165,8 +165,10 @@ fn reached(seen: &[String], request: &str) -> bool {
 }
 
 fn test_config(site: &Site) -> BrowserConfig {
-    let mut config = BrowserConfig::default()
-        .with_extra_args([format!("--host-resolver-rules={}", site.resolver_rules())]);
+    let mut config = BrowserConfig::builder()
+        .extra_args([format!("--host-resolver-rules={}", site.resolver_rules())])
+        .build()
+        .expect("a valid config");
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
         config.session.webdriver_url = Some(url);
         config.session.auto_start_driver = false;
@@ -210,7 +212,11 @@ async fn ad_block_refuses_the_listed_hosts_and_nothing_else_in_a_webdriver_sessi
 
     // With the block on, only the host that is not listed is ever asked.
     let site = Site::start();
-    let config = test_config(&site).with_ad_block_list(list);
+    let config = test_config(&site)
+        .into_builder()
+        .ad_block_list(list)
+        .build()
+        .expect("a valid config");
     let images = load_images(config, &site).await;
     let seen = site.seen();
 

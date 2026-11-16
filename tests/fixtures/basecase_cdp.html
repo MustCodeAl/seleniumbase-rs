@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BaseCase over CDP</title>
+<script>
+  // `/?page=2` is a second page, for the history and the title.
+  if (location.search.includes('page=2')) {
+    document.title = 'Second page';
+  }
+  localStorage.setItem('theme', 'dark');
+  document.cookie = 'visited=yes; path=/';
+</script>
+<style>
+  #hover-box { width: 120px; height: 40px; background: #ddd; }
+</style>
+</head>
+<body>
+  <h1 id="title">BaseCase over CDP</h1>
+  <p id="greeting">Hello <b>world</b></p>
+  <a id="docs" href="/?page=2">Docs link</a>
+
+  <form id="form" onsubmit="document.getElementById('result').textContent = 'submitted ' + document.getElementById('name').value; return false;">
+    <input id="name" type="text" value="Ada" data-kind="person">
+    <textarea id="notes">First note</textarea>
+    <select id="color">
+      <option value="r">Red</option>
+      <option value="g">Green</option>
+    </select>
+    <input id="agree" type="checkbox">
+    <button id="send" type="submit">Send</button>
+  </form>
+  <p id="result"></p>
+
+  <button id="reveal" onclick="document.getElementById('hidden').style.display = 'block'">Reveal</button>
+  <div id="hidden" style="display: none">Now shown</div>
+
+  <button id="alert" onclick="alert('Careful!'); document.getElementById('result').textContent = 'after alert'">Alert</button>
+  <button id="confirm" onclick="document.getElementById('result').textContent = confirm('Sure?') ? 'yes' : 'no'">Confirm</button>
+  <button id="prompt" onclick="document.getElementById('result').textContent = 'hello ' + prompt('Name?', 'nobody')">Prompt</button>
+
+  <div id="hover-box"
+       onmouseover="this.textContent = 'hovered'"
+       ondblclick="this.textContent = 'double clicked'"
+       oncontextmenu="this.textContent = 'context menu'; return false;">box</div>
+
+  <iframe id="frame" title="inner" srcdoc="<h2 id='inner'>Inside</h2><button id='inbtn' onclick=&quot;document.getElementById('inner').textContent = 'clicked inside'&quot;>In</button>"></iframe>
+</body>
+</html>

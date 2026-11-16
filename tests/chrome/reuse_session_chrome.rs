@@ -1,4 +1,4 @@
-//! A real-browser check of `--reuse-session` (`BrowserConfig::with_reuse_session`).
+//! A real-browser check of `--reuse-session` (`BrowserConfigBuilder::reuse_session`).
 //!
 //! Two `#[tokio::test]` functions, each on its own Tokio runtime, share one
 //! Chrome started by one chromedriver. The first sets a cookie and an item of
@@ -45,7 +45,10 @@ fn config() -> BrowserConfig {
     // The second test checks that the first one's cookie is cleaned away, which
     // is what crumbs ask for; `crumbs_chrome.rs` checks the default.
     set_crumbs(true);
-    BrowserConfig::default().with_reuse_session(true)
+    BrowserConfig::builder()
+        .reuse_session(true)
+        .build()
+        .expect("a valid config")
 }
 
 /// Serves one page on a loopback port, since cookies need an `http` origin,
@@ -90,7 +93,7 @@ async fn a_first_test_leaves_its_browser_open_with_a_cookie() {
     .await
     .expect("set a cookie and a stored item");
     let cookie = sb
-        .get_cookie("left")
+        .cookie("left")
         .await
         .expect("the cookie is read")
         .expect("the cookie is set");
@@ -144,7 +147,7 @@ async fn a_second_test_gets_the_same_browser_cleaned_and_the_reaper_closes_it() 
         "the second test attached to the first test's browser"
     );
     assert_eq!(reused_sessions().len(), 1, "no second browser was started");
-    assert_eq!(sb.get_current_url().await.unwrap(), "about:blank");
+    assert_eq!(sb.current_url().await.unwrap(), "about:blank");
 
     sb.open(&first.page)
         .await

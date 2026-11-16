@@ -3,11 +3,11 @@
 #[async_trait::async_trait]
 impl crate::common::debug_prompt::PromptPage for BaseCase {
     async fn url(&self) -> Result<String, SeleniumBaseError> {
-        self.get_current_url().await
+        self.current_url().await
     }
 
     async fn title(&self) -> Result<String, SeleniumBaseError> {
-        self.get_title().await
+        self.title().await
     }
 
     async fn screenshot_png(&self) -> Result<Vec<u8>, SeleniumBaseError> {
@@ -15,7 +15,7 @@ impl crate::common::debug_prompt::PromptPage for BaseCase {
     }
 
     async fn page_source(&self) -> Result<String, SeleniumBaseError> {
-        self.get_page_source().await
+        self.page_source().await
     }
 
     async fn evaluate(&self, expression: &str) -> Result<Value, SeleniumBaseError> {
@@ -307,7 +307,7 @@ mod debug_prompt_tests {
         sb.start_recording();
         assert!(!sb.recorder_mode(), "a recording window is not Recorder Mode");
 
-        let on = BaseCase::without_session(BrowserConfig::default().with_recorder_mode(true));
+        let on = BaseCase::without_session(BrowserConfig::builder().recorder_mode(true).build().expect("a valid config"));
         assert!(on.recorder_mode());
     }
 }

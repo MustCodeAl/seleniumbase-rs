@@ -27,7 +27,10 @@ use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, DriverMo
 #[tokio::main]
 async fn main() -> Result<()> {
     let url = Site::serve_demo()?.url(DEMO_PATH);
-    let config = BrowserConfig::default().with_mode(DriverMode::Cdp);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Cdp)
+        .build()
+        .expect("a valid config");
     run_browser_test(config, async |sb| demo(sb, url).await).await
 }
 
@@ -38,7 +41,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     println!("PDF saved to {}", pdf.display());
 
     let path = pdf.to_string_lossy();
-    let text = sb.get_pdf_text(&path)?;
+    let text = sb.pdf_text(&path)?;
     println!("Extracted {} characters of text", text.len());
 
     // The heading and the green sentence are both on the printed page.

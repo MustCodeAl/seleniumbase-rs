@@ -1,4 +1,4 @@
-//! A real-browser check of `--esc-end` (`BrowserConfig::with_esc_end`).
+//! A real-browser check of `--esc-end` (`BrowserConfigBuilder::esc_end`).
 //!
 //! With the setting on, `BaseCase` puts a key listener in the page, and the
 //! first call after a person presses ESC in the browser returns
@@ -27,7 +27,10 @@ const PAGE: &str = "data:text/html,<html><head><title>start</title></head><body>
     <input id=\"box\"></body></html>";
 
 fn test_config(esc_end: bool) -> BrowserConfig {
-    let mut config = BrowserConfig::default().with_esc_end(esc_end);
+    let mut config = BrowserConfig::builder()
+        .esc_end(esc_end)
+        .build()
+        .expect("a valid config");
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
         config.session.webdriver_url = Some(url);
         config.session.auto_start_driver = false;
@@ -54,7 +57,7 @@ async fn pressing_escape_in_the_page_ends_the_test() {
 
     // Until ESC is pressed, calls do their work.
     sb.click("#go").await.expect("the first click works");
-    assert_eq!(sb.get_title().await.unwrap(), "clicked");
+    assert_eq!(sb.title().await.unwrap(), "clicked");
     reset_title(&sb).await;
 
     // The person presses ESC with the page in front of them.
@@ -70,7 +73,7 @@ async fn pressing_escape_in_the_page_ends_the_test() {
         "{error:?}"
     );
     assert_eq!(
-        sb.get_title().await.unwrap(),
+        sb.title().await.unwrap(),
         "start",
         "the stopped click did not click"
     );
@@ -98,7 +101,7 @@ async fn without_the_setting_escape_changes_nothing() {
     sb.click("#box").await.expect("focus the input");
     sb.press_key("escape").await.expect("press ESC");
     sb.click("#go").await.expect("ESC is ignored");
-    assert_eq!(sb.get_title().await.unwrap(), "clicked");
+    assert_eq!(sb.title().await.unwrap(), "clicked");
     sb.wait_for_ready_state_complete()
         .await
         .expect("the page is ready");

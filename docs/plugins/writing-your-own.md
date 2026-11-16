@@ -706,7 +706,7 @@ use seleniumbase_rs::{BaseCase, BrowserConfig};
 use seleniumbase_rs_plugin_hello::Hello;
 
 let plugins = PluginSet::new().with(Hello::new("hi"))?;
-let mut sb = BaseCase::new(BrowserConfig::default().with_plugins(plugins)).await?;
+let mut sb = BaseCase::new(BrowserConfig::builder().plugins(plugins).build()?).await?;
 ```
 
 </CodeGroup>
@@ -1647,7 +1647,7 @@ from names are strict.
 
 <Accordion title="No plugin named hello is available" icon="magnifying-glass">
 
-`plugins_named`, `plugin_selection`, `with_plugin_selection`, `sbrs --plugin`
+`plugins_named`, `plugin_selection`, `sbrs --plugin`
 and `sbrs plugin info` look names up in the built-in registry. Add your plugin
 to a registry of your own and build the set with `plugin_host::build_with`, as
 in [Register it and turn it on](#register-it-and-turn-it-on). The prebuilt

@@ -57,7 +57,10 @@ const TALL_PAGE: &str =
     "data:text/html,<html><body style=\"margin:0\"><div style=\"height:5000px\"></div></body></html>";
 
 async fn case(page: &str) -> BaseCase {
-    let config = BrowserConfig::default().with_headless(true);
+    let config = BrowserConfig::builder()
+        .headless(true)
+        .build()
+        .expect("a valid config");
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(page).await.expect("the page opens");
     sb
@@ -65,9 +68,16 @@ async fn case(page: &str) -> BaseCase {
 
 /// Like [`case`], in `mode` (`None` is plain WebDriver).
 async fn case_in_mode(mode: Option<DriverMode>, page: &str) -> BaseCase {
-    let mut config = BrowserConfig::default().with_headless(true);
+    let mut config = BrowserConfig::builder()
+        .headless(true)
+        .build()
+        .expect("a valid config");
     if let Some(mode) = mode {
-        config = config.with_mode(mode);
+        config = config
+            .into_builder()
+            .mode(mode)
+            .build()
+            .expect("a valid config");
     }
     let mut sb = BaseCase::new(config).await.expect("Chrome starts");
     sb.open(page).await.expect("the page opens");
@@ -163,7 +173,7 @@ async fn an_arrow_key_goes_to_an_element_as_often_as_asked() {
 #[serial_test::serial(chrome)]
 async fn a_scroll_moves_a_percentage_of_the_window_height() {
     let mut sb = case(TALL_PAGE).await;
-    let (_, height) = sb.get_window_size().await.unwrap();
+    let (_, height) = sb.window_size().await.unwrap();
     let height = f64::from(height);
 
     sb.scroll_down().await.unwrap();
@@ -234,13 +244,13 @@ async fn waiting_for_an_attribute_can_ask_for_its_value() {
 #[serial_test::serial(chrome)]
 async fn a_new_tab_stays_in_the_background_when_switch_to_is_false() {
     let mut sb = case(TALL_PAGE).await;
-    let first = sb.get_current_window_handle().await.unwrap();
+    let first = sb.current_window_handle().await.unwrap();
 
     sb.open_new_tab().switch_to(false).await.unwrap();
-    assert_eq!(sb.get_current_window_handle().await.unwrap(), first);
+    assert_eq!(sb.current_window_handle().await.unwrap(), first);
 
     sb.open_new_window().await.unwrap();
-    assert_ne!(sb.get_current_window_handle().await.unwrap(), first);
+    assert_ne!(sb.current_window_handle().await.unwrap(), first);
     sb.quit().await.unwrap();
 }
 
@@ -314,13 +324,13 @@ async fn a_cookie_is_added_and_read_back_the_same_in_both_modes() {
             .unwrap();
 
         let found = sb
-            .get_cookie("k")
+            .cookie("k")
             .await
             .unwrap()
             .expect("the cookie that was added is found");
         assert_eq!((found.value.as_str(), found.http_only), ("v", true));
-        assert!(sb.get_cookie("nobody").await.unwrap().is_none());
-        let all = sb.get_cookies().await.unwrap();
+        assert!(sb.cookie("nobody").await.unwrap().is_none());
+        let all = sb.cookies().await.unwrap();
         assert!(all.contains(&found), "{all:?}");
         seen.push(found);
         sb.quit().await.unwrap();

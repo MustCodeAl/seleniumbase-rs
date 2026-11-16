@@ -45,7 +45,8 @@ fn alert_is_open(error: &str) -> bool {
 
 impl BaseCase {
     /// Whether Recorder Mode is on: asked for by the configuration
-    /// ([`BrowserConfig::with_recorder_mode`], `--rec`), or switched on by
+    /// ([`BrowserConfigBuilder::recorder_mode`](crate::BrowserConfigBuilder::recorder_mode),
+    /// `--rec`), or switched on by
     /// [`activate_recorder`](Self::activate_recorder).
     #[must_use]
     pub fn recorder_mode(&self) -> bool {
@@ -116,12 +117,10 @@ impl BaseCase {
         Ok(())
     }
 
-    /// The handle of the window the WebDriver is on. An error, not a panic,
-    /// where the session has no WebDriver (a direct CDP attachment, or a
-    /// session that was quit): [`BrowserSession::webdriver`] says which.
-    async fn current_window_handle(&self) -> Result<String, SeleniumBaseError> {
-        Ok(self.session.webdriver()?.window().await?.to_string())
-    }
+
+
+
+    
 
     /// Runs the page script in the document that is loaded now, unless it has
     /// run in this tab's origin already. Returns whether it ran.
@@ -155,7 +154,7 @@ impl BaseCase {
                     .to_owned(),
             ));
         }
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if NOT_RECORDED_SCHEMES
             .iter()
             .any(|scheme| url.starts_with(scheme))
@@ -183,7 +182,7 @@ impl BaseCase {
     /// frame that a frame opened in a new tab needs. Only `http`, `https` and
     /// `file` pages are recorded; any other tab has none.
     async fn recorded_actions_on_active_tab(&self) -> Result<Vec<RawAction>, SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if !crate::api::recorder::recordable(&url) {
             return Ok(Vec::new());
         }
@@ -209,7 +208,7 @@ impl BaseCase {
     ///
     /// Returns the driver's error when the page cannot be read.
     pub async fn save_recorded_actions(&mut self) -> Result<(), SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if !crate::api::recorder::recordable(&url) {
             return Ok(());
         }
@@ -264,7 +263,7 @@ impl BaseCase {
             self.recording.window_count = handles.len();
             let _ = driver.switch_to_window(newest.clone()).await;
         }
-        let Ok(url) = self.get_current_url().await else {
+        let Ok(url) = self.current_url().await else {
             return false;
         };
         if crate::api::recorder::recordable(&url) {
@@ -338,7 +337,7 @@ impl BaseCase {
     /// ```no_run
     /// # use seleniumbase_rs::{BaseCase, BrowserConfig};
     /// # async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    /// let mut sb = BaseCase::new(BrowserConfig::default().with_recorder_mode(true)).await?;
+    /// let mut sb = BaseCase::new(BrowserConfig::builder().recorder_mode(true).build()?).await?;
     /// sb.open("https://example.com").await?;
     /// sb.recorder_breakpoint("Click around, then press c here").await?;
     /// sb.quit().await?; // writes recordings/..._rec.rs
@@ -442,7 +441,7 @@ impl BaseCase {
         order.extend(others);
         for handle in &order {
             let live = match self.switch_to_window(handle).await {
-                Ok(()) => match self.get_current_url().await {
+                Ok(()) => match self.current_url().await {
                     Ok(url) if crate::api::recorder::recordable(&url) => {
                         origins.push(crate::api::recorder::origin_of(&url));
                         self.recorded_actions_on_active_tab().await.ok()
@@ -517,7 +516,7 @@ impl BaseCase {
             .target
             .clone()
             .unwrap_or_else(RecordingTarget::from_environment);
-        let format = if self.config.rec_sb_cdp() {
+        let format = if self.config.recording_sb_cdp() {
             RecordingFormat::Cdp
         } else if self.config.rec_sb_mgr() {
             RecordingFormat::Script
@@ -617,9 +616,7 @@ mod tests_recorder_mode {
     }
 
     fn config(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_recorder_mode(true);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).recorder_mode(true).build().expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -758,7 +755,7 @@ mod tests_recorder_mode {
     async fn without_recorder_mode_quit_writes_nothing() {
         let driver = browser(vec![tab("w1", "https://a.test/", Value::Null)], now());
         let mut config = config(&driver);
-        config = config.with_recorder_mode(false);
+        config = config.into_builder().recorder_mode(false).build().expect("a valid config");
         let mut sb = BaseCase::new(config).await.unwrap();
         let folder = temp("off");
         sb.set_recording_output(RecordingTarget::new("off", "Off", "t").in_folder(&folder));
@@ -897,7 +894,7 @@ mod tests_recorder_mode {
     /// (`cdp_url`) or a session that was quit has none, and Recorder Mode asked for.
     fn without_a_webdriver() -> BaseCase {
         BaseCase::with_session(
-            BrowserConfig::default().with_recorder_mode(true),
+            BrowserConfig::builder().recorder_mode(true).build().expect("a valid config"),
             BrowserSession::disconnected(),
         )
     }

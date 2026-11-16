@@ -2,7 +2,7 @@
 
 use std::path::{Component, Path, PathBuf};
 use std::pin::Pin;
-use std::sync::{Arc, PoisonError};
+use std::sync::Arc;
 
 use rmcp::handler::server::ServerHandler;
 use rmcp::model::{
@@ -224,16 +224,13 @@ impl<S: Send + 'static> Ctx<S> {
 
     /// Adds a finished call to the log.
     pub(crate) fn record(&self, record: CallRecord) {
-        self.journal
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(record);
+        crate::common::poison::locked(&self.journal).push(record);
     }
 
     /// The calls in the log, oldest first, and how many older ones were
     /// dropped to keep it bounded.
     pub(crate) fn calls(&self) -> (Vec<CallRecord>, usize) {
-        let journal = self.journal.lock().unwrap_or_else(PoisonError::into_inner);
+        let journal = crate::common::poison::locked(&self.journal);
         (journal.calls(), journal.dropped())
     }
 
@@ -242,7 +239,7 @@ impl<S: Send + 'static> Ctx<S> {
     ///
     /// Do not hold the guard across an `.await`.
     pub(crate) fn refs(&self) -> std::sync::MutexGuard<'_, RefTable> {
-        self.refs.lock().unwrap_or_else(PoisonError::into_inner)
+        crate::common::poison::locked(&self.refs)
     }
 
     /// Where this call reports its progress.

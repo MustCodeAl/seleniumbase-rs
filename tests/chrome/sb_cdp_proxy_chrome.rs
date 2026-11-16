@@ -14,7 +14,7 @@
 //! ```
 
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use base64::engine::general_purpose::STANDARD;
@@ -72,7 +72,7 @@ async fn serve(mut tcp: TcpStream, seen: Arc<Mutex<Seen>>) {
     let mut buffered = Vec::new();
     while let Some(head) = read_head(&mut tcp, &mut buffered).await {
         let answer = {
-            let mut state = seen.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut state = seen.lock().expect("the test lock");
             if let Some(login) = header(&head, "authorization") {
                 state.website_logins.push(login.to_owned());
             }
@@ -122,7 +122,7 @@ async fn a_website_that_asks_for_a_password_never_gets_the_proxy_account() {
     browser.close().await.expect("Chrome closes");
     proxy.abort();
 
-    let seen = seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let seen = seen.lock().expect("the test lock");
     assert!(
         seen.proxy_logins >= 1,
         "Chrome never logged in to the proxy, so the test saw nothing"

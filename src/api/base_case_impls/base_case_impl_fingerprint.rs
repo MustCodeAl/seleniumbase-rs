@@ -30,7 +30,7 @@ impl BaseCase {
     /// use seleniumbase_rs::{BaseCase, BrowserConfig};
     ///
     /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    /// let mut sb = BaseCase::new(BrowserConfig::default().with_headless(true)).await?;
+    /// let mut sb = BaseCase::new(BrowserConfig::builder().headless(true).build()?).await?;
     /// sb.open("https://example.com").await?;
     ///
     /// let captured = sb.capture_fingerprint().await?;

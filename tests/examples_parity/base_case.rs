@@ -277,7 +277,7 @@ async fn iframe_tests_set_content_to_frame() -> Result<()> {
 async fn test_window_switching() -> Result<()> {
     run_browser_test(headless(), async |sb| {
         sb.goto("about:blank").await?;
-        sb.get_new_driver().await?;
+        sb.new_driver().await?;
         sb.goto("data:text/html,<h1>Page A</h1>").await?;
         sb.assert_text("Page A", "html").await?;
         sb.open_new_window().await?;
@@ -389,19 +389,19 @@ async fn test_select_options() -> Result<()> {
         let expected_option_texts = ["Set to 25%", "Set to 50%", "Set to 75%", "Set to 100%"]
             .map(str::to_owned)
             .to_vec();
-        let option_texts = sb.get_select_options("select#mySelect").await?;
+        let option_texts = sb.select_options("select#mySelect").await?;
         sb.assert_equal(&option_texts, &expected_option_texts)?;
 
         let expected_option_indexes = ["0", "1", "2", "3"].map(str::to_owned).to_vec();
         let option_indexes = sb
-            .get_select_options("select#mySelect")
+            .select_options("select#mySelect")
             .attribute("index")
             .await?;
         sb.assert_equal(&option_indexes, &expected_option_indexes)?;
 
         let expected_option_values = ["25%", "50%", "75%", "100%"].map(str::to_owned).to_vec();
         let option_values = sb
-            .get_select_options("select#mySelect")
+            .select_options("select#mySelect")
             .attribute("value")
             .await?;
 
@@ -409,7 +409,7 @@ async fn test_select_options() -> Result<()> {
 
         for (index, option_text) in option_texts.iter().enumerate() {
             sb.select_option_by_text("#mySelect", option_text).await?;
-            let selected_value = sb.get_attribute("#mySelect", "value").await?;
+            let selected_value = sb.attribute("#mySelect", "value").await?;
             sb.assert_equal(
                 selected_value.as_deref(),
                 Some(option_values[index].as_str()),
@@ -418,7 +418,7 @@ async fn test_select_options() -> Result<()> {
 
         for (index, option_value) in option_values.iter().enumerate() {
             sb.select_option_by_value("#mySelect", option_value).await?;
-            let selected_value = sb.get_attribute("#mySelect", "value").await?;
+            let selected_value = sb.attribute("#mySelect", "value").await?;
             sb.assert_equal(
                 selected_value.as_deref(),
                 Some(option_values[index].as_str()),
@@ -448,17 +448,17 @@ async fn shadow_root_test() -> Result<()> {
     run_port(async |sb, _| {
         sb.goto("https://seleniumbase.io/other/shadow_dom").await?;
         sb.click("button.tab_1").await?;
-        let panel = sb.get_text("fancy-tabs::shadow #panels").await?;
+        let panel = sb.text("fancy-tabs::shadow #panels").await?;
         println!("{panel}");
         sb.assert_exact_text("Content Panel 1", "fancy-tabs::shadow #panels")
             .await?;
         sb.click("button.tab_2").await?;
-        let panel = sb.get_text("fancy-tabs::shadow #panels").await?;
+        let panel = sb.text("fancy-tabs::shadow #panels").await?;
         println!("{panel}");
         sb.assert_exact_text("Content Panel 2", "fancy-tabs::shadow #panels")
             .await?;
         sb.click("button.tab_3").await?;
-        let panel = sb.get_text("fancy-tabs::shadow #panels").await?;
+        let panel = sb.text("fancy-tabs::shadow #panels").await?;
         println!("{panel}");
         sb.assert_exact_text("Content Panel 3", "fancy-tabs::shadow #panels")
             .await
@@ -822,7 +822,7 @@ async fn todomvc(framework: &str) -> Result<()> {
         sb.assert_element("section.todoapp").await?;
         sb.assert_text("todos", "header h1").await?;
         sb.wait_for_ready_state_complete().await?;
-        let title = sb.get_title().await?;
+        let title = sb.title().await?;
         // Python: self.assert_in(framework, title.lower())
         sb.assert_in(framework, &title.to_lowercase())?;
         let new_todo_input = "input.new-todo";

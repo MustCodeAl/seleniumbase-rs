@@ -170,7 +170,7 @@ Things to know:
   `LaunchOptions::builder().fingerprint(&fp)` (see
   [Pure CDP](/tutorials/pure_cdp#looking-like-another-browser)); `page.apply_fingerprint(&fp)`
   does the same for one tab. For `BaseCase`, pass it to
-  `BrowserConfig::with_fingerprint` and use `DriverMode::Uc` or `DriverMode::Cdp`.
+  `BrowserConfigBuilder::fingerprint` and use `DriverMode::Uc` or `DriverMode::Cdp`.
   You can also feed it to the evasion registry yourself.
 
 ## Building a custom fingerprint

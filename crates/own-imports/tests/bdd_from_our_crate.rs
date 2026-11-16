@@ -3,6 +3,10 @@
 //! The manifest of this crate lists neither `rstest-bdd` nor `rstest-bdd-macros` nor `rstest`.
 //! If the macro re-exports did not carry everything the macros expand to, this file would
 //! not compile. The steps use a plain counter, not a browser, so the test runs anywhere.
+#![expect(
+    clippy::disallowed_methods,
+    reason = "rstest-bdd's step macros wrap a step that is not async in `catch_unwind`"
+)]
 
 use seleniumbase_rs::testing::bdd::{given, scenario, skip, then, when};
 use seleniumbase_rs::testing::{fixture, rstest};

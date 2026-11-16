@@ -186,7 +186,10 @@ mod tests {
     const PASSWORD: &str = "s3cret-proxy-password";
 
     fn login() -> BrowserConfig {
-        BrowserConfig::default().with_proxy(format!("alice:{PASSWORD}@proxy.test:8080"))
+        BrowserConfig::builder()
+            .proxy(format!("alice:{PASSWORD}@proxy.test:8080"))
+            .build()
+            .expect("a valid config")
     }
 
     #[test]
@@ -258,8 +261,10 @@ mod tests {
 
     #[test]
     fn a_pac_file_with_a_login_counts_too() {
-        let config =
-            BrowserConfig::default().with_proxy_pac_url("pac-user:pac-pass@http://pac.test/p.pac");
+        let config = BrowserConfig::builder()
+            .proxy_pac_url("pac-user:pac-pass@http://pac.test/p.pac")
+            .build()
+            .expect("a valid config");
         assert_eq!(
             login_for(&config).expect("valid"),
             Some(("pac-user".to_owned(), "pac-pass".to_owned()))
@@ -268,7 +273,11 @@ mod tests {
 
     #[test]
     fn the_proxys_login_wins_over_the_pac_files() {
-        let config = login().with_proxy_pac_url("pac-user:pac-pass@http://pac.test/p.pac");
+        let config = login()
+            .into_builder()
+            .proxy_pac_url("pac-user:pac-pass@http://pac.test/p.pac")
+            .build()
+            .expect("a valid config");
         assert_eq!(
             login_for(&config).expect("valid").map(|(user, _)| user),
             Some("alice".to_owned())
@@ -278,9 +287,15 @@ mod tests {
     #[test]
     fn a_proxy_without_a_login_or_no_proxy_wants_nothing() {
         assert_eq!(login_for(&BrowserConfig::default()).expect("valid"), None);
-        let plain = BrowserConfig::default().with_proxy("proxy.test:8080");
+        let plain = BrowserConfig::builder()
+            .proxy("proxy.test:8080")
+            .build()
+            .expect("a valid config");
         assert_eq!(login_for(&plain).expect("valid"), None);
-        let pac = BrowserConfig::default().with_proxy_pac_url("http://pac.test/p.pac");
+        let pac = BrowserConfig::builder()
+            .proxy_pac_url("http://pac.test/p.pac")
+            .build()
+            .expect("a valid config");
         assert_eq!(login_for(&pac).expect("valid"), None);
     }
 
@@ -295,7 +310,11 @@ mod tests {
 
     #[test]
     fn a_remote_grid_with_a_login_is_refused_without_the_password() {
-        let config = login().with_webdriver_url("http://USER:KEY@hub.browserstack.com/wd/hub");
+        let config = login()
+            .into_builder()
+            .webdriver_url("http://USER:KEY@hub.browserstack.com/wd/hub")
+            .build()
+            .expect("a valid config");
         let error = login_for(&config).expect_err("refused").to_string();
         assert!(
             error.contains("needs a browser this machine starts"),
@@ -310,9 +329,11 @@ mod tests {
 
     #[test]
     fn a_remote_grid_without_a_login_is_fine() {
-        let config = BrowserConfig::default()
-            .with_proxy("proxy.test:8080")
-            .with_webdriver_url("http://hub.example.com:4444/wd/hub");
+        let config = BrowserConfig::builder()
+            .proxy("proxy.test:8080")
+            .webdriver_url("http://hub.example.com:4444/wd/hub")
+            .build()
+            .expect("a valid config");
         assert_eq!(login_for(&config).expect("valid"), None);
     }
 
@@ -348,13 +369,20 @@ mod tests {
 
     #[test]
     fn a_local_server_on_another_port_may_be_given_the_login() {
-        let config = login().with_webdriver_url("http://localhost:9515");
+        let config = login()
+            .into_builder()
+            .webdriver_url("http://localhost:9515")
+            .build()
+            .expect("a valid config");
         assert!(login_for(&config).expect("valid").is_some());
     }
 
     #[test]
     fn an_invalid_proxy_is_refused_without_the_password() {
-        let config = BrowserConfig::default().with_proxy(format!("alice:{PASSWORD}@proxy.test"));
+        let config = BrowserConfig::builder()
+            .proxy(format!("alice:{PASSWORD}@proxy.test"))
+            .build()
+            .expect("a valid config");
         let error = login_for(&config).expect_err("no port").to_string();
         assert!(!error.contains(PASSWORD), "{error}");
     }

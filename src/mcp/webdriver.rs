@@ -48,7 +48,7 @@ impl DevSession for BaseCase {
     async fn cookie_names(&mut self) -> Result<Vec<String>, SeleniumBaseError> {
         // `get_cookies` lists the cookies of the page in every mode, HttpOnly ones included.
         Ok(self
-            .get_cookies()
+            .cookies()
             .await?
             .into_iter()
             .map(|cookie| cookie.name)
@@ -140,21 +140,22 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     // Undetected mode is a Chromium feature.
     let uc = args.bool_or("uc", true)? && matches!(browser, Browser::Chrome | Browser::Chromium);
 
-    let mut config = BrowserConfig::from_env()?
-        .with_browser(browser)
-        .with_headless(headless);
+    let mut builder = BrowserConfig::from_env()?
+        .into_builder()
+        .browser(browser)
+        .headless(headless);
     if uc {
-        config = config.with_mode(DriverMode::Uc);
+        builder = builder.mode(DriverMode::Uc);
     }
-    config.browser.ad_block = args.bool_or("ad_block", false)?;
+    builder = builder.ad_block(args.bool_or("ad_block", false)?);
     if chromium_family && incognito {
-        config = config.push_extra_arg("--incognito");
+        builder = builder.extra_arg("--incognito");
     }
     if chromium_family && guest {
-        config = config.push_extra_arg("--guest");
+        builder = builder.extra_arg("--guest");
     }
     if let Some(proxy) = nonempty(&args, "proxy")? {
-        config = config.with_proxy(proxy);
+        builder = builder.proxy(proxy);
     }
     let fingerprint = super::fingerprint::start_fingerprint(&args, ctx.settings())?;
     if let Some(fingerprint) = &fingerprint {
@@ -164,13 +165,14 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
                 "a fingerprint applies to Chrome, Chromium and Edge, not Firefox",
             ));
         }
-        config = config.with_fingerprint(fingerprint.clone());
+        builder = builder.fingerprint(fingerprint.clone());
     }
     // The operator's plugins (`sbrs-mcp --plugin`), never a tool argument.
     let plugins = ctx.settings().plugin_selection();
     plugins.ensure_supported()?;
     #[cfg(feature = "plugins")]
-    let config = config.with_plugin_selection(plugins)?;
+    let builder = builder.plugin_selection(plugins);
+    let config = builder.build()?;
 
     let started = ctx
         .start(async move { Ok::<_, ToolError>(Box::pin(BaseCase::new(config)).await?) })
@@ -220,10 +222,10 @@ async fn get_page_info(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolEr
     let info = async {
         Ok::<_, SeleniumBaseError>(json!({
             "running": true,
-            "url": case.get_current_url().await?,
-            "title": case.get_title().await?,
-            "origin": case.get_origin().await?,
-            "user_agent": case.get_user_agent().await?,
+            "url": case.current_url().await?,
+            "title": case.title().await?,
+            "origin": case.origin().await?,
+            "user_agent": case.user_agent().await?,
         }))
     }
     .await;
@@ -267,23 +269,23 @@ pub(super) async fn go_forward(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output
 }
 
 pub(super) async fn get_current_url(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    on_case(ctx, async |case| case.get_current_url().await).await
+    on_case(ctx, async |case| case.current_url().await).await
 }
 
 pub(super) async fn get_title(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    on_case(ctx, async |case| case.get_title().await).await
+    on_case(ctx, async |case| case.title().await).await
 }
 
 pub(super) async fn get_origin(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    on_case(ctx, async |case| case.get_origin().await).await
+    on_case(ctx, async |case| case.origin().await).await
 }
 
 pub(super) async fn get_user_agent(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    on_case(ctx, async |case| case.get_user_agent().await).await
+    on_case(ctx, async |case| case.user_agent().await).await
 }
 
 pub(super) async fn get_page_source(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    on_case(ctx, async |case| case.get_page_source().await).await
+    on_case(ctx, async |case| case.page_source().await).await
 }
 
 // ----------------------------------------------------------------------
@@ -293,7 +295,7 @@ pub(super) async fn get_page_source(ctx: Ctx<BaseCase>, _args: Args) -> Result<O
 pub(super) async fn get_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let selector = args.str_or("selector", "body")?;
     let case = ctx.session().await?;
-    Ok(case.get_text(selector).await?.into())
+    Ok(case.text(selector).await?.into())
 }
 
 pub(super) async fn get_element_html(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
@@ -308,7 +310,7 @@ pub(super) async fn get_attribute(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     let attribute = args.str("attribute")?;
     let mut case = ctx.session().await?;
     Ok(Output::Json(
-        case.get_attribute(selector, attribute)
+        case.attribute(selector, attribute)
             .await?
             .map_or(Value::Null, Value::String),
     ))
@@ -744,7 +746,7 @@ pub(super) async fn assert_no_js_errors(
 // ----------------------------------------------------------------------
 
 pub(super) async fn get_cookies(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    json_output(ctx.session().await?.get_cookies().await?)
+    json_output(ctx.session().await?.cookies().await?)
 }
 
 pub(super) async fn delete_all_cookies(
@@ -786,7 +788,7 @@ pub(super) async fn get_local_storage_item(
 ) -> Result<Output, ToolError> {
     let key = args.str("key")?;
     Ok(Output::Json(
-        ctx.session().await?.get_local_storage_item(key).await?,
+        ctx.session().await?.local_storage_item(key).await?,
     ))
 }
 
@@ -808,7 +810,7 @@ pub(super) async fn get_session_storage_item(
 ) -> Result<Output, ToolError> {
     let key = args.str("key")?;
     Ok(Output::Json(
-        ctx.session().await?.get_session_storage_item(key).await?,
+        ctx.session().await?.session_storage_item(key).await?,
     ))
 }
 
@@ -876,7 +878,7 @@ pub(super) async fn scroll_down(ctx: Ctx<BaseCase>, args: Args) -> Result<Output
 }
 
 pub(super) async fn get_window_rect(ctx: Ctx<BaseCase>, _args: Args) -> Result<Output, ToolError> {
-    let (x, y, width, height) = ctx.session().await?.get_window_rect().await?;
+    let (x, y, width, height) = ctx.session().await?.window_rect().await?;
     Ok(json!({ "x": x, "y": y, "width": width, "height": height }).into())
 }
 
@@ -956,7 +958,7 @@ pub(super) async fn solve_captcha(ctx: Ctx<BaseCase>, _args: Args) -> Result<Out
 
 pub(super) async fn get_mfa_code(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let key = args.str("totp_key")?;
-    Ok(ctx.session().await?.get_mfa_code(key)?.into())
+    Ok(ctx.session().await?.mfa_code(key)?.into())
 }
 
 pub(super) async fn enter_mfa_code(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
@@ -1000,7 +1002,7 @@ pub(super) async fn save_page_source(ctx: Ctx<BaseCase>, args: Args) -> Result<O
     let path = ctx
         .settings()
         .output_path(nonempty(&args, "folder")?, name)?;
-    let source = ctx.session().await?.get_page_source().await?;
+    let source = ctx.session().await?.page_source().await?;
     write_file(&path, source.as_bytes()).await?;
     Ok(format!("Page source saved as {name}").into())
 }

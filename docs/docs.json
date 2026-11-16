@@ -466,7 +466,15 @@
             "pages": [
               "ecosystem/overview",
               "ecosystem/browser-extension",
-              "ecosystem/tauri",
+              {
+                "group": "Tauri",
+                "pages": [
+                  "ecosystem/tauri",
+                  "ecosystem/tauri-driver",
+                  "ecosystem/tauri-client",
+                  "ecosystem/tauri-browser"
+                ]
+              },
               "ecosystem/homebrew"
             ]
           },
@@ -890,6 +898,7 @@
               "design/mise_drivers",
               "design/trace_viewer",
               "design/playwright_basecase",
+              "design/basecase_over_cdp",
               "design/bon_builders",
               "design/settings_v2",
               "design/element_type",

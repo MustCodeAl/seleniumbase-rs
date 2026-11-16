@@ -45,9 +45,14 @@ fn serve() -> String {
 async fn webdriver_and_the_pure_cdp_engine_read_the_same_chrome_the_same_way() {
     let url = serve();
 
-    let mut sb = BaseCase::new(BrowserConfig::default().with_headless(true))
-        .await
-        .expect("Chrome starts through chromedriver");
+    let mut sb = BaseCase::new(
+        BrowserConfig::builder()
+            .headless(true)
+            .build()
+            .expect("a valid config"),
+    )
+    .await
+    .expect("Chrome starts through chromedriver");
     sb.open(&url).await.unwrap();
     let through_webdriver = sb.capture_fingerprint().await.expect("the capture runs");
     sb.quit().await.unwrap();

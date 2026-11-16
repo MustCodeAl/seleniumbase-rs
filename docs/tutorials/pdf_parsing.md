@@ -33,7 +33,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-r
 
 `save_as_pdf` and `print_to_pdf` print a page to PDF (always available).
 
-With feature `pdf`: `get_pdf_text`, `assert_pdf_text`, `pdf::extract_text_from_bytes`, `pdf::extract_text_from_url` (refuses downloads over 100 MB) and `PdfReader::open`.
+With feature `pdf`: `pdf_text`, `assert_pdf_text`, `pdf::extract_text_from_bytes`, `pdf::extract_text_from_url` (refuses downloads over 100 MB) and `PdfReader::open`.
 
 </Card>
 
@@ -60,7 +60,7 @@ page's own CSS page size (CDP `Page.printToPDF`).
 These are plain functions; they read the file and need no browser.
 
 ```rust
-let text = sb.get_pdf_text("page.pdf")?;
+let text = sb.pdf_text("page.pdf")?;
 println!("{text}");
 ```
 
@@ -122,7 +122,7 @@ for (number, page) in reader.pages()?.iter().enumerate() {
 
 </Accordion>
 
-<Accordion title="no method named get_pdf_text" icon="puzzle-piece">
+<Accordion title="no method named pdf_text" icon="puzzle-piece">
 
 **Likely cause.** Built without the `pdf` feature.
 

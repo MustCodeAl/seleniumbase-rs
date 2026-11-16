@@ -40,10 +40,12 @@ async fn main() -> Result<()> {
 
     if std::env::args().any(|arg| arg == "--launch") {
         let url = Site::serve_demo()?.url(DEMO_PATH);
-        let config = BrowserConfig::default()
-            .with_headless(true)
-            .with_user_agent(USER_AGENT)
-            .with_mode(DriverMode::Uc);
+        let config = BrowserConfig::builder()
+            .headless(true)
+            .user_agent(USER_AGENT)
+            .mode(DriverMode::Uc)
+            .build()
+            .expect("a valid config");
         run_browser_test(config, async |sb| launched(sb, url).await).await?;
     } else {
         println!("\n(pass --launch to start a browser with these options)");
@@ -95,7 +97,10 @@ fn options_by_hand() -> Result<()> {
     )?;
 
     // What `BaseCase` would launch with for a config.
-    let config = BrowserConfig::default().with_mode(DriverMode::Uc);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .build()
+        .expect("a valid config");
     let from_config = StealthOptions::from(&config).args()?;
     println!(
         "\nfrom a default UC config: {} launch arguments",

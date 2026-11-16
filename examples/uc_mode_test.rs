@@ -50,7 +50,10 @@ async fn main() -> Result<()> {
     let plain = probe(BrowserConfig::default(), &url).await?;
     println!("WebDriver mode: {plain:?}");
 
-    let config = BrowserConfig::default().with_mode(DriverMode::Uc);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .build()
+        .expect("a valid config");
     let undetected = probe(config, &url).await?;
     println!("UC mode:        {undetected:?}");
 

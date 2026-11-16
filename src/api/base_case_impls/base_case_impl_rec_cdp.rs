@@ -3,10 +3,10 @@
 
 impl BaseCase {
     /// Whether recordings are written as pure CDP code
-    /// ([`BrowserConfig::with_recording_sb_cdp`]).
+    /// ([`BrowserConfigBuilder::recording_sb_cdp`](crate::BrowserConfigBuilder::recording_sb_cdp)).
     #[must_use]
     pub fn rec_sb_cdp(&self) -> bool {
-        self.config.rec_sb_cdp()
+        self.config.recording_sb_cdp()
     }
 
     /// The recording as a standalone `#[tokio::main]` program for the pure CDP
@@ -47,9 +47,7 @@ mod tests_rec_sb_cdp {
                 _ => Reply::Value(Value::Null),
             }
         });
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_recording_sb_cdp(rec_sb_cdp);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).recording_sb_cdp(rec_sb_cdp).build().expect("a valid config");
         config.session.auto_start_driver = false;
         let mut sb = BaseCase::new(config)
             .await

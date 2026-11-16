@@ -31,7 +31,10 @@ const CLEAR_WITHIN: Duration = Duration::from_secs(8);
 fn config() -> BrowserConfig {
     // The solver sends its pointer events over the DevTools Protocol, so the
     // session needs the CDP (or UC) mode.
-    BrowserConfig::default().with_mode(DriverMode::Cdp)
+    BrowserConfig::builder()
+        .mode(DriverMode::Cdp)
+        .build()
+        .expect("a valid config")
 }
 
 /// Whether `script` (which returns a boolean) is true within `within`.
@@ -155,7 +158,7 @@ async fn an_interstitial_clears_to_the_real_page_with_a_clearance_cookie() {
         .await,
         "the real page did not load"
     );
-    let cookies = sb.get_cookies().await.expect("cookies");
+    let cookies = sb.cookies().await.expect("cookies");
     assert!(
         cookies.iter().any(|cookie| cookie.name == "cf_clearance"),
         "{cookies:?}"

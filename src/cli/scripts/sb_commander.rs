@@ -303,12 +303,12 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<Stdout>>, app: &mut App) -> 
     loop {
         terminal.draw(|f| draw(f, app))?;
         let timeout = tick_rate.saturating_sub(last_tick.elapsed());
-        if event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == KeyEventKind::Press && handle_key(app, key)? {
-                    return Ok(());
-                }
-            }
+        if event::poll(timeout)?
+            && let Event::Key(key) = event::read()?
+            && key.kind == KeyEventKind::Press
+            && handle_key(app, key)?
+        {
+            return Ok(());
         }
         if last_tick.elapsed() >= tick_rate {
             last_tick = std::time::Instant::now();

@@ -276,7 +276,7 @@ mod tests_text_argument_order {
             sb.find_exact_text(" Welcome ", "h1").await.unwrap(),
             sb.find_non_empty_text("h1").await.unwrap(),
         ] {
-            assert_eq!(found.as_webdriver_element().element_id().to_string(), "h1");
+            assert_eq!(found.as_webdriver_element().unwrap().element_id().to_string(), "h1");
         }
         sb.find_text("Goodbye", "h1").await.unwrap_err();
         sb.find_exact_text("Welcom", "h1").await.unwrap_err();
@@ -455,10 +455,10 @@ mod tests_get_text {
         let mut sb = driver.base_case().await;
         sb.set_timeout(1).await.unwrap();
 
-        assert_eq!(sb.get_text("#name").await.unwrap(), "Ada Lovelace");
-        assert_eq!(sb.get_text("#bio").await.unwrap(), "Typed since");
+        assert_eq!(sb.text("#name").await.unwrap(), "Ada Lovelace");
+        assert_eq!(sb.text("#bio").await.unwrap(), "Typed since");
         // The alias reads the same.
-        assert_eq!(sb.get_text_of_element("#name").await.unwrap(), "Ada Lovelace");
+        assert_eq!(sb.text_of_element("#name").await.unwrap(), "Ada Lovelace");
     }
 
     #[tokio::test]
@@ -466,7 +466,7 @@ mod tests_get_text {
         let driver = form();
         let sb = driver.base_case().await;
 
-        assert_eq!(sb.get_text("#title").await.unwrap(), "Order form");
+        assert_eq!(sb.text("#title").await.unwrap(), "Order form");
         // The value of a `div` is not asked for.
         assert!(
             driver.requests("/element/title/property/value").is_empty(),
@@ -492,7 +492,7 @@ mod tests_get_text {
         sb.wait_for_non_empty_text("#name", 1).await.unwrap();
         sb.wait_for_non_empty_text_visible("#name", 1).await.unwrap();
         let found = sb.find_non_empty_text("#name").await.unwrap();
-        assert_eq!(found.as_webdriver_element().element_id().to_string(), "name");
+        assert_eq!(found.as_webdriver_element().unwrap().element_id().to_string(), "name");
     }
 
     #[tokio::test]
@@ -506,7 +506,7 @@ mod tests_get_text {
         sb.set_timeout(0).await.unwrap();
 
         let found = sb.find_text("Ada", "#name").await.unwrap();
-        assert_eq!(found.as_webdriver_element().element_id().to_string(), "name");
+        assert_eq!(found.as_webdriver_element().unwrap().element_id().to_string(), "name");
         sb.find_exact_text(" Ada Lovelace ", "#name").await.unwrap();
         sb.find_text("Typed", "#bio").await.unwrap();
         sb.find_exact_text("Typed since", "#bio").await.unwrap();

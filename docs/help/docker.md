@@ -217,7 +217,7 @@ That weakens Chrome's isolation, so use it only in a container you control.
 </Warning>
 
 ```rust
-let config = BrowserConfig::default().with_headless(true);
+let config = BrowserConfig::builder().headless(true).build()?;
 ```
 
 ## Troubleshooting

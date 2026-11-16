@@ -41,7 +41,7 @@
 //!
 //! // Hand them out in turn.
 //! let first = list.next_round_robin().expect("a proxy");
-//! let config = BrowserConfig::default().with_proxy(first.spec());
+//! let config = BrowserConfig::builder().proxy(first.spec()).build()?;
 //! assert_eq!(config.browser.proxy.server.as_deref(), Some("10.0.0.5:3128"));
 //! # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 //! ```
@@ -50,7 +50,7 @@ use std::collections::HashMap;
 use std::fmt;
 use std::path::Path;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, SystemTime};
 
 use rand::rngs::StdRng;
@@ -198,7 +198,7 @@ impl Health {
 /// The lock, also after a thread panicked while holding it: the state is a
 /// set of counters that stay usable.
 fn locked<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
-    mutex.lock().unwrap_or_else(PoisonError::into_inner)
+    crate::common::poison::locked(mutex)
 }
 
 /// An ordered list of proxies, some of them named.

@@ -18,7 +18,7 @@
 //! Set `SB_WEBDRIVER_URL` to use a chromedriver you started yourself.
 
 use std::net::Ipv4Addr;
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use base64::engine::general_purpose::STANDARD;
@@ -102,7 +102,7 @@ async fn serve(mut tcp: TcpStream, seen: Arc<Mutex<Seen>>) {
     let mut buffered = Vec::new();
     while let Some(head) = read_head(&mut tcp, &mut buffered).await {
         let answer = {
-            let mut state = seen.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut state = seen.lock().expect("the test lock");
             let website_login = header(&head, "authorization");
             if let Some(login) = website_login {
                 state.website_logins.push(login.to_owned());
@@ -157,8 +157,10 @@ async fn start_proxy() -> (u16, Arc<Mutex<Seen>>, tokio::task::JoinHandle<()>) {
 }
 
 fn config(port: u16) -> BrowserConfig {
-    let mut config =
-        BrowserConfig::default().with_proxy(format!("{USER}:{PASSWORD}@127.0.0.1:{port}"));
+    let mut config = BrowserConfig::builder()
+        .proxy(format!("{USER}:{PASSWORD}@127.0.0.1:{port}"))
+        .build()
+        .expect("a valid config");
     if let Ok(url) = std::env::var("SB_WEBDRIVER_URL") {
         config.session.webdriver_url = Some(url);
         config.session.auto_start_driver = false;
@@ -170,7 +172,7 @@ fn config(port: u16) -> BrowserConfig {
 async fn title_becomes(sb: &mut BaseCase, want: &str) -> Result<(), String> {
     let mut last = String::new();
     for _ in 0..50 {
-        last = sb.get_title().await.unwrap_or_default();
+        last = sb.title().await.unwrap_or_default();
         if last == want {
             return Ok(());
         }
@@ -192,12 +194,12 @@ async fn a_page_loads_through_a_proxy_that_asks_for_a_password() {
     sb.open(&format!("http://{SITE}/"))
         .await
         .expect("the page opens");
-    let title = sb.get_title().await.expect("a title");
+    let title = sb.title().await.expect("a title");
     sb.quit().await.expect("quit");
     proxy.abort();
 
     assert_eq!(title, "through the proxy");
-    let seen = seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let seen = seen.lock().expect("the test lock");
     assert!(seen.proxy_logins >= 1, "the proxy never saw the login");
 }
 
@@ -218,7 +220,7 @@ async fn a_new_window_loads_through_the_proxy_too() {
     sb.open(&format!("http://{SITE}/second"))
         .await
         .expect("the second page opens");
-    let title = sb.get_title().await.expect("a title");
+    let title = sb.title().await.expect("a title");
     sb.quit().await.expect("quit");
     proxy.abort();
 
@@ -245,7 +247,7 @@ async fn a_tab_the_page_opens_loads_through_the_proxy_too() {
     proxy.abort();
 
     loaded.expect("the tab the page opened loaded through the proxy");
-    let seen = seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let seen = seen.lock().expect("the test lock");
     assert!(
         seen.served.contains(&"/second".to_owned()),
         "{:?}",
@@ -269,7 +271,7 @@ async fn a_website_that_asks_for_a_password_never_gets_the_proxy_account() {
     sb.quit().await.expect("quit");
     proxy.abort();
 
-    let seen = seen.lock().unwrap_or_else(PoisonError::into_inner);
+    let seen = seen.lock().expect("the test lock");
     assert!(
         seen.proxy_logins >= 1,
         "Chrome never logged in to the proxy"
@@ -299,10 +301,7 @@ async fn the_browsers_command_line_has_no_password() {
     sb.open("chrome://version")
         .await
         .expect("the version page opens");
-    let command_line = sb
-        .get_text("#command_line")
-        .await
-        .expect("the command line");
+    let command_line = sb.text("#command_line").await.expect("the command line");
     sb.quit().await.expect("quit");
     proxy.abort();
 
@@ -322,8 +321,11 @@ async fn a_remote_grid_with_a_proxy_login_is_refused_before_anything_starts() {
         config.session.auto_start_driver = false;
         config
     }
-    .with_proxy(format!("{USER}:{PASSWORD}@proxy.test:8080"))
-    .with_webdriver_url("http://USER:KEY@hub.browserstack.com/wd/hub");
+    .into_builder()
+    .proxy(format!("{USER}:{PASSWORD}@proxy.test:8080"))
+    .webdriver_url("http://USER:KEY@hub.browserstack.com/wd/hub")
+    .build()
+    .expect("a valid config");
 
     let Err(error) = BaseCase::new(config).await else {
         panic!("a session started on a remote grid with a proxy login");

@@ -597,7 +597,7 @@ Chrome's sandbox off**, and it confines the files its own tools write.
 <Tab title="The sandbox switch" icon="shield">
 
 - A WebDriver session is configured through `BrowserConfig`.
-  `BrowserConfig::with_no_sandbox(true)` asks for `--no-sandbox`. The doc comment
+  `BrowserConfigBuilder::no_sandbox(true)` asks for `--no-sandbox`. The doc comment
   of that method says that sessions on Linux already do it, because the sandbox
   commonly cannot start there, so the switch is only added on other systems to
   avoid sending it twice.

@@ -595,6 +595,7 @@ capability trait.
 <LayoutFile name="base_case_impl_parity.rs" note="parity helpers" />
 <LayoutFile name="base_case_impl_pdf_html.rs" note="PDF and HTML helpers" />
 <LayoutFile name="base_case_impl_presentations.rs" note="presentations" />
+<LayoutFile name="base_case_impl_pure_cdp_tests.rs" note="tests of BaseCase on a direct CDP attachment" />
 <LayoutFile name="base_case_impl_rec_cdp.rs" note="recorder helpers for CDP" />
 <LayoutFile name="base_case_impl_recorder.rs" note="recorder helpers" />
 <LayoutFile name="base_case_impl_shadow.rs" note="shadow DOM helpers" />
@@ -681,9 +682,11 @@ Launch and session plumbing:
 <LayoutFile name="launcher.rs" note="chromedriver discovery, startup and StealthOptions" />
 <LayoutFile name="mod.rs" note="the browser module" />
 <LayoutDir name="options" open note="typed launch settings">
+<LayoutFile name="browser_settings.rs" note="BrowserSettings, what both engines start" />
 <LayoutFile name="capabilities.rs" note="capabilities added to the session" />
 <LayoutFile name="cdp_events.rs" note="which DevTools events are logged" />
 <LayoutFile name="chromium_args.rs" note="Chromium switches" />
+<LayoutFile name="chromium_settings.rs" note="Chromium settings with no switch of their own" />
 <LayoutFile name="device.rs" note="mobile device emulation" />
 <LayoutFile name="driver.rs" note="driver settings" />
 <LayoutFile name="extensions.rs" note="extensions to load" />
@@ -694,6 +697,7 @@ Launch and session plumbing:
 <LayoutFile name="page_load.rs" note="how long a navigation waits" />
 <LayoutFile name="plugins.rs" note="plugins turned on for the browser" />
 <LayoutFile name="proxy.rs" note="the proxy" />
+<LayoutFile name="proxy_settings.rs" note="ProxySettings, the proxy a browser uses" />
 <LayoutFile name="remote.rs" note="a remote WebDriver server" />
 <LayoutFile name="session.rs" note="SessionSettings and GridSettings, what only a WebDriver session reads" />
 <LayoutFile name="switches.rs" note="browser switches" />
@@ -708,6 +712,7 @@ Launch and session plumbing:
 <LayoutFile name="capabilities.rs" note="the capabilities each browser is asked for" />
 <LayoutFile name="cdp.rs" note="DevTools commands of the session" />
 <LayoutFile name="connect.rs" note="starting a session, a leased one, or a direct CDP attachment" />
+<LayoutFile name="dialogs.rs" note="the JavaScript dialog a direct CDP attachment has open" />
 <LayoutFile name="elements.rs" note="finding and using elements" />
 <LayoutFile name="emulation.rs" note="the ad block and the phone emulation" />
 <LayoutFile name="fingerprint.rs" note="the fingerprint of the session" />
@@ -717,6 +722,7 @@ Launch and session plumbing:
 <LayoutFile name="navigation.rs" note="opening pages and moving through history" />
 <LayoutFile name="page.rs" note="the page: title, source, scripts" />
 <LayoutFile name="plugins.rs" note="browser plugins (feature plugins)" />
+<LayoutFile name="pure_cdp.rs" note="windows, frames, cookies and the scope of a direct CDP attachment" />
 <LayoutFile name="waits.rs" note="waiting for elements and text" />
 </LayoutDir>
 <LayoutFile name="shadow_find.rs" note="finding elements in a shadow root" />
@@ -953,6 +959,8 @@ helpers.
 <LayoutFile name="units.rs" note="units of a converted test" />
 </LayoutDir>
 <LayoutFile name="recorder.rs" note="imports a recording" />
+<LayoutFile name="script_import.rs" note="ScriptImport, the Rust a script import produced" />
+<LayoutFile name="script_import_options.rs" note="ScriptImportOptions, how to import" />
 <LayoutFile name="selector.rs" note="selectors in the imported test" />
 <LayoutFile name="tests.rs" note="tests of the importer" />
 <LayoutFile name="translate.rs" note="translates one call" />
@@ -1509,7 +1517,7 @@ Python parameters of `parity/upstream-api.json`
 writes it again). A test checks every entry against the real signature (argument
 count and kinds, `async`, `Result`, call builders and their methods) and against
 the parity row, so a `BaseCase` change that breaks a mapping fails a test. The
-`FIX-ASSERTS` shapes of `assert_in`, `wait_for_element` and `get_select_options`
+`FIX-ASSERTS` shapes of `assert_in`, `wait_for_element` and `select_options`
 are in the table; adjust the table, not the translator, when a signature moves.
 
 `tests/golden/import_python/` holds the Python examples of

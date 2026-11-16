@@ -979,6 +979,11 @@ mod tests {
     #[tokio::test]
     async fn a_panic_closes_the_browser_takes_evidence_and_is_raised_again() {
         let rig = Rig::new();
+        // The test raises a panic and checks that the browser is closed and the panic is raised again.
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the test checks that a panic closes the browser and is raised again"
+        )]
         let raised = AssertUnwindSafe(rig.run(async |_: &mut FakeCase| -> Result<()> {
             panic!("assertion failed in the test")
         }))
@@ -1069,6 +1074,11 @@ mod tests {
     async fn a_panic_is_rerun_and_only_the_last_one_is_raised() {
         let mut rig = Rig::new();
         rig.plan.reruns = 1;
+        // The test raises a panic on every attempt and checks that only the last one escapes.
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "the test checks that a panic is rerun and only the last one is raised"
+        )]
         let raised =
             AssertUnwindSafe(rig.run(async |_: &mut FakeCase| -> Result<()> { panic!("always") }))
                 .catch_unwind()

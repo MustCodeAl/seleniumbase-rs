@@ -114,9 +114,9 @@ async fn a_frame_replaces_the_page_and_default_brings_the_page_back() {
         !sb.is_element_present("#top").await.unwrap(),
         "the page's own content is gone"
     );
-    assert_eq!(sb.get_text("#inside").await.unwrap(), "Inside the frame");
+    assert_eq!(sb.text("#inside").await.unwrap(), "Inside the frame");
     assert_eq!(
-        sb.get_current_url().await.unwrap(),
+        sb.current_url().await.unwrap(),
         top,
         "the address does not change"
     );
@@ -126,22 +126,22 @@ async fn a_frame_replaces_the_page_and_default_brings_the_page_back() {
         .expect("the page comes back");
     assert!(sb.is_element_present("#top").await.unwrap());
     assert!(!sb.is_element_present("#inside").await.unwrap());
-    assert_eq!(sb.get_text("#top").await.unwrap(), "Top");
+    assert_eq!(sb.text("#top").await.unwrap(), "Top");
 
     // An iframe whose `src` is a web address opens in a new tab.
-    let first_tab = sb.get_current_window_handle().await.unwrap();
+    let first_tab = sb.current_window_handle().await.unwrap();
     sb.set_content_to_frame("#remote")
         .await
         .expect("the frame opens in a tab");
-    assert_eq!(sb.get_current_url().await.unwrap(), format!("{base}/inner"));
+    assert_eq!(sb.current_url().await.unwrap(), format!("{base}/inner"));
     assert!(sb.is_element_present("#inner").await.unwrap());
-    assert_ne!(sb.get_current_window_handle().await.unwrap(), first_tab);
+    assert_ne!(sb.current_window_handle().await.unwrap(), first_tab);
 
     sb.set_content_to_default()
         .await
         .expect("the first tab comes back");
-    assert_eq!(sb.get_current_window_handle().await.unwrap(), first_tab);
-    assert_eq!(sb.get_current_url().await.unwrap(), top);
+    assert_eq!(sb.current_window_handle().await.unwrap(), first_tab);
+    assert_eq!(sb.current_url().await.unwrap(), top);
     assert!(sb.is_element_present("#top").await.unwrap());
 
     // A frame that does not exist is reported, and the page is left alone.

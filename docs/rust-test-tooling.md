@@ -721,9 +721,10 @@ use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig, DriverMode, Result
 
 #[tokio::test]
 async fn uc_smoke_test() -> Result<()> {
-    let config = BrowserConfig::default()
-        .with_mode(DriverMode::Uc)
-        .with_headless(true);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .headless(true)
+        .build()?;
 
     run_browser_test(config, async |sb| {
         sb.open("https://example.com").await?;

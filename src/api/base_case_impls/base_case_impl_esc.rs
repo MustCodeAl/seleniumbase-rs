@@ -33,7 +33,7 @@ const ESC_END_CHECK_SCRIPT: &str = "return document.sb_esc_end;";
 
 impl BaseCase {
     /// Whether pressing ESC in the browser ends the test
-    /// ([`BrowserConfig::with_esc_end`]).
+    /// ([`BrowserConfigBuilder::esc_end`](crate::BrowserConfigBuilder::esc_end)).
     #[must_use]
     pub fn esc_end(&self) -> bool {
         self.config.esc_end()
@@ -115,9 +115,7 @@ mod tests_esc_end {
     }
 
     async fn case(driver: &MockWebDriver, esc_end: bool) -> BaseCase {
-        let mut config = BrowserConfig::default()
-            .with_webdriver_url(driver.url().to_owned())
-            .with_esc_end(esc_end);
+        let mut config = BrowserConfig::builder().webdriver_url(driver.url().to_owned()).esc_end(esc_end).build().expect("a valid config");
         config.session.auto_start_driver = false;
         BaseCase::new(config)
             .await

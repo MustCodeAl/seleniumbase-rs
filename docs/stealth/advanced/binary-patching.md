@@ -139,9 +139,10 @@ Add them to a `BrowserConfig`:
 ```rust
 use seleniumbase_rs::{engine_spoofing_args, BrowserConfig, DriverMode};
 
-let config = BrowserConfig::default()
-    .with_mode(DriverMode::Uc)
-    .with_extra_args(engine_spoofing_args());
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .extra_args(engine_spoofing_args())
+    .build()?;
 ```
 
 </Tab>
@@ -201,7 +202,7 @@ code signature is removed (with `codesign --remove-signature`) so the system
 accepts it.
 
 When `native_spoofing` is enabled in a `Fingerprint` and
-`BrowserConfig::browser_binary_path` is not set, the launcher automatically
+`BrowserConfigBuilder::browser_binary_path` is not set, the launcher automatically
 patches the Chrome binary and passes the patched copy to chromedriver. It starts
 from `SB_CHROME_BIN`, or else a Chrome it finds on the system (`CHROME_BIN`,
 `CHROMIUM_BIN`, the usual install paths, then `PATH`), and caches the copy in

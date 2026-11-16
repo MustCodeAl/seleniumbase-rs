@@ -152,7 +152,7 @@ impl BaseCase {
         level: u8,
     ) -> Result<(), SeleniumBaseError> {
         if let Err(error) = self.check_window(name, level).await {
-            let url = self.get_current_url().await.ok();
+            let url = self.current_url().await.ok();
             self.deferred.record_failure(url, error.to_string());
         }
         Ok(())
@@ -356,9 +356,9 @@ impl BaseCase {
         }
     }
 
-    /// Alias for `get_beautiful_soup_object`.
-    pub async fn get_beautiful_soup(&self) -> Result<BeautifulSoup, SeleniumBaseError> {
-        self.get_beautiful_soup_object().await
+    /// Alias for `beautiful_soup_object`.
+    pub async fn beautiful_soup(&self) -> Result<BeautifulSoup, SeleniumBaseError> {
+        self.beautiful_soup_object().await
     }
 
     /// Executes a CDP command with the given parameters.
@@ -565,7 +565,7 @@ mod tests_check_window {
             .with_demo_mode(true)
             .with_demo_sleep(Duration::from_millis(30));
         let sb =
-            BaseCase::without_session(BrowserConfig::default().with_run_settings(demo.clone()));
+            BaseCase::without_session(BrowserConfig::builder().run_settings(demo.clone()).build().expect("a valid config"));
         assert_eq!(sb.run_settings(), &demo);
         let plain = BaseCase::without_session(BrowserConfig::default());
         assert_eq!(plain.run_settings(), &RunSettings::default());
@@ -573,9 +573,7 @@ mod tests_check_window {
 
     #[test]
     fn a_default_timeout_of_the_run_settings_is_the_timeout_of_the_case_rounded_up() {
-        let config = BrowserConfig::default().with_run_settings(
-            RunSettings::default().with_default_timeout(Duration::from_millis(7_500)),
-        );
+        let config = BrowserConfig::builder().run_settings(RunSettings::default().with_default_timeout(Duration::from_millis(7_500)),).build().expect("a valid config");
         assert_eq!(BaseCase::without_session(config).timeout_secs(), 8);
         // Without one the case keeps Python's ten seconds.
         let plain = BaseCase::without_session(BrowserConfig::default());

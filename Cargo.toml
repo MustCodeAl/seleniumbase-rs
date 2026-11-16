@@ -166,6 +166,7 @@ rstest = { version = "0.28", default-features = false, optional = true }
 rstest-bdd = { version = "0.6", optional = true }
 rstest-bdd-macros = { version = "0.6", optional = true }
 anstream = "0.6"
+owo-colors = "4"
 
 [features]
 # Nothing is on by default: a headless browser pool needs neither the terminal UI
@@ -200,7 +201,7 @@ turso = ["dep:turso"]
 # models (about 12 MB) are downloaded into the cache folder on first use.
 ocr = ["dep:ocrs", "dep:rten", "dep:image"]
 # Browser plugins (ADR 004) for both engines: `LaunchOptionsBuilder::plugins`
-# (pure CDP) and `BrowserConfig::with_plugins` (WebDriver), with hooks at launch,
+# (pure CDP) and `BrowserConfigBuilder::plugins` (WebDriver), with hooks at launch,
 # connect, every new tab or window and close. The API is re-exported as
 # `seleniumbase_rs::plugin_api`.
 plugins = ["dep:seleniumbase-rs-plugin"]

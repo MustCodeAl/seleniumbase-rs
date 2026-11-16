@@ -862,7 +862,7 @@ distribution geckodriver is used as it is. When none is found:
 | Driver | Downloaded from | Which build |
 |---|---|---|
 | geckodriver | `github.com/mozilla/geckodriver/releases` | The newest release; one geckodriver drives a range of Firefox versions, so it is not matched to Firefox. `sbrs get geckodriver 0.36.0` pins one. |
-| msedgedriver | `msedgedriver.microsoft.com` | The newest build for the installed Edge's major version (`LATEST_RELEASE_<major>_<OS>`), or the stable one when Edge cannot be found. A driver on disk or on the `PATH` for another Edge major version is replaced; `with_driver_version` pins one. |
+| msedgedriver | `msedgedriver.microsoft.com` | The newest build for the installed Edge's major version (`LATEST_RELEASE_<major>_<OS>`), or the stable one when Edge cannot be found. A driver on disk or on the `PATH` for another Edge major version is replaced; `driver_version` pins one. |
 
 The archives (tar.gz for geckodriver on Linux and macOS, zip otherwise) are
 capped at 64 MB, unpacked without writing outside their folder, and made

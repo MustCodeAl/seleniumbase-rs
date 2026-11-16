@@ -13,6 +13,7 @@ mod import_fixtures;
 
 mod ad_block_chrome;
 mod base_case_capture_chrome;
+mod basecase_cdp_chrome;
 mod basecase_logs_chrome;
 mod bdd_builtin_chrome;
 mod bdd_chrome;

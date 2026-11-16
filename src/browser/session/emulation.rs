@@ -24,7 +24,7 @@ impl BrowserSession {
     /// It does nothing when no ads are blocked.
     ///
     /// The hosts are the built-in [`AdBlockList`], or the list set with
-    /// [`BrowserConfig::with_ad_block_list`]. They go to the browser as
+    /// [`ad_block_list`](crate::BrowserConfigBuilder::ad_block_list). They go to the browser as
     /// `Network.enable` and `Network.setBlockedURLs`, through chromedriver's
     /// DevTools channel, which exists in every Chromium session whatever its
     /// mode. Firefox, Safari and Internet Explorer have none: nothing is sent
@@ -72,7 +72,7 @@ impl BrowserSession {
 
     /// Makes the window the session is on a phone, for an undetected-mode
     /// session that was asked to be mobile ([`BrowserSettings::mobile`](crate::browser::options::BrowserSettings::mobile) or
-    /// [`BrowserConfig::with_device_metrics`]).
+    /// [`device_metrics`](crate::BrowserConfigBuilder::device_metrics)).
     ///
     /// The other modes ask for the phone with the `mobileEmulation`
     /// capability when the browser starts. The undetected mode drops that
@@ -253,7 +253,10 @@ mod ad_block_tests {
 
     /// A session on `driver` that starts no driver of its own.
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -279,14 +282,23 @@ mod ad_block_tests {
             .is_empty());
 
         // A list that is set but not asked for blocks nothing.
-        let mut config = BrowserConfig::default().with_ad_block_list(own_list());
+        let mut config = BrowserConfig::builder()
+            .ad_block_list(own_list())
+            .build()
+            .expect("a valid config");
         config.browser.ad_block = false;
         assert!(ad_block_commands(&config).unwrap().is_empty());
     }
 
     #[test]
     fn the_builtin_list_goes_to_the_browser_after_network_enable() {
-        let commands = ad_block_commands(&BrowserConfig::default().with_ad_block(true)).unwrap();
+        let commands = ad_block_commands(
+            &BrowserConfig::builder()
+                .ad_block(true)
+                .build()
+                .expect("a valid config"),
+        )
+        .unwrap();
 
         let patterns = AdBlockList::builtin().bounded_url_patterns().unwrap();
         assert_eq!(
@@ -303,7 +315,10 @@ mod ad_block_tests {
 
     #[test]
     fn a_list_of_the_callers_own_is_sent_in_place_of_the_builtin_one() {
-        let config = BrowserConfig::default().with_ad_block_list(own_list());
+        let config = BrowserConfig::builder()
+            .ad_block_list(own_list())
+            .build()
+            .expect("a valid config");
         let commands = ad_block_commands(&config).unwrap();
 
         assert_eq!(
@@ -325,9 +340,11 @@ mod ad_block_tests {
             .expect("the builder builds");
         let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
 
-        let mut config = BrowserConfig::default()
-            .with_ad_block_list(own_list())
-            .with_fingerprint(fingerprint);
+        let mut config = BrowserConfig::builder()
+            .ad_block_list(own_list())
+            .fingerprint(fingerprint)
+            .build()
+            .expect("a valid config");
         // A plain WebDriver session does not apply the fingerprint, so it has no trackers.
         assert!(fingerprint_blocklist(&config).is_empty());
         let plain = ad_block_commands(&config).unwrap();
@@ -349,10 +366,12 @@ mod ad_block_tests {
             .build()
             .expect("the builder builds");
         let urls = |mode: DriverMode| {
-            let config = BrowserConfig::default()
-                .with_mode(mode)
-                .with_ad_block_list(own_list())
-                .with_fingerprint(fingerprint.clone());
+            let config = BrowserConfig::builder()
+                .mode(mode)
+                .ad_block_list(own_list())
+                .fingerprint(fingerprint.clone())
+                .build()
+                .expect("a valid config");
             ad_block_commands(&config).unwrap()[1].1["urls"]
                 .as_array()
                 .unwrap()
@@ -374,22 +393,29 @@ mod ad_block_tests {
 
     #[test]
     fn an_empty_list_of_the_callers_own_sends_nothing() {
-        let config = BrowserConfig::default().with_ad_block_list(AdBlockList::new());
+        let config = BrowserConfig::builder()
+            .ad_block_list(AdBlockList::new())
+            .build()
+            .expect("a valid config");
         assert!(ad_block_commands(&config).unwrap().is_empty());
     }
 
     #[test]
     fn every_chromium_browser_is_sent_the_block_and_the_others_nothing() {
         for browser in CHROMIUM {
-            let config = BrowserConfig::default()
-                .with_browser(browser)
-                .with_ad_block(true);
+            let config = BrowserConfig::builder()
+                .browser(browser)
+                .ad_block(true)
+                .build()
+                .expect("a valid config");
             assert_eq!(ad_block_commands(&config).unwrap().len(), 2, "{browser}");
         }
         for browser in [Browser::Firefox, Browser::Safari, Browser::InternetExplorer] {
-            let config = BrowserConfig::default()
-                .with_browser(browser)
-                .with_ad_block(true);
+            let config = BrowserConfig::builder()
+                .browser(browser)
+                .ad_block(true)
+                .build()
+                .expect("a valid config");
             assert!(ad_block_commands(&config).unwrap().is_empty(), "{browser}");
         }
     }
@@ -399,8 +425,10 @@ mod ad_block_tests {
         let hosts: Vec<String> = (0..=MAX_URL_PATTERNS / 2)
             .map(|i| format!("host{i}.com"))
             .collect();
-        let config =
-            BrowserConfig::default().with_ad_block_list(AdBlockList::from_hosts(hosts).unwrap());
+        let config = BrowserConfig::builder()
+            .ad_block_list(AdBlockList::from_hosts(hosts).unwrap())
+            .build()
+            .expect("a valid config");
         assert!(matches!(
             ad_block_commands(&config),
             Err(SeleniumBaseError::InvalidConfig(_))
@@ -410,7 +438,11 @@ mod ad_block_tests {
     #[tokio::test]
     async fn a_chromium_session_sends_the_two_commands_once_it_is_connected() {
         let driver = driver();
-        let config = config_for(&driver).with_ad_block_list(own_list());
+        let config = config_for(&driver)
+            .into_builder()
+            .ad_block_list(own_list())
+            .build()
+            .expect("a valid config");
 
         let mut session = BrowserSession::connect(config).await.expect("connects");
 
@@ -440,8 +472,11 @@ mod ad_block_tests {
     async fn a_browser_without_a_devtools_channel_is_sent_nothing() {
         let driver = driver();
         let config = config_for(&driver)
-            .with_browser(Browser::Firefox)
-            .with_ad_block(true);
+            .into_builder()
+            .browser(Browser::Firefox)
+            .ad_block(true)
+            .build()
+            .expect("a valid config");
 
         let mut session = BrowserSession::connect(config).await.expect("connects");
 
@@ -452,7 +487,11 @@ mod ad_block_tests {
     #[tokio::test]
     async fn the_builtin_list_is_sent_when_no_list_of_ones_own_is_set() {
         let driver = driver();
-        let config = config_for(&driver).with_ad_block(true);
+        let config = config_for(&driver)
+            .into_builder()
+            .ad_block(true)
+            .build()
+            .expect("a valid config");
 
         let mut session = BrowserSession::connect(config).await.expect("connects");
 
@@ -466,7 +505,11 @@ mod ad_block_tests {
     #[tokio::test]
     async fn a_reconnected_session_blocks_again() {
         let driver = driver();
-        let config = config_for(&driver).with_ad_block_list(own_list());
+        let config = config_for(&driver)
+            .into_builder()
+            .ad_block_list(own_list())
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config.clone())
             .await
             .expect("connects");
@@ -480,7 +523,11 @@ mod ad_block_tests {
     #[tokio::test]
     async fn a_window_reached_some_other_way_can_be_blocked_with_apply_ad_block() {
         let driver = driver();
-        let config = config_for(&driver).with_ad_block_list(own_list());
+        let config = config_for(&driver)
+            .into_builder()
+            .ad_block_list(own_list())
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config).await.expect("connects");
 
         session.apply_ad_block().await.expect("blocks again");
@@ -503,7 +550,11 @@ mod ad_block_tests {
     #[tokio::test]
     async fn each_window_the_session_switches_to_is_blocked_too() {
         let driver = window_driver();
-        let config = config_for(&driver).with_ad_block_list(own_list());
+        let config = config_for(&driver)
+            .into_builder()
+            .ad_block_list(own_list())
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config).await.expect("connects");
         assert_eq!(devtools_commands(&driver).len(), 2, "the first window");
 
@@ -541,7 +592,11 @@ mod ad_block_tests {
                 Reply::Value(json!({}))
             }
         });
-        let config = config_for(&driver).with_ad_block(true);
+        let config = config_for(&driver)
+            .into_builder()
+            .ad_block(true)
+            .build()
+            .expect("a valid config");
 
         let connected = BrowserSession::connect(config).await;
 
@@ -557,8 +612,11 @@ mod ad_block_tests {
         let hosts: Vec<String> = (0..=MAX_URL_PATTERNS / 2)
             .map(|i| format!("host{i}.com"))
             .collect();
-        let config =
-            config_for(&driver).with_ad_block_list(AdBlockList::from_hosts(hosts).unwrap());
+        let config = config_for(&driver)
+            .into_builder()
+            .ad_block_list(AdBlockList::from_hosts(hosts).unwrap())
+            .build()
+            .expect("a valid config");
 
         let connected = BrowserSession::connect(config).await;
 
@@ -581,7 +639,10 @@ mod mobile_tests {
     use crate::browser::options::{DeviceMetrics, MOBILE_USER_AGENT};
 
     fn config_for(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::default().with_webdriver_url(driver.url());
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(driver.url())
+            .build()
+            .expect("a valid config");
         config.session.auto_start_driver = false;
         config
     }
@@ -615,11 +676,25 @@ mod mobile_tests {
 
     #[test]
     fn only_the_undetected_mode_sends_the_phone_over_devtools() {
-        let mobile = BrowserConfig::default().with_mobile(true);
+        let mobile = BrowserConfig::builder()
+            .mobile(true)
+            .build()
+            .expect("a valid config");
         assert!(mobile_commands(&mobile).is_empty());
-        assert!(mobile_commands(&BrowserConfig::default().with_mode(DriverMode::Uc)).is_empty());
+        assert!(mobile_commands(
+            &BrowserConfig::builder()
+                .mode(DriverMode::Uc)
+                .build()
+                .expect("a valid config")
+        )
+        .is_empty());
 
-        let uc = mobile.clone().with_mode(DriverMode::Uc);
+        let uc = mobile
+            .clone()
+            .into_builder()
+            .mode(DriverMode::Uc)
+            .build()
+            .expect("a valid config");
         let commands = mobile_commands(&uc);
         assert_eq!(
             commands.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
@@ -636,8 +711,11 @@ mod mobile_tests {
         assert_eq!(commands[2].1["userAgent"], MOBILE_USER_AGENT);
 
         let own = uc
-            .with_device_metrics(DeviceMetrics::new(360, 640, 2.0))
-            .with_user_agent("MyAgent/1.0");
+            .into_builder()
+            .device_metrics(DeviceMetrics::new(360, 640, 2.0))
+            .user_agent("MyAgent/1.0")
+            .build()
+            .expect("a valid config");
         let commands = mobile_commands(&own);
         assert_eq!(commands[0].1["width"], 360);
         assert_eq!(commands[2].1["userAgent"], "MyAgent/1.0");
@@ -645,9 +723,11 @@ mod mobile_tests {
 
     #[test]
     fn a_browser_that_is_not_chromium_is_sent_no_phone() {
-        let firefox = BrowserConfig::default()
-            .with_browser(Browser::Firefox)
-            .with_mobile(true);
+        let firefox = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .mobile(true)
+            .build()
+            .expect("a valid config");
         assert!(mobile_commands(&firefox).is_empty());
     }
 
@@ -655,8 +735,11 @@ mod mobile_tests {
     async fn an_undetected_mobile_session_is_made_a_phone_and_each_new_window_too() {
         let driver = driver();
         let config = config_for(&driver)
-            .with_mode(DriverMode::Uc)
-            .with_mobile(true);
+            .into_builder()
+            .mode(DriverMode::Uc)
+            .mobile(true)
+            .build()
+            .expect("a valid config");
         let mut session = match BrowserSession::connect(config).await {
             Ok(session) => session,
             Err(error) => panic!("connects: {error}"),
@@ -690,7 +773,11 @@ mod mobile_tests {
     #[tokio::test]
     async fn a_session_that_is_not_mobile_sends_no_emulation_command() {
         let driver = driver();
-        let config = config_for(&driver).with_mode(DriverMode::Uc);
+        let config = config_for(&driver)
+            .into_builder()
+            .mode(DriverMode::Uc)
+            .build()
+            .expect("a valid config");
         let mut session = BrowserSession::connect(config).await.expect("connects");
         let sent = devtools_commands(&driver);
         assert!(

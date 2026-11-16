@@ -10,44 +10,78 @@ use crate::evasion::fingerprint::{
 };
 
 /// Top-level external browser profile payload.
+///
+/// [`to_browser_config`](Self::to_browser_config) and
+/// [`to_fingerprint`](Self::to_fingerprint) apply the fields they read.
+/// `auto_update_core`, `core_minor_version`, `tags`, `times` and `notes` are
+/// kept on the value and are not read when launching.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ProfileParams {
+    /// With [`folder_id`](Self::folder_id), the seed of values the payload draws.
     pub name: String,
+    /// Which browser. `firefox` and `stealthfox` are Firefox. Anything else is
+    /// Chrome. Absent from the JSON, this is `chromium`.
     #[serde(default = "default_browser_type")]
     pub browser_type: String,
+    /// Names `./profile-data/<id>` when storage is local. Characters other than
+    /// letters, digits, `-` and `_` become `_`. Absent from the JSON, this is
+    /// `default`.
     #[serde(default = "default_folder_id")]
     pub folder_id: String,
+    /// The operating system the fingerprint claims. `android` and `ios` launch
+    /// mobile emulation. Absent from the JSON, this is `windows`.
     #[serde(default = "default_os_type")]
     pub os_type: String,
+    /// How the browser is driven. `playwright` and `puppeteer` use CDP,
+    /// `selenium` uses WebDriver, and anything else is UC mode, except Firefox,
+    /// which stays on WebDriver. Absent from the JSON, this is `selenium`.
     #[serde(default = "default_automation")]
     pub automation: String,
+    /// Launches the browser without a window.
     #[serde(default)]
     pub is_headless: bool,
+    /// The Chromium major a drawn user agent claims, when the payload's browser
+    /// is Chromium.
     #[serde(default)]
     pub core_version: Option<u32>,
+    /// Kept on the payload. Launching does not read it.
     #[serde(default)]
     pub core_minor_version: Option<u32>,
+    /// Kept on the payload. Launching does not read it. Absent from the JSON,
+    /// this is `true`.
     #[serde(default = "default_auto_update_core")]
     pub auto_update_core: bool,
+    /// Kept on the payload. Launching does not read it.
     #[serde(default)]
     pub tags: Vec<String>,
+    /// Kept on the payload. Launching does not read it. Absent from the JSON,
+    /// this is `1`.
     #[serde(default = "default_times")]
     pub times: u32,
+    /// Kept on the payload. Launching does not read it.
     #[serde(default)]
     pub notes: String,
+    /// Masking flags, the fingerprint section, storage, a proxy, and start pages.
     pub parameters: Parameters,
 }
 
+/// The nested body of a [`ProfileParams`].
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Parameters {
+    /// Masking words such as `mask`, `natural` or `auto`, or a literal value.
     #[serde(default)]
     pub flags: ProfileFlags,
+    /// The fingerprint section, in the payload's own nested shape.
     #[serde(default)]
     pub fingerprint: ProfileFingerprint,
+    /// Whether the profile stays on disk and keeps its service worker.
     #[serde(default)]
     pub storage: StorageOptions,
+    /// The proxy, when the payload names one.
     #[serde(default)]
     pub proxy: Option<ProfileProxy>,
+    /// Pages to open at start. [`ProfileParams::start_urls`] keeps at most five
+    /// web pages.
     #[serde(default)]
     pub custom_start_urls: Vec<String>,
 }

@@ -30,7 +30,7 @@ Wire fingerprints, identities, the browser scraper, `HttpSession`, `MitmProxy` a
 
 <GitHub.Repo repo="MustCodeAl/tauri-plugin-sbrs-automation" />
 
-Test a Tauri app's real window with `BaseCase` and `sbrs` on macOS, Windows and Linux. See [Tauri plugin](/ecosystem/tauri).
+Three guides, one per job: [test your app's real window](/ecosystem/tauri-driver) with `BaseCase` and `sbrs`, [automate a browser from your app](/ecosystem/tauri-client), and [drive the app's own Chromium webview](/ecosystem/tauri-browser) over CDP or give it a fingerprint. See [Tauri plugin](/ecosystem/tauri).
 
 ## Browser extension
 
@@ -55,7 +55,7 @@ A recorder, an element inspector and a DevTools Recorder export for Chrome, Edge
 </Card>
 
 <Card title="Tauri plugin" icon="window-maximize" color="#1a85d4" href="/ecosystem/tauri">
-  A WebDriver endpoint inside your Tauri app.
+  Test your app, automate a browser from it, or drive its own webview.
 </Card>
 
 <Card title="Browser extension" icon="puzzle-piece" color="#a631be" href="/ecosystem/browser-extension">

@@ -1,7 +1,7 @@
 //! Running the task of a plugin the operator enabled, on a browser of its own.
 
 #[cfg(feature = "plugins")]
-use std::sync::{Mutex, PoisonError};
+use std::sync::Mutex;
 
 #[cfg(feature = "plugins")]
 use serde_json::{json, Value};
@@ -72,10 +72,7 @@ impl TaskRecords {
 
     /// The results kept and how many there were; the progress channel closes with `self`.
     fn finish(self) -> (Vec<Value>, u32) {
-        let kept = self
-            .kept
-            .into_inner()
-            .unwrap_or_else(PoisonError::into_inner);
+        let kept = crate::common::poison::into_inner(self.kept);
         (kept, self.count.into_inner())
     }
 }
@@ -85,7 +82,7 @@ impl seleniumbase_rs_plugin::Sink for TaskRecords {
     fn record(&self, line: &Value) -> seleniumbase_rs_plugin::Result<()> {
         let count = self.count.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
         {
-            let mut kept = self.kept.lock().unwrap_or_else(PoisonError::into_inner);
+            let mut kept = crate::common::poison::locked(&self.kept);
             if kept.len() < MAX_TASK_RECORDS {
                 kept.push(shorten(line, MAX_RECORD_TEXT));
             }

@@ -58,7 +58,7 @@ async fn type_and_click_round_trip() {
     sb.type_text("#field", "hello world")
         .await
         .expect("type text");
-    let value = sb.get_value("#field").await.expect("read value");
+    let value = sb.value("#field").await.expect("read value");
     assert_eq!(value, "hello world");
     sb.click("#btn").await.expect("click button");
     sb.quit().await.expect("quit");
@@ -115,7 +115,7 @@ async fn an_action_waits_for_an_element_that_appears_late() {
         .await
         .expect("click waits for the button to exist");
 
-    assert_eq!(sb.get_title().await.expect("title"), "clicked");
+    assert_eq!(sb.title().await.expect("title"), "clicked");
     sb.quit().await.expect("quit");
 }
 

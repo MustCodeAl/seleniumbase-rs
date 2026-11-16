@@ -613,8 +613,19 @@ does (lane `launch-options`, core and stealth):
      builder replaces it and is read as the pure CDP engine reads one.
    * Unset `headless` is headed with a `virtual_display`, and the config always says one.
    * A second `browser_config` replaces the first.
-3. **`BrowserConfig` keeps its `with_*` methods, no bon** (open question 3 stays open; no macro
-   table was written).
+3. **`BrowserConfig` is built by a hand-written `BrowserConfigBuilder`, no bon** (the owner,
+   2026-11-15, replacing the decision of 2026-11-05 that it keeps its `with_*` methods; no macro
+   table was written). `BrowserConfig::builder()` starts from the default configuration,
+   `BrowserConfig::into_builder()` from one you hold (`Settings::to_browser_config`,
+   `from_env`, serde), so a loaded configuration is a value that still takes one more setter.
+   There is one setter per old `with_*` method, named without the prefix (`headless`, `mode`,
+   `switch`, `plugins`; `push_extra_arg` is `extra_arg`), and the `with_*` methods are gone, with
+   no shim. `build()` runs the checks a setter used to run: `grid` and `plugins_named` /
+   `plugin_selection` return the builder and keep the Selenium Grid address and the plugin names
+   for `build`, which returns the first error in the order the setters were called; a later
+   `webdriver_url` or `session_settings` replaces a `grid`, and a later `plugins` replaces the
+   names. `build()` does not call `validate()`: a session checks the proxy and the remote browser
+   when it connects.
 4. **Stealth holds built `LaunchOptions`** (open question 4), not builders. `launch_options`
    of `BrowserScraperBuilder` and `StealthSessionBuilder` take `LaunchOptions`; rotation calls
    `with_fingerprint`; the probe browser calls `with_headless`; `MitmProxy::configure_launch`

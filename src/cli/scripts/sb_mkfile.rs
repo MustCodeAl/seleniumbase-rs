@@ -207,12 +207,12 @@ fn bare_host(text: &str) -> Option<Url> {
 /// use seleniumbase_rs::cli::scripts::sb_mkfile::{Syntax, TestFile};
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
-/// let file = TestFile::new("tests/login")?.basic(true);
+/// let file = TestFile::try_new("tests/login")?.basic(true);
 /// let source = file.render();
 /// assert!(source.contains("async fn login(sb: Sb) -> Result<()>"));
 /// assert!(source.contains("// Add your steps here."));
 ///
-/// let cdp = TestFile::new("tests/login")?.syntax(Syntax::CdpManager)?;
+/// let cdp = TestFile::try_new("tests/login")?.syntax(Syntax::CdpManager)?;
 /// assert!(cdp.render().contains("Browser::launch(options)"));
 /// # Ok(())
 /// # }
@@ -235,9 +235,9 @@ impl TestFile {
     ///
     /// [`ScaffoldError::InvalidName`] when `name` is not a relative name made of
     /// letters, digits, `_`, `-` and `.`, or has an extension other than `.rs`.
-    pub fn new(name: &str) -> Result<Self, ScaffoldError> {
+    pub fn try_new(name: &str) -> Result<Self, ScaffoldError> {
         Ok(Self {
-            name: RelativeName::new(name)?.with_extension_or_default("rs")?,
+            name: RelativeName::try_new(name)?.with_extension_or_default("rs")?,
             url: None,
             basic: false,
             syntax: Syntax::default(),
@@ -547,7 +547,9 @@ async fn steps(sb: &mut BaseCase) -> Result<()> {{
                         "DriverMode, ",
                         "    let config = Settings::load()?\n\
                          \x20       .to_browser_config()\n\
-                         \x20       .with_mode(DriverMode::Uc);\n\
+                         \x20       .into_builder()\n\
+                         \x20       .mode(DriverMode::Uc)\n\
+                         \x20       .build()?;\n\
                          \x20   run_browser_test(config, async |sb| {",
                     )
                 } else {
@@ -641,7 +643,7 @@ mod tests {
     ];
 
     fn file(name: &str) -> TestFile {
-        TestFile::new(name).unwrap()
+        TestFile::try_new(name).unwrap()
     }
 
     #[test]
@@ -755,9 +757,12 @@ mod tests {
         assert_eq!(test.name().to_string(), "tests/My-Login.v2.rs");
         assert!(test.render().contains("async fn my_login_v2("));
         assert_eq!(file("tests/Login").name().to_string(), "tests/Login.rs");
-        assert!(TestFile::new("t.py").is_err());
-        assert!(TestFile::new("My-Login.v2").is_err(), "'.v2' is not '.rs'");
-        assert!(TestFile::new("../t").is_err());
+        assert!(TestFile::try_new("t.py").is_err());
+        assert!(
+            TestFile::try_new("My-Login.v2").is_err(),
+            "'.v2' is not '.rs'"
+        );
+        assert!(TestFile::try_new("../t").is_err());
     }
 
     #[test]

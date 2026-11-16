@@ -65,11 +65,11 @@
 //! use seleniumbase_rs_playwright::PlaywrightSidecar;
 //!
 //! # async fn demo() -> seleniumbase_rs::Result<()> {
-//! let mut sb = BaseCase::new(BrowserConfig::default().with_mode(DriverMode::Uc)).await?;
+//! let mut sb = BaseCase::new(BrowserConfig::builder().mode(DriverMode::Uc).build()?).await?;
 //! sb.open("https://example.com").await?;
 //!
 //! let playwright = PlaywrightSidecar::attach(&sb).await?; // the window `sb` is on
-//! // Placeholder: any rustwright call goes in the closure. Our own title is `sb.get_title()`.
+//! // Placeholder: any rustwright call goes in the closure. Our own title is `sb.title()`.
 //! playwright.run(|pw| pw.title(Default::default())).await?;
 //! sb.assert_element("h1").await?;
 //!

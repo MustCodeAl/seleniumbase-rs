@@ -269,8 +269,14 @@ mod capability_tests {
         // really asks for.
         for config in [
             BrowserConfig::default(),
-            BrowserConfig::default().with_mode(crate::browser::config::DriverMode::Uc),
-            BrowserConfig::default().with_headless(true),
+            BrowserConfig::builder()
+                .mode(crate::browser::config::DriverMode::Uc)
+                .build()
+                .expect("a valid config"),
+            BrowserConfig::builder()
+                .headless(true)
+                .build()
+                .expect("a valid config"),
         ] {
             let expected = crate::evasion::options::StealthOptions::from(&config)
                 .args()
@@ -293,14 +299,16 @@ mod capability_tests {
         firefox
             .add_preferences("javascript.enabled:true,intl.accept_languages:fr")
             .unwrap();
-        let config = BrowserConfig::default()
-            .with_browser(Browser::Firefox)
-            .with_headless(true)
-            .with_block_images(true)
-            .with_disable_js(true)
-            .with_do_not_track(true)
-            .with_page_load_strategy(PageLoadStrategy::Eager)
-            .with_firefox_options(firefox);
+        let config = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .headless(true)
+            .block_images(true)
+            .disable_js(true)
+            .do_not_track(true)
+            .page_load_strategy(PageLoadStrategy::Eager)
+            .firefox_options(firefox)
+            .build()
+            .expect("a valid config");
         let caps = caps_json(&config);
 
         assert_eq!(caps["browserName"], "firefox");
@@ -321,7 +329,12 @@ mod capability_tests {
 
     #[test]
     fn a_plain_firefox_session_asks_for_no_preferences_but_the_downloads_folder() {
-        let caps = caps_json(&BrowserConfig::default().with_browser(Browser::Firefox));
+        let caps = caps_json(
+            &BrowserConfig::builder()
+                .browser(Browser::Firefox)
+                .build()
+                .expect("a valid config"),
+        );
         let options = &caps["moz:firefoxOptions"];
         assert_eq!(without_downloads(&options["prefs"]), json!({}), "{options}");
         assert!(options.get("binary").is_none(), "{options}");
@@ -332,14 +345,16 @@ mod capability_tests {
     fn firefox_gets_its_program_profile_user_agent_and_language() {
         let mut firefox = FirefoxOptions::default();
         firefox.add_preferences("intl.accept_languages:de").unwrap();
-        let config = BrowserConfig::default()
-            .with_browser(Browser::Firefox)
-            .with_headless(true)
-            .with_browser_binary_path("/opt/firefox/firefox")
-            .with_user_data_dir("/tmp/ff-profile")
-            .with_user_agent("Agent/1.0")
-            .with_locale("fr")
-            .with_firefox_options(firefox);
+        let config = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .headless(true)
+            .browser_binary_path("/opt/firefox/firefox")
+            .user_data_dir("/tmp/ff-profile")
+            .user_agent("Agent/1.0")
+            .locale("fr")
+            .firefox_options(firefox)
+            .build()
+            .expect("a valid config");
         let options = &caps_json(&config)["moz:firefoxOptions"];
         assert_eq!(options["binary"], "/opt/firefox/firefox");
         assert_eq!(
@@ -353,10 +368,12 @@ mod capability_tests {
 
     #[test]
     fn edge_is_asked_for_as_microsoft_edge_with_its_own_options() {
-        let config = BrowserConfig::default()
-            .with_browser(Browser::Edge)
-            .with_headless(true)
-            .with_browser_binary_path("/opt/edge/msedge");
+        let config = BrowserConfig::builder()
+            .browser(Browser::Edge)
+            .headless(true)
+            .browser_binary_path("/opt/edge/msedge")
+            .build()
+            .expect("a valid config");
         let caps = caps_json(&config);
         assert_eq!(caps["browserName"], "MicrosoftEdge");
         assert!(caps.get("goog:chromeOptions").is_none(), "{caps}");
@@ -383,16 +400,20 @@ mod capability_tests {
             Browser::Edge,
             Browser::Firefox,
         ] {
-            let config = BrowserConfig::default()
-                .with_browser(browser)
-                .with_capabilities(overrides.clone());
+            let config = BrowserConfig::builder()
+                .browser(browser)
+                .capabilities(overrides.clone())
+                .build()
+                .expect("a valid config");
             assert_eq!(caps_json(&config)["se:name"], "smoke", "{browser:?}");
         }
 
         // Chrome's own arguments keep what the settings added.
-        let config = BrowserConfig::default()
-            .with_window_size(WindowSize::new(800, 600))
-            .with_capabilities(overrides);
+        let config = BrowserConfig::builder()
+            .window_size(WindowSize::new(800, 600))
+            .capabilities(overrides)
+            .build()
+            .expect("a valid config");
         let args = caps_json(&config)["goog:chromeOptions"]["args"].clone();
         let args = args.as_array().unwrap();
         assert!(args.contains(&json!("--mute-audio")), "{args:?}");
@@ -401,21 +422,29 @@ mod capability_tests {
 
     #[test]
     fn an_override_can_replace_what_the_settings_chose() {
-        let config = BrowserConfig::default()
-            .with_page_load_strategy(PageLoadStrategy::Eager)
-            .with_capabilities(
+        let config = BrowserConfig::builder()
+            .page_load_strategy(PageLoadStrategy::Eager)
+            .capabilities(
                 CapabilityOverrides::from_text(r#"{"pageLoadStrategy": "none"}"#).unwrap(),
-            );
+            )
+            .build()
+            .expect("a valid config");
         assert_eq!(caps_json(&config)["pageLoadStrategy"], "none");
     }
 
     #[test]
     fn firefox_gets_its_proxy_as_preferences() {
-        let firefox = BrowserConfig::default().with_browser(Browser::Firefox);
+        let firefox = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .build()
+            .expect("a valid config");
         let socks = firefox
             .clone()
-            .with_proxy("socks5://proxy.test:1080")
-            .with_proxy_bypass_list("*.example.com;localhost".parse().unwrap());
+            .into_builder()
+            .proxy("socks5://proxy.test:1080")
+            .proxy_bypass_list("*.example.com;localhost".parse().unwrap())
+            .build()
+            .expect("a valid config");
         let caps = caps_json(&socks);
         let prefs = &caps["moz:firefoxOptions"]["prefs"];
         assert_eq!(prefs["network.proxy.type"], 1);
@@ -427,14 +456,27 @@ mod capability_tests {
             ".example.com, localhost"
         );
 
-        let http = caps_json(&firefox.clone().with_proxy("h.test:8080"));
+        let http = caps_json(
+            &firefox
+                .clone()
+                .into_builder()
+                .proxy("h.test:8080")
+                .build()
+                .expect("a valid config"),
+        );
         let prefs = &http["moz:firefoxOptions"]["prefs"];
         assert_eq!(prefs["network.proxy.http"], "h.test");
         assert_eq!(prefs["network.proxy.http_port"], 8080);
         assert_eq!(prefs["network.proxy.ssl"], "h.test");
         assert_eq!(prefs["network.proxy.ssl_port"], 8080);
 
-        let pac = caps_json(&firefox.with_proxy_pac_url("http://pac.test/p.pac"));
+        let pac = caps_json(
+            &firefox
+                .into_builder()
+                .proxy_pac_url("http://pac.test/p.pac")
+                .build()
+                .expect("a valid config"),
+        );
         let prefs = &pac["moz:firefoxOptions"]["prefs"];
         assert_eq!(prefs["network.proxy.type"], 2);
         assert_eq!(
@@ -446,12 +488,16 @@ mod capability_tests {
     #[test]
     fn firefox_with_a_proxy_login_is_refused_with_pythons_message() {
         for config in [
-            BrowserConfig::default()
-                .with_browser(Browser::Firefox)
-                .with_proxy("user:hunter2@h.test:8080"),
-            BrowserConfig::default()
-                .with_browser(Browser::Firefox)
-                .with_proxy_pac_url("user:hunter2@http://pac.test/p.pac"),
+            BrowserConfig::builder()
+                .browser(Browser::Firefox)
+                .proxy("user:hunter2@h.test:8080")
+                .build()
+                .expect("a valid config"),
+            BrowserConfig::builder()
+                .browser(Browser::Firefox)
+                .proxy_pac_url("user:hunter2@http://pac.test/p.pac")
+                .build()
+                .expect("a valid config"),
         ] {
             let error = session_capabilities(&config).unwrap_err().to_string();
             assert!(
@@ -468,12 +514,14 @@ mod capability_tests {
             r#"{"browserName":"chrome","bstack:options":{"os":"Windows"}}"#,
         )
         .unwrap();
-        let config = BrowserConfig::default()
-            .with_browser(Browser::Remote)
-            .with_headless(true)
-            .with_block_images(true)
-            .with_window_size(WindowSize::new(800, 600))
-            .with_capabilities(caps);
+        let config = BrowserConfig::builder()
+            .browser(Browser::Remote)
+            .headless(true)
+            .block_images(true)
+            .window_size(WindowSize::new(800, 600))
+            .capabilities(caps)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             caps_json(&config),
             json!({"browserName": "chrome", "bstack:options": {"os": "Windows"}})
@@ -482,18 +530,24 @@ mod capability_tests {
 
     #[test]
     fn firefox_is_asked_for_a_private_window_and_developer_tools() {
-        let config = BrowserConfig::default()
-            .with_browser(Browser::Firefox)
-            .with_headless(false)
-            .with_incognito(true)
-            .with_devtools(true);
+        let config = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .headless(false)
+            .incognito(true)
+            .devtools(true)
+            .build()
+            .expect("a valid config");
         let caps = serde_json::to_value(session_capabilities(&config).unwrap()).unwrap();
         assert_eq!(
             caps["moz:firefoxOptions"]["args"],
             json!(["-private", "-devtools"])
         );
 
-        let headless = config.with_headless(true);
+        let headless = config
+            .into_builder()
+            .headless(true)
+            .build()
+            .expect("a valid config");
         let caps = serde_json::to_value(session_capabilities(&headless).unwrap()).unwrap();
         assert_eq!(
             caps["moz:firefoxOptions"]["args"],

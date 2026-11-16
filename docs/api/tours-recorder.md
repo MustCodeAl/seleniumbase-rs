@@ -35,7 +35,7 @@ See the [Tours](/tutorials/tours) and [Charts](/tutorials/charts) pages for deta
 |--------|-------------|
 | `activate_recorder()` | Injects the browser-side action recorder. |
 | `recorded_actions()` | Returns actions captured so far. |
-| `export_recording_as_rust()` | Returns recorded actions as Rust source (pure CDP code when `rec_sb_cdp()` is on). |
+| `export_recording_as_rust()` | Returns recorded actions as Rust source (pure CDP code when `recording_sb_cdp()` is on). |
 | `export_recording_as_cdp_rust()` | Returns recorded actions as a pure CDP program (`Page` and `Locator` calls). |
 | `save_recording_to_logs()` | Saves the recording as JSON and Rust source. |
 | `save_recording_json(filename)` | Saves recorded actions to a JSON file in the logs directory. |
@@ -51,8 +51,8 @@ See [Recorder Mode](/tutorials/recorder_mode) for `sbrs mkrec`, the output forma
 
 | Method | Description |
 |--------|-------------|
-| `get_beautiful_soup()` | Returns a BeautifulSoup-style parser for the page. |
-| `get_beautiful_soup_object()` | Alias for `get_beautiful_soup`. |
+| `beautiful_soup()` | Returns a BeautifulSoup-style parser for the page. |
+| `beautiful_soup_object()` | Alias for `beautiful_soup`. |
 | `convert_css_to_xpath(css)` | Converts a CSS selector to an XPath expression. |
 | `convert_xpath_to_css(xpath)` | Converts a simple XPath expression (a tag with attribute tests) to a CSS selector; any other XPath is an `InvalidSelector` error. |
 | `ad_block()` | Removes the ad elements of upstream's `AD_BLOCK_LIST` from the current page. |

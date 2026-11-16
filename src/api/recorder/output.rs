@@ -184,9 +184,7 @@ fn written() -> &'static Mutex<HashSet<PathBuf>> {
 /// Whether `path` was written by this process before; remembers it.
 fn seen_before(path: &Path) -> bool {
     let key = std::path::absolute(path).unwrap_or_else(|_| path.to_path_buf());
-    let mut written = written()
-        .lock()
-        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    let mut written = crate::common::poison::locked(written());
     !written.insert(key)
 }
 

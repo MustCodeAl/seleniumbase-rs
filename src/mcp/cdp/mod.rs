@@ -21,7 +21,7 @@ mod tasks;
 mod windows;
 
 use std::collections::{HashMap, VecDeque};
-use std::sync::{Arc, Mutex, PoisonError};
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use serde_json::{json, Value};
@@ -181,9 +181,7 @@ impl DevSession for Cdp {
         let task = tokio::spawn(async move {
             while let Some(event) = events.next().await {
                 if event.method.starts_with("Network.") {
-                    sink.lock()
-                        .unwrap_or_else(PoisonError::into_inner)
-                        .note(&event.method, &event.params);
+                    crate::common::poison::locked(&sink).note(&event.method, &event.params);
                 }
             }
         });
@@ -198,7 +196,7 @@ impl DevSession for Cdp {
 
     fn network_failures(&mut self, clear: bool) -> Option<(Vec<Value>, usize)> {
         let watch = self.network.as_ref()?;
-        let mut log = watch.log.lock().unwrap_or_else(PoisonError::into_inner);
+        let mut log = crate::common::poison::locked(&watch.log);
         let found = (log.failures.iter().cloned().collect(), log.dropped);
         if clear {
             log.failures.clear();

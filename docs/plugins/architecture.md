@@ -94,7 +94,7 @@ error in a launch or page hook stops that launch or tab.
 | Who | Install | Enable |
 |---|---|---|
 | Rust, built-in | A feature such as `plugin-shield` | Builder call, or a name in `[plugins]` / `SB_PLUGINS` |
-| Rust, third-party | `cargo add` the crate | `PluginSet::with`, `LaunchOptionsBuilder::plugins` or `BrowserConfig::with_plugins`, or by name through a `Registry` |
+| Rust, third-party | `cargo add` the crate | `PluginSet::with`, `LaunchOptionsBuilder::plugins` or `BrowserConfigBuilder::plugins`, or by name through a `Registry` |
 | Prebuilt `sbrs` and `sbrs-mcp` | Nothing, built-ins are compiled in | `--plugin NAME`, `--plugin-opt NAME.KEY=<TOML>`; `sbrs plugin list` and `sbrs plugin info NAME` show them |
 | WASM or manifest (planned) | `sbrs plugin add` into a content-addressed store, not built yet: `sbrs plugin` has only `list` and `info` | By the name it declares |
 

@@ -291,8 +291,8 @@ impl Locator {
             .await
     }
 
-    /// Runs `body` with the first match bound to `el`.
-    async fn with_element(&self, body: &str) -> Result<Value, SeleniumBaseError> {
+    /// Runs `body` with the first match bound to `el`, in the frame it is in.
+    pub(crate) async fn with_element(&self, body: &str) -> Result<Value, SeleniumBaseError> {
         let (value, _) = self.run_element(body, false).await?;
         Ok(value)
     }
@@ -967,6 +967,12 @@ impl Locator {
     pub async fn send_keys(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
         self.traced("send_keys", trace::masked, async {
             self.focus_step().await?;
+            // The caret goes after what the field holds, as WebDriver's `send_keys`
+            // puts it: focusing a field leaves the caret where it was, at the start
+            // of one that was never typed in.
+            self.with_element("__sbcdp.caretToEnd(el); return null;")
+                .await?;
+
             self.page.keyboard().type_text(text).await
         })
         .await

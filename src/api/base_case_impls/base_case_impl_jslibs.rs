@@ -186,9 +186,9 @@ impl BaseCase {
     /// `dark`, in any case. The width is a percent or pixels: `"36.0%"` or
     /// `"450px"`, or a whole number, which is a percent up to 100 and pixels
     /// above. Nothing is written into the page: the dialogs of
-    /// [`get_jqc_button_input`](Self::get_jqc_button_input),
-    /// [`get_jqc_text_input`](Self::get_jqc_text_input) and
-    /// [`get_jqc_form_inputs`](Self::get_jqc_form_inputs) are built from these
+    /// [`jqc_button_input`](Self::jqc_button_input),
+    /// [`jqc_text_input`](Self::jqc_text_input) and
+    /// [`jqc_form_inputs`](Self::jqc_form_inputs) are built from these
     /// settings, and a call's own `options` win for that call.
     ///
     /// The settings belong to this case, where Python keeps them for the whole
@@ -244,7 +244,7 @@ impl BaseCase {
     /// is no button, a colour or an option is not valid, or the dialog closed
     /// without an answer because the page went away, and
     /// [`SeleniumBaseError::Download`] if the page cannot load jquery-confirm.
-    pub fn get_jqc_button_input<'a, B: Into<JqcButton>>(
+    pub fn jqc_button_input<'a, B: Into<JqcButton>>(
         &'a self,
         message: &'a str,
         buttons: impl IntoIterator<Item = B>,
@@ -266,9 +266,9 @@ impl BaseCase {
     ///
     /// # Errors
     ///
-    /// As for [`get_jqc_button_input`](Self::get_jqc_button_input), except that
+    /// As for [`jqc_button_input`](Self::jqc_button_input), except that
     /// having no button is not an error.
-    pub fn get_jqc_text_input<'a>(&'a self, message: &'a str) -> JqcTextInput<'a> {
+    pub fn jqc_text_input<'a>(&'a self, message: &'a str) -> JqcTextInput<'a> {
         JqcTextInput::new(self, message, self.jqc.clone())
     }
 
@@ -282,8 +282,8 @@ impl BaseCase {
     ///
     /// # Errors
     ///
-    /// As for [`get_jqc_button_input`](Self::get_jqc_button_input).
-    pub fn get_jqc_form_inputs<'a, B: Into<JqcButton>>(
+    /// As for [`jqc_button_input`](Self::jqc_button_input).
+    pub fn jqc_form_inputs<'a, B: Into<JqcButton>>(
         &'a self,
         message: &'a str,
         buttons: impl IntoIterator<Item = B>,

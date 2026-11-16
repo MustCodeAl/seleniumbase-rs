@@ -40,15 +40,16 @@
 //! outputs are written a last time. It can be called again.
 //!
 //! A test that panics or whose process is killed leaves a `start` line and no
-//! `end` line. A recorder that is dropped without `finish` writes the missing
-//! line itself (failed for a panic, unreported otherwise).
+//! `end` line until something records it. Dropping a recorder only logs that
+//! the result was not written. Call [`finish`](TestRecorder::finish) with the
+//! outcome, or [`abandon`](TestRecorder::abandon) when the test never reached one.
 
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
 use std::fs::{self, OpenOptions};
 use std::io::{self, Write as _};
 use std::path::{Path, PathBuf};
-use std::sync::{Arc, Mutex, OnceLock, PoisonError};
+use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::ThreadId;
 use std::time::{Duration, Instant};
 
@@ -782,17 +783,11 @@ impl TestRun {
 
     /// Hears about every test that starts or ends from now on.
     pub fn add_sink(&self, sink: Arc<dyn RunSink>) {
-        self.sinks
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .push(sink);
+        crate::common::poison::locked(&self.sinks).push(sink);
     }
 
     fn sinks(&self) -> Vec<Arc<dyn RunSink>> {
-        self.sinks
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .clone()
+        crate::common::poison::locked(&self.sinks).clone()
     }
 
     fn joins(&self, run: &RunFile) -> bool {
@@ -1167,8 +1162,9 @@ fn absolute(root: PathBuf) -> io::Result<PathBuf> {
 ///
 /// Make one with [`TestRun::start`]. Call [`on_failure`](Self::on_failure) or
 /// [`on_success`](Self::on_success) while the browser is still open, then
-/// [`finish`](Self::finish). A recorder that is dropped without `finish`
-/// records the test as failed (when the thread is panicking) or unreported.
+/// [`finish`](Self::finish). [`abandon`](Self::abandon) records the test as
+/// unreported when it never reached an outcome. Dropping the recorder only
+/// logs that the result was not written.
 pub struct TestRecorder {
     run: TestRun,
     test: TestId,
@@ -1427,27 +1423,38 @@ async fn within_label(ask: impl std::future::Future<Output = Option<String>>) ->
     tokio::time::timeout(PAGE_WAIT, ask).await.ok().flatten()
 }
 
+impl TestRecorder {
+    /// Records the test as unreported, without writing `basic_test_info.txt`.
+    ///
+    /// Call this when a recorder is replaced, or dropped on purpose, and the
+    /// test never reached [`finish`](Self::finish). Dropping a recorder only
+    /// logs that the result was not written.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the run's files cannot be written. That never
+    /// changes the test's own result: log it and go on.
+    pub fn abandon(mut self) -> Result<()> {
+        let result = self.result(
+            TestStatus::Unreported,
+            "the test did not finish".to_owned(),
+            None,
+        );
+        self.record(result, None)
+    }
+}
+
 impl Drop for TestRecorder {
     fn drop(&mut self) {
         if self.finished {
             return;
         }
-        let panicked = std::thread::panicking();
-        let (status, message) = if panicked {
-            (TestStatus::Failed, "the test panicked")
-        } else {
-            (TestStatus::Unreported, "the test did not finish")
-        };
-        let failure = panicked.then(|| {
-            let error = SeleniumBaseError::TestLifecycle(message.to_owned());
-            let details = FailureDetails::from_error(&error);
-            self.write_info(&error, &details);
-            details
-        });
-        let result = self.result(status, message.to_owned(), failure);
-        if let Err(error) = self.record(result, None) {
-            tracing::warn!(%error, test = %self.test.display, "the end of a test was not recorded");
-        }
+        // A destructor must not write the reports. `finish` and `abandon` do.
+        tracing::warn!(
+            test = %self.test.display,
+            panicked = std::thread::panicking(),
+            "the test result was not written"
+        );
     }
 }
 
@@ -1511,11 +1518,7 @@ impl RunFinalizer {
         if matches!(end.outcome, Outcome::Failed(_)) && end.attempt < end.attempts {
             return;
         }
-        let begun = self
-            .recorder
-            .lock()
-            .unwrap_or_else(PoisonError::into_inner)
-            .take();
+        let begun = crate::common::poison::locked(&self.recorder).take();
         let Some(mut recorder) = begun.or_else(|| {
             let mut recorder = self.start()?;
             // The attempt took `end.duration`; the recorder only just started.
@@ -1555,9 +1558,19 @@ impl RunFinalizer {
 impl crate::testing::Finalizer for RunFinalizer {
     async fn begin(&self, _test_id: &str) {
         let recorder = self.start();
-        // A handle that runs its test twice starts it again; the recorder of
-        // the first run, if it is still here, ends as unreported.
-        *self.recorder.lock().unwrap_or_else(PoisonError::into_inner) = recorder;
+        let mut slot = crate::common::poison::locked(&self.recorder);
+        // A handle that runs its test twice starts it again. The recorder of
+        // the first run, if it is still here, is recorded as unreported.
+        if let Some(previous) = slot.take()
+            && let Err(error) = previous.abandon()
+        {
+            tracing::warn!(
+                %error,
+                test = %self.test.display,
+                "the previous test was not recorded"
+            );
+        }
+        *slot = recorder;
     }
 
     async fn finish(

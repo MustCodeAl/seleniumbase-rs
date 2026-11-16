@@ -89,8 +89,8 @@ impl sealed::Sealed for BaseCase {
             hints: TabHints {
                 // chromedriver's window handle may be the target id; when the driver
                 // answers none (a direct CDP attachment) the URL decides.
-                target_id: self.get_current_window_handle().await.ok(),
-                url: self.get_current_url().await.ok(),
+                target_id: self.current_window_handle().await.ok(),
+                url: self.current_url().await.ok(),
             },
             timeout: Duration::from_secs(self.timeout_secs()),
         })

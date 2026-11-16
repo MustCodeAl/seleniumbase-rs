@@ -28,22 +28,28 @@ Summary for AI exports: a run is configured by the `BrowserConfig` builder, a gl
 
 ## BrowserConfig builder
 
-The most direct way to configure a run is the `BrowserConfig` builder. Every
-method returns `Self`, so calls can be chained fluently. `BrowserConfig::default()`
-is headless, reads no environment variables, and starts a chromedriver for you
-when none is running at the default WebDriver URL.
+The most direct way to configure a run is the `BrowserConfig` builder.
+`BrowserConfig::builder()` starts from the default configuration, every setter
+returns the builder so calls can be chained, and `build()` returns the
+`BrowserConfig` (it refuses an empty Selenium Grid server name and a plugin name
+that does not exist). A default configuration is headless, reads no environment
+variables, and starts a chromedriver for you when none is running at the default
+WebDriver URL. To change a configuration you already hold, such as
+`Settings::to_browser_config()` or `BrowserConfig::from_env()`, start from
+`config.into_builder()`.
 
 ```rust,no_run
 use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = BrowserConfig::default()
-        .with_mode(DriverMode::Uc)
-        .with_headless(true)
-        .with_mobile(true)
-        .with_locale("en-US")
-        .with_proxy("http://proxy.example.com:8080");
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .headless(true)
+        .mobile(true)
+        .locale("en-US")
+        .proxy("http://proxy.example.com:8080")
+        .build()?;
 
     let mut sb = BaseCase::new(config).await?;
     sb.set_timeout(15).await?;
@@ -57,33 +63,33 @@ Key builder methods:
 
 | Method | Effect |
 |---|---|
-| `with_mode(mode)` | Set `DriverMode::WebDriver`, `Cdp`, or `Uc`. |
-| `with_browser(browser)` | Set `Browser::Chrome`, `Chromium`, `Edge`, or `Firefox`. |
-| `with_headless(bool)` | Run without a visible window. |
-| `with_webdriver_url(url)` | Connect to this WebDriver server instead of auto-starting a local chromedriver. |
-| `with_user_agent(s)` | Override the user agent string. |
-| `with_mobile(bool)` | Emulate a mobile device: a 390x844 window and an Android Chrome user agent, unless you set your own user agent. |
-| `with_locale(s)` | Set `navigator.languages` / `Accept-Language`. |
-| `with_proxy(url)` | Route traffic through an HTTP/HTTPS/SOCKS proxy. |
-| `with_proxy_pac_url(url)` | Load proxy configuration from a <Tooltip tip="Proxy auto-config: a script that tells the browser which proxy to use for a URL.">PAC</Tooltip> file. |
-| `with_user_data_dir(path)` | Launch with an existing Chromium profile. |
-| `with_extension_dir(path)` | Load an unpacked extension. |
-| `with_start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
-| `with_reuse_session(bool)` | Share browsers among the tests of the run (`--reuse-session`, `--rs`); see [Sharing a browser between tests](#sharing-a-browser-between-tests). |
-| `with_reuse_module_session(bool)` / `with_reuse_class_session(name)` | Share a browser only among the tests of one module, or of one name (`--rcs`). Both turn `reuse_session` on. |
-| `with_ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
-| `with_ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
-| `with_fingerprint(fp)` | Apply a [`Fingerprint`](/stealth/introduction). |
-| `with_browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
-| `with_extra_args(vec)` / `push_extra_arg(s)` | Pass extra Chromium launch flags. |
+| `mode(mode)` | Set `DriverMode::WebDriver`, `Cdp`, or `Uc`. |
+| `browser(browser)` | Set `Browser::Chrome`, `Chromium`, `Edge`, or `Firefox`. |
+| `headless(bool)` | Run without a visible window. |
+| `webdriver_url(url)` | Connect to this WebDriver server instead of auto-starting a local chromedriver. |
+| `user_agent(s)` | Override the user agent string. |
+| `mobile(bool)` | Emulate a mobile device: a 390x844 window and an Android Chrome user agent, unless you set your own user agent. |
+| `locale(s)` | Set `navigator.languages` / `Accept-Language`. |
+| `proxy(url)` | Route traffic through an HTTP/HTTPS/SOCKS proxy. |
+| `proxy_pac_url(url)` | Load proxy configuration from a <Tooltip tip="Proxy auto-config: a script that tells the browser which proxy to use for a URL.">PAC</Tooltip> file. |
+| `user_data_dir(path)` | Launch with an existing Chromium profile. |
+| `extension_dir(path)` | Load an unpacked extension. |
+| `start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
+| `reuse_session(bool)` | Share browsers among the tests of the run (`--reuse-session`, `--rs`); see [Sharing a browser between tests](#sharing-a-browser-between-tests). |
+| `reuse_module_session(bool)` / `reuse_class_session(name)` | Share a browser only among the tests of one module, or of one name (`--rcs`). Both turn `reuse_session` on. |
+| `ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
+| `ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
+| `fingerprint(fp)` | Apply a [`Fingerprint`](/stealth/introduction). |
+| `browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
+| `extra_args(vec)` / `extra_arg(s)` | Pass extra Chromium launch flags. |
 
-`with_remote_webdriver_timeout(Duration)` sets the client-side timeout of each
+`remote_webdriver_timeout(Duration)` sets the client-side timeout of each
 request to a Remote WebDriver server (a part of a second rounds up to a whole
 second), the field `remote_webdriver_timeout_seconds`.
 
 | Builder | Effect |
 |---|---|
-| `with_run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](/tutorials/run_settings). |
+| `run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](/tutorials/run_settings). |
 
 ### Blocking ads
 
@@ -101,7 +107,7 @@ use seleniumbase_rs::config::ad_block_list::AdBlockList;
 use seleniumbase_rs::BrowserConfig;
 
 let list = AdBlockList::from_hosts(["ads.example.com", "tracker.example.net"])?;
-let config = BrowserConfig::default().with_ad_block_list(list);
+let config = BrowserConfig::builder().ad_block_list(list).build()?;
 Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
 ```
 
@@ -139,26 +145,26 @@ work.
 
 | Method | Python option | Effect |
 |---|---|---|
-| `with_block_images(bool)`, `with_disable_js(bool)`, `with_disable_cookies(bool)`, `with_do_not_track(bool)`, `with_external_pdf(bool)` | `--block-images`, `--disable-js`, `--disable-cookies`, `--do-not-track`, `--external-pdf` | Browser preferences (Chrome `prefs`, Firefox preferences). |
-| `with_enable_sync(bool)` | `--enable-sync` | Leave Chrome Sync on; sessions switch it off otherwise. |
-| `with_disable_csp(bool)` | `--disable-csp`, `--dcsp`, `--no-csp` | Remove the Content-Security-Policy headers (bundled extension, Chromium only). |
-| `with_page_load_strategy(s)` | `--page-load-strategy`, `--pls` | `normal`, `eager` or `none`. |
-| `with_window_size(s)`, `with_window_position(p)` | `--window-size`, `--window-position` | Size and place the window. |
-| `with_device_metrics(m)` | `--metrics`, `d_width`, `d_height`, `d_p_r` | Emulate a phone screen (turns `mobile` on). |
-| `with_proxy_bypass_list(l)` | `--proxy-bypass-list` | Hosts that skip the proxy. |
-| `with_proxy_for_driver_download(bool)` | `--proxy-driver` | Download drivers and Chrome for Testing through the proxy. |
-| `with_extension_archive(a)` | `--extension-zip`, `--crx` | Load a `.zip` or `.crx` extension (Chromium). |
-| `with_automation_extension(bool)`, `with_recorder_extension(bool)` | `--use-auto-ext`, `recorder_ext` | Keep Chrome's automation extension; load the Recorder. |
-| `with_esc_end(bool)` | `--esc-end`, `--esc_end`, `--ee` | End the test when ESC is pressed in the browser (see below). |
-| `with_recording_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](/tutorials/recorder_mode#pure-cdp-code---rec-sb-cdp)). |
-| `with_firefox_options(o)` | `--firefox-arg`, `--firefox-pref` | Firefox arguments and preferences. |
-| `with_capabilities(c)` | `--cap-string`, `--cap-file` | Merge extra capabilities into the session's. |
-| `with_driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
-| `with_remote_debug(bool)`, `with_remote_debug_port(p)` | `--remote-debug` | Open Chrome's debugger (9222 or a port you name). |
-| `with_cdp_events(c)` | `--log-cdp-events`, `--uc-cdp-events` | Keep the DevTools events; read them with `BrowserSession::cdp_events`. |
-| `with_virtual_display(d)` | `--xvfb`, `--xvfb-metrics` | Run a headed browser on <Tooltip tip="A virtual display server: it lets a headed browser run on a machine with no screen.">Xvfb</Tooltip> (Linux). |
+| `block_images(bool)`, `disable_js(bool)`, `disable_cookies(bool)`, `do_not_track(bool)`, `external_pdf(bool)` | `--block-images`, `--disable-js`, `--disable-cookies`, `--do-not-track`, `--external-pdf` | Browser preferences (Chrome `prefs`, Firefox preferences). |
+| `enable_sync(bool)` | `--enable-sync` | Leave Chrome Sync on; sessions switch it off otherwise. |
+| `disable_csp(bool)` | `--disable-csp`, `--dcsp`, `--no-csp` | Remove the Content-Security-Policy headers (bundled extension, Chromium only). |
+| `page_load_strategy(s)` | `--page-load-strategy`, `--pls` | `normal`, `eager` or `none`. |
+| `window_size(s)`, `window_position(p)` | `--window-size`, `--window-position` | Size and place the window. |
+| `device_metrics(m)` | `--metrics`, `d_width`, `d_height`, `d_p_r` | Emulate a phone screen (turns `mobile` on). |
+| `proxy_bypass_list(l)` | `--proxy-bypass-list` | Hosts that skip the proxy. |
+| `proxy_for_driver_download(bool)` | `--proxy-driver` | Download drivers and Chrome for Testing through the proxy. |
+| `extension_archive(a)` | `--extension-zip`, `--crx` | Load a `.zip` or `.crx` extension (Chromium). |
+| `automation_extension(bool)`, `recorder_extension(bool)` | `--use-auto-ext`, `recorder_ext` | Keep Chrome's automation extension; load the Recorder. |
+| `esc_end(bool)` | `--esc-end`, `--esc_end`, `--ee` | End the test when ESC is pressed in the browser (see below). |
+| `recording_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](/tutorials/recorder_mode#pure-cdp-code---rec-sb-cdp)). |
+| `firefox_options(o)` | `--firefox-arg`, `--firefox-pref` | Firefox arguments and preferences. |
+| `capabilities(c)` | `--cap-string`, `--cap-file` | Merge extra capabilities into the session's. |
+| `driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
+| `remote_debug(bool)`, `remote_debug_port(p)` | `--remote-debug` | Open Chrome's debugger (9222 or a port you name). |
+| `cdp_events(c)` | `--log-cdp-events`, `--uc-cdp-events` | Keep the DevTools events; read them with `BrowserSession::cdp_events`. |
+| `virtual_display(d)` | `--xvfb`, `--xvfb-metrics` | Run a headed browser on <Tooltip tip="A virtual display server: it lets a headed browser run on a machine with no screen.">Xvfb</Tooltip> (Linux). |
 
-`with_browser` also takes `Brave`, `Comet`, `Opera`, `Safari`,
+`browser` also takes `Brave`, `Comet`, `Opera`, `Safari`,
 `InternetExplorer`, `ChromeForTesting` and `ChromeHeadlessShell` (the Python
 `--brave`, `--comet`, `--opera`, `--safari`, `--ie`, `--cft` and `--chs`). Chrome
 for Testing and `chrome-headless-shell` are downloaded into `downloaded_drivers/`
@@ -169,7 +175,7 @@ when missing; Opera, Safari and Internet Explorer need their own driver
 
 <Badge color="blue">WebDriver engine (`BaseCase`) only</Badge>
 
-`with_esc_end(true)` lets the person watching a headed run stop the test: `BaseCase`
+`esc_end(true)` lets the person watching a headed run stop the test: `BaseCase`
 puts a key listener in the page, and the first `open`, `click`, `click_link_text`,
 `highlight`, `wait_for_element_visible`, `wait_for_ready_state_complete`, `type_text`,
 `update_text` or `press_keys` after ESC was pressed returns
@@ -182,7 +188,7 @@ engine (`BaseCase`) has the option.
 
 ### Sharing a browser between tests
 
-`with_reuse_session(true)` (`--reuse-session`, `--reuse_session`, `--rs`,
+`reuse_session(true)` (`--reuse-session`, `--reuse_session`, `--rs`,
 `SB_REUSE_SESSION`) keeps a browser open from one test to the next, as Python's
 option does. `BaseCase::new` attaches to a browser that an earlier test of the
 same process started with the same configuration (everything but the start
@@ -194,7 +200,7 @@ use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};
 
 #[tokio::test]
 async fn login_page_loads() -> seleniumbase_rs::Result<()> {
-    let config = BrowserConfig::default().with_reuse_session(true);
+    let config = BrowserConfig::builder().reuse_session(true).build()?;
     run_browser_test(config, async |sb| sb.open("https://example.com/login").await)
     .await
 }
@@ -216,15 +222,15 @@ started, and each test attaches with a client of its own.
   browser is held gets a browser of its own, kept for reuse too, so a run with
   four test threads ends up with up to four browsers. A browser that no longer
   answers is closed and replaced.
-- `get_new_driver` browsers are never shared.
+- `new_driver` browsers are never shared.
 - `BaseCase::session_id()` tells which browser a test has.
 
-`with_reuse_module_session(true)` (`--rcs`, `--reuse-class-session`,
+`reuse_module_session(true)` (`--rcs`, `--reuse-class-session`,
 `SB_REUSE_CLASS_SESSION`) shares a browser only among the tests of one Rust
 module, which plays the part of Python's test class. The module is read from
 the name libtest gives the thread a test runs on: `login::tests::valid_password`
 is in `login::tests`, and every test at the root of an integration test file is
-in the root module. `with_reuse_class_session("Login")` shares one among the
+in the root module. `reuse_class_session("Login")` shares one among the
 tests that pass the same name instead.
 
 Idle browsers are closed, with their chromedriver, by a background thread once
@@ -387,9 +393,9 @@ Common flags:
 | Flag | Description |
 |------|-------------|
 | `--headless` / `--headed` | Run the browser without or with a visible window. |
-| `--mobile` | Emulate a mobile device (see `with_mobile`). |
-| `--esc-end` / `--esc_end` / `--ee` | End the test when ESC is pressed in the browser (see `with_esc_end`). |
-| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `with_recording_sb_cdp`); `sbrs run-scenario` then saves a pure CDP program. |
+| `--mobile` | Emulate a mobile device (see `mobile`). |
+| `--esc-end` / `--esc_end` / `--ee` | End the test when ESC is pressed in the browser (see `esc_end`). |
+| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `recording_sb_cdp`); `sbrs run-scenario` then saves a pure CDP program. |
 | `--proxy HOST:PORT` | Route traffic through a proxy (`scheme://host:port` also works). |
 | `--proxy-list FILE` | Choose from a file of proxies: a random one, or the entry named by `--proxy`. |
 | `--proxy-pac-url URL` | Use a PAC file for proxy configuration. |
@@ -567,7 +573,7 @@ The table of settings and the separate runtime variables.
 
 <Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
 
-What `with_fingerprint` applies.
+What `fingerprint` applies.
 
 </Card>
 

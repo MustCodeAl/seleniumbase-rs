@@ -279,7 +279,7 @@ impl PluginChoice {
 }
 
 /// Gives `config` the plugins `selection` names. The same as
-/// `BrowserConfig::with_plugin_selection`, except that a build without the feature
+/// `BrowserConfigBuilder::plugin_selection`, except that a build without the feature
 /// `plugins` refuses a selection that is not empty instead of leaving it out of the
 /// program, whichever features the caller has.
 ///
@@ -293,7 +293,7 @@ pub fn apply_to_config(
 ) -> Result<BrowserConfig, SeleniumBaseError> {
     #[cfg(feature = "plugins")]
     {
-        config.with_plugin_selection(selection)
+        config.into_builder().plugin_selection(selection).build()
     }
     #[cfg(not(feature = "plugins"))]
     {
@@ -641,10 +641,10 @@ fn unknown(name: &str, registry: &Registry) -> SeleniumBaseError {
 #[cfg(feature = "plugins")]
 fn as_usage_error(error: SeleniumBaseError) -> SeleniumBaseError {
     match error {
-        SeleniumBaseError::Plugin { plugin, reason } if plugin.is_empty() => {
+        SeleniumBaseError::Plugin { plugin, reason, .. } if plugin.is_empty() => {
             SeleniumBaseError::invalid_config(reason)
         }
-        SeleniumBaseError::Plugin { plugin, reason } => {
+        SeleniumBaseError::Plugin { plugin, reason, .. } => {
             SeleniumBaseError::invalid_config(format!("plugin `{plugin}`: {reason}"))
         }
         other => other,
@@ -933,10 +933,7 @@ impl seleniumbase_rs_plugin::Sink for JsonlSink {
         let mut text = serde_json::to_string(line)
             .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))?;
         text.push('\n');
-        let mut out = self
-            .out
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let mut out = crate::common::poison::locked(&self.out);
         out.write_all(text.as_bytes())
             .and_then(|()| out.flush())
             .map_err(|error| seleniumbase_rs_plugin::PluginError::other(error.to_string()))

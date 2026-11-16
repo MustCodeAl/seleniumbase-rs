@@ -290,6 +290,8 @@ mod generator_cdp {
     // tests/codegen.test.ts, line 25, and line 306, verbatim.
     use seleniumbase_rs::sb_cdp::{Browser, Key, LaunchOptions, SelectBy};
     use seleniumbase_rs::sb_cdp::{Browser as B, Key as K, LaunchOptions as L, State};
+    // The generated tests take `#[tokio::test]` from the re-export.
+    use seleniumbase_rs::tokio;
 
     pub async fn recorded_test() -> Result<(), Box<dyn std::error::Error>> {
         let browser = Browser::launch(LaunchOptions::builder().build()?).await?;

@@ -194,8 +194,14 @@ fn headless(builder: LaunchOptionsBuilder) -> bool {
 
 #[test]
 fn headless_is_the_builders_then_the_configs_in_either_order() {
-    let headed_config = BrowserConfig::default().with_headless(false);
-    let headless_config = BrowserConfig::default().with_headless(true);
+    let headed_config = BrowserConfig::builder()
+        .headless(false)
+        .build()
+        .expect("a valid config");
+    let headless_config = BrowserConfig::builder()
+        .headless(true)
+        .build()
+        .expect("a valid config");
     for (config, own, expected) in [
         (&headed_config, Some(true), true),
         (&headless_config, Some(false), false),
@@ -222,7 +228,10 @@ fn headless_is_the_builders_then_the_configs_in_either_order() {
 #[test]
 fn what_the_builder_sets_before_a_config_is_no_longer_replaced_by_it() {
     // Before the one rule, the config replaced the user agent set before it.
-    let config = BrowserConfig::default().with_user_agent("Config/1");
+    let config = BrowserConfig::builder()
+        .user_agent("Config/1")
+        .build()
+        .expect("a valid config");
     let options = LaunchOptions::builder()
         .user_agent("Builder/1")
         .browser_config(&config)
@@ -233,7 +242,10 @@ fn what_the_builder_sets_before_a_config_is_no_longer_replaced_by_it() {
 
 #[test]
 fn the_lists_of_the_config_come_before_the_builders() {
-    let config = BrowserConfig::default().with_extra_args(["first-flag"]);
+    let config = BrowserConfig::builder()
+        .extra_args(["first-flag"])
+        .build()
+        .expect("a valid config");
     for options in [
         LaunchOptions::builder()
             .arg("--second-flag")
@@ -285,7 +297,10 @@ fn a_switch_turned_off_on_the_builder_beats_the_config_in_either_order() {
 #[test]
 fn mobile_false_turns_the_phone_off_whatever_else_asks_for_one() {
     let phone = DeviceMetrics::new(360, 640, 2.0);
-    let config = BrowserConfig::default().with_mobile(true);
+    let config = BrowserConfig::builder()
+        .mobile(true)
+        .build()
+        .expect("a valid config");
     let sends_a_phone_agent = |builder: LaunchOptionsBuilder| {
         builder
             .build()
@@ -344,9 +359,12 @@ fn options_made_again_with_a_fingerprint_are_what_the_builder_gives() {
             .user_agent("Mine/1")
             .arg("--mute-audio")
             .url("https://example.com/"),
-        LaunchOptions::builder()
-            .no_sandbox(false)
-            .browser_config(&BrowserConfig::default().with_headless(false)),
+        LaunchOptions::builder().no_sandbox(false).browser_config(
+            &BrowserConfig::builder()
+                .headless(false)
+                .build()
+                .expect("a valid config"),
+        ),
     ];
     for base in bases {
         let direct = base.clone().fingerprint(&fingerprint).build().unwrap();

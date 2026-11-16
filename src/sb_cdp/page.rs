@@ -602,9 +602,7 @@ impl Page {
                 }
             })
             .await?;
-        let winner = winner
-            .into_inner()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let winner = crate::common::poison::into_inner(winner);
         match (found, winner) {
             (true, Some(index)) => Ok(index),
             _ => Err(SeleniumBaseError::wait_timeout(

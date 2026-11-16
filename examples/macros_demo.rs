@@ -38,7 +38,7 @@ use seleniumbase_rs::{
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    configuration_macros();
+    configuration_macros()?;
 
     let url = Site::serve_demo()?.url(DEMO_PATH);
     run_browser_test(BrowserConfig::default(), async |sb| {
@@ -48,17 +48,17 @@ async fn main() -> Result<()> {
 }
 
 /// Part 1: macros that only build values.
-fn configuration_macros() {
+fn configuration_macros() -> Result<()> {
     println!(
         "uc_config!()  -> mode {:?}",
-        uc_config!().session.driver_mode()
+        uc_config!()?.session.driver_mode()
     );
     println!(
         "cdp_config!() -> mode {:?}",
-        cdp_config!().session.driver_mode()
+        cdp_config!()?.session.driver_mode()
     );
 
-    let custom = sb_config!(headless: true, mode: DriverMode::Cdp);
+    let custom = sb_config!(headless: true, mode: DriverMode::Cdp)?;
     println!(
         "sb_config!    -> mode {:?}, headless {}",
         custom.session.driver_mode(),
@@ -73,6 +73,7 @@ fn configuration_macros() {
     );
 
     println!("selector!     -> {:?}", selector!(xpath, "//h1"));
+    Ok(())
 }
 
 /// Part 2: macros that drive the browser.

@@ -41,9 +41,11 @@ const MANIFEST: &str = r#"{
 fn firefox_config() -> BrowserConfig {
     let url = std::env::var("SB_WEBDRIVER_URL")
         .expect("SB_WEBDRIVER_URL names a geckodriver; see the module documentation");
-    let mut config = BrowserConfig::default()
-        .with_browser(Browser::Firefox)
-        .with_webdriver_url(url);
+    let mut config = BrowserConfig::builder()
+        .browser(Browser::Firefox)
+        .webdriver_url(url)
+        .build()
+        .expect("a valid config");
     config.browser.headless = true;
     config.session.auto_start_driver = false;
     config

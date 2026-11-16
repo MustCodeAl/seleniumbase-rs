@@ -157,7 +157,7 @@ impl BaseCase {
     /// reconnecting and for test-only construction.
     ///
     /// The case starts with the run settings of `config`
-    /// ([`BrowserConfig::with_run_settings`]): demo and slow mode, the message
+    /// ([`run_settings`](crate::BrowserConfigBuilder::run_settings)): demo and slow mode, the message
     /// duration and, if they carry one, the default timeout, in whole seconds
     /// rounded up, that [`set_timeout`](Self::set_timeout) would set.
     #[instrument(skip(config, session))]
@@ -277,7 +277,7 @@ impl BaseCase {
         if !self.run_settings.demo_mode() {
             return None;
         }
-        self.get_current_url().await.ok()
+        self.current_url().await.ok()
     }
 
     /// Pauses after an action as Python's demo mode does: in full when the
@@ -287,7 +287,7 @@ impl BaseCase {
     /// before the action.
     async fn demo_pause_after(&self, before: Option<String>) {
         let kind = if self.run_settings.demo_mode() {
-            match (before, self.get_current_url().await) {
+            match (before, self.current_url().await) {
                 (Some(before), Ok(now)) if before == now => PauseKind::Short,
                 _ => PauseKind::Full,
             }
@@ -397,7 +397,7 @@ impl BaseCase {
             let actual = match this.session.find(selector).await {
                 Ok(element) => {
                     this.session
-                        .attribute_or_property(element.as_webdriver_element(), attribute)
+                        .attribute_or_property(&element, attribute)
                         .await?
                 }
                 // Not there yet, same as a text assertion: keep looking.
@@ -427,7 +427,7 @@ impl BaseCase {
 
     /// Asserts that the current page title equals `expected`.
     pub async fn assert_title(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let title = self.get_title().await?;
+        let title = self.title().await?;
         if title != expected {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Expected title to be '{}', but got '{}'",
@@ -480,21 +480,20 @@ impl BaseCase {
     }
 
     /// Returns the current browser window position as `(x, y)`.
-    pub async fn get_window_position(&self) -> Result<(i64, i64), SeleniumBaseError> {
-        let rect = self.session.webdriver()?.get_window_rect().await?;
-        Ok((rect.x, rect.y))
+    pub async fn window_position(&self) -> Result<(i64, i64), SeleniumBaseError> {
+        let (x, y, _, _) = self.session.window_rect().await?;
+        Ok((x, y))
     }
 
     /// Moves the browser window to `(x, y)`.
     pub async fn set_window_position(&self, x: u32, y: u32) -> Result<(), SeleniumBaseError> {
-        let rect = self.session.webdriver()?.get_window_rect().await?;
+        let (_, _, width, height) = self.session.window_rect().await?;
         self.session
-            .webdriver()?
             .set_window_rect(
                 x.into(),
                 y.into(),
-                rect.width.try_into().unwrap_or(0),
-                rect.height.try_into().unwrap_or(0),
+                width.try_into().unwrap_or(0),
+                height.try_into().unwrap_or(0),
             )
             .await?;
         self.demo_pause(PauseKind::Short).await;
@@ -503,14 +502,12 @@ impl BaseCase {
 
     /// Closes the current browser window or tab.
     pub async fn close_window(&mut self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.close_window().await?;
-        Ok(())
+        self.session.close_window().await
     }
 
     /// Switches the context to the parent frame.
     pub async fn switch_to_parent_frame(&mut self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.enter_parent_frame().await?;
-        Ok(())
+        self.session.switch_to_parent_frame().await
     }
 
     /// Returns `true` if `css` is visible on the page.
@@ -595,7 +592,7 @@ impl BaseCase {
     /// Returns the browser's error, or [`SeleniumBaseError::InvalidConfig`] if
     /// the file cannot be written.
     pub async fn save_cookies_to_path(&self, path: &Path) -> Result<(), SeleniumBaseError> {
-        let cookies = self.session.webdriver()?.get_all_cookies().await?;
+        let cookies = self.session.all_cookies().await?;
         let json = serde_json::to_string_pretty(&cookies).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!("Failed to serialize cookies: {e}"))
         })?;
@@ -672,7 +669,7 @@ impl BaseCase {
             .collect::<Result<Vec<Cookie>, SeleniumBaseError>>()?;
         // As Python does, let the page finish loading before the cookies go in.
         self.wait_for_ready_state_complete().await?;
-        let url = self.session.webdriver()?.current_url().await?;
+        let url = self.session.current_url().await?;
         let origin = origin_of_url(url.as_str())?;
         let now = unix_seconds();
         for cookie in &mut cookies {
@@ -684,7 +681,7 @@ impl BaseCase {
 
     /// Executes the `is_checked` action.
     pub async fn is_checked(&mut self, css: &str) -> Result<bool, SeleniumBaseError> {
-        let is_checked = self.get_property(css, "checked").await?;
+        let is_checked = self.property(css, "checked").await?;
         Ok(is_checked.as_deref() == Some("true"))
     }
 
@@ -734,33 +731,26 @@ impl BaseCase {
         }
         self.await_ready(css, Ready::Present).await?;
         let selector = shadow_find::checked(css)?;
-        let driver = self.session.webdriver()?.clone();
         let element = self.session.find(selector).await?;
-        let opacity = driver
-            .execute(
-                "return arguments[0].style.opacity;",
-                vec![element.reference()?],
-            )
+        let opacity = element
+            .run_script("return arguments[0].style.opacity;", &[])
             .await
             .ok()
-            .and_then(|ret| ret.json().as_str().map(str::to_owned))
+            .and_then(|returned| returned.as_str().map(str::to_owned))
             .unwrap_or_default();
         // Change the opacity a bit to let the click succeed.
-        let _ = driver
-            .execute(
-                "arguments[0].style.opacity = '0.001';",
-                vec![element.reference()?],
-            )
+        let _ = element
+            .run_script("arguments[0].style.opacity = '0.001';", &[])
             .await;
         let clicked = if self.is_element_visible(css).await? {
             self.click(css).await
         } else {
             self.session.js_click_element(&element).await
         };
-        let _ = driver
-            .execute(
+        let _ = element
+            .run_script(
                 "arguments[0].style.opacity = arguments[1];",
-                vec![element.reference()?, Value::String(opacity)],
+                &[Value::String(opacity)],
             )
             .await;
         clicked
@@ -784,6 +774,15 @@ impl BaseCase {
         &mut self,
         switch_to: bool,
     ) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.session.pure_cdp_page() {
+            // A page script cannot open a tab without a click behind it; the browser can.
+            let tab = page.browser().new_page().await?;
+            return if switch_to {
+                self.session.switch_to_tab(tab).await
+            } else {
+                Ok(())
+            };
+        }
         self.execute_script("window.open('');").await?;
         if !switch_to {
             return Ok(());
@@ -819,6 +818,13 @@ impl BaseCase {
 
     /// Executes the `switch_to_default_window` action.
     pub async fn switch_to_default_window(&mut self) -> Result<(), SeleniumBaseError> {
+        if self.session.pure_cdp_page().is_some() {
+            let handles = self.session.window_handles().await?;
+            if let Some(first) = handles.first() {
+                self.session.switch_to_window(first).await?;
+            }
+            return Ok(());
+        }
         let handles = self.session.webdriver()?.windows().await?;
         if let Some(first) = handles.first() {
             self.session
@@ -831,6 +837,13 @@ impl BaseCase {
 
     /// Executes the `switch_to_newest_window` action.
     pub async fn switch_to_newest_window(&mut self) -> Result<(), SeleniumBaseError> {
+        if self.session.pure_cdp_page().is_some() {
+            let handles = self.session.window_handles().await?;
+            if let Some(last) = handles.last() {
+                self.session.switch_to_window(last).await?;
+            }
+            return Ok(());
+        }
         let handles = self.session.webdriver()?.windows().await?;
         if let Some(last) = handles.last() {
             self.session
@@ -843,7 +856,7 @@ impl BaseCase {
 
     /// Gives the window the session is on the packages and `on_page_created`
     /// of its browser plugins (feature `plugins`,
-    /// [`BrowserConfig::with_plugins`]).
+    /// [`BrowserConfigBuilder::plugins`](crate::BrowserConfigBuilder::plugins)).
     ///
     /// `BaseCase::new` does this for the first window, and
     /// [`open_new_window`](Self::open_new_window), `open_new_tab` and
@@ -861,8 +874,8 @@ impl BaseCase {
         self.session.apply_plugins_to_window().await
     }
 
-    /// Executes the `get_active_element_css` action.
-    pub async fn get_active_element_css(&self) -> Result<String, SeleniumBaseError> {
+    /// Executes the `active_element_css` action.
+    pub async fn active_element_css(&self) -> Result<String, SeleniumBaseError> {
         let script = r#"
             let el = document.activeElement;
             if (!el) return '';
@@ -1038,7 +1051,7 @@ impl BaseCase {
     }
 
     /// Returns the visible text of the element `css`, or the value of an `<input>` or a `<textarea>`.
-    pub async fn get_text(&self, css: &str) -> Result<String, SeleniumBaseError> {
+    pub async fn text(&self, css: &str) -> Result<String, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
         self.session.text(selector).await
@@ -1195,18 +1208,18 @@ impl BaseCase {
     }
 
     /// Returns the current page title.
-    pub async fn get_title(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn title(&self) -> Result<String, SeleniumBaseError> {
         self.session.current_title().await
     }
 
     /// Returns the current page URL.
-    pub async fn get_current_url(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn current_url(&self) -> Result<String, SeleniumBaseError> {
         self.session.current_url().await
     }
 
     /// Executes the `assert_url_contains` action.
     pub async fn assert_url_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if url.contains(expected) {
             let message = demo::braced_message("ASSERT URL CONTAINS", expected);
             self.demo_assert_success(&message, Some("html")).await;
@@ -1217,8 +1230,8 @@ impl BaseCase {
         )))
     }
 
-    /// Executes the `get_page_source` action.
-    pub async fn get_page_source(&self) -> Result<String, SeleniumBaseError> {
+    /// Executes the `page_source` action.
+    pub async fn page_source(&self) -> Result<String, SeleniumBaseError> {
         self.session.page_source().await
     }
 
@@ -1238,7 +1251,7 @@ impl BaseCase {
     ///
     /// A WebDriver Chromium session (UC mode included) answers the address its
     /// driver reported; a direct CDP attachment
-    /// ([`with_cdp_url`](BrowserConfig::with_cdp_url)) answers its browser's.
+    /// ([`cdp_url`](crate::BrowserConfigBuilder::cdp_url)) answers its browser's.
     ///
     /// # Errors
     ///
@@ -1291,7 +1304,7 @@ impl BaseCase {
     /// ```no_run
     /// # use seleniumbase_rs::BaseCase;
     /// # async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    /// for cookie in sb.get_cookies().await? {
+    /// for cookie in sb.cookies().await? {
     ///     println!("{} expires {:?}", cookie.name, cookie.expires);
     /// }
     /// # Ok(())
@@ -1301,8 +1314,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns the browser's or the driver's error if the cookies cannot be read.
-    pub async fn get_cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
-        self.session.get_cookies().await
+    pub async fn cookies(&self) -> Result<Vec<Cookie>, SeleniumBaseError> {
+        self.session.cookies().await
     }
 
     /// Dispatches a CDP mouse click at `(x, y)`, in CSS pixels from the
@@ -1410,24 +1423,24 @@ impl BaseCase {
     /// `false` (`selected`, `disabled`) gives `None`.
     ///
     /// Python raises when there is no such attribute; this returns `None`.
-    pub async fn get_attribute(
+    pub async fn attribute(
         &mut self,
         css: &str,
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
-        self.session.get_attribute(selector, attribute_name).await
+        self.session.attribute(selector, attribute_name).await
     }
 
-    /// Executes the `get_property` action.
-    pub async fn get_property(
+    /// Executes the `property` action.
+    pub async fn property(
         &mut self,
         css: &str,
         property_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
-        self.session.get_property(selector, property_name).await
+        self.session.property(selector, property_name).await
     }
 
     /// Waits up to `timeout` seconds for `css` to become visible.
@@ -1490,7 +1503,7 @@ impl BaseCase {
 
     /// Executes the `assert_title_contains` action.
     pub async fn assert_title_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let title = self.get_title().await?;
+        let title = self.title().await?;
         if title.contains(expected) {
             let message = demo::braced_message("ASSERT TITLE CONTAINS", expected);
             self.demo_assert_success(&message, Some("html")).await;
@@ -1628,15 +1641,7 @@ impl BaseCase {
     /// nothing.
     async fn swapped_text_hint(&self, expected: &str, css: &str, exact: bool) -> Option<String> {
         let selector = shadow_find::checked(expected).ok()?;
-        let shown = self
-            .session
-            .find(selector)
-            .await
-            .ok()?
-            .as_webdriver_element()
-            .text()
-            .await
-            .ok()?;
+        let shown = self.session.find(selector).await.ok()?.text().await.ok()?;
         let fits = if exact {
             shown.trim() == css.trim()
         } else {
@@ -1664,7 +1669,7 @@ impl BaseCase {
 
     /// Makes the case behave as if somebody watches the browser even when it
     /// is headless or on a virtual display, so a test can run the dialogs that
-    /// wait for a person ([`get_jqc_button_input`](Self::get_jqc_button_input)
+    /// wait for a person ([`jqc_button_input`](Self::jqc_button_input)
     /// and the others) in a browser nobody sits at. A test script then plays
     /// the person.
     #[cfg(any(test, feature = "test-util"))]
@@ -1707,7 +1712,7 @@ impl BaseCase {
         &self,
         path: P,
     ) -> Result<(), SeleniumBaseError> {
-        let html = self.get_page_source().await?;
+        let html = self.page_source().await?;
         std::fs::write(path.as_ref(), html).map_err(|e| {
             SeleniumBaseError::InvalidConfig(format!(
                 "failed to write page source '{}': {e}",
@@ -1918,9 +1923,9 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `get_window_size` action.
-    pub async fn get_window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
-        self.session.get_window_size().await
+    /// Executes the `window_size` action.
+    pub async fn window_size(&self) -> Result<(u32, u32), SeleniumBaseError> {
+        self.session.window_size().await
     }
 
     /// Waits for a window and switches to it. Corresponds to Python's `switch_to_window`.
@@ -1941,7 +1946,7 @@ impl BaseCase {
     /// sb.open_new_window().await?;
     /// sb.switch_to_window(0).await?;                  // back to the first tab
     /// sb.switch_to_window(-1).await?;                 // the newest tab
-    /// let handles = sb.get_all_window_handles().await?;
+    /// let handles = sb.all_window_handles().await?;
     /// sb.switch_to_window(&handles[0]).await?;        // a handle
     /// # Ok(())
     /// # }
@@ -2010,9 +2015,9 @@ impl BaseCase {
         self.session.switch_to_alert_dismiss().await
     }
 
-    /// Executes the `get_alert_text` action.
-    pub async fn get_alert_text(&self) -> Result<String, SeleniumBaseError> {
-        self.session.get_alert_text().await
+    /// Executes the `alert_text` action.
+    pub async fn alert_text(&self) -> Result<String, SeleniumBaseError> {
+        self.session.alert_text().await
     }
 
     /// Executes the `type_alert_text` action.
@@ -2036,8 +2041,8 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Executes the `get_local_storage_item` action.
-    pub async fn get_local_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
+    /// Executes the `local_storage_item` action.
+    pub async fn local_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
         let script = format!("return window.localStorage.getItem({});", quote(key));
         self.execute_script(&script).await
     }
@@ -2151,7 +2156,7 @@ impl BaseCase {
     }
 
     /// Adds a cookie, as Python's `add_cookie(cookie_dict, expiry=False)` does.
-    /// A cookie that [`get_cookies`](Self::get_cookies) returned goes in with its expiry
+    /// A cookie that [`cookies`](Self::cookies) returned goes in with its expiry
     /// dropped, so it lasts for the browser session, unless [`CookieExpiry::Saved`] is given.
     /// The W3C cookie object of Python reads as a [`Cookie`] with
     /// `seleniumbase_rs::json::from_value`. The keyword is [`AddCookie::expiry`]; see
@@ -2189,7 +2194,7 @@ impl BaseCase {
         let origin = if cookie.domain.is_empty() {
             String::new()
         } else {
-            let url = self.session.webdriver()?.current_url().await?;
+            let url = self.session.current_url().await?;
             origin_of_url(url.as_str())?
         };
         prepare_cookie(&mut cookie, &origin, expiry, unix_seconds());
@@ -2205,7 +2210,7 @@ impl BaseCase {
     /// ```no_run
     /// # use seleniumbase_rs::BaseCase;
     /// # async fn demo(sb: &BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    /// if let Some(session) = sb.get_cookie("session").await? {
+    /// if let Some(session) = sb.cookie("session").await? {
     ///     println!("{}", session.value);
     /// }
     /// # Ok(())
@@ -2215,8 +2220,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns the driver's error for any failure other than a missing cookie.
-    pub async fn get_cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
-        self.session.get_cookie(name).await
+    pub async fn cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
+        self.session.cookie(name).await
     }
 
     /// Executes the `delete_cookie` action.
@@ -2369,7 +2374,7 @@ impl BaseCase {
     /// open, for the next test instead (see [`crate::browser::reuse`]).
     ///
     /// Every browser the case opened is closed, those that
-    /// [`get_new_driver`](Self::get_new_driver) added too. The first error is returned
+    /// [`new_driver`](Self::new_driver) added too. The first error is returned
     /// after all of them have been tried.
     #[instrument(skip(self))]
     pub async fn quit(&mut self) -> Result<(), SeleniumBaseError> {
@@ -2422,14 +2427,14 @@ impl BaseCase {
         self.add_text(css, text).await
     }
 
-    /// Executes the `get_value` action.
-    pub async fn get_value(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+    /// Executes the `value` action.
+    pub async fn value(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
         // The live `value` property reflects typed input; the HTML `value`
         // attribute only reflects the initial markup.
-        if let Some(value) = self.get_property(css, "value").await? {
+        if let Some(value) = self.property(css, "value").await? {
             return Ok(value);
         }
-        Ok(self.get_attribute(css, "value").await?.unwrap_or_default())
+        Ok(self.attribute(css, "value").await?.unwrap_or_default())
     }
 
     /// Executes the `click_visible_elements` action.
@@ -2455,8 +2460,8 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.webdriver()?.get_alert_text().await.is_ok() {
-                self.session.webdriver()?.accept_alert().await?;
+            if self.session.alert_text().await.is_ok() {
+                self.session.switch_to_alert_accept().await?;
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -2474,8 +2479,8 @@ impl BaseCase {
                     timeout
                 )));
             }
-            if self.session.webdriver()?.get_alert_text().await.is_ok() {
-                self.session.webdriver()?.dismiss_alert().await?;
+            if self.session.alert_text().await.is_ok() {
+                self.session.switch_to_alert_dismiss().await?;
                 return Ok(());
             }
             tokio::time::sleep(Duration::from_millis(50)).await;
@@ -2669,8 +2674,8 @@ impl BaseCase {
         let dir = check_window_folder(self.test_name.as_deref(), name)?;
         // Python waits for the page to settle before it reads it.
         let _ = self.wait_for_ready_state_complete().await;
-        let url = self.get_current_url().await?;
-        let html = self.get_page_source().await?;
+        let url = self.current_url().await?;
+        let html = self.page_source().await?;
         let png = self.screenshot_as_png().await?;
         let outcome = check_page_structure(
             &dir,
@@ -2791,7 +2796,7 @@ impl BaseCase {
 
     /// Minimize the browser window.
     pub async fn minimize_window(&self) -> Result<(), SeleniumBaseError> {
-        self.session.webdriver()?.minimize_window().await?;
+        self.session.minimize_window().await?;
         self.demo_pause(PauseKind::Short).await;
         Ok(())
     }
@@ -2804,10 +2809,7 @@ impl BaseCase {
         width: u32,
         height: u32,
     ) -> Result<(), SeleniumBaseError> {
-        self.session
-            .webdriver()?
-            .set_window_rect(x, y, width, height)
-            .await?;
+        self.session.set_window_rect(x, y, width, height).await?;
         self.demo_pause(PauseKind::Short).await;
         Ok(())
     }
@@ -2844,7 +2846,7 @@ impl BaseCase {
                 "the scroll amount must be a number, got {amount}"
             )));
         }
-        let (_, height) = self.get_window_size().await?;
+        let (_, height) = self.window_size().await?;
         let pixels = scroll_distance(f64::from(height), amount, up);
         self.execute_script(&format!("window.scrollBy(0, {pixels});"))
             .await?;
@@ -2944,7 +2946,7 @@ impl BaseCase {
 
     /// Assert that the current URL exactly equals `expected`.
     pub async fn assert_url(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let url = self.get_current_url().await?;
+        let url = self.current_url().await?;
         if url == expected {
             let message = demo::braced_message("ASSERT URL", expected);
             self.demo_assert_success(&message, Some("html")).await;
@@ -2956,7 +2958,7 @@ impl BaseCase {
     }
 
     /// Return the unique absolute links on the current page.
-    pub async fn get_unique_links(&self) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn unique_links(&self) -> Result<Vec<String>, SeleniumBaseError> {
         let script = r#"
             return Array.from(document.querySelectorAll('a[href]'))
                 .map(a => a.href)
@@ -2973,7 +2975,7 @@ impl BaseCase {
 
     /// Fail if any link on the page returns HTTP 404.
     pub async fn assert_no_404_errors(&mut self) -> Result<(), SeleniumBaseError> {
-        let links = self.get_unique_links().await?;
+        let links = self.unique_links().await?;
         crate::install_tls_provider();
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
@@ -3007,12 +3009,12 @@ impl BaseCase {
     }
 
     /// The options of a `<select>` element, each as its text, as Python's
-    /// `get_select_options(dropdown_selector, attribute="text", by,
+    /// `select_options(dropdown_selector, attribute="text", by,
     /// timeout=None)` gives them.
     ///
     /// The keywords are [`attribute`](GetSelectOptions::attribute) (`"text"` by
     /// default, or `"value"` or `"index"`, which are read the way
-    /// [`get_attribute`](Self::get_attribute) reads them) and
+    /// [`attribute`](Self::attribute) reads them) and
     /// [`timeout`](GetSelectOptions::timeout). Python's `attribute=None`, which
     /// gives the option elements, has no equal here.
     ///
@@ -3020,11 +3022,11 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::InvalidConfig`] for any other attribute, and
     /// an error if the element is missing or is not a `<select>`.
-    pub fn get_select_options<'a>(&'a mut self, css: &'a str) -> GetSelectOptions<'a> {
+    pub fn select_options<'a>(&'a mut self, css: &'a str) -> GetSelectOptions<'a> {
         GetSelectOptions::new(self, css)
     }
 
-    /// The work of [`get_select_options`](Self::get_select_options).
+    /// The work of [`select_options`](Self::select_options).
     pub(crate) async fn run_get_select_options(
         &mut self,
         css: &str,
@@ -3046,10 +3048,8 @@ impl BaseCase {
             )));
         }
 
-        let select =
-            thirtyfour::components::SelectElement::new(element.as_webdriver_element()).await?;
         let mut options = Vec::new();
-        for option in select.options().await? {
+        for option in element.find_all("option").await? {
             options.push(if attribute == "text" {
                 option.text().await.unwrap_or_default()
             } else {
@@ -3083,23 +3083,16 @@ impl BaseCase {
             Some(value) => (value, true),
             None => (value, false),
         };
-        let driver = self.session.webdriver()?.clone();
         let element = self.session.find(selector).await?;
-        let kind = driver
-            .execute(
-                SET_VALUE_SCRIPT,
-                vec![element.reference()?, Value::String(value.to_owned())],
-            )
+        let kind = element
+            .run_script(SET_VALUE_SCRIPT, &[Value::String(value.to_owned())])
             .await?;
         if enter {
-            element.send_keys(Key::Return.value().to_string()).await?;
-        } else if kind.json().as_str() == Some("range") {
+            element.press_return().await?;
+        } else if kind.as_str() == Some("range") {
             // Some sliders need a mouse event to run their listeners.
-            let _ = driver
-                .execute(
-                    "arguments[0].dispatchEvent(new Event('mousemove'));",
-                    vec![element.reference()?],
-                )
+            let _ = element
+                .run_script("arguments[0].dispatchEvent(new Event('mousemove'));", &[])
                 .await;
         }
         self.demo_pause(PauseKind::Full).await;
@@ -3129,8 +3122,8 @@ impl BaseCase {
     }
 
     /// Get the `src` URL of an image element.
-    pub async fn get_image_url(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
-        self.get_attribute(css, "src").await?.ok_or_else(|| {
+    pub async fn image_url(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+        self.attribute(css, "src").await?.ok_or_else(|| {
             SeleniumBaseError::AssertionFailed(format!("element '{css}' has no src attribute"))
         })
     }
@@ -3138,7 +3131,7 @@ impl BaseCase {
     /// Extracts the domain (scheme, host and a port that is not the scheme's
     /// default) from `url`, as Python's `get_domain_url(url)` does: `http://localhost:8080` for
     /// `http://localhost:8080/a/b?c=d`. A string that is not an http(s) URL comes back as is.
-    pub fn get_domain_url(&self, url: &str) -> Result<String, SeleniumBaseError> {
+    pub fn domain_url(&self, url: &str) -> Result<String, SeleniumBaseError> {
         if !(url.starts_with("http://") || url.starts_with("https://")) {
             return Ok(url.to_owned());
         }
@@ -3197,11 +3190,11 @@ impl BaseCase {
 
     /// Return whether a JavaScript alert is currently present.
     pub async fn is_alert_present(&self) -> Result<bool, SeleniumBaseError> {
-        Ok(self.session.webdriver()?.get_alert_text().await.is_ok())
+        Ok(self.session.alert_text().await.is_ok())
     }
 
     /// Get the browser user agent string.
-    pub async fn get_user_agent(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn user_agent(&self) -> Result<String, SeleniumBaseError> {
         match self.execute_script("return navigator.userAgent;").await? {
             Value::String(ua) => Ok(ua),
             _ => Ok(String::new()),
@@ -3211,7 +3204,7 @@ impl BaseCase {
     /// Get the browser locale code: `navigator.language`, else the first of
     /// `navigator.languages`, as Python's `get_locale_code` does. The empty
     /// string if the browser reports neither; no locale is made up.
-    pub async fn get_locale_code(&self) -> Result<String, SeleniumBaseError> {
+    pub async fn locale_code(&self) -> Result<String, SeleniumBaseError> {
         match self
             .execute_script("return navigator.language || navigator.languages[0];")
             .await?
@@ -3353,7 +3346,7 @@ impl BaseCase {
     }
 
     /// Return the inner text of the element.
-    pub async fn get_text_content(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
+    pub async fn text_content(&mut self, css: &str) -> Result<String, SeleniumBaseError> {
         let selector = shadow_find::checked(css)?;
         let elem = self.session.find(selector).await?;
         Ok(elem.rendered_text().await.unwrap_or_default())
@@ -3380,7 +3373,7 @@ impl BaseCase {
             element.send_keys(key.to_string()).await?;
         }
         if enter {
-            element.send_keys(Key::Enter.value().to_string()).await?;
+            element.press_enter().await?;
         }
         // Python pauses in full after a typed Enter, which sends the page on.
         self.demo_pause(if enter {
@@ -3390,6 +3383,27 @@ impl BaseCase {
         })
         .await;
         Ok(())
+    }
+
+    /// [`press_key`](Self::press_key) on a direct CDP attachment: the key goes
+    /// to the page's keyboard as a real key event.
+    async fn press_cdp_key(page: &crate::sb_cdp::Page, key: Key) -> Result<(), SeleniumBaseError> {
+        use crate::sb_cdp::Key as DevToolsKey;
+        let keyboard = page.keyboard();
+        match key {
+            Key::Enter | Key::Return => keyboard.press(DevToolsKey::Enter).await,
+            Key::Tab => keyboard.press(DevToolsKey::Tab).await,
+            Key::Escape => keyboard.press(DevToolsKey::Escape).await,
+            Key::Up => keyboard.press(DevToolsKey::ArrowUp).await,
+            Key::Down => keyboard.press(DevToolsKey::ArrowDown).await,
+            Key::Left => keyboard.press(DevToolsKey::ArrowLeft).await,
+            Key::Right => keyboard.press(DevToolsKey::ArrowRight).await,
+            Key::Space => keyboard.type_char(' ').await,
+            other => Err(SeleniumBaseError::Unsupported(format!(
+                "press_key cannot press {other:?} on a direct CDP attachment: use \
+                 `locator.press(sb_cdp::Key::..)` for the keys of the DevTools engine"
+            ))),
+        }
     }
 
     /// Presses one named key on the element that has focus: `enter`,
@@ -3417,6 +3431,9 @@ impl BaseCase {
                 )))
             }
         };
+        if let Some(page) = self.session.pure_cdp_page() {
+            return Self::press_cdp_key(&page, key).await;
+        }
         self.session
             .webdriver()?
             .action_chain()
@@ -3443,7 +3460,7 @@ impl BaseCase {
     }
 
     /// The value stored under `key` in the page's `sessionStorage` (`null` when it is missing).
-    pub async fn get_session_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
+    pub async fn session_storage_item(&self, key: &str) -> Result<Value, SeleniumBaseError> {
         let script = format!("return window.sessionStorage.getItem({});", quote(key));
         self.execute_script(&script).await
     }
@@ -3463,7 +3480,7 @@ impl BaseCase {
     }
 
     /// The keys in the page's `sessionStorage`.
-    pub async fn get_session_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn session_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
         match self
             .execute_script("return Object.keys(window.sessionStorage);")
             .await?
@@ -3477,7 +3494,7 @@ impl BaseCase {
     }
 
     /// Every key of the page's `sessionStorage` with its value.
-    pub async fn get_session_storage_items(
+    pub async fn session_storage_items(
         &self,
     ) -> Result<HashMap<String, String>, SeleniumBaseError> {
         let script = r#"
@@ -3498,7 +3515,7 @@ impl BaseCase {
     }
 
     /// The keys in the page's `localStorage`.
-    pub async fn get_local_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
+    pub async fn local_storage_keys(&self) -> Result<Vec<String>, SeleniumBaseError> {
         match self
             .execute_script("return Object.keys(window.localStorage);")
             .await?
@@ -3512,9 +3529,7 @@ impl BaseCase {
     }
 
     /// Every key of the page's `localStorage` with its value.
-    pub async fn get_local_storage_items(
-        &self,
-    ) -> Result<HashMap<String, String>, SeleniumBaseError> {
+    pub async fn local_storage_items(&self) -> Result<HashMap<String, String>, SeleniumBaseError> {
         let script = r#"
             const items = {};
             for (let i = 0; i < window.localStorage.length; i++) {
@@ -3576,7 +3591,7 @@ impl BaseCase {
 
     /// Open `url` only if the current URL is not already `url`.
     pub async fn open_if_not_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
-        if self.get_current_url().await? != url {
+        if self.current_url().await? != url {
             self.open(url).await?;
         }
         Ok(())
@@ -3615,7 +3630,7 @@ impl BaseCase {
     }
 
     /// Alias to find an element that can be used for further chaining.
-    pub async fn get_element(&mut self, css: &str) -> Result<Element, SeleniumBaseError> {
+    pub async fn element(&mut self, css: &str) -> Result<Element, SeleniumBaseError> {
         self.find_element(css).await
     }
 
@@ -3710,3 +3725,5 @@ include!("base_case_impls/base_case_impl_logs_tests.rs");
 
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_cookie_tests.rs");
+#[cfg(test)]
+include!("base_case_impls/base_case_impl_pure_cdp_tests.rs");

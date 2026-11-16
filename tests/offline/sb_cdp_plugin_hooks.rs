@@ -145,7 +145,7 @@ async fn a_plugin_that_cancels_a_navigation_stops_it_before_the_browser_hears_of
 
     let error = page.goto("https://prod.example/pay").await.unwrap_err();
 
-    let SeleniumBaseError::Plugin { plugin, reason } = &error else {
+    let SeleniumBaseError::Plugin { plugin, reason, .. } = &error else {
         panic!("expected a plugin error, got {error:?}");
     };
     assert_eq!(plugin, "fence");
@@ -1194,7 +1194,7 @@ async fn a_redirect_to_a_file_is_refused_and_nothing_is_sent() {
     let error = page.goto("https://ok.example/").await.unwrap_err();
 
     assert!(
-        matches!(&error, SeleniumBaseError::Plugin { plugin, reason }
+        matches!(&error, SeleniumBaseError::Plugin { plugin, reason, .. }
             if plugin == "file-redirector" && reason.contains("refused")),
         "{error:?}"
     );

@@ -135,6 +135,8 @@ def api_detail():
         _file("base_case_impl_parity.rs", "parity helpers"),
         _file("base_case_impl_pdf_html.rs", "PDF and HTML helpers"),
         _file("base_case_impl_presentations.rs", "presentations"),
+        _file("base_case_impl_pure_cdp_tests.rs", "tests of BaseCase on a direct CDP attachment"),
+
         _file("base_case_impl_rec_cdp.rs", "recorder helpers for CDP"),
         _file("base_case_impl_recorder.rs", "recorder helpers"),
         _file("base_case_impl_shadow.rs", "shadow DOM helpers"),
@@ -202,9 +204,11 @@ def browser_detail():
     """The files of src/browser, for the module deep dive."""
     options = _folder(
         "options", "typed launch settings",
+        _file("browser_settings.rs", "BrowserSettings, what both engines start"),
         _file("capabilities.rs", "capabilities added to the session"),
         _file("cdp_events.rs", "which DevTools events are logged"),
         _file("chromium_args.rs", "Chromium switches"),
+        _file("chromium_settings.rs", "Chromium settings with no switch of their own"),
         _file("device.rs", "mobile device emulation"),
         _file("driver.rs", "driver settings"),
         _file("extensions.rs", "extensions to load"),
@@ -215,6 +219,7 @@ def browser_detail():
         _file("page_load.rs", "how long a navigation waits"),
         _file("plugins.rs", "plugins turned on for the browser"),
         _file("proxy.rs", "the proxy"),
+        _file("proxy_settings.rs", "ProxySettings, the proxy a browser uses"),
         _file("remote.rs", "a remote WebDriver server"),
         _file("session.rs", "SessionSettings and GridSettings, what only a WebDriver session reads"),
 
@@ -250,6 +255,8 @@ def browser_detail():
                         _file("capabilities.rs", "the capabilities each browser is asked for"),
                         _file("cdp.rs", "DevTools commands of the session"),
                         _file("connect.rs", "starting a session, a leased one, or a direct CDP attachment"),
+                        _file("dialogs.rs", "the JavaScript dialog a direct CDP attachment has open"),
+
                         _file("elements.rs", "finding and using elements"),
                         _file("emulation.rs", "the ad block and the phone emulation"),
                         _file("fingerprint.rs", "the fingerprint of the session"),
@@ -259,6 +266,8 @@ def browser_detail():
                         _file("navigation.rs", "opening pages and moving through history"),
                         _file("page.rs", "the page: title, source, scripts"),
                         _file("plugins.rs", "browser plugins (feature plugins)"),
+                        _file("pure_cdp.rs", "windows, frames, cookies and the scope of a direct CDP attachment"),
+
                         _file("waits.rs", "waiting for elements and text")),
         _file("shadow_find.rs", "finding elements in a shadow root"),
         _file("virtual_display.rs", "opens a virtual display on Linux"),
@@ -399,6 +408,8 @@ def utilities_detail():
         _file("program.rs", "a parsed program"),
         pyconv,
         _file("recorder.rs", "imports a recording"),
+        _file("script_import.rs", "ScriptImport, the Rust a script import produced"),
+        _file("script_import_options.rs", "ScriptImportOptions, how to import"),
         _file("selector.rs", "selectors in the imported test"),
         _file("tests.rs", "tests of the importer"),
         _file("translate.rs", "translates one call"),

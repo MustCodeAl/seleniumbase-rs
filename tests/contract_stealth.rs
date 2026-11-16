@@ -135,6 +135,12 @@ mod imports {
         use seleniumbase_rs::sb_cdp::{Browser, ContextOptions, LaunchOptions, Page};
     };
     const _: () = {
+        use seleniumbase_rs::sb_cdp::LaunchOptionsBuilder;
+    };
+    const _: () = {
+        use seleniumbase_rs::browser::config::Browser;
+    };
+    const _: () = {
         use seleniumbase_rs::sb_cdp;
     };
     // Items the stealth tests and its examples import, which need `test-util` here.
@@ -208,6 +214,8 @@ mod imports {
         let _ = seleniumbase_rs::SeleniumBaseError::stealth("a stealth failure".to_owned());
         let _ = seleniumbase_rs::evasion::randomize::chromium_hints(120).brands;
         let _ = seleniumbase_rs::sb_cdp::Proxy::has_credentials;
+        // The identity file and the wire measurements spell a browser with `as_str`.
+        let _ = seleniumbase_rs::browser::config::Browser::Chrome.as_str();
         let _ = goto_is_called_with_a_str;
         let _: Option<seleniumbase_rs::sb_cdp::BrowserPool> = None;
         let _: Option<seleniumbase_rs::sb_cdp::SessionStore> = None;
@@ -649,18 +657,17 @@ mod calls {
         Ok(())
     }
 
-    /// crates/scrape/src/jar/store/cdp.rs: a CDP cookie, field by field.
+    /// crates/scrape/src/jar/store/cdp.rs: a CDP cookie, built with the constructor and setters.
     fn a_cdp_cookie(same_site: Option<SameSite>) -> Cookie {
-        let cookie = Cookie {
-            name: "a".to_owned(),
-            value: "b".to_owned(),
-            domain: ".example.com".to_owned(),
-            path: "/".to_owned(),
-            expires: Some(1.0),
-            http_only: true,
-            secure: true,
-            same_site,
-        };
+        let mut cookie = Cookie::new("a", "b")
+            .domain(".example.com")
+            .path("/")
+            .expires(1.0)
+            .http_only(true)
+            .secure(true);
+        if let Some(same_site) = same_site {
+            cookie = cookie.same_site(same_site);
+        }
         let _: Option<f64> = cookie.expires;
         let _: &str = cookie.domain.as_str();
         cookie

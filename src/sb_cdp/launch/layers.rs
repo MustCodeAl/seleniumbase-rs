@@ -592,7 +592,10 @@ mod tests {
     }
 
     fn chromium_config() -> BrowserConfig {
-        BrowserConfig::default().with_browser(BrowserKind::Chromium)
+        BrowserConfig::builder()
+            .browser(BrowserKind::Chromium)
+            .build()
+            .expect("a valid config")
     }
 
     fn fingerprint(seed: u64) -> Fingerprint {
@@ -635,7 +638,10 @@ mod tests {
 
     fn a_browser_the_builder_names_replaces_the_one_the_config_names() {
         let config = chromium_config();
-        let path_config = BrowserConfig::default().with_browser_binary_path("/opt/config/chrome");
+        let path_config = BrowserConfig::builder()
+            .browser_binary_path("/opt/config/chrome")
+            .build()
+            .expect("a valid config");
         assert!(matches!(
             built(LaunchOptions::builder()).source,
             BrowserSource::Chrome
@@ -760,7 +766,10 @@ mod tests {
     #[test]
     fn the_phone_is_on_for_a_screen_or_mobile_and_off_for_mobile_false() {
         let screen = DeviceMetrics::new(360, 640, 2.0);
-        let config = BrowserConfig::default().with_mobile(true);
+        let config = BrowserConfig::builder()
+            .mobile(true)
+            .build()
+            .expect("a valid config");
 
         // A screen of the builder turns the phone on, with the phone's agent.
         let phone = built(LaunchOptions::builder().device_metrics(screen));
@@ -796,9 +805,11 @@ mod tests {
 
     #[test]
     fn a_fingerprint_of_either_layer_is_refused_with_a_phone_unless_it_is_switched_off() {
-        let config = BrowserConfig::default()
-            .with_mobile(true)
-            .with_fingerprint(fingerprint(3));
+        let config = BrowserConfig::builder()
+            .mobile(true)
+            .fingerprint(fingerprint(3))
+            .build()
+            .expect("a valid config");
         assert!(LaunchOptions::builder()
             .browser_config(&config)
             .build()
@@ -858,7 +869,10 @@ mod tests {
             }
         }
 
-        let config = BrowserConfig::default().with_plugins(PluginSet::new().with(Theirs).unwrap());
+        let config = BrowserConfig::builder()
+            .plugins(PluginSet::new().with(Theirs).unwrap())
+            .build()
+            .expect("a valid config");
         let mine = || PluginSet::new().with(Mine).unwrap();
         assert_eq!(
             built(LaunchOptions::builder().browser_config(&config))
@@ -880,10 +894,12 @@ mod tests {
 
     #[test]
     fn the_single_settings_of_the_builder_win_over_the_configs_in_either_order() {
-        let config = BrowserConfig::default()
-            .with_ad_block(true)
-            .with_start_page("https://config.example/")
-            .with_user_data_dir("/config/profile");
+        let config = BrowserConfig::builder()
+            .ad_block(true)
+            .start_page("https://config.example/")
+            .user_data_dir("/config/profile")
+            .build()
+            .expect("a valid config");
         let from_config = built(LaunchOptions::builder().browser_config(&config));
         assert!(from_config.ad_block);
         assert_eq!(from_config.url(), Some("https://config.example/"));
@@ -949,7 +965,10 @@ mod tests {
     #[test]
     fn an_unset_headless_follows_the_virtual_display_and_a_set_one_does_not() {
         let display = VirtualDisplay::default();
-        let config = BrowserConfig::default().with_headless(true);
+        let config = BrowserConfig::builder()
+            .headless(true)
+            .build()
+            .expect("a valid config");
         assert_eq!(
             built(LaunchOptions::builder().virtual_display(display)).headless,
             Some(false)
@@ -1027,7 +1046,10 @@ mod tests {
 
     #[test]
     fn a_proxy_is_checked_as_python_checks_it_only_where_the_config_gave_it() {
-        let bad = BrowserConfig::default().with_proxy("ftp://proxy.example:21");
+        let bad = BrowserConfig::builder()
+            .proxy("ftp://proxy.example:21")
+            .build()
+            .expect("a valid config");
         assert!(LaunchOptions::builder()
             .browser_config(&bad)
             .build()
@@ -1080,9 +1102,11 @@ mod tests {
 
     #[test]
     fn the_lists_of_both_layers_are_kept_the_configs_first() {
-        let mut config = BrowserConfig::default()
-            .with_locale("fr_FR")
-            .with_extension_dir("/ext/one, /ext/two");
+        let mut config = BrowserConfig::builder()
+            .locale("fr_FR")
+            .extension_dir("/ext/one, /ext/two")
+            .build()
+            .expect("a valid config");
         config.browser.chromium.disable_features = vec!["FromConfig".to_owned()];
         let options = built(
             LaunchOptions::builder()
@@ -1115,7 +1139,10 @@ mod tests {
             })
             .build()
             .unwrap();
-        let config = BrowserConfig::default().with_proxy("bob:hunter2@config.example:9090");
+        let config = BrowserConfig::builder()
+            .proxy("bob:hunter2@config.example:9090")
+            .build()
+            .expect("a valid config");
         for builder in [
             LaunchOptions::builder().fingerprint(&print),
             LaunchOptions::builder().browser_config(&config),

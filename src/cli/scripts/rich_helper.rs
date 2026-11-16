@@ -30,7 +30,7 @@
 //! use seleniumbase_rs::cli::scripts::rich_helper::{format_message, Level};
 //!
 //! assert_eq!(format_message(Level::Info, "ready", false), "[INFO] ready");
-//! assert!(format_message(Level::Error, "failed", true).starts_with("\x1b[1;31m[ERROR]"));
+//! assert!(format_message(Level::Error, "failed", true).starts_with("\x1b[31;1m[ERROR]"));
 //! ```
 
 use std::error::Error;
@@ -40,10 +40,10 @@ use std::io::IsTerminal;
 
 use crate::error::SeleniumBaseError;
 
-const RESET: &str = "\x1b[0m";
-const BOLD_GREEN: &str = "\x1b[1;32m";
-const BOLD_RED: &str = "\x1b[1;31m";
-const BOLD_CYAN: &str = "\x1b[1;36m";
+use crate::common::color::{palette, Color, Style};
+
+/// The `hint:` label of an error report: bold cyan.
+const HINT_LABEL: Style = Style::PLAIN.fg(Color::Cyan).bold();
 
 /// What a message says about the run.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -67,11 +67,11 @@ impl Level {
         }
     }
 
-    const fn style(self) -> &'static str {
+    const fn style(self) -> Style {
         match self {
-            Self::Info => "\x1b[1;34m",
-            Self::Warning => "\x1b[1;33m",
-            Self::Error => "\x1b[1;31m",
+            Self::Info => palette::DETAIL,
+            Self::Warning => palette::WARNING,
+            Self::Error => palette::ERROR,
         }
     }
 }
@@ -138,11 +138,7 @@ pub fn sanitize(text: &str) -> String {
 #[must_use]
 pub fn format_message(level: Level, text: &str, color: bool) -> String {
     let mut line = String::with_capacity(text.len() + 24);
-    if color {
-        let _ = write!(line, "{}{}{RESET}", level.style(), level.tag());
-    } else {
-        line.push_str(level.tag());
-    }
+    let _ = level.style().write(&mut line, level.tag(), color);
     line.push(' ');
     line.push_str(&sanitize(text));
     line
@@ -151,25 +147,17 @@ pub fn format_message(level: Level, text: &str, color: bool) -> String {
 /// Formats `text` as a highlighted heading: bold green when `color` is set.
 #[must_use]
 pub fn format_highlight(text: &str, color: bool) -> String {
-    let text = sanitize(text);
-    if color {
-        format!("{BOLD_GREEN}{text}{RESET}")
-    } else {
-        text
-    }
+    palette::SUCCESS.paint(sanitize(text), color)
 }
 
 /// Prints a highlighted line to standard output.
 pub fn print_rich_text(text: &str) {
-    println!("{}", format_highlight(text, use_color(Stream::Stdout)));
+    anstream::println!("{}", format_highlight(text, true));
 }
 
 /// Prints an informational message to standard output.
 pub fn print_info(text: &str) {
-    println!(
-        "{}",
-        format_message(Level::Info, text, use_color(Stream::Stdout))
-    );
+    anstream::println!("{}", format_message(Level::Info, text, true));
 }
 
 /// Prints an informational message to standard error.
@@ -177,26 +165,17 @@ pub fn print_info(text: &str) {
 /// Use this, not [`print_info`], for progress a command reports while its
 /// standard output carries data that someone may be piping elsewhere.
 pub fn print_notice(text: &str) {
-    eprintln!(
-        "{}",
-        format_message(Level::Info, text, use_color(Stream::Stderr))
-    );
+    anstream::eprintln!("{}", format_message(Level::Info, text, true));
 }
 
 /// Prints a warning to standard error.
 pub fn print_warning(text: &str) {
-    eprintln!(
-        "{}",
-        format_message(Level::Warning, text, use_color(Stream::Stderr))
-    );
+    anstream::eprintln!("{}", format_message(Level::Warning, text, true));
 }
 
 /// Prints an error to standard error.
 pub fn print_error(text: &str) {
-    eprintln!(
-        "{}",
-        format_message(Level::Error, text, use_color(Stream::Stderr))
-    );
+    anstream::eprintln!("{}", format_message(Level::Error, text, true));
 }
 
 /// Formats a failed command's error for a person reading a terminal or a log.
@@ -220,27 +199,26 @@ pub fn print_error(text: &str) {
 /// ```
 #[must_use]
 pub fn format_error_report(error: &(dyn Error + 'static), color: bool) -> String {
-    let label = |name: &str, style: &str| {
-        if color && !style.is_empty() {
-            format!("{style}{name}:{RESET} ")
-        } else {
-            format!("{name}: ")
-        }
-    };
+    let label = |name: &str, style: Style| style.paint(format!("{name}:"), color) + " ";
     let summary = error.to_string();
-    let mut report = format!("{}{}\n", label("error", BOLD_RED), sanitize(&summary));
+    let mut report = format!("{}{}\n", label("error", palette::ERROR), sanitize(&summary));
     let mut said = vec![summary];
     let mut cause = error.source();
     while let Some(inner) = cause {
         let text = inner.to_string();
         if !text.is_empty() && !said.iter().any(|line| line.contains(&text)) {
-            let _ = writeln!(report, "  {}{}", label("caused by", ""), sanitize(&text));
+            let _ = writeln!(
+                report,
+                "  {}{}",
+                label("caused by", Style::PLAIN),
+                sanitize(&text)
+            );
             said.push(text);
         }
         cause = inner.source();
     }
     if let Some(hint) = own_error(error).and_then(SeleniumBaseError::hint) {
-        let _ = writeln!(report, "{}{}", label("hint", BOLD_CYAN), sanitize(&hint));
+        let _ = writeln!(report, "{}{}", label("hint", HINT_LABEL), sanitize(&hint));
     }
     report
 }
@@ -275,7 +253,7 @@ fn own_error<'a>(error: &'a (dyn Error + 'static)) -> Option<&'a SeleniumBaseErr
 
 /// Prints [`format_error_report`] of `error` to standard error.
 pub fn print_error_report(error: &(dyn Error + 'static)) {
-    eprint!("{}", format_error_report(error, use_color(Stream::Stderr)));
+    anstream::eprint!("{}", format_error_report(error, true));
 }
 
 #[cfg(test)]
@@ -296,22 +274,22 @@ mod tests {
     fn a_coloured_message_colours_only_the_tag() {
         assert_eq!(
             format_message(Level::Error, "failed", true),
-            "\x1b[1;31m[ERROR]\x1b[0m failed"
+            "\x1b[31;1m[ERROR]\x1b[0m failed"
         );
         assert_eq!(
             format_message(Level::Info, "ready", true),
-            "\x1b[1;34m[INFO]\x1b[0m ready"
+            "\x1b[34;1m[INFO]\x1b[0m ready"
         );
         assert_eq!(
             format_message(Level::Warning, "slow", true),
-            "\x1b[1;33m[WARN]\x1b[0m slow"
+            "\x1b[33;1m[WARN]\x1b[0m slow"
         );
     }
 
     #[test]
     fn highlighting_wraps_the_whole_text() {
         assert_eq!(format_highlight("Done", false), "Done");
-        assert_eq!(format_highlight("Done", true), "\x1b[1;32mDone\x1b[0m");
+        assert_eq!(format_highlight("Done", true), "\x1b[32;1mDone\x1b[0m");
     }
 
     #[test]
@@ -418,8 +396,8 @@ mod tests {
         let report = format_error_report(&error, true);
 
         assert!(report
-            .starts_with("\x1b[1;31merror:\x1b[0m assertion failed: title was \u{fffd}[2Jowned"));
-        assert!(report.contains("\x1b[1;36mhint:\x1b[0m "), "{report:?}");
+            .starts_with("\x1b[31;1merror:\x1b[0m assertion failed: title was \u{fffd}[2Jowned"));
+        assert!(report.contains("\x1b[36;1mhint:\x1b[0m "), "{report:?}");
         assert_eq!(report.matches('\x1b').count(), 4, "{report:?}");
     }
 

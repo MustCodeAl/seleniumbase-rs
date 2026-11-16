@@ -40,7 +40,10 @@ fn running(pattern: &str) -> bool {
 #[ignore = "needs a geckodriver, or network access to download one"]
 #[serial_test::serial(chrome)]
 async fn the_crate_starts_the_geckodriver_it_finds() {
-    let config = BrowserConfig::default().with_browser(Browser::Firefox);
+    let config = BrowserConfig::builder()
+        .browser(Browser::Firefox)
+        .build()
+        .expect("a valid config");
     let mut driver = launch_driver_for(&config, None)
         .await
         .expect("geckodriver is found and started");
@@ -70,12 +73,14 @@ async fn a_headless_firefox_session_takes_its_options() {
         );
         return;
     };
-    let mut config = BrowserConfig::default()
-        .with_browser(Browser::Firefox)
-        .with_webdriver_url(url)
-        .with_headless(true)
-        .with_user_agent("sbrs-firefox-check/1.0")
-        .with_locale("fr");
+    let mut config = BrowserConfig::builder()
+        .browser(Browser::Firefox)
+        .webdriver_url(url)
+        .headless(true)
+        .user_agent("sbrs-firefox-check/1.0")
+        .locale("fr")
+        .build()
+        .expect("a valid config");
     config.session.auto_start_driver = false;
     let mut session = BrowserSession::connect(config)
         .await
