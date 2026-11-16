@@ -157,7 +157,7 @@ mod debug_prompt_tests {
         wait: Duration,
         logs: &std::path::Path,
     ) -> DebugPrompt<SlowInput, Vec<u8>> {
-        DebugPrompt::new(SlowInput { lines, wait }, Vec::new()).with_logs_dir(logs)
+        DebugPrompt::new(SlowInput { lines, wait }, Vec::new()).logs_dir(logs)
     }
 
     /// A WebDriver that answers every command with `null`.
