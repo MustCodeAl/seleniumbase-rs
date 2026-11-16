@@ -399,12 +399,12 @@ mod tests {
     fn options_reach_the_plugin_and_a_wrong_option_is_an_error_naming_it() {
         let ok = PluginSelection::new()
             .enable("dummy")
-            .with_options("dummy", json!({ "mode": "strict" }));
+            .options("dummy", json!({ "mode": "strict" }));
         assert_eq!(build_with(&registry(), &ok).unwrap().names(), ["dummy"]);
 
         let typo = PluginSelection::new()
             .enable("dummy")
-            .with_options("dummy", json!({ "mdoe": "strict" }));
+            .options("dummy", json!({ "mdoe": "strict" }));
         let error = build_with(&registry(), &typo).unwrap_err();
         assert!(
             matches!(&error, SeleniumBaseError::Plugin { plugin, .. } if plugin == "dummy"),
@@ -417,7 +417,7 @@ mod tests {
     fn options_for_a_plugin_that_is_not_enabled_are_an_error() {
         let selection = PluginSelection::new()
             .enable("dummy")
-            .with_options("enabled", json!(["dummy"]));
+            .options("enabled", json!(["dummy"]));
 
         let error = build_with(&registry(), &selection).unwrap_err();
 
@@ -434,7 +434,7 @@ mod tests {
         let from_file = || {
             PluginSelection::new()
                 .enable("dummy")
-                .with_options("dummy", json!({ "mode": "strict" }))
+                .options("dummy", json!({ "mode": "strict" }))
         };
 
         let mut off = from_file();
@@ -490,12 +490,12 @@ mod tests {
 
         let selection = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "level": "strict" }));
+            .options("shield", json!({ "level": "strict" }));
         assert_eq!(build(&selection).unwrap().names(), ["shield"]);
 
         let bad = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "level": "nope" }));
+            .options("shield", json!({ "level": "nope" }));
         let error = build(&bad).unwrap_err();
         assert!(error.to_string().contains("shield"), "{error}");
     }
@@ -508,7 +508,7 @@ mod tests {
             build(
                 &PluginSelection::new()
                     .enable("browser")
-                    .with_options("browser", options),
+                    .options("browser", options),
             )
         };
 
@@ -572,7 +572,7 @@ mod tests {
                     build(
                         &PluginSelection::new()
                             .enable("imap")
-                            .with_options("imap", options),
+                            .options("imap", options),
                     )
                     .unwrap_err()
                 };
@@ -619,7 +619,7 @@ mod tests {
 
                 // With a variable that is set (the child process of the test has one) the plugin builds;
                 // nothing connects until a wait starts.
-                let good = PluginSelection::new().enable("imap").with_options(
+                let good = PluginSelection::new().enable("imap").options(
                     "imap",
                     json!({
                         "host": "imap.example.com",
@@ -643,12 +643,7 @@ mod tests {
         assert_eq!(bare.names(), ["tor"]);
 
         let wrong = |options: Value| {
-            build(
-                &PluginSelection::new()
-                    .enable("tor")
-                    .with_options("tor", options),
-            )
-            .unwrap_err()
+            build(&PluginSelection::new().enable("tor").options("tor", options)).unwrap_err()
         };
 
         let error = wrong(json!({ "socks": "10.0.0.5:9050" }));
@@ -723,7 +718,7 @@ mod tests {
             let selection = PluginSelection::new()
                 .enable(names[0])
                 .enable(names[1])
-                .with_options("crx", json!({ "files": [] }));
+                .options("crx", json!({ "files": [] }));
 
             // Naming both is not an error of the name list: the set is built.
             let set = build(&selection).unwrap();

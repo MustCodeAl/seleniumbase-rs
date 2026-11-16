@@ -83,7 +83,7 @@ fn options(port: u16) -> Value {
 fn enabled(options: Value) -> PluginSelection {
     PluginSelection::new()
         .enable("imap")
-        .with_options("imap", options)
+        .options("imap", options)
 }
 
 /// The Pure CDP server for `selection`, and the folder it writes to.
@@ -128,7 +128,7 @@ async fn the_tool_is_offered_only_when_the_operator_turned_the_plugin_on_with_op
     assert!(!nothing.tool_names().contains(&TOOL));
 
     // Options with no `enable`: the plugin is not on.
-    let (not_enabled, _dir) = server(PluginSelection::new().with_options("imap", options(port)));
+    let (not_enabled, _dir) = server(PluginSelection::new().options("imap", options(port)));
     assert!(!not_enabled.tool_names().contains(&TOOL));
 
     // `enable` with no options: there is no mailbox to read.

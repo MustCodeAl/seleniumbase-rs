@@ -926,7 +926,7 @@ mod the_browser_plugin {
         build(
             &PluginSelection::new()
                 .enable("browser")
-                .with_options("browser", options),
+                .options("browser", options),
         )
         .unwrap()
     }

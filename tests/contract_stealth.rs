@@ -486,8 +486,8 @@ mod calls {
         list.insert(Some("fr"), "http://fr.example:8080")
             .expect("a proxy");
         let list = list
-            .with_rotation(RotationStrategy::Random { seed: Some(7) })
-            .with_quarantine(3, Duration::from_secs(600));
+            .rotation(RotationStrategy::Random { seed: Some(7) })
+            .quarantine(3, Duration::from_secs(600));
         let now: SystemTime = UNIX_EPOCH + Duration::from_secs(1_000);
 
         let picked: Option<&ProxyEntry> = list.pick_at(Some("shop.example"), now);

@@ -158,7 +158,7 @@ fn task_selection(
         }
         subset = subset.enable(plugin);
         if let Some(options) = operator.options_of(plugin) {
-            subset = subset.with_options(plugin, options.clone());
+            subset = subset.options(plugin, options.clone());
         }
     }
     Ok(subset)
@@ -263,7 +263,7 @@ mod tests {
         PluginSelection::new()
             .enable("shield")
             .enable("crx")
-            .with_options("shield", json!({ "level": "strict" }))
+            .options("shield", json!({ "level": "strict" }))
     }
 
     #[test]

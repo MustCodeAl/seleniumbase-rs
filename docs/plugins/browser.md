@@ -86,7 +86,7 @@ use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::json::json;
 use seleniumbase_rs::sb_cdp::LaunchOptions;
 
-let selection = PluginSelection::new().enable("browser").with_options(
+let selection = PluginSelection::new().enable("browser").options(
     "browser",
     json!({ "extension_zip": ["extensions/dark-reader.crx"], "extension_dir": ["my-extension"] }),
 );

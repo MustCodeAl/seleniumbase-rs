@@ -1251,7 +1251,7 @@ mod tests {
         use crate::config::plugins::PluginSelection;
         let selection = PluginSelection::new()
             .enable("tokened")
-            .with_options("tokened", serde_json::json!({ "token": "PLUGINSECRET" }));
+            .options("tokened", serde_json::json!({ "token": "PLUGINSECRET" }));
         let builder = BrowserConfig::builder().plugin_selection(&selection);
         let text = format!("{builder:?}");
         assert!(!text.contains("PLUGINSECRET"), "{text}");

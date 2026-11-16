@@ -110,7 +110,7 @@ use serde_json::json;
 let registry = plugin_host::builtin_registry().with(Descriptor::of::<Hello>());
 let selection = PluginSelection::new()
     .enable("hello")
-    .with_options("hello", json!({ "message": "hi" }));
+    .options("hello", json!({ "message": "hi" }));
 let plugins = plugin_host::build_with(&registry, &selection)?;
 ```
 

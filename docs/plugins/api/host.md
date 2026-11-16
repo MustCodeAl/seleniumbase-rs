@@ -38,7 +38,7 @@ let options = LaunchOptions::builder()
     .plugin_selection(
         &PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "level": "strict" })),
+            .options("shield", json!({ "level": "strict" })),
     )
     .build()?; // resolves the names here
 ```

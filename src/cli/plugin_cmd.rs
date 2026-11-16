@@ -1168,7 +1168,7 @@ mod tests {
     #[test]
     fn options_for_a_plugin_that_is_not_enabled_are_a_usage_error_before_a_browser_starts() {
         let settings = Settings {
-            plugins: PluginSelection::new().with_options("probe", json!({ "mode": 3, "bad": 1 })),
+            plugins: PluginSelection::new().options("probe", json!({ "mode": 3, "bad": 1 })),
             ..Settings::default()
         };
         // `probe` is not in the selection's `enable`: the options alone are refused.
@@ -1434,15 +1434,14 @@ mod tests {
         assert!(options.contains("--plugin-opt"), "{options}");
 
         let selection =
-            PluginSelection::from_list("probe").with_options("probe", json!({ "mode": "strict" }));
+            PluginSelection::from_list("probe").options("probe", json!({ "mode": "strict" }));
         let some = info_with(&registry(), "probe", &selection).unwrap();
         assert_eq!(value_of(&some, "options"), [r#"mode = "strict""#]);
     }
 
     #[test]
     fn info_shows_options_the_plugin_refuses() {
-        let selection =
-            PluginSelection::from_list("probe").with_options("probe", json!({ "mdoe": 1 }));
+        let selection = PluginSelection::from_list("probe").options("probe", json!({ "mdoe": 1 }));
 
         let text = info_with(&registry(), "probe", &selection).unwrap();
 
@@ -1503,7 +1502,7 @@ mod tests {
         );
         assert_eq!(value_of(&none, "category"), ["extension"]);
 
-        let wrong = PluginSelection::from_list("needy").with_options("needy", json!({ "x": 1 }));
+        let wrong = PluginSelection::from_list("needy").options("needy", json!({ "x": 1 }));
         let refused = value_of(&info_with(&registry, "needy", &wrong).unwrap(), "options");
         assert_eq!(refused[0], "x = 1");
         assert!(
@@ -1513,8 +1512,7 @@ mod tests {
             "{refused:?}"
         );
 
-        let right =
-            PluginSelection::from_list("needy").with_options("needy", json!({ "files": [] }));
+        let right = PluginSelection::from_list("needy").options("needy", json!({ "files": [] }));
         let fine = value_of(&info_with(&registry, "needy", &right).unwrap(), "options");
         assert_eq!(fine, ["files = []"]);
     }
@@ -1538,8 +1536,7 @@ mod tests {
         check_selection_with(&registry(), &PluginSelection::new()).unwrap();
         check_selection_with(
             &registry(),
-            &PluginSelection::from_list("probe,plain")
-                .with_options("probe", json!({ "mode": "x" })),
+            &PluginSelection::from_list("probe,plain").options("probe", json!({ "mode": "x" })),
         )
         .unwrap();
 
@@ -1555,7 +1552,7 @@ mod tests {
 
         let refused = check_selection_with(
             &registry(),
-            &PluginSelection::from_list("probe").with_options("probe", json!({ "mdoe": 1 })),
+            &PluginSelection::from_list("probe").options("probe", json!({ "mdoe": 1 })),
         )
         .unwrap_err();
         assert_eq!(refused.exit_code(), 2);
@@ -1564,7 +1561,7 @@ mod tests {
 
         let stray = check_selection_with(
             &registry(),
-            &PluginSelection::from_list("plain").with_options("probe", json!({})),
+            &PluginSelection::from_list("plain").options("probe", json!({})),
         )
         .unwrap_err();
         assert_eq!(stray.exit_code(), 2);
@@ -1704,7 +1701,7 @@ mod tests {
     #[test]
     fn a_power_the_options_add_needs_the_operator_as_much_as_a_declared_one() {
         let registry = registry().with(Descriptor::of::<Keeper>());
-        let writes = PluginSelection::from_list("keeper").with_options(
+        let writes = PluginSelection::from_list("keeper").options(
             "keeper",
             json!({ "state_file": "/home/me/.ssh/authorized_keys" }),
         );

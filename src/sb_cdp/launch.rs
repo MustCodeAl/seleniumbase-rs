@@ -869,7 +869,7 @@ mod tests {
 
         let selection = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "level": "strict" }));
+            .options("shield", json!({ "level": "strict" }));
         let selected = LaunchOptions::builder()
             .plugin_selection(&selection)
             .build()
@@ -878,7 +878,7 @@ mod tests {
 
         let typo = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "lvel": "strict" }));
+            .options("shield", json!({ "lvel": "strict" }));
         let error = LaunchOptions::builder()
             .plugin_selection(&typo)
             .build()
