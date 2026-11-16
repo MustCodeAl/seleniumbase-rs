@@ -302,14 +302,14 @@ async fn prompts_are_listed_and_rendered() {
 
     let prompts = client.list_prompts().await.expect("prompts/list works");
     let rendered = client
-        .get_prompt(
+        .prompt(
             "write_test",
             object(&json!({ "url": "https://shop.test", "goal": "buy a mug" })),
         )
         .await
         .expect("the prompt renders");
     let missing = client
-        .get_prompt("write_test", object(&json!({ "url": "https://a.test" })))
+        .prompt("write_test", object(&json!({ "url": "https://a.test" })))
         .await
         .expect_err("an argument is missing");
 
