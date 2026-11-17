@@ -119,6 +119,9 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Fixed
 
+- A fingerprint capture reads `speechSynthesis.getVoices()` until the list holds still. Chrome
+  fills it in batches (the remote voices, then the system's), so a capture used to keep only the
+  first batch and a second capture of the same browser listed more voices.
 - `BatteryProfile::default()` is a full battery on the charger; it charged at 94 % with no time
   to full, a shape Chrome never reports (`battery_shape` is closed).
 - Without native spoofing, Intl followed the machine's locale while `navigator.language` said
