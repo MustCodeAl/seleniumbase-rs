@@ -236,14 +236,26 @@ const speech = await attemptAsync('speech', async () => {
     return { supported: false };
   }
   let voices = window.speechSynthesis.getVoices();
-  if (voices.length === 0) {
-    // Voices load after the first call; give them a moment to arrive.
-    await new Promise((resolve) => {
-      const done = () => resolve();
+  // Chrome fills the list in batches (the remote voices, then the system's) and
+  // fires voiceschanged after each: read until the list holds still, so two
+  // captures of one browser see the same voices.
+  let quiet = voices.length === 0 ? 800 : 300;
+  for (let round = 0; round < 8; round += 1) {
+    const changed = await new Promise((resolve) => {
+      const done = () => resolve(true);
       window.speechSynthesis.addEventListener('voiceschanged', done, { once: true });
-      setTimeout(done, 800);
+      setTimeout(() => {
+        window.speechSynthesis.removeEventListener('voiceschanged', done);
+        resolve(false);
+      }, quiet);
     });
-    voices = window.speechSynthesis.getVoices();
+    const again = window.speechSynthesis.getVoices();
+    const settled = !changed && again.length === voices.length;
+    voices = again;
+    if (settled) {
+      break;
+    }
+    quiet = 300;
   }
   return {
     supported: true,
