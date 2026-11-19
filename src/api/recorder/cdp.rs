@@ -13,8 +13,8 @@
 
 use std::collections::BTreeSet;
 
-use super::calls::{canonical_name, captcha_note, number, offset_parts, rust_call, CAPTCHA};
-use super::{line, literal, RecordedAction};
+use super::rust_call::{captcha_note, rust_call};
+use super::{line, literal, CommandError, RecordedAction, RecordedCommand};
 
 /// A recorded action as pure CDP code.
 #[derive(Debug, PartialEq, Eq)]
@@ -84,119 +84,84 @@ use Form::{Link, OnPage, OnTarget, Plain, Scrolling, Select, Wait, WithValue};
 
 /// The actions whose statement follows from one row: their names, how the
 /// arguments go in, and the text the form uses.
-const STATEMENTS: &[(&[&str], Form, &str)] = &[
-    (&["open", "goto", "goto_if_not_url"], OnPage, "goto"),
-    (&["click", "cdp_click", "slow_click"], OnTarget, "click()"),
-    (&["hover"], OnTarget, "hover()"),
-    (&["double_click"], OnTarget, "double_click()"),
-    (&["context_click"], OnTarget, "right_click()"),
-    (&["clear"], OnTarget, "clear()"),
-    (&["submit"], OnTarget, "submit()"),
-    (
-        &[
-            "scroll_into_view",
-            "scroll_to",
-            "slow_scroll_to",
-            "smooth_scroll_to",
-        ],
-        OnTarget,
-        "scroll_into_view()",
-    ),
-    (&["check_if_unchecked"], OnTarget, "check()"),
-    (&["uncheck_if_checked"], OnTarget, "uncheck()"),
-    // `Locator::type_text` empties the field and then types, as
-    // `BaseCase::type_text` and Python's `sb.cdp.type` do.
-    (&["type_text", "update_text"], WithValue, "type_text"),
-    // `Locator::send_keys` adds to what the field holds, as `BaseCase::add_text`
-    // does. `type_text` here would empty the field first, so a recorded
-    // `add_text` would erase what was there. `press_keys` is what Python's
-    // recorder writes for typing into a field with `--uc`.
-    (
-        &["add_text", "send_keys", "press_keys"],
-        WithValue,
-        "send_keys",
-    ),
-    (&["click_link_text", "click_link"], Link, "link="),
-    (
-        &["click_partial_link_text", "click_partial_link"],
-        Link,
-        "p_link=",
-    ),
-    (&["select_option_by_text"], Select, "Text"),
-    (&["select_option_by_value"], Select, "Value"),
-    (
-        &["wait_for_element_visible", "wait_for_element"],
-        Wait,
-        "Visible",
-    ),
-    (&["wait_for_element_present"], Wait, "Present"),
-    (&["wait_for_element_not_visible"], Wait, "Hidden"),
-    (&["wait_for_element_absent"], Wait, "Absent"),
-    (
-        &["wait_for_ready_state_complete"],
-        Plain,
-        "page.wait_for_load().await?;",
-    ),
-    (
-        &["assert_text", "assert_text_visible"],
-        WithValue,
-        "expect().to_contain_text",
-    ),
-    (
-        &["assert_text_not_visible"],
-        WithValue,
-        "expect().not().to_contain_text",
-    ),
-    (&["assert_exact_text"], WithValue, "expect().to_have_text"),
-    (
-        &["assert_exact_text_not_visible"],
-        WithValue,
-        "expect().not().to_have_text",
-    ),
-    (&["assert_title"], OnPage, "expect().to_have_title"),
-    (
-        &["assert_title_contains"],
-        OnPage,
-        "expect().to_contain_title",
-    ),
-    (&["assert_url"], OnPage, "expect().to_have_url"),
-    (&["assert_url_contains"], OnPage, "expect().to_contain_url"),
-    (&["assert_element"], OnTarget, "expect().to_be_visible()"),
-    (&["assert_element_present"], OnTarget, "expect().to_exist()"),
-    (
-        &["assert_element_not_visible"],
-        OnTarget,
-        "expect().not().to_be_visible()",
-    ),
-    (&["go_back"], Plain, "page.back().await?;"),
-    (&["go_forward"], Plain, "page.forward().await?;"),
-    (&["refresh"], Plain, "page.reload().await?;"),
-    (
-        &["maximize_window"],
-        Plain,
-        "page.window().maximize().await?;",
-    ),
-    (
-        &["scroll_to_bottom"],
-        Scrolling,
-        "page.scroll(Scroll::Bottom).await?;",
-    ),
-    (
-        &["scroll_to_top"],
-        Scrolling,
-        "page.scroll(Scroll::Top).await?;",
-    ),
-    (
-        &["delete_all_cookies"],
-        Plain,
-        "page.cookies().clear().await?;",
-    ),
-    (
-        &["clear_local_storage"],
-        Plain,
-        "page.local_storage().clear().await?;",
-    ),
-];
+fn row(command: &RecordedCommand) -> Option<(Form, &'static str, &str, &str)> {
+    use RecordedCommand as C;
+    Some(match command {
+        C::Open { url } | C::Goto { url } | C::GotoIfNotUrl { url } => (OnPage, "goto", url, ""),
+        C::Click { selector } | C::CdpClick { selector } | C::SlowClick { selector } => {
+            (OnTarget, "click()", selector, "")
+        }
+        C::Hover { selector } => (OnTarget, "hover()", selector, ""),
+        C::DoubleClick { selector } => (OnTarget, "double_click()", selector, ""),
+        C::ContextClick { selector } => (OnTarget, "right_click()", selector, ""),
+        C::Clear { selector } => (OnTarget, "clear()", selector, ""),
+        C::Submit { selector } => (OnTarget, "submit()", selector, ""),
+        C::ScrollIntoView { selector }
+        | C::ScrollTo { selector }
+        | C::SlowScrollTo { selector }
+        | C::SmoothScrollTo { selector } => (OnTarget, "scroll_into_view()", selector, ""),
+        C::CheckIfUnchecked { selector } => (OnTarget, "check()", selector, ""),
+        C::UncheckIfChecked { selector } => (OnTarget, "uncheck()", selector, ""),
+        // `Locator::type_text` empties the field and then types, as
+        // `BaseCase::type_text` and Python's `sb.cdp.type` do.
+        C::TypeText { selector, text } | C::UpdateText { selector, text } => {
+            (WithValue, "type_text", selector, text)
+        }
+        // `Locator::send_keys` adds to what the field holds, as `BaseCase::add_text`
+        // does. `type_text` here would empty the field first, so a recorded
+        // `add_text` would erase what was there. `press_keys` is what Python's
+        // recorder writes for typing into a field with `--uc`.
+        C::AddText { selector, text } => (WithValue, "send_keys", selector, text),
+        C::SendKeys { selector, keys } | C::PressKeys { selector, keys } => {
+            (WithValue, "send_keys", selector, keys)
+        }
+        C::ClickLinkText { link_text } | C::ClickLink { link_text } => {
+            (Link, "link=", link_text, "")
+        }
+        C::ClickPartialLinkText { link_text } | C::ClickPartialLink { link_text } => {
+            (Link, "p_link=", link_text, "")
+        }
+        C::SelectOptionByText { selector, text } => (Select, "Text", selector, text),
+        C::SelectOptionByValue { selector, value } => (Select, "Value", selector, value),
+        C::WaitForElementVisible { selector } | C::WaitForElement { selector } => {
+            (Wait, "Visible", selector, "")
+        }
+        C::WaitForElementPresent { selector } => (Wait, "Present", selector, ""),
+        C::WaitForElementNotVisible { selector } => (Wait, "Hidden", selector, ""),
+        C::WaitForElementAbsent { selector } => (Wait, "Absent", selector, ""),
+        C::WaitForReadyStateComplete => (Plain, "page.wait_for_load().await?;", "", ""),
+        C::AssertText { text, selector } | C::AssertTextVisible { text, selector } => {
+            (WithValue, "expect().to_contain_text", selector, text)
+        }
+        C::AssertTextNotVisible { text, selector } => {
+            (WithValue, "expect().not().to_contain_text", selector, text)
+        }
+        C::AssertExactText { text, selector } => {
+            (WithValue, "expect().to_have_text", selector, text)
+        }
+        C::AssertExactTextNotVisible { text, selector } => {
+            (WithValue, "expect().not().to_have_text", selector, text)
+        }
+        C::AssertTitle { title } => (OnPage, "expect().to_have_title", title, ""),
+        C::AssertTitleContains { title } => (OnPage, "expect().to_contain_title", title, ""),
+        C::AssertUrl { url } => (OnPage, "expect().to_have_url", url, ""),
+        C::AssertUrlContains { url } => (OnPage, "expect().to_contain_url", url, ""),
+        C::AssertElement { selector } => (OnTarget, "expect().to_be_visible()", selector, ""),
+        C::AssertElementPresent { selector } => (OnTarget, "expect().to_exist()", selector, ""),
+        C::AssertElementNotVisible { selector } => {
+            (OnTarget, "expect().not().to_be_visible()", selector, "")
+        }
+        C::GoBack => (Plain, "page.back().await?;", "", ""),
+        C::GoForward => (Plain, "page.forward().await?;", "", ""),
+        C::Refresh => (Plain, "page.reload().await?;", "", ""),
+        C::MaximizeWindow => (Plain, "page.window().maximize().await?;", "", ""),
+        C::ScrollToBottom => (Scrolling, "page.scroll(Scroll::Bottom).await?;", "", ""),
+        C::ScrollToTop => (Scrolling, "page.scroll(Scroll::Top).await?;", "", ""),
+        C::DeleteAllCookies => (Plain, "page.cookies().clear().await?;", "", ""),
+        C::ClearLocalStorage => (Plain, "page.local_storage().clear().await?;", "", ""),
+        _ => return None,
+    })
+}
 
 /// The pure CDP statements for `action`, or why there are none.
 ///
@@ -204,127 +169,125 @@ const STATEMENTS: &[(&[&str], Form, &str)] = &[
 /// action or a missing or malformed argument. An action that exists but has no
 /// pure CDP call says so and quotes the `BaseCase` call it was.
 pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
-    if action
-        .value
-        .as_deref()
+    use RecordedCommand as C;
+    let command = &action.command;
+    if command
+        .value()
         .is_some_and(|text| text.contains(super::SECRET_PLACEHOLDER))
     {
         return Err(format!(
             "{:?}: the text is a password; type it with the BaseCase program, which reads {}",
-            action.name,
+            command.name(),
             super::SECRET_VARIABLE
         ));
     }
 
-    let name = canonical_name(&action.name);
-    let target = action.target.as_deref();
-    let value = action.value.as_deref();
-    let need_target = || target.ok_or_else(|| format!("{name} has no target"));
-    let need_value = || value.ok_or_else(|| format!("{name} has no value"));
-
-    if let Some((_, form, text)) = STATEMENTS.iter().find(|(names, ..)| names.contains(&name)) {
+    if let Some((form, text, target, value)) = row(command) {
         return Ok(match form {
-            Plain => CdpCall::statement(*text),
-            Scrolling => CdpCall::importing((*text).to_owned(), "Scroll"),
-            OnPage => {
-                CdpCall::statement(format!("page.{text}({}).await?;", literal(need_target()?)))
-            }
-            OnTarget => CdpCall::statement(format!("{}.{text}.await?;", locator(need_target()?))),
+            Plain => CdpCall::statement(text),
+            Scrolling => CdpCall::importing(text.to_owned(), "Scroll"),
+            OnPage => CdpCall::statement(format!("page.{text}({}).await?;", literal(target))),
+            OnTarget => CdpCall::statement(format!("{}.{text}.await?;", locator(target))),
             WithValue => CdpCall::statement(format!(
                 "{}.{text}({}).await?;",
-                locator(need_target()?),
-                literal(need_value()?)
+                locator(target),
+                literal(value)
             )),
             Link => {
-                let selector = format!("{text}{}", need_target()?);
+                let selector = format!("{text}{target}");
                 CdpCall::statement(format!("{}.click().await?;", locator(&selector)))
             }
             Wait => CdpCall::importing(
-                format!(
-                    "{}.wait_for(State::{text}).await?;",
-                    locator(need_target()?)
-                ),
+                format!("{}.wait_for(State::{text}).await?;", locator(target)),
                 "State",
             ),
-            Select => {
-                let option = literal(need_value()?);
-                CdpCall::importing(
-                    format!(
-                        "{}.select_option(SelectBy::{text}({option})).await?;",
-                        locator(need_target()?)
-                    ),
-                    "SelectBy",
-                )
-            }
+            Select => CdpCall::importing(
+                format!(
+                    "{}.select_option(SelectBy::{text}({})).await?;",
+                    locator(target),
+                    literal(value)
+                ),
+                "SelectBy",
+            ),
         });
     }
 
     // The actions that do more with their arguments than a row can say.
-    match name {
-        "select_option_by_index" => {
-            let index = number::<usize>(name, "index", need_value()?)?;
-            Ok(CdpCall::importing(
-                format!(
-                    "{}.select_option(SelectBy::Index({index})).await?;",
-                    locator(need_target()?)
-                ),
-                "SelectBy",
-            ))
-        }
-        "drag_and_drop" => Ok(CdpCall::statement(format!(
+    match command {
+        C::SelectOptionByIndex { selector, index } => Ok(CdpCall::importing(
+            format!(
+                "{}.select_option(SelectBy::Index({index})).await?;",
+                locator(selector)
+            ),
+            "SelectBy",
+        )),
+        C::DragAndDrop {
+            source,
+            destination,
+        } => Ok(CdpCall::statement(format!(
             "{}.drag_to(&{}).await?;",
-            locator(need_target()?),
-            locator(need_value()?)
+            locator(source),
+            locator(destination)
         ))),
-        "assert_attribute" => {
-            let pair = need_value()?;
-            let (key, content) = pair
-                .split_once('=')
-                .ok_or_else(|| format!("{name}: value {pair:?} is not name=content"))?;
+        C::AssertAttribute {
+            selector,
+            attribute,
+            content,
+        } => {
+            let Some(content) = content else {
+                return Err(CommandError::NotNameContent {
+                    action: command.name().to_owned(),
+                    value: attribute.clone(),
+                }
+                .to_string());
+            };
             Ok(CdpCall::statement(format!(
                 "{}.expect().to_have_attribute({}, {}).await?;",
-                locator(need_target()?),
-                literal(key.trim()),
+                locator(selector),
+                literal(attribute.trim()),
                 literal(content.trim())
             )))
         }
-        "set_local_storage_item" => Ok(CdpCall::statement(format!(
+        C::SetLocalStorageItem { key, value } => Ok(CdpCall::statement(format!(
             "page.local_storage().set({}, {}).await?;",
-            literal(need_target()?),
-            literal(need_value()?)
+            literal(key),
+            literal(value)
         ))),
-        "remove_local_storage_item" => Ok(CdpCall::statement(format!(
+        C::RemoveLocalStorageItem { key } => Ok(CdpCall::statement(format!(
             "page.local_storage().remove({}).await?;",
-            literal(need_target()?)
+            literal(key)
         ))),
-        "click_with_offset" => {
-            let (x, y, center) = offset_parts(name, need_value()?)?;
+        C::ClickWithOffset {
+            selector,
+            x,
+            y,
+            center,
+        } => {
             // The offset is a float; the whole numbers recorded are written as such.
             Ok(CdpCall::statement(format!(
-                "{}.click_with_offset({}.0, {}.0, {center}).await?;",
-                locator(need_target()?),
-                number::<i64>(name, "x offset", x)?,
-                number::<i64>(name, "y offset", y)?
+                "{}.click_with_offset({x}.0, {y}.0, {center}).await?;",
+                locator(selector)
             )))
         }
-        CAPTCHA => Err(captcha_note(target, "page.solve_captcha()")),
-
-        "sleep" => {
-            let text = need_value()?;
-            let seconds = text
-                .trim()
-                .parse::<f64>()
-                .ok()
-                .filter(|s| s.is_finite() && (0.0..=LONGEST_SLEEP_SECONDS).contains(s))
-                .ok_or_else(|| format!("{name}: {text:?} is not a number of seconds"))?;
+        C::Captcha { provider } => Err(captcha_note(provider.as_deref(), "page.solve_captcha()")),
+        C::Sleep { seconds } => {
+            if !(0.0..=LONGEST_SLEEP_SECONDS).contains(seconds) {
+                return Err(CommandError::NotSeconds {
+                    action: command.name().to_owned(),
+                    text: seconds.to_string(),
+                }
+                .to_string());
+            }
             // `sleep` returns nothing, so there is no `?`.
             Ok(CdpCall::statement(format!(
                 "tokio::time::sleep(std::time::Duration::from_secs_f64({seconds:?})).await;"
             )))
         }
-        _ => Err(match rust_call(action) {
+        C::Malformed { error, .. } => Err(error.to_string()),
+        _ => Err(match rust_call(command) {
             Ok(webdriver) => format!(
-                "{name}: no pure CDP call for this action; the WebDriver form is {webdriver}"
+                "{}: no pure CDP call for this action; the WebDriver form is {webdriver}",
+                command.name()
             ),
             // An unknown action, or one `BaseCase` cannot replay either.
             Err(reason) => reason,
@@ -364,11 +327,11 @@ pub(super) fn program(actions: &[RecordedAction], entry: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::recorder::calls::{marks, Mark, ALIASES, CALLS};
+    use crate::api::recorder::command::{ALIASES, CALLABLE_NAMES};
     use crate::api::recorder::ActionRecorder;
 
     fn action(name: &str, target: Option<&str>, value: Option<&str>) -> RecordedAction {
-        RecordedAction::new(name, target, value)
+        RecordedAction::new(RecordedCommand::from_parts(name, target, value))
     }
 
     /// The lines `cdp_call` writes for an action, or its reason for skipping it.
@@ -416,6 +379,8 @@ mod tests {
             vec![
                 ("open", Some("https://example.com/a?b=1"), None, vec![r##"page.goto("https://example.com/a?b=1").await?;"##]),
                 ("goto", Some("https://example.com/a?b=1"), None, vec![r##"page.goto("https://example.com/a?b=1").await?;"##]),
+        ("goto_if_not_url", Some("https://example.com/a?b=1"), None, vec![r##"page.goto("https://example.com/a?b=1").await?;"##]),
+
                 ("press_keys", Some("#q"), Some("rust"), vec![r##"page.locator("#q").send_keys("rust").await?;"##]),
                 ("wait_for_element", Some("#late"), None, vec![r##"page.locator("#late").wait_for(State::Visible).await?;"##]),
                 ("assert_element", Some("#m"), None, vec![r##"page.locator("#m").expect().to_be_visible().await?;"##]),
@@ -551,10 +516,28 @@ mod tests {
     fn every_supported_action_is_listed_and_is_one_the_webdriver_generator_knows() {
         let listed: Vec<&str> = expected().iter().map(|(name, ..)| *name).collect();
         // The table marks the actions that have a pure CDP call.
-        let supported: Vec<&str> = CALLS
+        let supported: Vec<&str> = CALLABLE_NAMES
             .iter()
-            .map(|(name, _, _)| *name)
-            .filter(|name| marks(name).contains(&Mark::Cdp))
+            .copied()
+            .filter(|name| {
+                // The first arguments that make the action a WebDriver call
+                // decide whether it also has a pure CDP call.
+                [
+                    (None, None),
+                    (Some("#a"), None),
+                    (Some("#a"), Some("v")),
+                    (Some("#a"), Some("name=content")),
+                    (Some("#a"), Some("2")),
+                    (Some("#a"), Some("5, -7")),
+                    (Some("800,600"), None),
+                    (None, Some("1.5")),
+                ]
+                .into_iter()
+                .find(|(target, value)| {
+                    rust_call(&RecordedCommand::from_parts(name, *target, *value)).is_ok()
+                })
+                .is_some_and(|(target, value)| cdp_call(&action(name, target, value)).is_ok())
+            })
             .collect();
         for name in &listed {
             assert!(
@@ -692,12 +675,32 @@ mod tests {
 
     fn sample() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();
-        recorder.record("open", Some("https://example.com"), None);
-        recorder.record("type_text", Some("#q"), Some("rust"));
-        recorder.record("click", Some("button"), None);
-        recorder.record("wait_for_element_visible", Some("#results"), None);
-        recorder.record("switch_to_frame", Some("#f"), None);
-        recorder.record("assert_title_contains", Some("Rust"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "open",
+            Some("https://example.com"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "type_text",
+            Some("#q"),
+            Some("rust"),
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("button"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "wait_for_element_visible",
+            Some("#results"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "switch_to_frame",
+            Some("#f"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_title_contains",
+            Some("Rust"),
+            None,
+        ));
         recorder
     }
 
@@ -728,7 +731,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[test]
     fn a_script_without_extra_imports_imports_only_the_two_it_always_uses() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("open", Some("https://example.com"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "open",
+            Some("https://example.com"),
+            None,
+        ));
         let script = recorder.to_cdp_script();
         assert!(
             script.starts_with("use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};\nuse seleniumbase_rs::tokio;\n\n"),
@@ -740,11 +747,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[test]
     fn the_imports_are_sorted_and_listed_once() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("wait_for_element_visible", Some("#a"), None);
-        recorder.record("wait_for_element_absent", Some("#a"), None);
-        recorder.record("scroll_to_top", None, None);
-        recorder.record("click_with_offset", Some("#a"), Some("1, 2"));
-        recorder.record("select_option_by_index", Some("#a"), Some("1"));
+        recorder.record(RecordedCommand::from_parts(
+            "wait_for_element_visible",
+            Some("#a"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "wait_for_element_absent",
+            Some("#a"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("scroll_to_top", None, None));
+        recorder.record(RecordedCommand::from_parts(
+            "click_with_offset",
+            Some("#a"),
+            Some("1, 2"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "select_option_by_index",
+            Some("#a"),
+            Some("1"),
+        ));
         let script = recorder.to_cdp_script();
         assert!(
             script.starts_with(
@@ -757,8 +780,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     #[test]
     fn a_skipped_action_cannot_end_its_comment_early() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("fly\nclick(\"#x\")", Some("#a"), None);
-        recorder.record("switch_to_frame", Some("#a\nb\u{2028}c"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "fly\nclick(\"#x\")",
+            Some("#a"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "switch_to_frame",
+            Some("#a\nb\u{2028}c"),
+            None,
+        ));
         let script = recorder.to_cdp_script();
         for comment in script
             .lines()
@@ -798,10 +829,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     fn everything() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();
         for (name, target, value, _) in expected() {
-            recorder.record(name, target, value);
+            recorder.record(RecordedCommand::from_parts(name, target, value));
         }
-        recorder.record("switch_to_frame", Some("#frame"), None);
-        recorder.record("js_click", Some("#hidden"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "switch_to_frame",
+            Some("#frame"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "js_click",
+            Some("#hidden"),
+            None,
+        ));
         recorder
     }
 

@@ -289,20 +289,20 @@ mod tests_offset_clicks {
         let recorded = sb.recorded_actions().unwrap();
         let offsets: Vec<_> = recorded
             .iter()
-            .filter(|action| action.name.ends_with("click_with_offset"))
-            .map(|action| (action.name.as_str(), action.value.as_deref()))
+            .filter(|action| action.command.name().ends_with("click_with_offset"))
+            .map(|action| (action.command.name().to_owned(), action.command.value()))
             .collect();
         assert_eq!(
             offsets,
             [
-                ("click_with_offset", Some("10, -5")),
-                ("double_click_with_offset", Some("1, 2, center")),
+                ("click_with_offset".to_owned(), Some("10, -5".to_owned())),
+                ("double_click_with_offset".to_owned(), Some("1, 2, center".to_owned())),
             ]
         );
         // ... and the generated program passes it on.
         let mut recorder = ActionRecorder::default();
         for action in &recorded {
-            recorder.record(&action.name, action.target.as_deref(), action.value.as_deref());
+            recorder.record(action.command.clone());
         }
         let script = recorder.to_rust_script();
         assert!(

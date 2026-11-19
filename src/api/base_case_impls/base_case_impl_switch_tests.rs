@@ -374,7 +374,7 @@ mod tests_switching {
             .unwrap()
             .actions
             .iter()
-            .map(|action| (action.name.clone(), action.target.clone()))
+            .map(|action| (action.command.name().to_owned(), action.command.target()))
             .collect();
         assert_eq!(
             recorded,
@@ -474,7 +474,7 @@ mod tests_switching {
             .unwrap()
             .actions
             .iter()
-            .map(|action| action.name.clone())
+            .map(|action| action.command.name().to_owned())
             .collect();
         assert_eq!(names, ["switch_to_frame", "switch_to_parent_frame"]);
     }
@@ -597,7 +597,7 @@ mod tests_switching {
             .unwrap()
             .actions
             .iter()
-            .map(|action| (action.name.clone(), action.target.clone()))
+            .map(|action| (action.command.name().to_owned(), action.command.target()))
             .collect();
         assert_eq!(
             recorded,
@@ -679,7 +679,7 @@ mod tests_switching {
             .unwrap()
             .actions
             .iter()
-            .map(|action| (action.name.clone(), action.target.clone()))
+            .map(|action| (action.command.name().to_owned(), action.command.target()))
             .collect();
         assert_eq!(
             recorded,

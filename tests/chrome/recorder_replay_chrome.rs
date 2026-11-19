@@ -14,7 +14,7 @@
 
 use std::io::{Read, Write};
 
-use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
+use seleniumbase_rs::api::recorder::{RecordedAction, RecordedCommand, RecorderSession};
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 
 const HOME: &str = r##"<!doctype html><title>Home</title>
@@ -67,7 +67,7 @@ fn serve_pages() -> String {
 }
 
 fn action(name: &str, target: Option<&str>, value: Option<&str>) -> RecordedAction {
-    RecordedAction::new(name, target, value)
+    RecordedAction::new(RecordedCommand::from_parts(name, target, value))
 }
 
 /// The first half of the visit: what it does is visible on the home page.

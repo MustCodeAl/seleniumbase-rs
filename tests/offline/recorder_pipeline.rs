@@ -72,9 +72,9 @@ fn run(case: Case) -> (Vec<RawAction>, Vec<Call>) {
     let calls = to_actions(&processed, case.uc)
         .into_iter()
         .map(|action| Call {
-            name: action.name,
-            target: action.target,
-            value: action.value,
+            name: action.command.name().to_owned(),
+            target: action.command.target(),
+            value: action.command.value(),
         })
         .collect();
     (processed, calls)
@@ -124,7 +124,9 @@ fn the_rust_pipeline_writes_the_calls_python_writes_for_every_fixture() {
 fn recording(calls: &[(&str, Option<&str>, Option<&str>)]) -> ActionRecorder {
     let mut recorder = ActionRecorder::default();
     for (name, target, value) in calls {
-        recorder.record(name, *target, *value);
+        recorder.record(seleniumbase_rs::api::recorder::RecordedCommand::from_parts(
+            name, *target, *value,
+        ));
     }
     recorder
 }
@@ -218,7 +220,7 @@ fn a_raw_recording_becomes_an_action_recorder() {
     let (case, _) = load("basic");
     let recorder =
         ActionRecorder::from_raw_actions(case.actions, case.start_ms, &case.origins, false);
-    let names: Vec<&str> = recorder.actions.iter().map(|a| a.name.as_str()).collect();
+    let names: Vec<&str> = recorder.actions.iter().map(|a| a.command.name()).collect();
     assert_eq!(names[0], "goto");
     assert!(names.contains(&"assert_exact_text"), "{names:?}");
 }

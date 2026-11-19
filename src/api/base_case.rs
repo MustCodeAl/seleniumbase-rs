@@ -21,8 +21,8 @@ use crate::api::page_scripts::{self, TextMatch};
 #[cfg(feature = "pdf")]
 use crate::api::pdf;
 use crate::api::recorder::{
-    ActionRecorder, RawAction, RecordedAction, RecorderEnd, RecorderSession, RecorderState,
-    RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
+    ActionRecorder, RawAction, RecordedAction, RecordedCommand, RecorderEnd, RecorderSession,
+    RecorderState, RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
 };
 use crate::api::run_settings::{PauseKind, RunSettings, HEADLESS_MESSAGE_CAP};
 use crate::api::tour::Tour;
@@ -2401,7 +2401,7 @@ impl BaseCase {
 
     fn record(&self, name: &str, target: Option<&str>, value: Option<&str>) {
         if let Ok(mut recorder) = self.recorder.lock() {
-            recorder.record(name, target, value);
+            recorder.record(RecordedCommand::from_parts(name, target, value));
         }
     }
 

@@ -10,8 +10,8 @@
 
 use serde_json::Value;
 
-use super::calls::CAPTCHA;
 use super::raw::{text, RawAction};
+use super::RecordedCommand;
 use super::{keep_secrets, RecordedAction, SECRET_PLACEHOLDER};
 
 /// Element `index` of a JSON array, or null.
@@ -145,19 +145,24 @@ fn typed(row: &RawAction) -> String {
 ///     RawAction::new("input", json!("#q"), json!("rust\n"), 1200),
 /// ];
 /// let actions = to_actions(&process(raw, 0, &[]), false);
-/// assert_eq!(actions[0].name, "goto");
-/// assert_eq!(actions[1].name, "type_text");
-/// assert_eq!(actions[1].value.as_deref(), Some("rust\n"));
+/// assert_eq!(actions[0].command.name(), "goto");
+/// assert_eq!(actions[1].command.name(), "type_text");
+/// assert_eq!(actions[1].command.value().as_deref(), Some("rust\n"));
 /// ```
 pub fn to_actions(sorted: &[RawAction], uc: bool) -> Vec<RecordedAction> {
     let mut actions: Vec<RecordedAction> = Vec::new();
     for action in sorted.iter().filter_map(|row| action(row, uc)) {
         // A person who works a CAPTCHA widget makes several of these in a
         // row; the test needs one note about it.
-        let again = action.name == CAPTCHA
-            && actions
-                .last()
-                .is_some_and(|last| last.name == CAPTCHA && last.target == action.target);
+        let again = match (&action.command, actions.last().map(|last| &last.command)) {
+            (
+                RecordedCommand::Captcha { provider },
+                Some(RecordedCommand::Captcha {
+                    provider: last_provider,
+                }),
+            ) => provider == last_provider,
+            _ => false,
+        };
         if !again {
             actions.push(action);
         }
@@ -248,7 +253,7 @@ const CALLS: &[(&str, &str, CallForm)] = &[
     ("go_fw", "go_forward", Bare),
     // The page script saw a person use a CAPTCHA widget: the provider is the
     // argument. The generators write a comment for it.
-    ("captcha", CAPTCHA, On),
+    ("captcha", "captcha", On),
 ];
 
 /// The call one processed action makes, if it makes one.
@@ -257,9 +262,7 @@ fn action(row: &RawAction, uc: bool) -> Option<RecordedAction> {
     let detail = text(&row.detail).to_owned();
     let parts = &row.arg;
     let make = |name: &str, target: Option<String>, value: Option<String>| RecordedAction {
-        name: name.to_owned(),
-        target,
-        value,
+        command: RecordedCommand::from_parts(name, target.as_deref(), value.as_deref()),
         timestamp_ms: u128::try_from(row.time_ms).unwrap_or(0),
     };
     if let Some(&(_, name, ref form)) = CALLS.iter().find(|(kind, ..)| *kind == row.kind) {
@@ -375,222 +378,198 @@ enum StepForm {
 }
 use StepForm::{Assertion, Element, One, Two, Typing, Wording};
 
-/// The actions whose step follows from one row: the name, the wording of
-/// Python's `behave_helper`, and how the arguments go in.
-const GHERKIN_STEPS: &[(&str, &str, StepForm)] = &[
-    ("goto", "Open", One),
-    ("goto_if_not_url", "Open if not", One),
-    ("click", "Click", One),
-    ("double_click", "Double click", One),
-    ("js_click", "JS click", One),
-    ("js_click_all", "JS click all", One),
-    ("jquery_click", "jQuery click", One),
-    ("jquery_click_all", "jQuery click all", One),
-    ("context_click", "Context click", One),
-    ("hover", "Hover", One),
-    ("highlight", "Highlight", One),
-    ("type_text", "Type", Typing("into")),
-    ("js_type", "JS type", Typing("in")),
-    ("jquery_type", "jQuery type", Typing("in")),
-    ("press_keys", "Press keys", Typing("in")),
-    ("hover_and_click", "Hover", Two("and click")),
-    ("drag_and_drop", "Drag", Two("into")),
-    ("select_option_by_text", "Find", Two("and select")),
-    ("set_value", "Set value of", Two("to")),
-    ("switch_to_frame", "Switch to frame", One),
-    (
-        "switch_to_default_content",
-        "Switch to default content",
-        Wording,
-    ),
-    ("switch_to_parent_frame", "Switch to parent frame", Wording),
-    ("set_content_to_frame", "Set content to frame", One),
-    ("set_content_to_default", "Set content to default", Wording),
-    ("set_content_to_parent", "Set content to parent", Wording),
-    ("wait_for_element", "Wait for element", Element),
-    ("assert_element", "Assert element", Element),
-    ("assert_element_present", "Assert element present", Element),
-    (
-        "assert_element_not_visible",
-        "Assert element not visible",
-        Element,
-    ),
-    ("assert_non_empty_text", "Assert non-empty text in", Element),
-    (
-        "deferred_assert_element",
-        "Deferred assert element",
-        Element,
-    ),
-    (
-        "deferred_assert_element_present",
-        "Deferred assert element present",
-        Element,
-    ),
-    (
-        "deferred_assert_non_empty_text",
-        "Deferred assert non-empty text in",
-        Element,
-    ),
-    ("accept_alert", "Accept alert", Wording),
-    ("dismiss_alert", "Dismiss alert", Wording),
-    ("assert_link_text", "Assert link text", One),
-    ("assert_title", "Assert title", One),
-    ("assert_title_contains", "Assert title contains", One),
-    ("assert_url", "Assert URL", One),
-    ("assert_url_contains", "Assert URL contains", One),
-    ("assert_downloaded_file", "Assert downloaded file", One),
-    ("assert_text", "Assert text", Assertion),
-    ("assert_exact_text", "Assert exact text", Assertion),
-    (
-        "assert_text_not_visible",
-        "Assert text not visible",
-        Assertion,
-    ),
-    (
-        "assert_exact_text_not_visible",
-        "Assert exact text not visible",
-        Assertion,
-    ),
-    ("deferred_assert_text", "Deferred assert text", Assertion),
-    (
-        "deferred_assert_exact_text",
-        "Deferred assert exact text",
-        Assertion,
-    ),
-    (
-        "save_screenshot_to_logs",
-        "Save screenshot to logs",
-        Wording,
-    ),
-    ("save_as_pdf_to_logs", "Save as PDF to logs", Wording),
-    (
-        "save_page_source_to_logs",
-        "Save page source to logs",
-        Wording,
-    ),
-    ("show_file_choosers", "Show file choosers", Wording),
-    (
-        "process_deferred_asserts",
-        "Process deferred asserts",
-        Wording,
-    ),
-    ("activate_demo_mode", "Activate Demo Mode", Wording),
-    ("deactivate_demo_mode", "Deactivate Demo Mode", Wording),
-    ("clear_local_storage", "Clear Local Storage", Wording),
-    ("clear_session_storage", "Clear Session Storage", Wording),
-    ("delete_all_cookies", "Delete all cookies", Wording),
-    ("go_back", "Go back", Wording),
-    ("go_forward", "Go forward", Wording),
-    ("check_if_unchecked", "Check if unchecked", One),
-    ("uncheck_if_checked", "Uncheck if checked", One),
-];
+/// The actions whose step follows from one row: the wording of
+/// Python's `behave_helper`, how the arguments go in, and the target and the value (empty if none).
+fn step_row(command: &RecordedCommand) -> Option<(&'static str, StepForm, &str, &str)> {
+    use RecordedCommand as C;
+    Some(match command {
+        C::Open { url } | C::Goto { url } => ("Open", One, url, ""),
+        C::GotoIfNotUrl { url } => ("Open if not", One, url, ""),
+        C::Click { selector } => ("Click", One, selector, ""),
+        C::DoubleClick { selector } => ("Double click", One, selector, ""),
+        C::JsClick { selector } => ("JS click", One, selector, ""),
+        C::JsClickAll { selector } => ("JS click all", One, selector, ""),
+        C::JqueryClick { selector } => ("jQuery click", One, selector, ""),
+        C::JqueryClickAll { selector } => ("jQuery click all", One, selector, ""),
+        C::ContextClick { selector } => ("Context click", One, selector, ""),
+        C::Hover { selector } => ("Hover", One, selector, ""),
+        C::Highlight { selector } => ("Highlight", One, selector, ""),
+        C::TypeText { selector, text } => ("Type", Typing("into"), selector, text),
+        C::JsType { selector, text } => ("JS type", Typing("in"), selector, text),
+        C::JqueryType { selector, text } => ("jQuery type", Typing("in"), selector, text),
+        C::PressKeys { selector, keys } => ("Press keys", Typing("in"), selector, keys),
+        C::HoverAndClick {
+            hover_selector,
+            click_selector,
+        } => ("Hover", Two("and click"), hover_selector, click_selector),
+        C::DragAndDrop {
+            source,
+            destination,
+        } => ("Drag", Two("into"), source, destination),
+        C::SelectOptionByText { selector, text } => ("Find", Two("and select"), selector, text),
+        C::SetValue { selector, value } => ("Set value of", Two("to"), selector, value),
+        C::SwitchToFrame { frame } => ("Switch to frame", One, frame, ""),
+        C::SwitchToDefaultContent => ("Switch to default content", Wording, "", ""),
+        C::SwitchToParentFrame => ("Switch to parent frame", Wording, "", ""),
+        C::SetContentToFrame { frame } => ("Set content to frame", One, frame, ""),
+        C::SetContentToDefault => ("Set content to default", Wording, "", ""),
+        C::SetContentToParent => ("Set content to parent", Wording, "", ""),
+        C::WaitForElement { selector } => ("Wait for element", Element, selector, ""),
+        C::AssertElement { selector } => ("Assert element", Element, selector, ""),
+        C::AssertElementPresent { selector } => ("Assert element present", Element, selector, ""),
+        C::AssertElementNotVisible { selector } => {
+            ("Assert element not visible", Element, selector, "")
+        }
+        C::AssertNonEmptyText { selector } => ("Assert non-empty text in", Element, selector, ""),
+        C::DeferredAssertElement { selector } => ("Deferred assert element", Element, selector, ""),
+        C::DeferredAssertElementPresent { selector } => {
+            ("Deferred assert element present", Element, selector, "")
+        }
+        C::DeferredAssertNonEmptyText { selector } => {
+            ("Deferred assert non-empty text in", Element, selector, "")
+        }
+        C::AcceptAlert => ("Accept alert", Wording, "", ""),
+        C::DismissAlert => ("Dismiss alert", Wording, "", ""),
+        C::AssertLinkText { link_text } => ("Assert link text", One, link_text, ""),
+        C::AssertTitle { title } => ("Assert title", One, title, ""),
+        C::AssertTitleContains { title } => ("Assert title contains", One, title, ""),
+        C::AssertUrl { url } => ("Assert URL", One, url, ""),
+        C::AssertUrlContains { url } => ("Assert URL contains", One, url, ""),
+        C::AssertDownloadedFile { name } => ("Assert downloaded file", One, name, ""),
+        C::AssertText { text, selector } => ("Assert text", Assertion, selector, text),
+        C::AssertExactText { text, selector } => ("Assert exact text", Assertion, selector, text),
+        C::AssertTextNotVisible { text, selector } => {
+            ("Assert text not visible", Assertion, selector, text)
+        }
+        C::AssertExactTextNotVisible { text, selector } => {
+            ("Assert exact text not visible", Assertion, selector, text)
+        }
+        C::DeferredAssertText { text, selector } => {
+            ("Deferred assert text", Assertion, selector, text)
+        }
+        C::DeferredAssertExactText { text, selector } => {
+            ("Deferred assert exact text", Assertion, selector, text)
+        }
+        C::SaveScreenshotToLogs => ("Save screenshot to logs", Wording, "", ""),
+        C::SaveAsPdfToLogs => ("Save as PDF to logs", Wording, "", ""),
+        C::SavePageSourceToLogs => ("Save page source to logs", Wording, "", ""),
+        C::ShowFileChoosers => ("Show file choosers", Wording, "", ""),
+        C::ProcessDeferredAsserts => ("Process deferred asserts", Wording, "", ""),
+        C::ActivateDemoMode => ("Activate Demo Mode", Wording, "", ""),
+        C::DeactivateDemoMode => ("Deactivate Demo Mode", Wording, "", ""),
+        C::ClearLocalStorage => ("Clear Local Storage", Wording, "", ""),
+        C::ClearSessionStorage => ("Clear Session Storage", Wording, "", ""),
+        C::DeleteAllCookies => ("Delete all cookies", Wording, "", ""),
+        C::GoBack => ("Go back", Wording, "", ""),
+        C::GoForward => ("Go forward", Wording, "", ""),
+        C::CheckIfUnchecked { selector } => ("Check if unchecked", One, selector, ""),
+        C::UncheckIfChecked { selector } => ("Uncheck if checked", One, selector, ""),
+        _ => return None,
+    })
+}
 
 /// The Gherkin step (without its keyword) in Python's `behave_helper`
 /// wording, or why there is none.
 fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
-    let name = super::calls::canonical_name(&action.name);
-    let name = if name == "open" { "goto" } else { name };
-    let target = action.target.as_deref();
-    let value = action.value.as_deref();
-    let need_target = || target.ok_or_else(|| format!("{name} has no target"));
-    let need_value = || value.ok_or_else(|| format!("{name} has no value"));
-    if let Some((_, wording, form)) = GHERKIN_STEPS.iter().find(|(known, ..)| *known == name) {
+    use RecordedCommand as C;
+    let command = &action.command;
+    if let Some((wording, form, target, value)) = step_row(command) {
         return Ok(match form {
-            Wording => (*wording).to_owned(),
-            One => format!("{wording} {}", quoted(need_target()?)),
-            Element => format!("{wording} {}", quoted_selector(need_target()?)),
+            Wording => wording.to_owned(),
+            One => format!("{wording} {}", quoted(target)),
+            Element => format!("{wording} {}", quoted_selector(target)),
             Typing(joint) => {
-                let text = step_text(need_value()?);
-                format!(
-                    "{wording} {} {joint} {}",
-                    quoted(&text),
-                    quoted(need_target()?)
-                )
+                let text = step_text(value);
+                format!("{wording} {} {joint} {}", quoted(&text), quoted(target))
             }
-            Two(joint) => format!(
-                "{wording} {} {joint} {}",
-                quoted(need_target()?),
-                quoted(need_value()?)
-            ),
+            Two(joint) => format!("{wording} {} {joint} {}", quoted(target), quoted(value)),
             Assertion => {
-                let text = quoted(&step_text(need_value()?));
-                let selector = need_target()?;
-                if selector == "html" {
+                let text = quoted(&step_text(value));
+                if target == "html" {
                     format!("{wording} {text}")
                 } else {
-                    format!("{wording} {text} in {}", quoted(selector))
+                    format!("{wording} {text} in {}", quoted(target))
                 }
             }
         });
     }
     // The steps that do more with their arguments than a row can say.
-    Ok(match name {
-        CAPTCHA => {
-            return Err(super::calls::captcha_note(
-                target,
+    Ok(match command {
+        C::Captcha { provider } => {
+            return Err(super::rust_call::captcha_note(
+                provider.as_deref(),
                 "sb.solve_captcha() in a step of your own",
-            ))
+            ));
         }
-        "click_with_offset" => {
-            let offset = need_value()?;
-            format!("Click {} at ({offset})", quoted(need_target()?))
-        }
-        "enter_mfa_code" => {
-            let text = step_text(need_value()?);
-            format!("Into {} do MFA {}", quoted(need_target()?), quoted(&text))
-        }
-        "choose_file" => format!(
-            "Into {} choose file {}",
-            quoted(need_target()?),
-            quoted(&need_value()?.replace('\\', "\\\\"))
-        ),
-        "sleep" => format!("Sleep for {} seconds", need_value()?),
-        "set_attribute" | "set_attributes" => {
-            let start = if name == "set_attributes" {
-                "Find all"
+        C::ClickWithOffset {
+            selector,
+            x,
+            y,
+            center,
+        } => {
+            let offset = if *center {
+                format!("{x}, {y}, center")
             } else {
-                "Find"
+                format!("{x}, {y}")
             };
-            let pair = need_value()?;
-            let (attribute, content) = pair
-                .split_once('=')
-                .ok_or_else(|| format!("{name}: value {pair:?} is not name=content"))?;
-            format!(
-                "{start} {} and set {attribute} to \"{content}\"",
-                quoted_selector(need_target()?)
-            )
+            format!("Click {} at ({offset})", quoted(selector))
         }
-        "download_file" => match value {
-            None => format!("Download file \"{}\" to downloads", need_target()?),
-            Some(destination) => {
-                format!("Download file \"{}\" to \"{destination}\"", need_target()?)
-            }
+        C::EnterMfaCode { selector, code } => {
+            let text = step_text(code);
+            format!("Into {} do MFA {}", quoted(selector), quoted(&text))
+        }
+        C::ChooseFile { selector, path } => format!(
+            "Into {} choose file {}",
+            quoted(selector),
+            quoted(&path.replace('\\', "\\\\"))
+        ),
+        C::Sleep { seconds } => format!("Sleep for {seconds} seconds"),
+        C::SetAttribute {
+            selector,
+            attribute,
+            value,
+        } => format!(
+            "Find {} and set {attribute} to \"{value}\"",
+            quoted_selector(selector)
+        ),
+        C::SetAttributes {
+            selector,
+            attribute,
+            value,
+        } => format!(
+            "Find all {} and set {attribute} to \"{value}\"",
+            quoted_selector(selector)
+        ),
+        C::DownloadFile { url, destination } => match destination {
+            None => format!("Download file \"{url}\" to downloads"),
+            Some(destination) => format!("Download file \"{url}\" to \"{destination}\""),
         },
-        "assert_attribute" => {
-            let pair = need_value()?;
-            let (attribute, content) = pair.split_once('=').unwrap_or((pair, ""));
-            let selector = quoted(need_target()?);
-            if content.is_empty() {
-                format!("In {selector} assert attribute \"{attribute}\"")
-            } else {
-                format!("In {selector} assert attribute/value \"{attribute}\"/\"{content}\"")
+        C::AssertAttribute {
+            selector,
+            attribute,
+            content,
+        } => {
+            let selector = quoted(selector);
+            match content.as_deref().filter(|content| !content.is_empty()) {
+                None => format!("In {selector} assert attribute \"{attribute}\""),
+                Some(content) => {
+                    format!("In {selector} assert attribute/value \"{attribute}\"/\"{content}\"")
+                }
             }
         }
-        "save_screenshot" | "save_screenshot_to_folder" => match value {
-            None => format!("Save screenshot as {}", quoted(need_target()?)),
-            Some(folder) => format!(
-                "Save screenshot to {} as {}",
-                quoted(folder),
-                quoted(need_target()?)
-            ),
+        C::SaveScreenshot { name } => format!("Save screenshot as {}", quoted(name)),
+        C::SaveScreenshotToFolder { name, folder } => match folder {
+            None => format!("Save screenshot as {}", quoted(name)),
+            Some(folder) => format!("Save screenshot to {} as {}", quoted(folder), quoted(name)),
         },
+        C::Malformed { error, .. } => return Err(error.to_string()),
         // The name is whatever was recorded; a line break in it would end the
         // `# skipped:` comment and start a step, so it is escaped.
         other => {
             return Err(format!(
                 "{}: no Gherkin step for this action",
-                other.escape_debug()
-            ))
+                other.name().escape_debug()
+            ));
         }
     })
 }
@@ -645,7 +624,13 @@ mod tests {
     fn named(rows: &[RawAction]) -> Vec<String> {
         to_actions(rows, false)
             .into_iter()
-            .map(|a| format!("{}:{}", a.name, a.target.unwrap_or_default()))
+            .map(|a| {
+                format!(
+                    "{}:{}",
+                    a.command.name(),
+                    a.command.target().unwrap_or_default()
+                )
+            })
             .collect()
     }
 
@@ -654,7 +639,13 @@ mod tests {
     }
 
     fn one(row: RawAction) -> Option<(String, Option<String>, Option<String>)> {
-        action(&row, false).map(|a| (a.name, a.target, a.value))
+        action(&row, false).map(|a| {
+            (
+                a.command.name().to_owned(),
+                a.command.target(),
+                a.command.value(),
+            )
+        })
     }
 
     fn expect(row: RawAction, name: &str, target: Option<&str>, value: Option<&str>) {
@@ -782,8 +773,8 @@ mod tests {
     #[test]
     fn uc_types_with_press_keys() {
         let rows = [raw("input", json!("#q"), json!("hi"))];
-        assert_eq!(to_actions(&rows, true)[0].name, "press_keys");
-        assert_eq!(to_actions(&rows, false)[0].name, "type_text");
+        assert_eq!(to_actions(&rows, true)[0].command.name(), "press_keys");
+        assert_eq!(to_actions(&rows, false)[0].command.name(), "type_text");
     }
 
     #[test]
@@ -791,12 +782,12 @@ mod tests {
         let row = raw("input", json!("#pw"), json!("hunter2\n")).secret();
         let actions = to_actions(&[row], false);
         assert_eq!(
-            actions[0].value.as_deref(),
+            actions[0].command.value().as_deref(),
             Some("{{SB_RECORDED_SECRET}}\n")
         );
         let row = raw("input", json!("#pw"), json!("hunter2")).secret();
         assert_eq!(
-            to_actions(&[row], false)[0].value.as_deref(),
+            to_actions(&[row], false)[0].command.value().as_deref(),
             Some(SECRET_PLACEHOLDER)
         );
     }
@@ -919,7 +910,11 @@ mod tests {
     #[test]
     fn a_password_and_an_unknown_action_in_gherkin() {
         let mut actions = to_actions(&[raw("input", json!("#pw"), json!("x")).secret()], false);
-        actions.push(RecordedAction::new("levitate", Some("#a"), None));
+        actions.push(RecordedAction::new(RecordedCommand::from_parts(
+            "levitate",
+            Some("#a"),
+            None,
+        )));
         let feature = gherkin_scenario(&actions, "F", "s", false);
         assert!(
             feature.contains("Given Type \"<SB_RECORDED_SECRET>\" into \"#pw\""),

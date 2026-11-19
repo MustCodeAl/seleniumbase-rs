@@ -917,8 +917,8 @@ mod tests {
         recording.sleep(0.0).await;
         let actions = recording.recorded_actions().unwrap();
         assert_eq!(actions.len(), 1);
-        assert_eq!(actions[0].name, "sleep");
-        assert_eq!(actions[0].value.as_deref(), Some("0"));
+        assert_eq!(actions[0].command.name(), "sleep");
+        assert_eq!(actions[0].command.value().as_deref(), Some("0"));
     }
 
     #[tokio::test]

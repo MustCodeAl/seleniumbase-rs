@@ -1,8 +1,8 @@
 //! Record a test's browser calls, save them, and replay them in a fresh session.
 //!
 //! `BaseCase` writes down what a test does: each `open`, `type_text`, `click`
-//! and `assert_text` becomes a `RecordedAction` with a name, a target and a
-//! value. `start_recording` marks where the recording begins and
+//! and `assert_text` becomes a `RecordedAction` that holds a typed
+//! `RecordedCommand`. `start_recording` marks where the recording begins and
 //! `recorder_session` returns what was recorded since as a `RecorderSession`.
 //! The session is saved as JSON (YAML works the same), loaded again, and
 //! replayed against a brand-new browser with `RecorderSession::replay`, which
@@ -42,7 +42,7 @@ async fn main() -> Result<()> {
 
     println!("Recorded {} action(s)", session.len());
     for action in session.actions() {
-        println!("  {} {:?}", action.name, action.target);
+        println!("  {}", action.command);
     }
     ensure(
         session.len() >= 4,
