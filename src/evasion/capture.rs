@@ -1,6 +1,6 @@
 //! Capture: what a real browser shows a page, kept as a [`Fingerprint`].
 //!
-//! One script ([`get_capture_js`]) reads, inside a page, what a detection
+//! One script ([`CAPTURE_JS`]) reads, inside a page, what a detection
 //! script could read: the navigator, the Client Hints, the screen, the time
 //! zone, the WebGL strings, the media devices, the battery, the connection, the
 //! speech voices, Bluetooth, and a few readings that no setting holds. The two
