@@ -332,6 +332,44 @@ is never silent. Differences from the WebDriver program: a wait uses the pure
 CDP engine's own timeout, not ten seconds, and the program is not written when
 the test ends; you ask for it.
 
+## Recorded commands (`RecordedCommand`)
+
+A recording is a list of `RecordedAction`s, and each one holds a `command`: a
+`RecordedCommand`, an enum with one variant for every action the recorder knows.
+A variant holds the arguments of its `BaseCase` call as typed fields, so a
+click has a `selector`, `Open` a `url`, `SetWindowSize` a `width` and a `height`
+in pixels, and `ClickWithOffset` whole `x` and `y` and a `center` flag. The code
+generators, the Gherkin writers and the replay all match on the variant, so an
+action that is added has to be given its call and its replay before the crate
+builds.
+
+```rust,ignore
+use seleniumbase_rs::api::recorder::{ActionRecorder, RecordedCommand};
+
+let mut recorder = ActionRecorder::default();
+recorder.record(RecordedCommand::Open { url: "https://example.com".to_owned() });
+recorder.record(RecordedCommand::TypeText {
+    selector: "#q".to_owned(),
+    text: "rust".to_owned(),
+});
+assert!(recorder.to_rust_script().contains("sb.type_text(\"#q\", \"rust\").await?;"));
+```
+
+A saved recording does not change: it keeps the `name`, `target` and `value`
+of each action, as the page script and Python's recorder write them, and
+`RecordedCommand::from_parts(name, target, value)` reads them back (and
+`parts()` and `name()` write them). Two kinds of action that the crate cannot run
+are kept as they were recorded, so a recording never loses one:
+
+| Variant | What it holds | Generators and replay |
+|---|---|---|
+| `Unknown` | A name this crate does not know (`levitate`). | A `// skipped:` comment that names the closest known action; the replay counts it in `skipped_names`. |
+| `Malformed` | A known name whose arguments are missing or unreadable (`click` with no target, `set_window_size` of `wide,tall`). `error` says what is wrong. | A `// skipped:` comment with the same words; the replay reports a failed step. |
+
+The older names `navigate`, `type` and `cdp_click_element` are read as `Open`,
+`TypeText` and `CdpClick`, and are saved under the new names.
+
+
 ## JSON action files
 
 Recorder Mode and `sbrs mkrec` write the actions as `recordings/NAME_rec.json`. A test
