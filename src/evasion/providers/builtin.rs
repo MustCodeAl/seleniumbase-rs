@@ -18,9 +18,11 @@
 //!   before.
 
 use super::{EvasionContext, EvasionProvider, SB_PREAMBLE};
+use crate::evasion::fingerprint::{api_expected, BrowserType, TASKBAR_HEIGHT};
+
 use crate::evasion::fingerprint::{
-    languages_for_locale, AudioNoise, CanvasNoise, Dimension, Fingerprint, Geolocation,
-    AUDIO_SEED_MASK,
+    gpu_architecture, gpu_maker, is_mobile_gpu, languages_for_locale, AudioNoise, CanvasNoise,
+    Dimension, Fingerprint, Geolocation, OsType, AUDIO_SEED_MASK,
 };
 
 /// Fills `@NAME@` markers in a JavaScript template, in one pass.
@@ -70,8 +72,10 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(NavigatorPropsProvider),
         Box::new(PermissionsProvider),
         Box::new(PluginsProvider),
+        Box::new(ApiPresenceProvider),
         Box::new(WindowGeometryProvider),
         Box::new(WebglProvider),
+        Box::new(WebGpuProvider),
         Box::new(CanvasNoiseProvider),
         Box::new(AudioNoiseProvider),
         Box::new(WebRtcProvider),
@@ -88,6 +92,8 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(TimezoneProvider),
         Box::new(LocalizationProvider),
         Box::new(GeolocationProvider),
+        Box::new(KeyboardLayoutProvider),
+        Box::new(StorageQuotaProvider),
         Box::new(HairlineProvider),
         Box::new(IframeProvider),
         Box::new(AttachShadowProvider),
@@ -506,6 +512,74 @@ impl EvasionProvider for PluginsProvider {
     }
 }
 
+/// The operating-system APIs of Chromium the [`ApiPresenceProvider`] may
+/// remove: the key of the API table the consistency rules use, and the name a
+/// page reads (`navigator.` or `window.`).
+const REMOVABLE: [(&str, &str); 9] = [
+    ("hid", "navigator.hid"),
+    ("serial", "navigator.serial"),
+    ("windowControlsOverlay", "navigator.windowControlsOverlay"),
+    ("contacts", "navigator.contacts"),
+    ("share", "navigator.share"),
+    ("share", "navigator.canShare"),
+    ("eyeDropper", "window.EyeDropper"),
+    (
+        "documentPictureInPicture",
+        "window.documentPictureInPicture",
+    ),
+    ("barcodeDetector", "window.BarcodeDetector"),
+];
+
+/// Removes the APIs Chrome on the persona's system does not have
+/// (`navigator.hid` for a phone, `BarcodeDetector` for Windows and Linux, ...),
+/// from the object that owns each one. It never adds an API: a stub a page can
+/// call is a lie the call reveals.
+///
+/// Which APIs go is decided by the same table the consistency checker uses
+/// (`api_expected`), so what the provider removes is what the checker reports
+/// as present on a persona that never has it. A persona with no user agent of
+/// its own is the host's browser, and a Firefox or Safari persona is left
+/// alone: its engine-level APIs cannot be removed honestly.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct ApiPresenceProvider;
+
+impl EvasionProvider for ApiPresenceProvider {
+    fn name(&self) -> &str {
+        "api_presence"
+    }
+    fn priority(&self) -> i32 {
+        42
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.browser_type() == BrowserType::Chromium && fp.user_agent().is_value()
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let fp = ctx.fingerprint;
+        let gone: Vec<String> = REMOVABLE
+            .iter()
+            .filter(|(key, _)| {
+                api_expected(fp.browser_type(), fp.os_type(), fp.core_version(), key) == Some(false)
+            })
+            .map(|(_, name)| quoted(name))
+            .collect();
+        Some(render(
+            r##"(function () {
+  const names = [@NAMES@];
+  names.forEach(function (path) {
+    try {
+      const dot = path.indexOf('.');
+      const key = path.slice(dot + 1);
+      let owner = path.slice(0, dot) === 'navigator' ? navigator : window;
+      while (owner && !Object.prototype.hasOwnProperty.call(owner, key)) { owner = Object.getPrototypeOf(owner); }
+      if (owner) { delete owner[key]; }
+    } catch (e) {}
+  });
+})();"##,
+            &[("NAMES", &gone.join(", "))],
+        ))
+    }
+}
+
 /// Spoofs `screen.*`, `window.outer*`, and `devicePixelRatio`.
 ///
 /// This provider owns the outer window size; the
@@ -550,13 +624,26 @@ impl EvasionProvider for WindowGeometryProvider {
         if let Some((w, h)) = size {
             let avail = fp.avail_screen().value();
             let avail_w = avail.map_or(w, |a| a.width);
-            let avail_h = avail.map_or_else(|| h.saturating_sub(40), |a| a.height);
+            let avail_h = avail.map_or_else(|| h.saturating_sub(TASKBAR_HEIGHT), |a| a.height);
             defs.push(format!(
                 "width: {w}, height: {h}, availWidth: {avail_w}, availHeight: {avail_h}"
             ));
+            // A phone's window is its screen: Chrome on Android reports the screen
+            // width and the available height whatever the layout viewport is (a
+            // page without a viewport meta lays out at 980 pixels). A desktop
+            // window is as large as the screen and never smaller than its real
+            // viewport.
+            let (outer_w, outer_h) = if fp.os_type().is_mobile() {
+                (w.to_string(), avail_h.to_string())
+            } else {
+                (
+                    format!("Math.max({w}, window.innerWidth)"),
+                    format!("Math.max({avail_h}, window.innerHeight)"),
+                )
+            };
             replaceables.push_str(&format!(
-                "  try {{ replaceable('outerWidth', function () {{ return Math.max({w}, window.innerWidth); }}); }} catch (e) {{}}\n\
-                 \x20 try {{ replaceable('outerHeight', function () {{ return Math.max({avail_h}, window.innerHeight); }}); }} catch (e) {{}}\n"
+                "  try {{ replaceable('outerWidth', function () {{ return {outer_w}; }}); }} catch (e) {{}}\n\
+                 \x20 try {{ replaceable('outerHeight', function () {{ return {outer_h}; }}); }} catch (e) {{}}\n"
             ));
         }
         if let Some(depth) = depth {
@@ -595,11 +682,46 @@ impl EvasionProvider for WindowGeometryProvider {
     }
 }
 
+/// The WebGL extensions of the desktop texture-compression formats. A phone GPU
+/// compresses textures with ETC and ASTC, so a persona that names one lists none
+/// of these (Chrome also lists the S3TC one under its `WEBKIT_` alias).
+const DESKTOP_COMPRESSION_EXTENSIONS: [&str; 5] = [
+    "WEBGL_compressed_texture_s3tc",
+    "WEBKIT_WEBGL_compressed_texture_s3tc",
+    "WEBGL_compressed_texture_s3tc_srgb",
+    "EXT_texture_compression_bptc",
+    "EXT_texture_compression_rgtc",
+];
+
+/// What `WebglProvider` adds to its `patch` function for a phone GPU: the
+/// extension list without the names in `@HIDDEN@`, and `null` from
+/// `getExtension` for them (the name match is case-insensitive, as the
+/// browser's).
+const HIDE_EXTENSIONS_JS: &str = r##"
+    const hidden = @HIDDEN@;
+    const hiddenLower = hidden.map(function (name) { return name.toLowerCase(); });
+    const listed = context.prototype.getSupportedExtensions;
+    context.prototype.getSupportedExtensions = sb.native(function getSupportedExtensions() {
+      const list = listed.apply(this, arguments);
+      return Array.isArray(list) ? list.filter(function (name) { return hidden.indexOf(name) === -1; }) : list;
+    }, 'getSupportedExtensions', listed);
+    const asked = context.prototype.getExtension;
+    context.prototype.getExtension = sb.native(function getExtension(name) {
+      if (hiddenLower.indexOf(String(name).toLowerCase()) !== -1) { return null; }
+      return asked.apply(this, arguments);
+    }, 'getExtension', asked);"##;
+
 /// Overrides WebGL `UNMASKED_VENDOR_WEBGL` / `UNMASKED_RENDERER_WEBGL`.
 ///
 /// The fingerprint's optional GPU vendor and renderer ids are not emitted: no
 /// browser API shows them to a page, and a property to carry them would only
 /// be one more thing to find.
+///
+/// When the renderer names a phone GPU (`Adreno`, `Mali`, `PowerVR`), the
+/// provider also drops the desktop texture-compression extensions (S3TC, BPTC,
+/// RGTC) from `getSupportedExtensions()` and makes `getExtension` answer `null`
+/// for them, so the extension list agrees with the renderer.
+
 #[derive(Clone, Copy, Debug, Default)]
 pub struct WebglProvider;
 
@@ -619,6 +741,21 @@ impl EvasionProvider for WebglProvider {
         let literal = |given: Option<&str>| given.map_or_else(|| "null".to_owned(), quoted);
         let vendor = literal(webgl.and_then(|gl| gl.vendor.as_deref()));
         let renderer = literal(webgl.and_then(|gl| gl.renderer.as_deref()));
+        // A phone GPU lists none of the desktop texture compression.
+        let phone = webgl
+            .and_then(|gl| gl.renderer.as_deref())
+            .is_some_and(is_mobile_gpu);
+        let extensions = if phone {
+            let hidden = DESKTOP_COMPRESSION_EXTENSIONS
+                .iter()
+                .map(|name| quoted(name))
+                .collect::<Vec<_>>()
+                .join(", ");
+            render(HIDE_EXTENSIONS_JS, &[("HIDDEN", &format!("[{hidden}]"))])
+        } else {
+            String::new()
+        };
+
         Some(render(
             r##"(function () {
   @SB@
@@ -631,12 +768,76 @@ impl EvasionProvider for WebglProvider {
       if (parameter === 37445 && vendor !== null) { return vendor; }
       if (parameter === 37446 && renderer !== null) { return renderer; }
       return original.apply(this, arguments);
-    }, 'getParameter', original);
+    }, 'getParameter', original);@EXTENSIONS@
   }
   patch(window.WebGLRenderingContext);
   patch(window.WebGL2RenderingContext);
 })();"##,
-            &[("VENDOR", &vendor), ("RENDERER", &renderer)],
+            &[
+                ("VENDOR", &vendor),
+                ("RENDERER", &renderer),
+                ("EXTENSIONS", &extensions),
+            ],
+        ))
+    }
+}
+
+/// Makes the WebGPU adapter name the GPU the WebGL renderer names.
+///
+/// `GPUAdapterInfo.vendor` and `architecture` are what a page reads from
+/// `navigator.gpu.requestAdapter()`; fpscanner, CreepJS and ThumbmarkJS hold
+/// them against the WebGL renderer, and one machine has one GPU. The vendor is
+/// the maker the `WebGl` value names (`nvidia`, `apple`, `qualcomm`), the
+/// architecture the family Dawn reports for it (`lovelace`, `metal-3`,
+/// `adreno-7xx`; empty when the family is not known, as Chrome reports it for
+/// a GPU it cannot place). A Linux persona whose GPU is not Intel's gets no
+/// adapter at all: Chrome on Linux has WebGPU for Intel Gen 12 and later only.
+/// A renderer that names no maker leaves the browser's adapter alone.
+///
+/// The init script does not reach workers, so an `OffscreenCanvas` in a worker
+/// still reports the host's adapter (the `worker_vs_window` contradiction).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct WebGpuProvider;
+
+impl EvasionProvider for WebGpuProvider {
+    fn name(&self) -> &str {
+        "webgpu"
+    }
+    fn priority(&self) -> i32 {
+        51
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.is_masked(Dimension::Graphics)
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let fp = ctx.fingerprint;
+        let gl = fp.webgl().value()?;
+        let renderer = gl.renderer.as_deref().unwrap_or("");
+        let vendor = gl.vendor.as_deref().unwrap_or("");
+        let maker = gpu_maker(renderer).or_else(|| gpu_maker(vendor))?;
+        let adapterless = fp.os_type() == OsType::Linux && maker != "intel";
+        Some(render(
+            r##"(function () {
+  @SB@
+  const vendor = @VENDOR@;
+  const architecture = @ARCHITECTURE@;
+  const adapterless = @ADAPTERLESS@;
+  if (!navigator.gpu) { return; }
+  if (adapterless) {
+    const gpu = Object.getPrototypeOf(navigator.gpu);
+    const original = gpu.requestAdapter;
+    gpu.requestAdapter = sb.native(function requestAdapter() { return Promise.resolve(null); }, 'requestAdapter', original);
+    return;
+  }
+  if (typeof GPUAdapterInfo === 'undefined') { return; }
+  try { sb.getter(GPUAdapterInfo.prototype, 'vendor', function () { return vendor; }); } catch (e) {}
+  try { sb.getter(GPUAdapterInfo.prototype, 'architecture', function () { return architecture; }); } catch (e) {}
+})();"##,
+            &[
+                ("VENDOR", &quoted(maker)),
+                ("ARCHITECTURE", &quoted(gpu_architecture(renderer))),
+                ("ADAPTERLESS", if adapterless { "true" } else { "false" }),
+            ],
         ))
     }
 }
@@ -1288,7 +1489,7 @@ impl EvasionProvider for BluetoothProvider {
     }
 }
 
-/// Fixes headless-mode signals: `matchMedia` answers and page visibility.
+/// Fixes the headless-mode signal of page visibility. It leaves `matchMedia` to the browser: a patched `matchMedia` next to unpatched `@media` rules is a contradiction, and `media_features` goes through `Emulation.setEmulatedMedia`, which both obey.
 ///
 /// It does not touch `window.outerWidth` or `outerHeight`; the
 /// [window geometry](WindowGeometryProvider) provider owns those.
@@ -1309,19 +1510,7 @@ impl EvasionProvider for HeadlessProvider {
         Some(render(
             r##"(function () {
   @SB@
-  const original = window.matchMedia;
-  if (original) {
-    const answer = function (query, matches) {
-      return { matches: matches, media: query, onchange: null, addListener: function () {}, removeListener: function () {},
-        addEventListener: function () {}, removeEventListener: function () {}, dispatchEvent: function () { return false; } };
-    };
-    window.matchMedia = sb.native(function matchMedia(query) {
-      const list = original.apply(this, arguments);
-      if (query === '(prefers-reduced-motion: reduce)' || query === '(prefers-color-scheme: dark)') { return answer(query, false); }
-      if (query === '(any-pointer: fine)') { return answer(query, true); }
-      return list;
-    }, 'matchMedia', original);
-  }
+  // The media features belong to the protocol (Emulation.setEmulatedMedia), which @media rules obey too.
   if (typeof Document !== 'undefined') {
     try { sb.getter(Document.prototype, 'hidden', function () { return false; }); } catch (e) {}
     try { sb.getter(Document.prototype, 'visibilityState', function () { return 'visible'; }); } catch (e) {}
@@ -1397,6 +1586,37 @@ impl EvasionProvider for MediaCodecsProvider {
     const codecs = match[2].split(',').map(function (c) { return c.trim(); }).filter(Boolean);
     return codecs.length > 0 && codecs.every(function (c) { return known.test(c); }) ? 'probably' : '';
   }, 'canPlayType', original);
+  // The same rule answers the other two questions a page asks of the codecs, so
+  // the three answers agree: only a "no" for a type the rule accepts becomes a "yes".
+  const accepts = function (type) {
+    const match = container.exec(String(type));
+    if (!match) { return false; }
+    if (match[2] === undefined) { return true; }
+    const codecs = match[2].split(',').map(function (c) { return c.trim(); }).filter(Boolean);
+    return codecs.length > 0 && codecs.every(function (c) { return known.test(c); });
+  };
+  ['MediaSource', 'ManagedMediaSource'].forEach(function (name) {
+    const owner = window[name];
+    if (typeof owner !== 'function' || typeof owner.isTypeSupported !== 'function') { return; }
+    const originalSupported = owner.isTypeSupported;
+    owner.isTypeSupported = sb.native(function isTypeSupported(type) {
+      return originalSupported.apply(this, arguments) || accepts(type);
+    }, 'isTypeSupported', originalSupported);
+  });
+  if (typeof MediaCapabilities !== 'undefined' && typeof MediaCapabilities.prototype.decodingInfo === 'function') {
+    const originalDecoding = MediaCapabilities.prototype.decodingInfo;
+    MediaCapabilities.prototype.decodingInfo = sb.native(function decodingInfo(configuration) {
+      return originalDecoding.apply(this, arguments).then(function (info) {
+        if (!info || info.supported !== false || !configuration) { return info; }
+        const types = [];
+        if (configuration.video && configuration.video.contentType) { types.push(configuration.video.contentType); }
+        if (configuration.audio && configuration.audio.contentType) { types.push(configuration.audio.contentType); }
+        if (types.length === 0 || !types.every(accepts)) { return info; }
+        return Object.assign({}, info, { supported: true, smooth: true, powerEfficient: true });
+      });
+    }, 'decodingInfo', originalDecoding);
+  }
+
 })();"##,
             &[],
         ))
@@ -1649,6 +1869,41 @@ impl EvasionProvider for LocalizationProvider {
   const proto = Object.getPrototypeOf(navigator);
   try { sb.getter(proto, 'language', function () { return @PRIMARY@; }); } catch (e) {}
   try { sb.getter(proto, 'languages', function () { return languages; }); } catch (e) {}
+  // Intl follows `navigator.language`, as `Emulation.setLocaleOverride` makes it
+  // natively: a caller that names no locale gets the first language.
+  const first = @PRIMARY@;
+  function withLocale(args, at) {
+    if (args[at] === undefined) { args[at] = first; }
+    return args;
+  }
+  ['Collator', 'NumberFormat', 'PluralRules', 'RelativeTimeFormat', 'ListFormat', 'DateTimeFormat',
+   'DisplayNames', 'Segmenter'].forEach(function (name) {
+    try {
+      const Original = Intl[name];
+      if (typeof Original !== 'function') { return; }
+      const Patched = new Proxy(Original, {
+        apply: function (target, thisArg, args) { return Reflect.apply(target, thisArg, withLocale(Array.from(args), 0)); },
+        construct: function (target, args, newTarget) { return Reflect.construct(target, withLocale(Array.from(args), 0), newTarget); }
+      });
+      sb.ctor(Patched, name);
+      Object.defineProperty(Original.prototype, 'constructor', { value: Patched, writable: true, configurable: true });
+      Intl[name] = Patched;
+    } catch (e) {}
+  });
+  [[Date.prototype, 'toLocaleString', 0], [Date.prototype, 'toLocaleDateString', 0],
+   [Date.prototype, 'toLocaleTimeString', 0], [Number.prototype, 'toLocaleString', 0],
+   [Array.prototype, 'toLocaleString', 0], [String.prototype, 'localeCompare', 1],
+   [typeof BigInt === 'function' ? BigInt.prototype : null, 'toLocaleString', 0]].forEach(function (entry) {
+    try {
+      const owner = entry[0], name = entry[1], at = entry[2];
+      if (!owner) { return; }
+      const original = owner[name];
+      owner[name] = sb.native(function () {
+        return original.apply(this, withLocale(Array.from(arguments), at));
+      }, name, original);
+    } catch (e) {}
+  });
+
 })();"##,
             &[("LANGUAGES", &array), ("PRIMARY", &quoted(primary))],
         ))
@@ -1733,6 +1988,140 @@ impl EvasionProvider for GeolocationProvider {
                 ("ALLOW", if allow { "true" } else { "false" }),
                 ("BLOCK", if block { "true" } else { "false" }),
             ],
+        ))
+    }
+}
+
+/// Answers `navigator.keyboard.getLayoutMap()` with the layout the fingerprint
+/// holds.
+///
+/// A page that asks the keyboard what its writing-system keys type gets the
+/// persona's answer: `KeyY` types `z` on a German machine. The methods, the
+/// iterator and the `size` getter are replaced on `KeyboardLayoutMap.prototype`
+/// and answer from a map of the 48 keys of the
+/// [`KeyboardLayout`](crate::evasion::fingerprint::KeyboardLayout), so no
+/// instance gets a property of its own. Only a Chromium persona runs it: Firefox
+/// and Safari have no `navigator.keyboard`.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct KeyboardLayoutProvider;
+
+impl EvasionProvider for KeyboardLayoutProvider {
+    fn name(&self) -> &str {
+        "keyboard_layout"
+    }
+    fn priority(&self) -> i32 {
+        100
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.keyboard_layout().is_value() && fp.browser_type() == BrowserType::Chromium
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let layout = ctx.fingerprint.keyboard_layout().value()?;
+        let pairs = layout
+            .keys()
+            .iter()
+            .map(|(code, key)| format!("[{}, {}]", quoted(code), quoted(key)))
+            .collect::<Vec<_>>()
+            .join(", ");
+        Some(render(
+            r##"(function () {
+  @SB@
+  if (typeof KeyboardLayoutMap === 'undefined') { return; }
+  const proto = KeyboardLayoutMap.prototype;
+  const table = new Map([@KEYS@]);
+  // What the browser's own methods do with another receiver.
+  function brand(self) {
+    if (!(self instanceof KeyboardLayoutMap)) { throw new TypeError('Illegal invocation'); }
+  }
+  function argument(name, count) {
+    if (count < 1) {
+      throw new TypeError("Failed to execute '" + name + "' on 'KeyboardLayoutMap': 1 argument required, but only 0 present.");
+    }
+  }
+  const entries = sb.native(function entries() { brand(this); return table.entries(); }, 'entries', proto.entries);
+  proto.entries = entries;
+  // On a maplike the iterator is the very function `entries` is.
+  proto[Symbol.iterator] = entries;
+  proto.keys = sb.native(function keys() { brand(this); return table.keys(); }, 'keys', proto.keys);
+  proto.values = sb.native(function values() { brand(this); return table.values(); }, 'values', proto.values);
+  proto.get = sb.native(function get(key) {
+    brand(this); argument('get', arguments.length);
+    return table.get(String(key));
+  }, 'get', proto.get);
+  proto.has = sb.native(function has(key) {
+    brand(this); argument('has', arguments.length);
+    return table.has(String(key));
+  }, 'has', proto.has);
+  proto.forEach = sb.native(function forEach(callback) {
+    brand(this); argument('forEach', arguments.length);
+    if (typeof callback !== 'function') {
+      throw new TypeError("Failed to execute 'forEach' on 'KeyboardLayoutMap': The callback provided as parameter 1 is not a function.");
+    }
+    const thisArg = arguments[1];
+    const self = this;
+    table.forEach(function (value, key) { callback.call(thisArg, value, key, self); });
+  }, 'forEach', proto.forEach);
+  sb.getter(proto, 'size', function () { brand(this); return table.size; });
+})();"##,
+            &[("KEYS", &pairs)],
+        ))
+    }
+}
+
+/// Answers the storage quota with the persona's.
+///
+/// `navigator.storage.estimate()` resolves the browser's own estimate with its
+/// `quota` replaced (the usage and `usageDetails` stay the real ones), and
+/// `navigator.webkitTemporaryStorage.queryUsageAndQuota` calls back with the real
+/// usage and the persona's quota. A Chrome that gives the persistent storage an
+/// object of its own keeps its answer; current Chrome hands out one object for
+/// both names, and then both answer with the persona's quota.
+/// The quota Chrome enforces is not touched: `Storage.overrideQuotaForOrigin`
+/// needs every origin before the page loads it and changes what a page can
+/// really store.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct StorageQuotaProvider;
+
+impl EvasionProvider for StorageQuotaProvider {
+    fn name(&self) -> &str {
+        "storage_quota"
+    }
+    fn priority(&self) -> i32 {
+        105
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.storage_quota().is_value()
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let quota = ctx.fingerprint.storage_quota().value()?;
+        Some(render(
+            r##"(function () {
+  @SB@
+  const quota = @QUOTA@;
+  if (typeof StorageManager !== 'undefined' && typeof StorageManager.prototype.estimate === 'function') {
+    const original = StorageManager.prototype.estimate;
+    StorageManager.prototype.estimate = sb.native(function estimate() {
+      return original.apply(this, arguments).then(function (estimate) {
+        const answer = {};
+        Object.keys(estimate).forEach(function (key) { answer[key] = estimate[key]; });
+        answer.quota = quota;
+        return answer;
+      });
+    }, 'estimate', original);
+  }
+  // The class of `webkitTemporaryStorage` has no global name, so it is reached through an instance.
+  const legacy = navigator.webkitTemporaryStorage ? Object.getPrototypeOf(navigator.webkitTemporaryStorage) : null;
+  if (legacy && typeof legacy.queryUsageAndQuota === 'function') {
+    const originalQuery = legacy.queryUsageAndQuota;
+    legacy.queryUsageAndQuota = sb.native(function queryUsageAndQuota(success, failure) {
+      if (this !== navigator.webkitTemporaryStorage || typeof success !== 'function') {
+        return originalQuery.apply(this, arguments);
+      }
+      return originalQuery.call(this, function (used) { success(used, quota); }, failure);
+    }, 'queryUsageAndQuota', originalQuery);
+  }
+})();"##,
+            &[("QUOTA", &quota.to_string())],
         ))
     }
 }
@@ -1913,7 +2302,8 @@ mod tests {
     use super::*;
     use crate::evasion::fingerprint::{
         BatteryProfile, BrandVersion, ClientHints, ConnectionProfile, Fingerprint,
-        FingerprintBuilder, Geolocation, MediaDevices, Spoof, StealthPolicy, WebRtcAddresses,
+        FingerprintBuilder, Geolocation, KeyboardLayout, MediaDevices, Spoof, StealthPolicy,
+        WebRtcAddresses,
     };
 
     fn ctx_for(fp: &Fingerprint) -> EvasionContext<'_> {
@@ -1955,9 +2345,109 @@ mod tests {
     }
 
     #[test]
+    fn localization_makes_every_intl_constructor_default_to_the_language() {
+        let fp = built(
+            Fingerprint::builder()
+                .locale("ja-JP")
+                .languages("ja-JP,ja;q=0.9"),
+        );
+
+        let script = LocalizationProvider.script(&ctx_for(&fp)).unwrap();
+
+        for name in [
+            "Collator",
+            "NumberFormat",
+            "PluralRules",
+            "RelativeTimeFormat",
+            "ListFormat",
+            "DateTimeFormat",
+            "DisplayNames",
+            "Segmenter",
+        ] {
+            assert!(script.contains(&format!("'{name}'")), "{name}: {script}");
+        }
+        for method in [
+            "toLocaleString",
+            "toLocaleDateString",
+            "toLocaleTimeString",
+            "localeCompare",
+        ] {
+            assert!(script.contains(method), "{method}: {script}");
+        }
+        assert!(script.contains("const first = 'ja-JP';"), "{script}");
+    }
+
+    #[test]
+
+    fn a_phone_persona_loses_the_desktop_only_apis() {
+        let fp = Fingerprint::android_mobile();
+
+        let script = ApiPresenceProvider.script(&ctx_for(&fp)).unwrap();
+
+        for gone in [
+            "navigator.hid",
+            "window.EyeDropper",
+            "window.documentPictureInPicture",
+            "navigator.windowControlsOverlay",
+        ] {
+            assert!(script.contains(gone), "{gone} in {script}");
+        }
+        assert!(
+            !script.contains("navigator.share") && !script.contains("navigator.canShare"),
+            "Chrome on Android has Web Share: {script}"
+        );
+        assert!(ApiPresenceProvider.applies(&fp));
+    }
+
+    #[test]
+    fn a_windows_persona_loses_the_barcode_detector() {
+        let fp = Fingerprint::windows_desktop();
+
+        let script = ApiPresenceProvider.script(&ctx_for(&fp)).unwrap();
+
+        assert!(script.contains("window.BarcodeDetector"), "{script}");
+        assert!(!script.contains("navigator.hid"), "a desktop has WebHID");
+    }
+
+    #[test]
+    fn a_firefox_persona_is_left_alone() {
+        let firefox = built(
+            Fingerprint::builder()
+                .browser_type(BrowserType::Firefox)
+                .os_type(OsType::Linux)
+                .user_agent(
+                    "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0",
+                ),
+        );
+        let no_user_agent = built(Fingerprint::builder().os_type(OsType::Android));
+
+        assert!(!ApiPresenceProvider.applies(&firefox));
+        assert!(
+            !ApiPresenceProvider.applies(&no_user_agent),
+            "without a user agent the persona is the host's own"
+        );
+    }
+
+    #[test]
+    fn the_provider_removes_and_never_adds() {
+        let script = ApiPresenceProvider
+            .script(&ctx_for(&Fingerprint::android_mobile()))
+            .unwrap();
+
+        assert!(script.contains("delete "), "{script}");
+        assert!(
+            !regex::Regex::new(r"(?:navigator|window)\.\w+\s*=[^=]")
+                .unwrap()
+                .is_match(&script),
+            "no API is defined: {script}"
+        );
+    }
+
+    #[test]
+
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 29);
+        assert_eq!(providers.len(), 33);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());
@@ -2006,6 +2496,61 @@ mod tests {
         assert!(!script.contains("__sbVendorId") && !script.contains("__sbRendererId"));
         assert!(!script.contains("0x10de"));
         assert!(!script.contains("0x1f91"));
+    }
+
+    #[test]
+    fn webgpu_names_the_maker_and_the_family_of_the_webgl_renderer() {
+        let fp = Fingerprint::windows_desktop();
+        let script = WebGpuProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const vendor = 'nvidia';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'lovelace';"),
+            "{script}"
+        );
+        assert!(script.contains("const adapterless = false;"), "{script}");
+        assert!(script.contains("GPUAdapterInfo.prototype"));
+    }
+
+    #[test]
+    fn a_mac_persona_has_an_apple_adapter_on_metal_and_a_phone_its_own_gpu() {
+        let script = WebGpuProvider
+            .script(&ctx_for(&Fingerprint::macos_desktop()))
+            .unwrap();
+        assert!(script.contains("const vendor = 'apple';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'metal-3';"),
+            "{script}"
+        );
+
+        let script = WebGpuProvider
+            .script(&ctx_for(&Fingerprint::android_mobile()))
+            .unwrap();
+        assert!(script.contains("const vendor = 'qualcomm';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'adreno-7xx';"),
+            "{script}"
+        );
+    }
+
+    #[test]
+    fn a_linux_persona_with_a_discrete_gpu_has_no_webgpu_adapter() {
+        let fp = Fingerprint::linux_desktop();
+        let script = WebGpuProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const adapterless = true;"), "{script}");
+        assert!(script.contains("requestAdapter"), "{script}");
+    }
+
+    #[test]
+    fn a_renderer_that_names_no_maker_leaves_webgpu_alone() {
+        let fp = windows_with(|b| b.webgl(("Vendor", "Renderer")));
+        assert!(WebGpuProvider.script(&ctx_for(&fp)).is_none());
+        let fp = windows_with(|b| b.webgl(("Google Inc. (Intel)", "Intel(R) Iris(R) Xe Graphics")));
+        let script = WebGpuProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(script.contains("const vendor = 'intel';"), "{script}");
+        assert!(
+            script.contains("const architecture = 'gen-12-lp';"),
+            "{script}"
+        );
     }
 
     #[test]
@@ -2075,6 +2620,135 @@ mod tests {
     }
 
     #[test]
+    fn the_keyboard_script_answers_the_persona_map() {
+        let pair = regex::Regex::new(r"\['[A-Za-z0-9]+', '[^']+'\]").unwrap();
+        let script_of = |fp: &Fingerprint| KeyboardLayoutProvider.script(&ctx_for(fp)).unwrap();
+
+        let german = windows_with(|b| b.locale("de-DE").keyboard_layout(KeyboardLayout::Qwertz));
+        assert!(KeyboardLayoutProvider.applies(&german));
+        let script = script_of(&german);
+        assert_eq!(pair.find_iter(&script).count(), 48, "{script}");
+        assert!(script.contains("['KeyY', 'z']"), "{script}");
+        assert!(script.contains("['KeyZ', 'y']"), "{script}");
+        assert!(script.contains("['Minus', 'ß']"), "{script}");
+        assert!(script.contains("KeyboardLayoutMap.prototype"), "{script}");
+        assert!(
+            script.contains("proto[Symbol.iterator] = entries;"),
+            "the iterator is the function `entries` is: {script}"
+        );
+
+        let french = windows_with(|b| b.keyboard_layout(KeyboardLayout::Azerty));
+        let script = script_of(&french);
+        assert!(script.contains("['KeyQ', 'a']"), "{script}");
+        assert!(
+            script.contains(r#"['Digit3', '"']"#),
+            "a double quote needs no escape in a single-quoted string: {script}"
+        );
+        let american = windows_with(|b| b.keyboard_layout(KeyboardLayout::Qwerty));
+        let script = script_of(&american);
+        assert!(script.contains(r"['Backslash', '\\']"), "{script}");
+        assert!(script.contains(r"['Quote', '\'']"), "{script}");
+    }
+
+    #[test]
+    fn the_keyboard_script_runs_for_a_chromium_persona_with_a_layout_only() {
+        assert!(KeyboardLayoutProvider.applies(&Fingerprint::windows_desktop()));
+        assert!(KeyboardLayoutProvider.applies(&Fingerprint::android_mobile()));
+
+        // No locale, so no layout to claim.
+        let natural = built(Fingerprint::builder().os_type(OsType::Windows));
+        assert!(natural.keyboard_layout().is_natural());
+        assert!(!KeyboardLayoutProvider.applies(&natural));
+        // Safari has no `navigator.keyboard`.
+        assert!(Fingerprint::ios_mobile_safari()
+            .keyboard_layout()
+            .is_value());
+        assert!(!KeyboardLayoutProvider.applies(&Fingerprint::ios_mobile_safari()));
+        // No protocol command delivers it, so native spoofing does not take it over.
+        let native = windows_with(|b| b.native_spoofing(true));
+        assert!(KeyboardLayoutProvider.applies(&native));
+    }
+
+    #[test]
+
+    fn a_phone_gpu_drops_the_desktop_compression_extensions() {
+        let phone = Fingerprint::android_mobile();
+        assert!(
+            phone
+                .webgl()
+                .value()
+                .and_then(|gl| gl.renderer.as_deref())
+                .is_some_and(|renderer| renderer.contains("Adreno")),
+            "the Android preset names a phone GPU"
+        );
+
+        let script = WebglProvider.script(&ctx_for(&phone)).unwrap();
+
+        for name in [
+            "WEBGL_compressed_texture_s3tc",
+            "WEBGL_compressed_texture_s3tc_srgb",
+            "EXT_texture_compression_bptc",
+            "EXT_texture_compression_rgtc",
+        ] {
+            assert!(script.contains(&format!("'{name}'")), "{name}: {script}");
+        }
+        assert!(script.contains("getSupportedExtensions"), "{script}");
+        assert!(script.contains("function getExtension"), "{script}");
+        assert!(
+            script.contains("UNMASKED") || script.contains("37445"),
+            "the renderer strings are still answered: {script}"
+        );
+    }
+
+    #[test]
+    fn a_desktop_gpu_keeps_them() {
+        for desktop in [
+            Fingerprint::windows_desktop(),
+            Fingerprint::macos_desktop(),
+            Fingerprint::linux_desktop(),
+        ] {
+            let script = WebglProvider.script(&ctx_for(&desktop)).unwrap();
+
+            assert!(!script.contains("getSupportedExtensions"), "{script}");
+            assert!(!script.contains("compressed_texture"), "{script}");
+        }
+    }
+
+    #[test]
+
+    fn the_storage_script_carries_the_quota() {
+        let fp = windows_with(|b| b.storage_quota(300_000_000_000_u64));
+        assert!(StorageQuotaProvider.applies(&fp));
+
+        let script = StorageQuotaProvider.script(&ctx_for(&fp)).unwrap();
+
+        assert!(script.contains("const quota = 300000000000;"), "{script}");
+        assert!(
+            script.contains("StorageManager.prototype.estimate = sb.native("),
+            "{script}"
+        );
+        assert!(
+            script.contains("legacy.queryUsageAndQuota = sb.native("),
+            "{script}"
+        );
+        assert!(
+            script.contains("this !== navigator.webkitTemporaryStorage"),
+            "the persistent storage keeps its own answer: {script}"
+        );
+        assert!(
+            script.contains("answer.quota = quota;"),
+            "the usage stays the real one: {script}"
+        );
+
+        let natural = built(Fingerprint::builder().os_type(OsType::Windows));
+        assert!(natural.storage_quota().is_natural());
+        assert!(!StorageQuotaProvider.applies(&natural));
+        // A preset claims a quota, so it runs the provider.
+        assert!(StorageQuotaProvider.applies(&Fingerprint::windows_desktop()));
+    }
+
+    #[test]
+
     fn a_denied_geolocation_answers_permission_denied() {
         let fp = windows_with(|b| b.geolocation(Spoof::Off));
         assert!(GeolocationProvider.applies(&fp));
@@ -2162,6 +2836,34 @@ mod tests {
     }
 
     #[test]
+    fn media_codecs_answers_is_type_supported_and_decoding_info_too() {
+        let fp = Fingerprint::windows_desktop();
+        let script = MediaCodecsProvider.script(&ctx_for(&fp)).unwrap();
+
+        for needle in [
+            "canPlayType",
+            "isTypeSupported",
+            "ManagedMediaSource",
+            "decodingInfo",
+            "powerEfficient",
+        ] {
+            assert!(script.contains(needle), "{needle} in {script}");
+        }
+    }
+
+    #[test]
+
+    fn the_headless_fixes_leave_match_media_to_the_browser() {
+        // A patched `matchMedia` next to `@media` rules that answer the truth is
+        // the `media_query_lie`: the media features go through the protocol.
+        let fp = Fingerprint::windows_desktop();
+        let script = HeadlessProvider.script(&ctx_for(&fp)).unwrap();
+        assert!(!script.contains("matchMedia"), "{script}");
+        assert!(script.contains("visibilityState"), "{script}");
+    }
+
+    #[test]
+
     fn headless_leaves_the_outer_window_size_to_window_geometry() {
         let fp = Fingerprint::windows_desktop();
         let script = HeadlessProvider.script(&ctx_for(&fp)).unwrap();

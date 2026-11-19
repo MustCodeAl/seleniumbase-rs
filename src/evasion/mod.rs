@@ -22,9 +22,9 @@ pub mod uc;
 
 pub use capture::{CapturedFingerprint, ProbeInfo};
 pub use fingerprint::{
-    BatteryProfile, BrandVersion, ClientHints, CoherenceReport, ConnectionProfile, Fingerprint,
-    FingerprintComparison, FingerprintError, HumanizeConfig, SettingDiff, SpeechVoice,
-    StealthPolicy,
+    BatteryProfile, BrandVersion, ClientHints, CoherenceReport, ConnectionProfile, Contradiction,
+    Fingerprint, FingerprintComparison, FingerprintError, HumanizeConfig, SettingDiff, Severity,
+    SpeechVoice, StealthPolicy,
 };
 pub use patcher::{
     engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,

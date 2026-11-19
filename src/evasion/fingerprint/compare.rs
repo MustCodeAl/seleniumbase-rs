@@ -6,11 +6,12 @@ use std::fmt;
 use serde::Serialize;
 use serde_json::{json, Map, Value};
 
-use super::Fingerprint;
+use super::{Contradiction, Fingerprint};
+use crate::evasion::capture::CapturedFingerprint;
 
 /// The names of the settings, in the order of the file. A test keeps this list
 /// equal to the `Spoof` fields of the fingerprint.
-pub(super) const SETTINGS: [&str; 29] = [
+pub(super) const SETTINGS: [&str; 32] = [
     "user_agent",
     "platform",
     "hardware_concurrency",
@@ -25,10 +26,12 @@ pub(super) const SETTINGS: [&str; 29] = [
     "languages",
     "accept_languages",
     "timezone",
+    "keyboard_layout",
     "screen",
     "avail_screen",
     "pixel_ratio",
     "color_depth",
+    "media_features",
     "webgl",
     "media_devices",
     "geolocation",
@@ -37,6 +40,7 @@ pub(super) const SETTINGS: [&str; 29] = [
     "webrtc",
     "battery",
     "connection",
+    "storage_quota",
     "speech_voices",
     "bluetooth",
     "client_hints",
@@ -109,6 +113,52 @@ impl FingerprintComparison {
     }
 }
 
+impl CapturedFingerprint {
+    /// Every pair of surfaces of this capture that disagree with each other,
+    /// loudest first: the rule, the two surfaces, their two values, the persona
+    /// rule they break and why (see [`Contradiction`]).
+    ///
+    /// The persona is the one this capture's own user agent names, so the
+    /// browser is asked whether it agrees with itself, not whether it matches a
+    /// fingerprint: [`compare_to`](Fingerprint::compare_to) answers that. A rule
+    /// whose readings the capture lacks (a worker a page's policy blocked, an
+    /// older reading) says nothing. The rules and the detectors that apply them
+    /// are listed in `docs/design/fingerprint_consistency.md`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::evasion::capture::CapturedFingerprint;
+    /// use serde_json::json;
+    ///
+    /// // A Windows persona whose WebGPU adapter is Apple's: the GPU gives the Mac away.
+    /// let readings = json!({
+    ///     "version": 1,
+    ///     "url": "https://example.test/",
+    ///     "navigator": {
+    ///         "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/155.0.0.0 Safari/537.36",
+    ///     },
+    ///     "webgl": {
+    ///         "supported": true,
+    ///         "unmaskedVendor": "Google Inc. (NVIDIA)",
+    ///         "unmaskedRenderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    ///     },
+    ///     "webgpu": { "supported": true, "adapter": true, "vendor": "apple", "architecture": "metal-3" },
+    /// });
+    /// let captured = CapturedFingerprint::from_probe(&readings, "2026-11-06T12:00:00Z")?;
+    ///
+    /// let found = captured.contradictions();
+    /// assert_eq!(found[0].rule, "webgpu_vs_webgl");
+    /// assert_eq!(found[0].severity.as_str(), "high");
+    /// assert_eq!(found[0].surfaces, ["webgl.renderer", "webgpu.vendor"]);
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    #[must_use]
+    pub fn contradictions(&self) -> Vec<Contradiction> {
+        super::consistency::check(self)
+    }
+}
+
 /// How strictly two readings are compared.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
@@ -160,7 +210,7 @@ impl Fingerprint {
 
     /// Whether the browser a capture was taken in presents this fingerprint:
     /// the settings it claims against `observed`, the fingerprint of a
-    /// [`CapturedFingerprint`](crate::evasion::capture::CapturedFingerprint).
+    /// [`CapturedFingerprint`].
     ///
     /// It is [`diff`](Self::diff) with two differences, so that the answer
     /// cannot overstate. A setting this fingerprint claims that the capture could

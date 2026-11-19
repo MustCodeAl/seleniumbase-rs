@@ -1514,7 +1514,7 @@ expression: text
         "readOnlyHint": true,
         "title": "Compare Fingerprint"
       },
-      "description": "Ask whether the running browser presents a fingerprint (give a fingerprint, a path or a preset): captures what the page shows and lists the settings it contradicts, the ones it matches and the ones no page can read (those are never counted as matches). The text starts with presents: yes|no, verified: yes|no.",
+      "description": "Ask whether the running browser presents a fingerprint (give a fingerprint, a path or a preset): captures what the page shows and lists the settings it contradicts, the ones it matches and the ones no page can read (those are never counted as matches), then the contradictions between two surfaces of the page itself (the WebGPU adapter against the WebGL renderer, a worker against the window), loudest first. The text starts with presents: yes|no, verified: yes|no.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -1546,6 +1546,48 @@ expression: text
         "properties": {
           "claimed": {
             "type": "integer"
+          },
+          "contradictions": {
+            "items": {
+              "properties": {
+                "persona": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "rule": {
+                  "type": "string"
+                },
+                "severity": {
+                  "enum": [
+                    "low",
+                    "medium",
+                    "high"
+                  ],
+                  "type": "string"
+                },
+                "surfaces": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "values": {
+                  "type": "array"
+                }
+              },
+              "required": [
+                "rule",
+                "severity",
+                "surfaces",
+                "values",
+                "persona",
+                "reason"
+              ],
+              "type": "object"
+            },
+            "type": "array"
           },
           "differences": {
             "items": {
@@ -1591,7 +1633,8 @@ expression: text
           "claimed",
           "differences",
           "matched",
-          "unverifiable"
+          "unverifiable",
+          "contradictions"
         ],
         "type": "object"
       },
@@ -1601,7 +1644,7 @@ expression: text
       "annotations": {
         "title": "Explain Fingerprint"
       },
-      "description": "Say what a detection script would find in the running browser: the signs of automation (webdriver flag, headless markers, software renderer ...) with how loudly a detector reacts and what to change, whether the readings agree with each other, and the values a script reads first. Optionally opens url first.",
+      "description": "Say what a detection script would find in the running browser: the signs of automation (webdriver flag, headless markers, software renderer ...) with how loudly a detector reacts and what to change, whether the readings agree with each other (the fingerprint's own coherence, and the contradictions between two surfaces of the page itself: a worker against the window, WebGPU against WebGL), and the values a script reads first. Optionally opens url first.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -1617,6 +1660,12 @@ expression: text
         "properties": {
           "coherence": {
             "type": "object"
+          },
+          "contradictions": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array"
           },
           "detector_view": {
             "type": "object"
@@ -1653,6 +1702,7 @@ expression: text
           "risk",
           "leaks",
           "coherence",
+          "contradictions",
           "detector_view",
           "not_readable"
         ],

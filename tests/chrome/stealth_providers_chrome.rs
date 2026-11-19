@@ -861,6 +861,76 @@ async fn codec_support_is_filled_in_only_for_a_chromium_without_proprietary_code
     lab.close().await;
 }
 
+/// The three answers a page can ask of H.264 and AAC, as one value each: what
+/// `canPlayType`, `MediaSource.isTypeSupported` and `decodingInfo` say.
+const CODEC_ANSWERS: &str = r##"(async () => {
+    const mp4 = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+    const video = document.createElement('video');
+    const info = await navigator.mediaCapabilities.decodingInfo({
+        type: 'file',
+        video: { contentType: 'video/mp4; codecs="avc1.42E01E"', width: 640, height: 360, bitrate: 1e6, framerate: 30 },
+    });
+    return {
+        canPlay: video.canPlayType(mp4) !== '',
+        mediaSource: MediaSource.isTypeSupported(mp4),
+        decoding: info.supported,
+    };
+})()"##;
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_build_without_the_proprietary_codecs_answers_alike_once_patched() {
+    let lab = lab().await;
+    // A Chromium build that cannot play MP4: all three answers say no.
+    lab.eval(
+        r##"(() => {
+        const realDecoding = MediaCapabilities.prototype.decodingInfo;
+        HTMLMediaElement.prototype.canPlayType = function canPlayType() { return ''; };
+        MediaSource.isTypeSupported = function isTypeSupported() { return false; };
+        MediaCapabilities.prototype.decodingInfo = function decodingInfo(config) {
+            return realDecoding.call(this, config).then((info) => (
+                { ...info, supported: false, smooth: false, powerEfficient: false }));
+        };
+        return 1;
+    })()"##,
+    )
+    .await;
+    let crippled = lab.eval(CODEC_ANSWERS).await;
+    assert_eq!(
+        crippled,
+        json!({ "canPlay": false, "mediaSource": false, "decoding": false }),
+        "the stand-in cannot play MP4 in any of the three ways"
+    );
+
+    lab.install(&persona(), &["media_codecs"]).await;
+
+    let after = lab.eval(CODEC_ANSWERS).await;
+    assert_eq!(
+        after,
+        json!({ "canPlay": true, "mediaSource": true, "decoding": true }),
+        "the three answers agree, as in a Chrome with the codecs"
+    );
+    lab.close().await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_codecs_of_a_real_chrome_are_left_alone() {
+    let lab = lab().await;
+    let before = lab.eval(CODEC_ANSWERS).await;
+
+    lab.install(&persona(), &["media_codecs"]).await;
+
+    let after = lab.eval(CODEC_ANSWERS).await;
+    assert_eq!(
+        before, after,
+        "an answer that is already yes is not touched"
+    );
+    lab.close().await;
+}
+
 #[tokio::test]
 #[ignore = "launches a real Chrome"]
 #[serial_test::serial(chrome)]
@@ -1025,4 +1095,396 @@ async fn a_whole_fingerprint_applied_over_cdp_is_consistent() {
     assert_eq!(r["screen"], json!([screen.width, screen.height]));
     assert_eq!(r["cores"], json!(fp.hardware_concurrency().value()));
     lab.close().await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_webgpu_adapter_names_the_gpu_of_the_webgl_renderer() {
+    let lab = lab().await;
+    let probe = r##"(async () => {
+        if (!navigator.gpu) { return { gpu: false }; }
+        const adapter = await navigator.gpu.requestAdapter();
+        if (!adapter) { return { gpu: true, adapter: false }; }
+        const info = adapter.info;
+        return {
+            gpu: true, adapter: true, vendor: info.vendor, architecture: info.architecture,
+            own: Object.getOwnPropertyNames(info),
+            proto: Object.getPrototypeOf(info) === GPUAdapterInfo.prototype,
+        };
+    })()"##;
+    let before = lab.eval(probe).await;
+    if before["adapter"] != json!(true) {
+        println!("this Chrome has no WebGPU adapter, so there is nothing to make agree: {before}");
+        lab.close().await;
+        return;
+    }
+
+    // The Windows preset names an NVIDIA RTX 40 card: the adapter follows it.
+    lab.install(&persona(), &["webgl", "webgpu"]).await;
+    let after = lab.eval(probe).await;
+    assert_eq!(after["vendor"], "nvidia", "{after}");
+    assert_eq!(after["architecture"], "lovelace", "{after}");
+    assert_eq!(
+        after["own"], before["own"],
+        "no property was added to the info"
+    );
+    assert_eq!(
+        after["proto"],
+        json!(true),
+        "the info is still a GPUAdapterInfo"
+    );
+
+    // A Linux persona with a discrete GPU has no WebGPU adapter at all.
+    lab.install(&Fingerprint::linux_desktop(), &["webgl", "webgpu"])
+        .await;
+    let linux = lab.eval(probe).await;
+    assert_eq!(linux["adapter"], json!(false), "{linux}");
+    lab.close().await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_apis_a_persona_lacks_are_gone_and_nothing_is_added() {
+    let lab = lab().await;
+    let names = "(() => ({ \
+        navigator: Object.getOwnPropertyNames(Navigator.prototype), \
+        window: Object.getOwnPropertyNames(window) }))()";
+    let before = lab.eval(names).await;
+    let host_has_hid = lab.eval("'hid' in navigator").await;
+    let share_before = lab.eval("typeof navigator.share").await;
+
+    lab.install(&Fingerprint::android_mobile(), &["api_presence"])
+        .await;
+
+    let after = lab.eval(names).await;
+    let gone: Vec<String> = ["navigator", "window"]
+        .iter()
+        .flat_map(|scope| {
+            let list = |value: &Value| -> HashSet<String> {
+                value[*scope]
+                    .as_array()
+                    .expect("a list of names")
+                    .iter()
+                    .filter_map(|name| name.as_str().map(str::to_owned))
+                    .collect()
+            };
+            let (was, is) = (list(&before), list(&after));
+            assert!(
+                is.is_subset(&was),
+                "{scope}: the provider added {:?}",
+                is.difference(&was).collect::<Vec<_>>()
+            );
+            was.difference(&is).cloned().collect::<Vec<_>>()
+        })
+        .collect();
+    let allowed = [
+        "hid",
+        "serial",
+        "windowControlsOverlay",
+        "contacts",
+        "share",
+        "canShare",
+        "EyeDropper",
+        "documentPictureInPicture",
+        "BarcodeDetector",
+    ];
+    for name in &gone {
+        assert!(
+            allowed.contains(&name.as_str()),
+            "{name} is not an OS API the provider may remove"
+        );
+    }
+    if host_has_hid == json!(true) {
+        assert_eq!(lab.eval("'hid' in navigator").await, json!(false));
+    }
+    assert_eq!(
+        lab.eval("'EyeDropper' in window").await,
+        json!(false),
+        "a phone has no EyeDropper"
+    );
+    assert_eq!(
+        lab.eval("typeof navigator.share").await,
+        share_before,
+        "Chrome on Android has Web Share, so the provider leaves it"
+    );
+    lab.close().await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_language_reaches_intl_in_the_script_mode() {
+    use seleniumbase_rs::evasion::fingerprint::StealthPolicy;
+
+    let lab = lab().await;
+    // No native spoofing: the protocol does not set the locale, so the script must.
+    let ja = persona_with(|b| {
+        b.locale("ja-JP")
+            .languages("ja-JP,ja")
+            .policy(StealthPolicy::default())
+    });
+    assert!(!ja.policy().native_spoofing);
+    lab.install(&ja, &["localization", "timezone"]).await;
+
+    let seen = lab
+        .eval(
+            r##"(() => ({
+        language: navigator.language,
+        dateTimeFormat: Intl.DateTimeFormat().resolvedOptions().locale,
+        numberFormat: new Intl.NumberFormat().resolvedOptions().locale,
+        collator: new Intl.Collator().resolvedOptions().locale === new Intl.Collator('ja-JP').resolvedOptions().locale,
+        pluralRules: new Intl.PluralRules().resolvedOptions().locale === new Intl.PluralRules('ja-JP').resolvedOptions().locale,
+        relativeTimeFormat: new Intl.RelativeTimeFormat().resolvedOptions().locale,
+        segmenter: new Intl.Segmenter().resolvedOptions().locale,
+        number: (1234.5).toLocaleString() === (1234.5).toLocaleString('ja-JP'),
+        date: new Date(0).toLocaleDateString() === new Date(0).toLocaleDateString('ja-JP'),
+        explicit: new Intl.NumberFormat('de-DE').resolvedOptions().locale,
+        instance: new Intl.NumberFormat() instanceof Intl.NumberFormat,
+        looksNative: Intl.NumberFormat.toString().includes('[native code]'),
+    }))()"##,
+        )
+        .await;
+    let captured = lab
+        .page
+        .capture_fingerprint()
+        .await
+        .expect("the capture runs");
+    lab.close().await;
+
+    for key in [
+        "language",
+        "dateTimeFormat",
+        "numberFormat",
+        "relativeTimeFormat",
+        "segmenter",
+    ] {
+        assert_eq!(seen[key], json!("ja-JP"), "{key}: {seen}");
+    }
+    assert_eq!(seen["number"], json!(true), "{seen}");
+    // Chrome has no `ja-JP` data for these two and resolves it to `ja`: the same as it
+    // does for the explicit name, which is what the default must equal.
+    assert_eq!(seen["collator"], json!(true), "{seen}");
+    assert_eq!(seen["pluralRules"], json!(true), "{seen}");
+
+    assert_eq!(seen["date"], json!(true), "{seen}");
+    assert_eq!(
+        seen["explicit"],
+        json!("de-DE"),
+        "a locale the caller names stands: {seen}"
+    );
+    assert_eq!(seen["instance"], json!(true), "{seen}");
+    assert_eq!(seen["looksNative"], json!(true), "{seen}");
+    let intl: Vec<_> = captured
+        .contradictions()
+        .into_iter()
+        .filter(|c| c.rule == "intl_vs_language")
+        .collect();
+    assert!(
+        intl.is_empty(),
+        "the capture finds Intl contradicting the language: {intl:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_layout_map_is_the_persona_s() {
+    use seleniumbase_rs::evasion::fingerprint::KeyboardLayout;
+
+    let lab = lab().await;
+    // Headless Chrome may have no keyboard to ask: then there is nothing to make agree.
+    let ask = "(async () => {
+        if (!navigator.keyboard || !navigator.keyboard.getLayoutMap) { return { map: false, why: 'no navigator.keyboard' }; }
+        try {
+            const map = await navigator.keyboard.getLayoutMap();
+            return { map: true, size: map.size, y: map.get('KeyY') === undefined ? null : map.get('KeyY') };
+        } catch (error) { return { map: false, why: String(error) }; }
+    })()";
+    let before = lab.eval(ask).await;
+    if before["map"] != json!(true) {
+        println!("this Chrome gives no layout map, so there is nothing to make agree: {before}");
+        lab.close().await;
+        return;
+    }
+    println!("the host's own map before the install: {before}");
+
+    let german = persona_with(|b| b.locale("de-DE").keyboard_layout(KeyboardLayout::Qwertz));
+    lab.install(&german, &["keyboard_layout"]).await;
+
+    let seen = lab
+        .eval(
+            r##"(async () => {
+        const map = await navigator.keyboard.getLayoutMap();
+        const proto = KeyboardLayoutMap.prototype;
+        const keys = Array.from(map.keys());
+        const seenByForEach = [];
+        map.forEach(function (value, key, self) { seenByForEach.push(self === map); });
+        let wrongReceiver = null;
+        try { proto.get.call({}, 'KeyY'); } catch (error) { wrongReceiver = String(error); }
+        return {
+            y: map.get('KeyY'), z: map.get('KeyZ'), q: map.get('KeyQ'), minus: map.get('Minus'),
+            has: map.has('Digit1'), hasNot: map.has('Nope'),
+            size: map.size,
+            spread: [...map].length,
+            keys: keys.length,
+            values: Array.from(map.values()).length,
+            forEach: seenByForEach.length, forEachGetsTheMap: seenByForEach.every(Boolean),
+            instance: map instanceof KeyboardLayoutMap,
+            own: Object.getOwnPropertyNames(map),
+            looksNative: [proto.get, proto.has, proto.keys, proto.values, proto.entries, proto.forEach]
+                .every((f) => f.toString().includes('[native code]')),
+            sizeGetter: Object.getOwnPropertyDescriptor(proto, 'size').get.toString().includes('[native code]'),
+            iteratorIsEntries: proto[Symbol.iterator] === proto.entries,
+            wrongReceiver,
+        };
+    })()"##,
+        )
+        .await;
+    lab.close().await;
+
+    assert_eq!(seen["y"], json!("z"), "{seen}");
+    assert_eq!(seen["z"], json!("y"), "{seen}");
+    assert_eq!(seen["q"], json!("q"), "{seen}");
+    assert_eq!(seen["minus"], json!("ß"), "{seen}");
+    assert_eq!(seen["has"], json!(true), "{seen}");
+    assert_eq!(seen["hasNot"], json!(false), "{seen}");
+    for count in ["size", "spread", "keys", "values", "forEach"] {
+        assert_eq!(seen[count], json!(48), "{count}: {seen}");
+    }
+    assert_eq!(seen["forEachGetsTheMap"], json!(true), "{seen}");
+    assert_eq!(seen["instance"], json!(true), "{seen}");
+    assert_eq!(
+        seen["own"],
+        json!([]),
+        "no instance gets a property: {seen}"
+    );
+    assert_eq!(seen["looksNative"], json!(true), "{seen}");
+    assert_eq!(seen["sizeGetter"], json!(true), "{seen}");
+    assert_eq!(seen["iteratorIsEntries"], json!(true), "{seen}");
+    assert!(
+        seen["wrongReceiver"]
+            .as_str()
+            .is_some_and(|error| error.contains("Illegal invocation")),
+        "a stand-in refuses another receiver as the browser's method does: {seen}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn a_phone_gpu_has_no_s3tc() {
+    let lab = lab().await;
+    let read = r##"(() => {
+        const desktop = ['WEBGL_compressed_texture_s3tc', 'WEBKIT_WEBGL_compressed_texture_s3tc',
+            'WEBGL_compressed_texture_s3tc_srgb', 'EXT_texture_compression_bptc',
+            'EXT_texture_compression_rgtc'];
+        const of = (kind) => {
+            const gl = document.createElement('canvas').getContext(kind);
+            if (!gl) { return null; }
+            const list = gl.getSupportedExtensions() || [];
+            return {
+                listed: desktop.filter((name) => list.includes(name)),
+                answered: desktop.filter((name) => gl.getExtension(name) !== null),
+                anyCase: gl.getExtension('webgl_compressed_texture_s3tc') !== null,
+                count: list.length,
+                native: gl.getSupportedExtensions.toString().includes('[native code]')
+                    && gl.getExtension.toString().includes('[native code]'),
+            };
+        };
+        return { webgl: of('webgl'), webgl2: of('webgl2') };
+    })()"##;
+    let before = lab.eval(read).await;
+    println!("the host's own desktop compression before the install: {before}");
+
+    let phone = Fingerprint::android_mobile();
+    lab.install(&phone, &["webgl"]).await;
+    let after = lab.eval(read).await;
+    let captured = lab
+        .page
+        .capture_fingerprint()
+        .await
+        .expect("the capture runs");
+    lab.close().await;
+
+    for kind in ["webgl", "webgl2"] {
+        if before[kind].is_null() {
+            continue;
+        }
+        let (was, is) = (&before[kind], &after[kind]);
+        assert_eq!(is["listed"], json!([]), "{kind}: {after}");
+        assert_eq!(is["answered"], json!([]), "{kind}: {after}");
+        assert_eq!(is["anyCase"], json!(false), "{kind}: {after}");
+        assert_eq!(is["native"], json!(true), "{kind}: {after}");
+        let dropped = was["listed"].as_array().map_or(0, Vec::len);
+        assert_eq!(
+            is["count"].as_u64().map(|count| count + dropped as u64),
+            was["count"].as_u64(),
+            "{kind}: only the desktop compression left the list: {before} then {after}"
+        );
+    }
+    let found: Vec<_> = captured
+        .contradictions()
+        .into_iter()
+        .filter(|c| c.rule == "webgl_extensions_vs_renderer")
+        .collect();
+    assert!(
+        found.is_empty(),
+        "the capture finds the extension list contradicting the renderer: {found:?}"
+    );
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn the_quota_is_the_persona_s_in_both_apis() {
+    let lab = lab().await;
+    let read = r##"(async () => {
+        const estimate = await navigator.storage.estimate();
+        const ask = (storage) => new Promise((resolve) => storage.queryUsageAndQuota(
+            (used, granted) => resolve({ used, granted }), () => resolve(null)));
+        return {
+            quota: estimate.quota, usage: estimate.usage, keys: Object.keys(estimate),
+            temporary: await ask(navigator.webkitTemporaryStorage),
+            persistent: await ask(navigator.webkitPersistentStorage),
+            sameObject: navigator.webkitTemporaryStorage === navigator.webkitPersistentStorage,
+            native: StorageManager.prototype.estimate.toString().includes('[native code]')
+                && Object.getPrototypeOf(navigator.webkitTemporaryStorage).queryUsageAndQuota.toString().includes('[native code]'),
+        };
+    })()"##;
+    let before = lab.eval(read).await;
+    println!("the host's own quota before the install: {before}");
+
+    let persona = persona_with(|b| b.storage_quota(300_000_000_000_u64));
+    lab.install(&persona, &["storage_quota"]).await;
+    let after = lab.eval(read).await;
+    lab.close().await;
+
+    assert_eq!(after["quota"], json!(300_000_000_000_u64), "{after}");
+    assert_eq!(
+        after["temporary"]["granted"],
+        json!(300_000_000_000_u64),
+        "{after}"
+    );
+    assert_eq!(after["usage"], before["usage"], "the usage is the real one");
+    assert_eq!(
+        after["temporary"]["used"], before["temporary"]["used"],
+        "the usage is the real one"
+    );
+    assert_eq!(
+        after["keys"], before["keys"],
+        "the answer has the same keys"
+    );
+    if before["sameObject"] == json!(true) {
+        // This Chrome hands out one object for both names, so there is no telling them apart:
+        // both give the persona's quota, as both gave the host's.
+        assert_eq!(after["persistent"], after["temporary"], "{after}");
+    } else {
+        assert_eq!(
+            after["persistent"], before["persistent"],
+            "the persistent storage keeps its own answer"
+        );
+    }
+    assert_eq!(after["native"], json!(true), "{after}");
 }

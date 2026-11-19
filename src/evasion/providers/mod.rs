@@ -452,17 +452,30 @@ mod tests {
             (
                 "user_agent",
                 |b| b.user_agent("Mozilla/5.0"),
-                &["navigator_props"],
+                &["navigator_props", "api_presence"],
             ),
             (
                 "hardware_concurrency",
                 |b| b.hardware_concurrency(8),
                 &["navigator_props"],
             ),
-            ("locale", |b| b.locale("de-DE"), &["localization"]),
+            (
+                "locale",
+                |b| b.locale("de-DE"),
+                &["localization", "keyboard_layout"],
+            ),
+            (
+                "keyboard_layout",
+                |b| b.keyboard_layout(KeyboardLayout::Azerty),
+                &["keyboard_layout"],
+            ),
             ("timezone", |b| b.timezone("Europe/Berlin"), &["timezone"]),
             ("screen", |b| b.screen(1440, 900), &["window_geometry"]),
-            ("webgl", |b| b.webgl(("Vendor", "Renderer")), &["webgl"]),
+            (
+                "webgl",
+                |b| b.webgl(("Vendor", "Renderer")),
+                &["webgl", "webgpu"],
+            ),
             (
                 "geolocation",
                 |b| b.geolocation((52.5, 13.4)),
@@ -504,6 +517,11 @@ mod tests {
                 "connection",
                 |b| b.connection(ConnectionProfile::default()),
                 &["connection"],
+            ),
+            (
+                "storage_quota",
+                |b| b.storage_quota(300_000_000_000_u64),
+                &["storage_quota"],
             ),
             (
                 "speech_voices",
@@ -589,8 +607,11 @@ mod tests {
         for name in [
             "navigator_props",
             "webgl",
+            "webgpu",
             "window_geometry",
             "timezone",
+            "keyboard_layout",
+            "storage_quota",
             "battery",
             "client_hints",
         ] {
@@ -620,7 +641,7 @@ mod tests {
 
     use crate::evasion::fingerprint::{
         AudioNoise, BatteryProfile, BrandVersion, CanvasNoise, ClientHints, ConnectionProfile,
-        FingerprintBuilder, SpeechVoice, Spoof, StealthPolicy,
+        FingerprintBuilder, KeyboardLayout, SpeechVoice, Spoof, StealthPolicy,
     };
 
     /// The names a page reads to find a replaced list, flag or network report
@@ -763,8 +784,11 @@ mod tests {
         chrome_runtime_passes_the_audit => "chrome_runtime",
         navigator_props_passes_the_audit => "navigator_props",
         permissions_passes_the_audit => "permissions",
+        api_presence_passes_the_audit => "api_presence",
+
         window_geometry_passes_the_audit => "window_geometry",
         webgl_passes_the_audit => "webgl",
+        webgpu_passes_the_audit => "webgpu",
         canvas_noise_passes_the_audit => "canvas_noise",
         audio_noise_passes_the_audit => "audio_noise",
         webrtc_passes_the_audit => "webrtc",
@@ -780,6 +804,8 @@ mod tests {
         timezone_passes_the_audit => "timezone",
         localization_passes_the_audit => "localization",
         geolocation_passes_the_audit => "geolocation",
+        keyboard_layout_passes_the_audit => "keyboard_layout",
+        storage_quota_passes_the_audit => "storage_quota",
         hairline_passes_the_audit => "hairline",
         iframe_passes_the_audit => "iframe",
         attach_shadow_passes_the_audit => "attach_shadow",

@@ -19,7 +19,7 @@ use std::collections::HashMap;
 use base64::Engine;
 
 use crate::evasion::fingerprint::{
-    BrandVersion, Dimension, Fingerprint, OsType, QuicMode, WebRtcPolicy,
+    BrandVersion, Dimension, Fingerprint, OsType, QuicMode, WebRtcPolicy, TASKBAR_HEIGHT,
 };
 use crate::evasion::providers::{default_registry, session_registry, EvasionContext};
 use crate::evasion::randomize::{chromium_hints, edge_hints, PRESET_CHROMIUM_MAJOR};
@@ -239,6 +239,48 @@ pub fn switches_to_args<'a>(switches: impl IntoIterator<Item = (&'a str, &'a str
         .collect()
 }
 
+/// The height Chrome's tab strip and toolbar take from a maximized window on
+/// `os`, in CSS pixels, without a bookmarks bar. A phone's browser has none.
+pub(crate) const fn browser_frame_height(os: OsType) -> u32 {
+    match os {
+        OsType::Windows => 87,
+        OsType::Macos => 80,
+        OsType::Linux => 85,
+        OsType::Android | OsType::Ios => 0,
+    }
+}
+
+/// The window a launch gives `fp`, or `None` when the fingerprint has no screen.
+///
+/// A phone's window is its screen. A desktop's is a maximized browser window:
+/// the screen's width and the available height less the browser's frame (tab
+/// strip and toolbar), so the page never fills the whole screen, which no
+/// headed desktop browser shows. The available height is the fingerprint's
+/// `avail_screen`, else the screen less a taskbar.
+pub fn window_size(fp: &Fingerprint) -> Option<(u32, u32)> {
+    let screen = fp.screen().value()?;
+    let os = fp.os_type();
+    if os.is_mobile() {
+        return Some((screen.width, screen.height));
+    }
+    let available = fp.avail_screen().value().map_or_else(
+        || screen.height.saturating_sub(TASKBAR_HEIGHT),
+        |avail| avail.height,
+    );
+    Some((
+        screen.width,
+        available.saturating_sub(browser_frame_height(os)),
+    ))
+}
+
+/// Whether the persona's browser has a PDF viewer: `navigator.pdfViewerEnabled`
+/// and the five PDF entries of `navigator.plugins`. A phone persona's has not,
+/// as Chrome on Android lists no plugins; every other persona's has.
+#[must_use]
+pub fn pdf_viewer_enabled(fp: &Fingerprint) -> bool {
+    !(fp.os_type().is_mobile() && fp.is_masked(Dimension::Navigator))
+}
+
 /// Returns Chromium command-line arguments derived from a fingerprint.
 pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     let mut args = vec![
@@ -285,8 +327,8 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
         args.push(format!("--lang={locale}"));
     }
 
-    if let Some(size) = fp.screen().value() {
-        args.push(format!("--window-size={},{}", size.width, size.height));
+    if let Some((width, height)) = window_size(fp) {
+        args.push(format!("--window-size={width},{height}"));
     }
 
     // The policy flag is only passed when WebRTC is masked, which a policy,
@@ -370,14 +412,52 @@ pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Val
     }
 
     if let Some(size) = fp.screen().value() {
+        // A phone is a phone-sized page: its viewport is its screen. A desktop
+        // persona keeps the viewport its window has: the viewport fields are `0`,
+        // which the protocol reads as "no override", and the screen goes in
+        // `screenWidth` and `screenHeight`, so the browser itself reports
+        // `screen.width` and `screen.height`.
+        let mobile = fp.os_type().is_mobile();
+        let (width, height) = if mobile {
+            (size.width, size.height)
+        } else {
+            (0, 0)
+        };
         map.insert(
             "Emulation.setDeviceMetricsOverride".to_owned(),
             serde_json::json!({
-                "width": size.width,
-                "height": size.height,
+                "width": width,
+                "height": height,
+                "screenWidth": size.width,
+                "screenHeight": size.height,
                 "deviceScaleFactor": fp.pixel_ratio().value().copied().unwrap_or(1.0),
-                "mobile": fp.os_type().is_mobile(),
+                "mobile": mobile,
             }),
+        );
+    }
+
+    // A phone has a touch screen: touch events, its touch points and, through
+    // Chrome's touch emulation, a coarse pointer that cannot hover.
+    if fp.os_type().is_mobile() && fp.is_masked(Dimension::Navigator) {
+        let points = fp
+            .max_touch_points()
+            .value()
+            .copied()
+            .filter(|points| *points > 0)
+            .unwrap_or(5);
+        map.insert(
+            "Emulation.setTouchEmulationEnabled".to_owned(),
+            serde_json::json!({ "enabled": true, "maxTouchPoints": points }),
+        );
+    }
+
+    // The display's gamut and the user's preferences: one command that
+    // `matchMedia` and `@media` rules both obey. A script patch could change
+    // only `matchMedia`, which is a contradiction of its own.
+    if let Some(features) = fp.media_features().value() {
+        map.insert(
+            "Emulation.setEmulatedMedia".to_owned(),
+            serde_json::json!({ "features": features.emulated() }),
         );
     }
 
@@ -407,6 +487,13 @@ pub(crate) fn raw_overrides(fp: &Fingerprint) -> HashMap<String, serde_json::Val
         map.insert(
             "Emulation.setLocaleOverride".to_owned(),
             serde_json::json!({ "locale": locale }),
+        );
+    }
+
+    if let Some(cores) = fp.hardware_concurrency().value() {
+        map.insert(
+            "Emulation.setHardwareConcurrencyOverride".to_owned(),
+            serde_json::json!({ "hardwareConcurrency": cores }),
         );
     }
 
@@ -561,7 +648,7 @@ fn build_user_agent_metadata(fp: &Fingerprint, ua: &str) -> Option<serde_json::V
         OsType::Windows => ("x86", "10.0.0", "", fp.platform().as_str() == Some("Win64")),
         OsType::Macos => ("arm", "27.0.1", "", false),
         OsType::Linux => ("x86", "", "", false),
-        OsType::Android => ("arm", "14.0.0", "Pixel 7", true),
+        OsType::Android => ("", "14.0.0", "Pixel 7", true),
         OsType::Ios => ("arm", "26.0", "iPhone", true),
     };
     let (brands, full_version_list, full_version) = if ua.contains("Chrome") {
@@ -762,6 +849,65 @@ mod tests {
         let map = raw_overrides(&fp);
         assert!(map.contains_key("Emulation.setDeviceMetricsOverride"));
         assert!(map.contains_key("Emulation.setGeolocationOverride"));
+    }
+
+    #[test]
+    fn a_desktop_window_is_the_available_screen_less_the_browser_frame() {
+        // The screen less the 40 pixels of a taskbar, less the 87 of Chrome's
+        // tab strip and toolbar on Windows.
+        assert_eq!(
+            window_size(&Fingerprint::windows_desktop()),
+            Some((1920, 953))
+        );
+        // The screen less 40, less the 80 of Chrome's frame on macOS.
+        assert_eq!(
+            window_size(&Fingerprint::macos_desktop()),
+            Some((1920, 960))
+        );
+        // An available screen the fingerprint gives replaces the default 40.
+        let fp = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .screen(2560, 1440)
+                .avail_screen((2560, 1400)),
+        );
+        assert_eq!(window_size(&fp), Some((2560, 1313)));
+        assert!(
+            launch_args(&Fingerprint::windows_desktop())
+                .contains(&"--window-size=1920,953".to_owned()),
+            "the launch writes the same window"
+        );
+    }
+
+    #[test]
+    fn a_phone_window_is_its_screen() {
+        let phone = Fingerprint::android_mobile();
+        let screen = phone.screen().value().expect("a phone has a screen");
+        let size = (screen.width, screen.height);
+
+        assert_eq!(window_size(&phone), Some(size));
+        assert!(launch_args(&phone).contains(&format!("--window-size={},{}", size.0, size.1)));
+    }
+
+    #[test]
+    fn a_fingerprint_without_a_screen_gives_no_window() {
+        assert_eq!(window_size(&built(Fingerprint::builder())), None);
+    }
+
+    #[test]
+    fn the_core_count_is_also_a_protocol_override() {
+        let map = raw_overrides(&Fingerprint::windows_desktop());
+        assert_eq!(
+            map.get("Emulation.setHardwareConcurrencyOverride"),
+            Some(&serde_json::json!({ "hardwareConcurrency": 8 })),
+            "the Windows preset's eight cores are sent as a command"
+        );
+
+        let none = raw_overrides(&built(Fingerprint::builder()));
+        assert!(
+            !none.contains_key("Emulation.setHardwareConcurrencyOverride"),
+            "a fingerprint that sets no core count sends none"
+        );
     }
 
     /// The names in the `Browser.grantPermissions` override, if there is one.
@@ -968,6 +1114,104 @@ mod tests {
             meta.get("platformVersion").and_then(|v| v.as_str()),
             Some("14.0.0")
         );
+    }
+
+    #[test]
+    fn a_desktop_screen_is_reported_without_a_viewport_override() {
+        let map = raw_overrides(&Fingerprint::windows_desktop());
+
+        assert_eq!(
+            map.get("Emulation.setDeviceMetricsOverride"),
+            Some(&serde_json::json!({
+                "width": 0,
+                "height": 0,
+                "screenWidth": 1920,
+                "screenHeight": 1080,
+                "deviceScaleFactor": 1.0,
+                "mobile": false,
+            })),
+            "the browser reports the screen itself and the page keeps its window's viewport"
+        );
+    }
+
+    #[test]
+    fn media_features_are_one_emulated_media_override() {
+        let map = raw_overrides(&Fingerprint::macos_desktop());
+
+        let media = map
+            .get("Emulation.setEmulatedMedia")
+            .expect("the display and preferences are one override");
+        let features: Vec<(&str, &str)> = media["features"]
+            .as_array()
+            .expect("a features array")
+            .iter()
+            .map(|f| (f["name"].as_str().unwrap(), f["value"].as_str().unwrap()))
+            .collect();
+        assert_eq!(
+            features,
+            [
+                ("color-gamut", "p3"),
+                ("prefers-color-scheme", "light"),
+                ("prefers-reduced-motion", "no-preference"),
+                ("prefers-reduced-transparency", "no-preference"),
+                ("prefers-contrast", "no-preference"),
+                ("forced-colors", "none"),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_fingerprint_without_media_features_sends_no_emulated_media() {
+        assert!(!raw_overrides(&Fingerprint::default()).contains_key("Emulation.setEmulatedMedia"));
+    }
+
+    #[test]
+
+    fn a_phone_persona_has_no_pdf_viewer() {
+        assert!(!pdf_viewer_enabled(&Fingerprint::android_mobile()));
+        assert!(!pdf_viewer_enabled(&Fingerprint::ios_mobile_safari()));
+        assert!(pdf_viewer_enabled(&Fingerprint::windows_desktop()));
+        assert!(
+            pdf_viewer_enabled(&Fingerprint::default()),
+            "a fingerprint that claims nothing leaves the browser's viewer"
+        );
+    }
+
+    #[test]
+
+    fn a_phone_persona_turns_touch_emulation_on_with_its_touch_points() {
+        let phone = Fingerprint::android_mobile();
+        let map = raw_overrides(&phone);
+
+        let touch = map
+            .get("Emulation.setTouchEmulationEnabled")
+            .expect("a phone persona turns touch emulation on");
+        assert_eq!(touch["enabled"], true);
+        let points = phone.max_touch_points().value().copied().unwrap_or(5);
+        assert_eq!(touch["maxTouchPoints"], points);
+    }
+
+    #[test]
+    fn a_desktop_persona_leaves_touch_alone() {
+        let map = raw_overrides(&Fingerprint::windows_desktop());
+
+        assert!(!map.contains_key("Emulation.setTouchEmulationEnabled"));
+    }
+
+    #[test]
+
+    fn a_phone_screen_is_its_viewport() {
+        let phone = Fingerprint::android_mobile();
+        let map = raw_overrides(&phone);
+
+        let metrics = map
+            .get("Emulation.setDeviceMetricsOverride")
+            .expect("device metrics override");
+        assert_eq!(metrics["width"], 412);
+        assert_eq!(metrics["height"], 915);
+        assert_eq!(metrics["screenWidth"], 412);
+        assert_eq!(metrics["screenHeight"], 915);
+        assert_eq!(metrics["mobile"], true);
     }
 
     #[test]

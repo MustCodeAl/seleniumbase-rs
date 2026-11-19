@@ -53,6 +53,8 @@ use super::fingerprint::{
     BatteryProfile, BrandVersion, BrowserType, ClientHints, ConnectionProfile, Fingerprint,
     FingerprintBuilder, MediaDevices, ScreenSize, SpeechVoice, StealthPolicy, WebGl,
 };
+use super::fingerprint::{ColorGamut, ColorScheme, Contrast, KeyboardLayout, MediaFeatures};
+
 use super::js::capture_js::CAPTURE_JS;
 use super::spoof::Spoof;
 use crate::error::SeleniumBaseError;
@@ -77,7 +79,8 @@ pub fn capture_async_script() -> String {
         "var sbrsDone = arguments[arguments.length - 1];\n\
          (async function () {{\n{CAPTURE_JS}\n}})().then(sbrsDone, function (error) {{\n\
          sbrsDone({{ version: {PROBE_VERSION}, failure: String((error && error.message) || error) }});\n\
-         }});"
+         }});",
+
     )
 }
 
@@ -110,12 +113,17 @@ pub struct ProbeInfo {
 pub struct CapturedFingerprint {
     /// Every setting the page answered, as a value; the rest stay `Natural`.
     pub fingerprint: Fingerprint,
-    /// The readings that have no setting, as the capture script returned them
+    /// The readings no setting holds, and the raw readings the consistency rules compare (`media_features` also makes the setting of that name), as the capture script returned them
     /// (their nested keys keep the script's spelling): `secure_context`,
     /// `webdriver`, `plugins_length`, `mime_types_length`, `cookie_enabled`,
     /// `do_not_track`, `pdf_viewer_enabled`, `pixel_depth`, `orientation`, `window`,
     /// `time_zone_offset_minutes`, `intl_locale`, `webgl_info`, `connection_type`,
-    /// `permissions`, `canvas_hash`, `audio_hash` and `headless_markers`. Two more
+    /// `permissions`, `canvas_hash`, `audio_hash`, `headless_markers`, and the
+    /// surfaces the consistency rules read ([`contradictions`](Self::contradictions)):
+    /// `global_privacy_control`, `screen_is_extended`, `time_zone_offsets`,
+    /// `intl_locales`, `intl_samples`, `webgl_extensions`, `webgl_limits`, `engine`,
+    /// `notification_permission`, `media_features`, `css_media`, `codecs`, `webgpu`,
+    /// `keyboard`, `storage`, `features`, `worker`, `frame` and `fonts_seen`. Two more
     /// say what went wrong: `errors` (a reading that threw) and `unanswered`
     /// (a setting the page could not answer, with the reason).
     pub unmapped: Map<String, Value>,
@@ -252,6 +260,18 @@ struct RawProbe {
     canvas_hash: Option<String>,
     audio_hash: Option<String>,
     headless: Vec<String>,
+    engine: Option<Value>,
+    notification_permission: Option<String>,
+    media_features: Option<Value>,
+    css_media: Option<Value>,
+    codecs: Option<Value>,
+    webgpu: Option<Value>,
+    keyboard: Option<Value>,
+    storage: Option<Value>,
+    features: Option<Value>,
+    worker: Option<Value>,
+    frame: Option<Value>,
+    fonts: Option<Value>,
     errors: Map<String, Value>,
 }
 
@@ -277,6 +297,7 @@ struct RawNavigator {
     cookie_enabled: Option<bool>,
     do_not_track: Option<String>,
     pdf_viewer_enabled: Option<bool>,
+    global_privacy_control: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -290,6 +311,7 @@ struct RawScreen {
     pixel_depth: Option<f64>,
     device_pixel_ratio: Option<f64>,
     orientation: Option<Value>,
+    is_extended: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -298,6 +320,11 @@ struct RawIntl {
     time_zone: Option<String>,
     locale: Option<String>,
     offset_minutes: Option<f64>,
+    january_offset_minutes: Option<f64>,
+    july_offset_minutes: Option<f64>,
+    date_string: Option<String>,
+    number_sample: Option<String>,
+    locales: Option<Value>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -309,6 +336,13 @@ struct RawWebGl {
     shading_language_version: Option<String>,
     unmasked_vendor: Option<String>,
     unmasked_renderer: Option<String>,
+    max_texture_size: Option<f64>,
+    max_renderbuffer_size: Option<f64>,
+    max_viewport_dims: Option<Value>,
+    max_vertex_uniform_vectors: Option<f64>,
+    aliased_line_width_range: Option<Value>,
+    extensions: Option<Vec<String>>,
+    webgl2: Option<bool>,
 }
 
 #[derive(Debug, Default, Deserialize)]
@@ -547,8 +581,102 @@ impl RawProbe {
         }
 
         builder = self.map_graphics(builder, unanswered);
+        builder = self.map_media(builder, unanswered);
+        builder = self.map_keyboard(builder, unanswered);
+        builder = self.map_storage(builder, unanswered);
+
         builder = self.map_devices(builder, unanswered);
         builder = self.map_client_hints(builder, unanswered);
+        builder
+    }
+
+    /// The display and preferences the page read through `matchMedia`: all six
+    /// features read as known words make the `media_features` setting; a
+    /// reading with a feature missing or unknown leaves the setting to the
+    /// browser and says so. A probe with no media reading at all is silent: the
+    /// script that wrote it did not read them.
+    fn map_media(
+        &self,
+        builder: FingerprintBuilder,
+        unanswered: &mut Map<String, Value>,
+    ) -> FingerprintBuilder {
+        let Some(media) = self.media_features.as_ref().and_then(Value::as_object) else {
+            return builder;
+        };
+        match media_features_of(media) {
+            Some(features) => builder.media_features(features),
+            None => {
+                note_unanswered(
+                    unanswered,
+                    "media_features",
+                    Some("a media feature was not read as a known value"),
+                );
+                builder
+            }
+        }
+    }
+
+    /// The layout of the keyboard map the page read: the letters of its sample
+    /// name one of the three layouts of the setting. A reading that does not (a
+    /// browser with no `navigator.keyboard`, a map that failed to load, a layout
+    /// none of the three) leaves the setting to the browser and says why. A probe
+    /// with no keyboard reading at all is silent: the script that wrote it did
+    /// not read one.
+    fn map_keyboard(
+        &self,
+        builder: FingerprintBuilder,
+        unanswered: &mut Map<String, Value>,
+    ) -> FingerprintBuilder {
+        let Some(reading) = self.keyboard.as_ref().and_then(Value::as_object) else {
+            return builder;
+        };
+        let layout = reading
+            .get("sample")
+            .and_then(Value::as_object)
+            .and_then(KeyboardLayout::of_sample);
+        if let Some(layout) = layout {
+            return builder.keyboard_layout(layout);
+        }
+        let reason = if let Some(why) = reading.get("unknown").and_then(Value::as_str) {
+            why
+        } else if reading.get("supported") == Some(&Value::Bool(false)) {
+            "the browser has no navigator.keyboard"
+        } else {
+            "the keyboard map is none of the layouts the setting names"
+        };
+        note_unanswered(unanswered, "keyboard_layout", Some(reason));
+        builder
+    }
+
+    /// The quota `navigator.storage.estimate()` reported: a finite number of at
+    /// least one byte makes the `storage_quota` setting. A browser with no
+    /// `navigator.storage`, or an estimate that failed or gave no number, leaves
+    /// the setting to the browser and says why. A probe with no storage reading
+    /// at all is silent: the script that wrote it did not read one.
+    fn map_storage(
+        &self,
+        builder: FingerprintBuilder,
+        unanswered: &mut Map<String, Value>,
+    ) -> FingerprintBuilder {
+        let Some(reading) = self.storage.as_ref().and_then(Value::as_object) else {
+            return builder;
+        };
+        // Whole bytes a page can count: up to 2^53 - 1, the last exact integer of a double.
+        let quota = reading
+            .get("quota")
+            .and_then(Value::as_f64)
+            .filter(|n| n.is_finite() && (1.0..=9_007_199_254_740_991.0).contains(n));
+        if let Some(quota) = quota {
+            return builder.storage_quota(quota.round() as u64);
+        }
+        let reason = if let Some(why) = reading.get("unknown").and_then(Value::as_str) {
+            why
+        } else if reading.get("supported") == Some(&Value::Bool(false)) {
+            "the browser has no navigator.storage"
+        } else {
+            "the storage estimate gave no quota"
+        };
+        note_unanswered(unanswered, "storage_quota", Some(reason));
         builder
     }
 
@@ -785,6 +913,23 @@ impl RawProbe {
                 })),
             );
         }
+        if let Reading::Present(gl) = &self.webgl {
+            put("webgl_extensions", gl.extensions.clone().map(Value::from));
+            put(
+                "webgl_limits",
+                gl.max_texture_size.map(|size| {
+                    json!({
+                        "max_texture_size": json_number(size),
+                        "max_renderbuffer_size": gl.max_renderbuffer_size.map(json_number),
+                        "max_viewport_dims": gl.max_viewport_dims,
+                        "max_vertex_uniform_vectors": gl.max_vertex_uniform_vectors.map(json_number),
+                        "aliased_line_width_range": gl.aliased_line_width_range,
+                        "webgl2": gl.webgl2,
+                    })
+                }),
+            );
+        }
+
         if let Reading::Present(link) = &self.connection {
             put("connection_type", link.kind.clone().map(Value::from));
         }
@@ -794,6 +939,45 @@ impl RawProbe {
         put("canvas_hash", self.canvas_hash.clone().map(Value::from));
         put("audio_hash", self.audio_hash.clone().map(Value::from));
         put("headless_markers", Some(json!(self.headless)));
+        put(
+            "global_privacy_control",
+            nav.global_privacy_control.map(Value::from),
+        );
+        if let Some(screen) = &self.screen {
+            put("screen_is_extended", screen.is_extended.map(Value::from));
+        }
+        if let Some(intl) = &self.intl {
+            if let (Some(january), Some(july)) =
+                (intl.january_offset_minutes, intl.july_offset_minutes)
+            {
+                put(
+                    "time_zone_offsets",
+                    Some(json!({ "january": json_number(january), "july": json_number(july) })),
+                );
+            }
+            put("intl_locales", intl.locales.clone());
+            if intl.date_string.is_some() || intl.number_sample.is_some() {
+                put(
+                    "intl_samples",
+                    Some(json!({ "date": intl.date_string, "number": intl.number_sample })),
+                );
+            }
+        }
+        put("engine", self.engine.clone());
+        put(
+            "notification_permission",
+            self.notification_permission.clone().map(Value::from),
+        );
+        put("media_features", self.media_features.clone());
+        put("css_media", self.css_media.clone());
+        put("codecs", self.codecs.clone());
+        put("webgpu", self.webgpu.clone());
+        put("keyboard", self.keyboard.clone());
+        put("storage", self.storage.clone());
+        put("features", self.features.clone());
+        put("worker", self.worker.clone());
+        put("frame", self.frame.clone());
+        put("fonts_seen", self.fonts.clone());
         if !self.errors.is_empty() {
             put("errors", Some(Value::Object(self.errors.clone())));
         }
@@ -812,6 +996,44 @@ fn json_number(number: f64) -> Value {
     } else {
         Value::from(number)
     }
+}
+
+/// The six media features of the setting from a `mediaFeatures` reading, or
+/// `None` when one is missing or is not a word its feature has.
+fn media_features_of(media: &Map<String, Value>) -> Option<MediaFeatures> {
+    let read = |feature: &str| media.get(feature).and_then(Value::as_str);
+    let reduce = |feature: &str| match read(feature)? {
+        "reduce" => Some(true),
+        "no-preference" => Some(false),
+        _ => None,
+    };
+    Some(MediaFeatures {
+        color_gamut: match read("color-gamut")? {
+            "srgb" => ColorGamut::Srgb,
+            "p3" => ColorGamut::P3,
+            "rec2020" => ColorGamut::Rec2020,
+            _ => return None,
+        },
+        color_scheme: match read("prefers-color-scheme")? {
+            "light" => ColorScheme::Light,
+            "dark" => ColorScheme::Dark,
+            _ => return None,
+        },
+        reduced_motion: reduce("prefers-reduced-motion")?,
+        reduced_transparency: reduce("prefers-reduced-transparency")?,
+        contrast: match read("prefers-contrast")? {
+            "no-preference" => Contrast::NoPreference,
+            "more" => Contrast::More,
+            "less" => Contrast::Less,
+            "custom" => Contrast::Custom,
+            _ => return None,
+        },
+        forced_colors: match read("forced-colors")? {
+            "none" => false,
+            "active" => true,
+            _ => return None,
+        },
+    })
 }
 
 /// Records why a setting was left to the browser.
@@ -839,6 +1061,70 @@ mod tests {
         include_str!("../../tests/fixtures/fingerprint/probe_chrome_real_headless.json");
 
     const AT: &str = "2026-10-18T12:00:00Z";
+    /// A Windows preset applied in JavaScript alone to a headless Chrome on a
+    /// Mac: every surface the settings reach says Windows, every other one
+    /// says Mac. Written by hand from a real capture of each half.
+    const WINDOWS_ON_MAC: &str =
+        include_str!("../../tests/fixtures/fingerprint/probe_chrome_windows_on_mac.json");
+
+    #[test]
+    fn the_consistency_readings_reach_unmapped_under_their_own_keys() {
+        let captured = capture(WINDOWS_ON_MAC);
+
+        for key in [
+            "webgpu",
+            "worker",
+            "frame",
+            "features",
+            "media_features",
+            "css_media",
+            "codecs",
+            "keyboard",
+            "storage",
+            "fonts_seen",
+            "engine",
+            "notification_permission",
+            "intl_locales",
+            "intl_samples",
+            "time_zone_offsets",
+            "webgl_extensions",
+            "webgl_limits",
+            "global_privacy_control",
+            "screen_is_extended",
+        ] {
+            assert!(captured.unmapped.contains_key(key), "{key} is missing");
+        }
+        assert_eq!(captured.unmapped["webgpu"]["vendor"], json!("apple"));
+        assert_eq!(
+            captured.unmapped["time_zone_offsets"],
+            json!({ "january": 300, "july": 240 })
+        );
+        assert_eq!(
+            captured.unmapped["webgl_limits"]["max_texture_size"],
+            json!(16384)
+        );
+        assert_eq!(
+            captured.unmapped["webgl_extensions"]
+                .as_array()
+                .map(Vec::len),
+            Some(16)
+        );
+        assert_eq!(captured.unmapped["global_privacy_control"], json!(false));
+        assert_eq!(captured.unmapped["screen_is_extended"], json!(false));
+        assert_eq!(
+            captured.unmapped["worker"]["hardwareConcurrency"],
+            json!(10)
+        );
+    }
+
+    #[test]
+    fn a_reading_without_the_consistency_surfaces_has_none_of_their_keys() {
+        let captured = capture(CHROME_MACOS);
+
+        for key in ["webgpu", "worker", "frame", "features", "time_zone_offsets"] {
+            assert!(!captured.unmapped.contains_key(key), "{key} is there");
+        }
+    }
 
     #[test]
     fn the_capture_time_is_rfc_3339_in_utc_with_whole_seconds() {
@@ -1037,6 +1323,175 @@ mod tests {
     }
 
     #[test]
+    fn the_media_features_reading_becomes_the_setting() {
+        let captured = capture(WINDOWS_ON_MAC);
+
+        assert_eq!(
+            captured.fingerprint.media_features().value(),
+            Some(&MediaFeatures::new(ColorGamut::P3))
+        );
+        assert!(
+            captured.unmapped.contains_key("media_features"),
+            "the raw reading stays for the consistency rules"
+        );
+        assert!(!captured.unmapped.contains_key("unanswered"));
+    }
+
+    #[test]
+    fn a_dark_reduced_motion_reading_maps_each_feature() {
+        let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+        raw["mediaFeatures"]["prefers-color-scheme"] = json!("dark");
+        raw["mediaFeatures"]["prefers-reduced-motion"] = json!("reduce");
+        raw["mediaFeatures"]["prefers-contrast"] = json!("more");
+        raw["mediaFeatures"]["forced-colors"] = json!("active");
+
+        let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+        assert_eq!(
+            captured.fingerprint.media_features().value(),
+            Some(&MediaFeatures {
+                color_scheme: ColorScheme::Dark,
+                reduced_motion: true,
+                contrast: Contrast::More,
+                forced_colors: true,
+                ..MediaFeatures::new(ColorGamut::P3)
+            })
+        );
+    }
+
+    #[test]
+    fn a_partial_media_reading_is_unanswered() {
+        let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+        raw["mediaFeatures"]["prefers-contrast"] = Value::Null;
+
+        let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+        assert!(captured.fingerprint.media_features().is_natural());
+        assert!(
+            captured.unmapped["unanswered"]["media_features"].is_string(),
+            "{:?}",
+            captured.unmapped
+        );
+    }
+
+    #[test]
+    fn a_fingerprint_with_the_captured_media_features_lists_them_as_matched() {
+        let claimed = Fingerprint::builder()
+            .media_features(MediaFeatures::new(ColorGamut::P3))
+            .build()
+            .unwrap();
+        let seen = capture(WINDOWS_ON_MAC).fingerprint;
+
+        let comparison = claimed.compare_to(&seen);
+
+        assert!(
+            comparison.matched.contains(&"media_features"),
+            "{comparison:?}"
+        );
+    }
+
+    #[test]
+
+    fn the_keyboard_sample_becomes_the_layout() {
+        let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+        raw["keyboard"]["sample"]["KeyY"] = json!("z");
+        raw["keyboard"]["sample"]["KeyZ"] = json!("y");
+
+        let german = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+        let american = capture(WINDOWS_ON_MAC);
+
+        assert_eq!(
+            german.fingerprint.keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwertz),
+            "the page's own map names the layout, not the locale"
+        );
+        assert_eq!(
+            american.fingerprint.keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwerty)
+        );
+        assert!(!german.unmapped.contains_key("unanswered"));
+        assert!(
+            german.unmapped.contains_key("keyboard"),
+            "the raw reading stays for the consistency rules"
+        );
+    }
+
+    #[test]
+    fn a_keyboard_the_page_could_not_read_is_unanswered() {
+        let unreadable =
+            json!({ "supported": true, "size": 48, "sample": { "KeyQ": "й", "KeyY": "н" } });
+        for (reading, why) in [
+            (json!({ "supported": false }), "no navigator.keyboard"),
+            (
+                json!({ "unknown": "the keyboard map could not be read" }),
+                "could not be read",
+            ),
+            (unreadable, "none of the layouts"),
+        ] {
+            let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+            raw["keyboard"] = reading;
+
+            let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+            let reasons = captured.unanswered();
+            let found = reasons
+                .iter()
+                .find(|(setting, _)| *setting == "keyboard_layout");
+            assert!(
+                found.is_some_and(|(_, reason)| reason.contains(why)),
+                "{why}: {reasons:?}"
+            );
+        }
+    }
+
+    #[test]
+
+    fn the_quota_reading_becomes_the_setting() {
+        let captured = capture(WINDOWS_ON_MAC);
+
+        assert_eq!(
+            captured.fingerprint.storage_quota().value(),
+            Some(&299_977_052_160)
+        );
+        assert!(!captured.unmapped.contains_key("unanswered"));
+        assert!(
+            captured.unmapped.contains_key("storage"),
+            "the raw reading stays for the consistency rules"
+        );
+    }
+
+    #[test]
+    fn a_storage_the_page_could_not_read_is_unanswered() {
+        for (reading, why) in [
+            (json!({ "supported": false }), "no navigator.storage"),
+            (
+                json!({ "unknown": "the storage quota could not be read" }),
+                "could not be read",
+            ),
+            (
+                json!({ "supported": true, "quota": null, "usage": 0 }),
+                "gave no quota",
+            ),
+        ] {
+            let mut raw: Value = serde_json::from_str(WINDOWS_ON_MAC).unwrap();
+            raw["storage"] = reading;
+
+            let captured = CapturedFingerprint::from_probe(&raw, AT).unwrap();
+
+            assert!(captured.fingerprint.storage_quota().is_natural());
+            let reasons = captured.unanswered();
+            let found = reasons
+                .iter()
+                .find(|(setting, _)| *setting == "storage_quota");
+            assert!(
+                found.is_some_and(|(_, reason)| reason.contains(why)),
+                "{why}: {reasons:?}"
+            );
+        }
+    }
+
+    #[test]
+
     fn the_readings_without_a_setting_are_kept() {
         let unmapped = capture(CHROME_MACOS).unmapped;
 
@@ -1262,9 +1717,19 @@ mod tests {
             "fetch(",
             "XMLHttpRequest",
             "innerHTML",
-            "appendChild",
         ] {
             assert!(!script.contains(forbidden), "the script uses {forbidden}");
         }
+
+        // The script may hold a node in the page while it measures (a style
+        // sheet for the @media readings, an about:blank frame, a span for the
+        // fonts) and takes every one out again before it returns.
+        let appended = script.matches("appendChild(").count();
+        assert_eq!(appended, 3, "the script appends {appended} nodes");
+        assert_eq!(
+            script.matches(".remove();").count(),
+            appended,
+            "every node the script appends is removed in a finally block"
+        );
     }
 }
