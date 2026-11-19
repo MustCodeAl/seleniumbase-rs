@@ -16,6 +16,13 @@ all-features = true
 # Each ignore needs a rationale and, where the fix is upstream, a pointer to
 # what we are waiting on.
 ignore = [
+    # RUSTSEC-2026-0543: chrono unmaintained (an announcement, not a
+    # vulnerability). Reached through rmcp and schemars (the MCP servers) and
+    # async-imap (the imap plugin), and named by this crate directly. Waiting on
+    # those crates to move off it; our own use moves to jiff, which we already
+    # depend on.
+    "RUSTSEC-2026-0543",
+
     # RUSTSEC-2025-0141: bincode 1.x unmaintained. Reached only through
     # printpdf -> azul-layout -> hyphenation, and printpdf is a
     # dev-dependency, so this never ships in the library or the binaries.
