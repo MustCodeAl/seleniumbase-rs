@@ -154,7 +154,7 @@ pub async fn serve(profile: Profile) -> Result<(), SeleniumBaseError> {
 
 /// [`serve`] with `settings` instead of the ones the environment gives, such
 /// as the plugins the operator chose
-/// ([`Settings::with_plugin_selection`]).
+/// ([`SettingsBuilder::plugin_selection`]).
 ///
 /// # Errors
 ///

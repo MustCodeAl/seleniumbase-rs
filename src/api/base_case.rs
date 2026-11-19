@@ -288,7 +288,7 @@ impl BaseCase {
     /// The pauses that demo mode and slow mode have made so far, oldest first,
     /// so a test can say which actions paused, and how, without timing them.
     /// A pause is listed when the mode is on, whatever its length
-    /// ([`RunSettings::with_demo_sleep`]).
+    /// ([`RunSettingsBuilder::demo_sleep`](crate::RunSettingsBuilder::demo_sleep)).
     #[cfg(any(test, feature = "test-util"))]
     #[must_use]
     pub fn demo_pauses(&self) -> Vec<PauseKind> {
@@ -437,7 +437,7 @@ impl BaseCase {
     /// [time limit](Self::set_time_limit). Returns at once if the run settings
     /// skip the JavaScript waits.
     /// The wait is `ceil(multiplier * seconds)` with the run settings'
-    /// [timeout multiplier](RunSettings::with_timeout_multiplier). Once the
+    /// [timeout multiplier](crate::RunSettingsBuilder::timeout_multiplier). Once the
     /// page is ready, the run settings' page-load hooks run (see
     /// [`open`](Self::open)).
     ///
@@ -926,11 +926,11 @@ impl BaseCase {
     /// `"https://seleniumbase.io"` are equivalent.
     ///
     /// Once the page has loaded, the run settings' page-load hooks run, unless
-    /// they skip the JavaScript waits ([`RunSettings::with_skip_js_waits`]): the
-    /// AngularJS wait ([`RunSettings::with_wait_for_angularjs`]), the check of
-    /// the browser log for JavaScript errors ([`RunSettings::with_check_js`])
+    /// they skip the JavaScript waits ([`RunSettingsBuilder::skip_js_waits`](crate::RunSettingsBuilder::skip_js_waits)): the
+    /// AngularJS wait ([`RunSettingsBuilder::wait_for_angularjs`](crate::RunSettingsBuilder::wait_for_angularjs)), the check of
+    /// the browser log for JavaScript errors ([`RunSettingsBuilder::check_js`](crate::RunSettingsBuilder::check_js))
     /// and the switch-off of the `beforeunload` dialog
-    /// ([`RunSettings::with_disable_beforeunload`]). The last two apply to
+    /// ([`RunSettingsBuilder::disable_beforeunload`](crate::RunSettingsBuilder::disable_beforeunload)). The last two apply to
     /// Chromium-based browsers only. `go_back`, `go_forward`, `refresh` and
     /// [`wait_for_ready_state_complete`](Self::wait_for_ready_state_complete)
     /// run them too.
@@ -1872,7 +1872,7 @@ impl BaseCase {
 
     /// Pauses execution for `seconds`.
     ///
-    /// With [`RunSettings::with_record_sleep`] on, the pause goes into the
+    /// With [`RunSettingsBuilder::record_sleep`](crate::RunSettingsBuilder::record_sleep) on, the pause goes into the
     /// recording as a `sleep` action.
     pub async fn sleep(&self, seconds: f64) {
         if self.run_settings.record_sleep() {
@@ -2648,7 +2648,7 @@ impl BaseCase {
     /// baseline's is a difference too. The screenshot is saved for a person to
     /// look at and is not compared, so a repainted pixel is no difference. The
     /// `baseline`, `check_domain` and `full_diff` arguments are not ported;
-    /// [`RunSettings::with_visual_baseline_reset`] sets the baseline again.
+    /// [`RunSettingsBuilder::reset_visual_baseline`](crate::RunSettingsBuilder::reset_visual_baseline) sets the baseline again.
     ///
     /// # Errors
     ///
@@ -2691,7 +2691,7 @@ impl BaseCase {
     /// `cart.checkout.renders`, so tests of the same name in other modules or
     /// files keep separate baselines. (`check_window` names its folder after
     /// the function alone, as Python does.)
-    /// [`RunSettings::with_visual_baseline_reset`] saves new baselines instead
+    /// [`RunSettingsBuilder::reset_visual_baseline`](crate::RunSettingsBuilder::reset_visual_baseline) saves new baselines instead
     /// of comparing. For another folder or threshold, use a
     /// [`VisualBaseline`](crate::visual::VisualBaseline) with
     /// [`check_page`](crate::visual::VisualBaseline::check_page).
@@ -3237,7 +3237,7 @@ impl BaseCase {
     /// default [`set_timeout`](Self::set_timeout) and
     /// [`set_default_timeout`](Self::set_default_timeout) set (10 until either
     /// is called), made `ceil(multiplier * seconds)` by the run settings'
-    /// [timeout multiplier](RunSettings::with_timeout_multiplier), then cut
+    /// [timeout multiplier](crate::RunSettingsBuilder::timeout_multiplier), then cut
     /// to the time the test has left if it has a
     /// [time limit](Self::set_time_limit).
     fn default_wait_secs(&self) -> u64 {

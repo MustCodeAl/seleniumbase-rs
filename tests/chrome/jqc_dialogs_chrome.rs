@@ -242,7 +242,7 @@ async fn nobody_answering_ends_with_the_time_limit() {
 #[serial_test::serial(chrome)]
 async fn in_a_headless_browser_the_dialogs_do_not_open() {
     let _guard = BROWSER_LOCK.lock().await;
-    // No `with_somebody_watching`: nobody watches a headless browser.
+    // No `somebody_watching`: nobody watches a headless browser.
     let mut sb = BaseCase::new(test_config())
         .await
         .expect("connect to browser");

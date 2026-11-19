@@ -1,7 +1,7 @@
 //! Real-browser checks of the run settings that hook into a page load or a
 //! wait: `--check-js`, `--disable-beforeunload` and `--timeout-multiplier`
-//! (`RunSettings::with_check_js`, `with_disable_beforeunload`,
-//! `with_timeout_multiplier`). The same settings are checked against a mock
+//! (`RunSettingsBuilder::check_js`, `disable_beforeunload`,
+//! `timeout_multiplier`). The same settings are checked against a mock
 //! WebDriver in `src/api/base_case_impls/base_case_impl_driver_tests.rs`.
 //!
 //! These tests are ignored by default. Run them locally with Chrome installed:
