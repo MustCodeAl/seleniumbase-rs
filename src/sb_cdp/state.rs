@@ -559,28 +559,7 @@ impl Emulation {
 ///
 /// Chrome's own setting decides it unless
 /// [`Emulation::color_scheme`] overrides it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-#[non_exhaustive]
-pub enum ColorScheme {
-    /// `(prefers-color-scheme: light)` matches.
-    Light,
-    /// `(prefers-color-scheme: dark)` matches.
-    Dark,
-    /// No override: the browser's own setting decides again.
-    NoPreference,
-}
-
-impl ColorScheme {
-    /// The value `Emulation.setEmulatedMedia` takes for the feature. An empty
-    /// value clears the override.
-    pub(crate) const fn media_value(self) -> &'static str {
-        match self {
-            Self::Light => "light",
-            Self::Dark => "dark",
-            Self::NoPreference => "",
-        }
-    }
-}
+pub use crate::evasion::settings::ColorScheme;
 
 impl Emulation {
     /// Gives the tab a screen of `metrics.width` by `metrics.height` CSS
@@ -647,7 +626,9 @@ impl Emulation {
 
     /// Makes the page's `prefers-color-scheme` media query report `scheme`
     /// (`Emulation.setEmulatedMedia`); [`ColorScheme::NoPreference`] removes
-    /// the override.
+    /// the override. One `Emulation.setEmulatedMedia` holds every media feature, so this
+    /// also replaces the ones a fingerprint set (see
+    /// [`MediaFeatures`](crate::evasion::fingerprint::MediaFeatures)): it sends the one feature.
     ///
     /// # Errors
     ///

@@ -23,6 +23,10 @@ use serde::{Deserialize, Serialize};
 use super::fingerprint::MediaDeviceSpec;
 use super::spoof::Spoof;
 
+/// What a desktop's taskbar or menu bar takes from the height of the screen
+/// when a fingerprint gives no available screen, in CSS pixels.
+pub(crate) const TASKBAR_HEIGHT: u32 = 40;
+
 /// A screen size in CSS pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -50,6 +54,312 @@ impl From<(u32, u32)> for ScreenSize {
 impl From<(u32, u32)> for Spoof<ScreenSize> {
     fn from(size: (u32, u32)) -> Self {
         Self::Value(size.into())
+    }
+}
+
+/// What `matchMedia` and `@media` rules report about the display and the
+/// user's preferences. The pointer and hover features belong to the device:
+/// a phone persona's touch emulation gives them.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(default, deny_unknown_fields)]
+pub struct MediaFeatures {
+    /// `color-gamut`: the widest gamut the display covers.
+    pub color_gamut: ColorGamut,
+    /// `prefers-color-scheme`.
+    pub color_scheme: ColorScheme,
+    /// `prefers-reduced-motion: reduce`.
+    pub reduced_motion: bool,
+    /// `prefers-reduced-transparency: reduce`.
+    pub reduced_transparency: bool,
+    /// `prefers-contrast`.
+    pub contrast: Contrast,
+    /// `forced-colors: active`, Windows high contrast.
+    pub forced_colors: bool,
+}
+
+impl Default for MediaFeatures {
+    fn default() -> Self {
+        Self::new(ColorGamut::Srgb)
+    }
+}
+
+impl MediaFeatures {
+    /// The features of a display that covers `color_gamut`, with no preference set.
+    #[must_use]
+    pub const fn new(color_gamut: ColorGamut) -> Self {
+        Self {
+            color_gamut,
+            color_scheme: ColorScheme::Light,
+            reduced_motion: false,
+            reduced_transparency: false,
+            contrast: Contrast::NoPreference,
+            forced_colors: false,
+        }
+    }
+
+    /// The `features` array of `Emulation.setEmulatedMedia` for these values,
+    /// one `{ "name", "value" }` per feature, in the order of the fields.
+    pub(crate) fn emulated(&self) -> serde_json::Value {
+        let reduce = |on: bool| if on { "reduce" } else { "no-preference" };
+        serde_json::json!([
+            { "name": "color-gamut", "value": self.color_gamut.media_value() },
+            { "name": "prefers-color-scheme", "value": self.color_scheme.media_value() },
+            { "name": "prefers-reduced-motion", "value": reduce(self.reduced_motion) },
+            {
+                "name": "prefers-reduced-transparency",
+                "value": reduce(self.reduced_transparency)
+            },
+            { "name": "prefers-contrast", "value": self.contrast.media_value() },
+            {
+                "name": "forced-colors",
+                "value": if self.forced_colors { "active" } else { "none" }
+            },
+        ])
+    }
+}
+
+/// The `color-gamut` a display covers.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum ColorGamut {
+    /// `srgb`: the gamut of an ordinary desktop display.
+    #[default]
+    Srgb,
+    /// `p3`: a Retina Mac or a recent phone.
+    P3,
+    /// `rec2020`.
+    Rec2020,
+}
+
+impl ColorGamut {
+    /// The value `Emulation.setEmulatedMedia` takes for `color-gamut`.
+    pub(crate) const fn media_value(self) -> &'static str {
+        match self {
+            Self::Srgb => "srgb",
+            Self::P3 => "p3",
+            Self::Rec2020 => "rec2020",
+        }
+    }
+}
+
+/// `prefers-contrast`.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+pub enum Contrast {
+    /// No preference.
+    #[default]
+    NoPreference,
+    /// `more`.
+    More,
+    /// `less`.
+    Less,
+    /// `custom`.
+    Custom,
+}
+
+impl Contrast {
+    /// The value `Emulation.setEmulatedMedia` takes for `prefers-contrast`.
+    pub(crate) const fn media_value(self) -> &'static str {
+        match self {
+            Self::NoPreference => "no-preference",
+            Self::More => "more",
+            Self::Less => "less",
+            Self::Custom => "custom",
+        }
+    }
+}
+
+/// The colour scheme a page's `prefers-color-scheme` media query reports.
+///
+/// Chrome's own setting decides it unless
+/// `Emulation::color_scheme` of the `sb_cdp` engine or a
+/// fingerprint's [`MediaFeatures`] overrides it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum ColorScheme {
+    /// `(prefers-color-scheme: light)` matches.
+    Light,
+    /// `(prefers-color-scheme: dark)` matches.
+    Dark,
+    /// No override: the browser's own setting decides again.
+    NoPreference,
+}
+
+impl ColorScheme {
+    /// The value `Emulation.setEmulatedMedia` takes for the feature. An empty
+    /// value clears the override.
+    pub(crate) const fn media_value(self) -> &'static str {
+        match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+            Self::NoPreference => "",
+        }
+    }
+}
+
+/// The layout `navigator.keyboard.getLayoutMap()` reports: the character each
+/// writing-system key types, unshifted. The maps are Windows's own layouts
+/// (KBDUS, KBDGR, KBDFR); a Mac's punctuation keys differ a little.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+#[non_exhaustive]
+pub enum KeyboardLayout {
+    /// The US layout, used for English and most of the world.
+    Qwerty,
+    /// The German layout, used in central Europe.
+    Qwertz,
+    /// The French layout.
+    Azerty,
+}
+
+/// The 48 key codes of a map, in the order the three layouts list them.
+const KEY_CODES: [&str; 48] = [
+    "Backquote",
+    "Digit1",
+    "Digit2",
+    "Digit3",
+    "Digit4",
+    "Digit5",
+    "Digit6",
+    "Digit7",
+    "Digit8",
+    "Digit9",
+    "Digit0",
+    "Minus",
+    "Equal",
+    "KeyQ",
+    "KeyW",
+    "KeyE",
+    "KeyR",
+    "KeyT",
+    "KeyY",
+    "KeyU",
+    "KeyI",
+    "KeyO",
+    "KeyP",
+    "BracketLeft",
+    "BracketRight",
+    "Backslash",
+    "KeyA",
+    "KeyS",
+    "KeyD",
+    "KeyF",
+    "KeyG",
+    "KeyH",
+    "KeyJ",
+    "KeyK",
+    "KeyL",
+    "Semicolon",
+    "Quote",
+    "IntlBackslash",
+    "KeyZ",
+    "KeyX",
+    "KeyC",
+    "KeyV",
+    "KeyB",
+    "KeyN",
+    "KeyM",
+    "Comma",
+    "Period",
+    "Slash",
+];
+
+/// Pairs each code of [`KEY_CODES`] with the key a layout types on it.
+const fn pair_keys(keys: [&'static str; 48]) -> [(&'static str, &'static str); 48] {
+    let mut pairs = [("", ""); 48];
+    let mut i = 0;
+    while i < 48 {
+        pairs[i] = (KEY_CODES[i], keys[i]);
+        i += 1;
+    }
+    pairs
+}
+
+/// KBDUS, unshifted.
+const QWERTY_KEYS: [(&str, &str); 48] = pair_keys([
+    "`", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "=", "q", "w", "e", "r", "t", "y",
+    "u", "i", "o", "p", "[", "]", "\\", "a", "s", "d", "f", "g", "h", "j", "k", "l", ";", "'",
+    "\\", "z", "x", "c", "v", "b", "n", "m", ",", ".", "/",
+]);
+
+/// KBDGR, unshifted.
+const QWERTZ_KEYS: [(&str, &str); 48] = pair_keys([
+    "^", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "ß", "´", "q", "w", "e", "r", "t", "z",
+    "u", "i", "o", "p", "ü", "+", "#", "a", "s", "d", "f", "g", "h", "j", "k", "l", "ö", "ä", "<",
+    "y", "x", "c", "v", "b", "n", "m", ",", ".", "-",
+]);
+
+/// KBDFR, unshifted.
+const AZERTY_KEYS: [(&str, &str); 48] = pair_keys([
+    "²", "&", "é", "\"", "'", "(", "-", "è", "_", "ç", "à", ")", "=", "a", "z", "e", "r", "t", "y",
+    "u", "i", "o", "p", "^", "$", "*", "q", "s", "d", "f", "g", "h", "j", "k", "l", "m", "ù", "<",
+    "w", "x", "c", "v", "b", "n", ",", ";", ":", "!",
+]);
+
+impl KeyboardLayout {
+    /// The layout a machine set up for `locale` has, when its language has one
+    /// that everybody uses: German and the languages of central Europe
+    /// (`de`, `cs`, `sk`, `hu`, `sl`, `hr`) QWERTZ, French AZERTY except in
+    /// Canada and Switzerland, and `en`, `es`, `it`, `pt`, `nl`, `pl`, `sv`,
+    /// `da`, `nb`, `fi`, `ja`, `ko` and `zh` QWERTY; `None` otherwise.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::evasion::fingerprint::KeyboardLayout;
+    ///
+    /// assert_eq!(KeyboardLayout::for_locale("de-DE"), Some(KeyboardLayout::Qwertz));
+    /// assert_eq!(KeyboardLayout::for_locale("fr-CA"), None);
+    /// ```
+    #[must_use]
+    pub fn for_locale(locale: &str) -> Option<Self> {
+        let mut parts = locale.split(['-', '_']);
+        let language = parts.next().unwrap_or_default().to_ascii_lowercase();
+        let region = parts.next_back().unwrap_or_default().to_ascii_uppercase();
+        match language.as_str() {
+            "de" | "cs" | "sk" | "hu" | "sl" | "hr" => Some(Self::Qwertz),
+            "fr" if region != "CA" && region != "CH" => Some(Self::Azerty),
+            "en" | "es" | "it" | "pt" | "nl" | "pl" | "sv" | "da" | "nb" | "fi" | "ja" | "ko"
+            | "zh" => Some(Self::Qwerty),
+            _ => None,
+        }
+    }
+
+    /// The layout's name in lower case, as the capture and the reports write it.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Qwerty => "qwerty",
+            Self::Qwertz => "qwertz",
+            Self::Azerty => "azerty",
+        }
+    }
+
+    /// The 48 keys of the map, `(code, key)`.
+    #[must_use]
+    pub const fn keys(self) -> &'static [(&'static str, &'static str); 48] {
+        match self {
+            Self::Qwerty => &QWERTY_KEYS,
+            Self::Qwertz => &QWERTZ_KEYS,
+            Self::Azerty => &AZERTY_KEYS,
+        }
+    }
+
+    /// The layout a sample of a map is, read from `KeyQ`, `KeyY`, `KeyZ` and `KeyA`.
+    pub(crate) fn of_sample(sample: &serde_json::Map<String, serde_json::Value>) -> Option<Self> {
+        let key = |code: &str| sample.get(code).and_then(serde_json::Value::as_str);
+        match (key("KeyQ"), key("KeyY"), key("KeyZ"), key("KeyA")) {
+            (Some("a"), _, _, Some("q")) => Some(Self::Azerty),
+            (Some("q"), Some("z"), Some("y"), _) => Some(Self::Qwertz),
+            (Some("q"), Some("y"), Some("z"), _) => Some(Self::Qwerty),
+            _ => None,
+        }
     }
 }
 
@@ -289,6 +599,115 @@ impl From<Vec<MediaDeviceSpec>> for Spoof<MediaDevices> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn each_layout_has_48_keys_and_types_its_letters() {
+        for layout in [
+            KeyboardLayout::Qwerty,
+            KeyboardLayout::Qwertz,
+            KeyboardLayout::Azerty,
+        ] {
+            let keys = layout.keys();
+            let mut codes: Vec<&str> = keys.iter().map(|(code, _)| *code).collect();
+            codes.sort_unstable();
+            codes.dedup();
+            assert_eq!(keys.len(), 48);
+            assert_eq!(codes.len(), 48, "{layout:?} repeats a code");
+        }
+        let key = |layout: KeyboardLayout, code: &str| {
+            layout
+                .keys()
+                .iter()
+                .find(|(c, _)| *c == code)
+                .map(|(_, key)| *key)
+        };
+        assert_eq!(key(KeyboardLayout::Qwerty, "KeyY"), Some("y"));
+        assert_eq!(key(KeyboardLayout::Qwertz, "KeyY"), Some("z"));
+        assert_eq!(key(KeyboardLayout::Qwertz, "KeyZ"), Some("y"));
+        assert_eq!(key(KeyboardLayout::Azerty, "KeyQ"), Some("a"));
+        assert_eq!(key(KeyboardLayout::Azerty, "KeyA"), Some("q"));
+    }
+
+    #[test]
+    fn for_locale_picks_the_layout_of_the_language() {
+        assert_eq!(
+            KeyboardLayout::for_locale("de-DE"),
+            Some(KeyboardLayout::Qwertz)
+        );
+        assert_eq!(
+            KeyboardLayout::for_locale("fr-FR"),
+            Some(KeyboardLayout::Azerty)
+        );
+        assert_eq!(KeyboardLayout::for_locale("fr-CA"), None);
+        assert_eq!(
+            KeyboardLayout::for_locale("en-GB"),
+            Some(KeyboardLayout::Qwerty)
+        );
+        assert_eq!(KeyboardLayout::for_locale("ru-RU"), None);
+    }
+
+    #[test]
+    fn a_sample_of_a_map_names_its_layout() {
+        for layout in [
+            KeyboardLayout::Qwerty,
+            KeyboardLayout::Qwertz,
+            KeyboardLayout::Azerty,
+        ] {
+            let sample: serde_json::Map<String, serde_json::Value> = layout
+                .keys()
+                .iter()
+                .map(|(code, key)| ((*code).to_owned(), serde_json::json!(key)))
+                .collect();
+            assert_eq!(KeyboardLayout::of_sample(&sample), Some(layout));
+        }
+    }
+
+    #[test]
+    fn media_features_serialize_with_their_css_words() {
+        let features = MediaFeatures {
+            color_scheme: ColorScheme::Dark,
+            contrast: Contrast::NoPreference,
+            ..MediaFeatures::new(ColorGamut::P3)
+        };
+
+        let json = serde_json::to_value(features).unwrap();
+
+        assert_eq!(json["color_gamut"], "p3");
+        assert_eq!(json["color_scheme"], "dark");
+        assert_eq!(json["contrast"], "no-preference");
+        let again: MediaFeatures = serde_json::from_value(json).unwrap();
+        assert_eq!(again, features);
+    }
+
+    #[test]
+    fn media_features_become_one_emulated_media_array_in_field_order() {
+        let features = MediaFeatures {
+            reduced_motion: true,
+            forced_colors: true,
+            contrast: Contrast::More,
+            ..MediaFeatures::new(ColorGamut::Rec2020)
+        };
+
+        let emulated = features.emulated();
+
+        let pairs: Vec<(&str, &str)> = emulated
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|f| (f["name"].as_str().unwrap(), f["value"].as_str().unwrap()))
+            .collect();
+        assert_eq!(
+            pairs,
+            [
+                ("color-gamut", "rec2020"),
+                ("prefers-color-scheme", "light"),
+                ("prefers-reduced-motion", "reduce"),
+                ("prefers-reduced-transparency", "no-preference"),
+                ("prefers-contrast", "more"),
+                ("forced-colors", "active"),
+            ]
+        );
+    }
 
     #[test]
     fn a_tuple_is_the_value_of_the_setting_it_names() {

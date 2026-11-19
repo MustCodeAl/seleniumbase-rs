@@ -128,7 +128,7 @@ pub struct StealthPolicy {
     pub native_tostring: bool,
     /// Install the `window.chrome` runtime, app, `csi` and `loadTimes` stubs.
     pub chrome_runtime: bool,
-    /// Apply the headless fixes: `matchMedia`, permissions consistency, page
+    /// Apply the headless fixes: permissions consistency, page
     /// visibility and the hairline media query.
     pub headless_fixes: bool,
     /// Grant common browser permissions at start so permission prompts, a

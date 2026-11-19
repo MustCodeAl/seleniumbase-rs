@@ -39,6 +39,9 @@ same fingerprint from the same readings.
 | `navigator.language`, `navigator.languages` | `locale`, `languages` (and `accept_languages`, derived: see below) |
 | `Intl.DateTimeFormat().resolvedOptions().timeZone` | `timezone` |
 | `screen.width`/`height`, `availWidth`/`availHeight`, `colorDepth`, `devicePixelRatio` | `screen`, `avail_screen`, `color_depth`, `pixel_ratio` |
+| `matchMedia` for `color-gamut`, `prefers-color-scheme`, `prefers-reduced-motion`, `prefers-reduced-transparency`, `prefers-contrast`, `forced-colors` | `media_features`; one feature missing or unknown leaves it `Natural` and says why under `unanswered` (the raw readings stay under `media_features` and `css_media`) |
+| `navigator.keyboard.getLayoutMap()`, read from `KeyQ`, `KeyY`, `KeyZ` and `KeyA` | `keyboard_layout`; a browser with no `navigator.keyboard`, a map that did not load or a layout none of the three leaves it unanswered (the raw sample stays under `keyboard`). `build()` still fills the layout from a locale, so an unanswered capture carries the locale's layout and says it was not read |
+| `navigator.storage.estimate().quota` | `storage_quota`; no `navigator.storage`, an estimate that failed or one with no number leaves it unanswered (the raw reading stays under `storage`) |
 | WebGL `UNMASKED_VENDOR_WEBGL`, `UNMASKED_RENDERER_WEBGL` | `webgl` |
 | `navigator.userAgentData` and its high-entropy values | `client_hints`; no API reads `Off` |
 | `enumerateDevices()` counts | `media_devices`; no API reads `Off` |
@@ -67,6 +70,7 @@ checks, never applied.
 pub struct CapturedFingerprint { pub fingerprint: Fingerprint, pub unmapped: Map<String, Value>, pub probe: ProbeInfo }
 pub struct ProbeInfo { pub url: String, pub captured_at: String, pub browser_version: Option<String> }
 CapturedFingerprint::from_probe(raw: &Value, captured_at: impl Into<String>) -> Result<Self, SeleniumBaseError>
+CapturedFingerprint::contradictions(&self) -> Vec<Contradiction>   // where the page disagrees with itself; see fingerprint_consistency.md
 
 // the engines
 Page::capture_fingerprint(&self) -> Result<CapturedFingerprint, SeleniumBaseError>      // sb_cdp

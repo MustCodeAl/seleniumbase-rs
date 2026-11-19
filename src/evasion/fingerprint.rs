@@ -51,16 +51,23 @@ use std::sync::Arc;
 use serde::{Deserialize, Deserializer, Serialize};
 
 mod compare;
+mod consistency;
 mod file;
 #[cfg(test)]
 mod schema;
 
 pub use compare::{FingerprintComparison, SettingDiff};
+pub(crate) use consistency::{api_expected, gpu_architecture, gpu_maker, is_mobile_gpu};
+pub use consistency::{Contradiction, Severity};
 
 use super::humanize::Rng;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
 use super::randomize;
-pub use super::settings::{Geolocation, MediaDevices, ScreenSize, WebGl, WebRtcAddresses};
+pub(crate) use super::settings::TASKBAR_HEIGHT;
+pub use super::settings::{
+    ColorGamut, ColorScheme, Contrast, Geolocation, KeyboardLayout, MediaDevices, MediaFeatures,
+    ScreenSize, WebGl, WebRtcAddresses,
+};
 pub use super::spoof::Spoof;
 
 /// Browser persona requested by a profile.
@@ -228,7 +235,7 @@ impl Default for BatteryProfile {
     fn default() -> Self {
         Self {
             charging: true,
-            level: 0.94,
+            level: 1.0,
             charging_time: 0.0,
             discharging_time: f64::INFINITY,
         }
@@ -461,8 +468,14 @@ pub enum Dimension {
     Localization,
     /// The time zone.
     Timezone,
+    /// `navigator.keyboard.getLayoutMap()`.
+    Keyboard,
+
     /// `screen.*`, the window size and the device pixel ratio.
     Screen,
+    /// The colour gamut and the preferences `matchMedia` and `@media` report.
+    MediaFeatures,
+
     /// The WebGL vendor and renderer.
     Graphics,
     /// The installed fonts.
@@ -481,6 +494,9 @@ pub enum Dimension {
     Battery,
     /// The Network Information API.
     Connection,
+    /// The storage quota a page is told (`navigator.storage.estimate()`).
+    Storage,
+
     /// `speechSynthesis.getVoices()`.
     Speech,
     /// User-Agent Client Hints.
@@ -495,7 +511,7 @@ pub enum Dimension {
     Bluetooth,
     /// The `window.chrome` stubs.
     ChromeRuntime,
-    /// The headless fixes (permissions, matchMedia, hairline).
+    /// The headless fixes (permissions, page visibility, hairline).
     Headless,
     /// `Function.prototype.toString` masking.
     NativeToString,
@@ -571,6 +587,9 @@ struct Fields {
     /// The IANA time zone, such as `Europe/Berlin`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     timezone: Spoof<String>,
+    /// The layout `navigator.keyboard.getLayoutMap()` reports.
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    keyboard_layout: Spoof<KeyboardLayout>,
 
     // Screen
     /// `screen.width` and `screen.height`, in CSS pixels.
@@ -585,6 +604,10 @@ struct Fields {
     /// `screen.colorDepth`.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     color_depth: Spoof<u32>,
+    /// The display's colour gamut and the user's preferences, as `matchMedia`
+    /// and `@media` report them.
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    media_features: Spoof<MediaFeatures>,
 
     // Everything else a page can probe
     /// The unmasked WebGL vendor and renderer.
@@ -611,6 +634,10 @@ struct Fields {
     /// The Network Information API. `off` makes it unavailable.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     connection: Spoof<ConnectionProfile>,
+    /// The quota `navigator.storage.estimate()` reports, in bytes.
+    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    storage_quota: Spoof<u64>,
+
     /// `speechSynthesis.getVoices()`. `off` lists none.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     speech_voices: Spoof<Vec<SpeechVoice>>,
@@ -661,10 +688,14 @@ impl Default for Fields {
             languages: Spoof::Natural,
             accept_languages: Spoof::Natural,
             timezone: Spoof::Natural,
+            keyboard_layout: Spoof::Natural,
+
             screen: Spoof::Natural,
             avail_screen: Spoof::Natural,
             pixel_ratio: Spoof::Natural,
             color_depth: Spoof::Natural,
+            media_features: Spoof::Natural,
+
             webgl: Spoof::Natural,
             media_devices: Spoof::Natural,
             geolocation: Spoof::Natural,
@@ -673,6 +704,8 @@ impl Default for Fields {
             webrtc: Spoof::Natural,
             battery: Spoof::Natural,
             connection: Spoof::Natural,
+            storage_quota: Spoof::Natural,
+
             speech_voices: Spoof::Natural,
             bluetooth: Spoof::Natural,
             client_hints: Spoof::Natural,
@@ -839,6 +872,9 @@ impl Fingerprint {
         accept_languages: Spoof<String>;
         /// The IANA time zone.
         timezone: Spoof<String>;
+        /// The layout `navigator.keyboard.getLayoutMap()` reports.
+        keyboard_layout: Spoof<KeyboardLayout>;
+
         /// `screen.width` and `screen.height`.
         screen: Spoof<ScreenSize>;
         /// `screen.availWidth` and `screen.availHeight`.
@@ -847,6 +883,10 @@ impl Fingerprint {
         pixel_ratio: Spoof<f64>;
         /// `screen.colorDepth`.
         color_depth: Spoof<u32>;
+        /// What `matchMedia` and `@media` report about the display and the
+        /// user's preferences.
+        media_features: Spoof<MediaFeatures>;
+
         /// The unmasked WebGL vendor and renderer.
         webgl: Spoof<WebGl>;
         /// What `enumerateDevices()` lists. `Off` lists none.
@@ -863,6 +903,9 @@ impl Fingerprint {
         battery: Spoof<BatteryProfile>;
         /// The Network Information API. `Off` makes it unavailable.
         connection: Spoof<ConnectionProfile>;
+        /// The quota `navigator.storage.estimate()` reports, in bytes.
+        storage_quota: Spoof<u64>;
+
         /// `speechSynthesis.getVoices()`. `Off` lists none.
         speech_voices: Spoof<Vec<SpeechVoice>>;
         /// Web Bluetooth: `Value(true)` has an adapter, `Value(false)` has none,
@@ -942,12 +985,16 @@ impl Fingerprint {
                 f.locale.is_set() || f.languages.is_set() || f.accept_languages.is_set()
             }
             Dimension::Timezone => f.timezone.is_set(),
+            Dimension::Keyboard => f.keyboard_layout.is_set(),
+
             Dimension::Screen => {
                 f.screen.is_set()
                     || f.avail_screen.is_set()
                     || f.pixel_ratio.is_set()
                     || f.color_depth.is_set()
             }
+            Dimension::MediaFeatures => f.media_features.is_set(),
+
             Dimension::Graphics => f.webgl.is_set(),
             Dimension::Fonts => f.fonts.is_set(),
             Dimension::MediaDevices => f.media_devices.is_set(),
@@ -957,6 +1004,8 @@ impl Fingerprint {
             Dimension::Audio => f.policy.audio_noise.adds_noise(),
             Dimension::Battery => f.battery.is_set(),
             Dimension::Connection => f.connection.is_set(),
+            Dimension::Storage => f.storage_quota.is_set(),
+
             Dimension::Speech => f.speech_voices.is_set(),
             Dimension::ClientHints => f.client_hints.is_set(),
             Dimension::Proxy => f.proxy.is_value(),
@@ -1065,11 +1114,53 @@ impl Fingerprint {
                 .push("screen dimensions must be non-zero".to_owned());
         }
 
+        self.check_media_features(&mut report);
+        self.check_keyboard(&mut report);
+
         self.check_graphics(&mut report);
         self.check_browser_persona(ua, &mut report);
         self.check_place(&mut report);
 
         report
+    }
+
+    /// The display and preferences against the operating system: a Windows or
+    /// Linux desktop is sRGB, and forced colours are Windows high contrast.
+    fn check_media_features(&self, report: &mut CoherenceReport) {
+        let Some(features) = self.0.media_features.value() else {
+            return;
+        };
+        let os = self.0.os();
+        if features.color_gamut != ColorGamut::Srgb && matches!(os, OsType::Windows | OsType::Linux)
+        {
+            report.warnings.push(format!(
+                "color-gamut '{}' on a {os:?} persona, whose displays are sRGB",
+                features.color_gamut.media_value()
+            ));
+        }
+        if features.forced_colors && os != OsType::Windows {
+            report.warnings.push(format!(
+                "forced-colors is Windows high contrast, and the persona is {os:?}"
+            ));
+        }
+    }
+
+    /// The keyboard layout against the locale: a machine set up for a language
+    /// has the layout everybody uses for it.
+    fn check_keyboard(&self, report: &mut CoherenceReport) {
+        let (Some(layout), Some(locale)) = (self.0.keyboard_layout.value(), self.0.locale.as_str())
+        else {
+            return;
+        };
+        if let Some(expected) = KeyboardLayout::for_locale(locale)
+            && expected != *layout
+        {
+            report.warnings.push(format!(
+                "keyboard layout '{}' on a '{locale}' machine, whose keyboards are {}",
+                layout.as_str(),
+                expected.as_str()
+            ));
+        }
     }
 
     /// The WebGL strings against the operating system: each graphics API is
@@ -1084,32 +1175,14 @@ impl Fingerprint {
             webgl.vendor.as_deref().unwrap_or(""),
             webgl.renderer.as_deref().unwrap_or("")
         );
-        // (what the strings name, the API's name, the systems that report it)
-        let families: [(&[&str], &str, &[OsType]); 4] = [
-            (&["Direct3D", "D3D11"], "Direct3D", &[OsType::Windows]),
-            (
-                &["Metal", "Apple"],
-                "Apple GPU or Metal",
-                &[OsType::Macos, OsType::Ios],
-            ),
-            (&["Mesa"], "Mesa", &[OsType::Linux]),
-            (
-                &["Adreno", "Mali", "PowerVR"],
-                "mobile GPU",
-                &[OsType::Android],
-            ),
-        ];
-        for (needles, api, systems) in families {
-            if !needles.iter().any(|n| named.contains(n)) {
-                continue;
-            }
-            if !systems.contains(&self.0.os()) {
-                report.errors.push(format!(
-                    "WebGL renderer '{}' is a {api} renderer, which {:?} does not report",
-                    webgl.renderer.as_deref().unwrap_or(""),
-                    self.0.os()
-                ));
-            }
+        if let Some((api, systems)) = renderer_family(&named)
+            && !systems.contains(&self.0.os())
+        {
+            report.errors.push(format!(
+                "WebGL renderer '{}' is a {api} renderer, which {:?} does not report",
+                webgl.renderer.as_deref().unwrap_or(""),
+                self.0.os()
+            ));
         }
     }
 
@@ -1249,14 +1322,17 @@ impl Fingerprint {
             .languages(Spoof::Random)
             .accept_languages(Spoof::Random)
             .timezone(Spoof::Random)
+            .keyboard_layout(Spoof::Random)
             .geolocation(Spoof::Random)
             .screen_spoof(Spoof::Random)
             .pixel_ratio(Spoof::Random)
             .color_depth(Spoof::Random)
+            .media_features(Spoof::Random)
             .webgl(Spoof::Random)
             .client_hints(Spoof::Random)
             .battery(Spoof::Random)
             .connection(Spoof::Random)
+            .storage_quota(Spoof::Random)
             .speech_voices(Spoof::Random)
             .bluetooth(Spoof::Random)
             .policy(StealthPolicy::balanced())
@@ -1273,6 +1349,8 @@ impl Fingerprint {
                 .battery(Spoof::Off)
                 .connection(Spoof::Off)
                 .bluetooth(Spoof::Off)
+                .storage_quota(randomize::storage_quota_for(os))
+                .media_features(randomize::media_features_for(os))
                 .speech_voices(randomize::speech_voices_for(os));
         }
         builder
@@ -1280,6 +1358,8 @@ impl Fingerprint {
             .connection(ConnectionProfile::default())
             .speech_voices(randomize::speech_voices_for(os))
             .bluetooth(matches!(os, OsType::Android | OsType::Macos))
+            .storage_quota(randomize::storage_quota_for(os))
+            .media_features(randomize::media_features_for(os))
     }
 
     /// Quick preset for a Windows desktop Chrome profile.
@@ -1575,10 +1655,14 @@ impl FingerprintBuilder {
         demote(&mut f.languages);
         demote(&mut f.accept_languages);
         demote(&mut f.timezone);
+        demote(&mut f.keyboard_layout);
+
         demote(&mut f.screen);
         demote(&mut f.avail_screen);
         demote(&mut f.pixel_ratio);
         demote(&mut f.color_depth);
+        demote(&mut f.media_features);
+
         demote(&mut f.webgl);
         demote(&mut f.media_devices);
         demote(&mut f.geolocation);
@@ -1587,6 +1671,8 @@ impl FingerprintBuilder {
         demote(&mut f.webrtc);
         demote(&mut f.battery);
         demote(&mut f.connection);
+        demote(&mut f.storage_quota);
+
         demote(&mut f.speech_voices);
         demote(&mut f.bluetooth);
         demote(&mut f.client_hints);
@@ -1656,6 +1742,12 @@ impl FingerprintBuilder {
         accept_languages: String;
         /// Sets the IANA time zone.
         timezone: String;
+        /// Sets the layout `navigator.keyboard.getLayoutMap()` reports. Without
+        /// it, [`build`](Self::build) derives the layout from the
+        /// [`locale`](Self::locale) when its language has one everybody uses. It
+        /// has no `Off`.
+        keyboard_layout: KeyboardLayout;
+
         /// Sets the available screen size (`screen.availWidth` and
         /// `availHeight`). `(width, height)` works.
         avail_screen: ScreenSize;
@@ -1663,6 +1755,10 @@ impl FingerprintBuilder {
         pixel_ratio: f64;
         /// Sets the colour depth.
         color_depth: u32;
+        /// Sets what `matchMedia` and `@media` report about the display and the
+        /// user's preferences. It has no `Off`.
+        media_features: MediaFeatures;
+
         /// Sets the WebGL vendor and renderer. `(vendor, renderer)` works.
         webgl: WebGl;
         /// Sets what `enumerateDevices()` lists. `(audio_in, audio_out, video_in)`
@@ -1686,6 +1782,10 @@ impl FingerprintBuilder {
         battery: BatteryProfile;
         /// Sets the Network Information API profile. `Off` makes it unavailable.
         connection: ConnectionProfile;
+        /// Sets the quota `navigator.storage.estimate()` reports, in bytes. A
+        /// `Random` quota is 60 % of a disk of the machine's kind. It has no `Off`.
+        storage_quota: u64;
+
         /// Sets the synthesized speech voices. `Off` lists none.
         speech_voices: Vec<SpeechVoice>;
         /// Sets Web Bluetooth: `true` has an adapter, `false` has none, `Off`
@@ -1901,6 +2001,12 @@ impl FingerprintBuilder {
         {
             fields.languages = Spoof::Value(languages_for_locale(locale));
         }
+        if fields.keyboard_layout.is_natural()
+            && let Some(layout) = fields.locale.as_str().and_then(KeyboardLayout::for_locale)
+        {
+            fields.keyboard_layout = Spoof::Value(layout);
+        }
+
         if fields.platform.is_natural() && fields.user_agent.is_value() {
             fields.platform = Spoof::Value(fields.os().platform().to_owned());
         }
@@ -1926,18 +2032,46 @@ fn refuse_useless_off(f: &Fields) -> Result<(), FingerprintError> {
         ("languages", f.languages.is_off()),
         ("accept_languages", f.accept_languages.is_off()),
         ("timezone", f.timezone.is_off()),
+        ("keyboard_layout", f.keyboard_layout.is_off()),
         ("screen", f.screen.is_off()),
         ("avail_screen", f.avail_screen.is_off()),
         ("pixel_ratio", f.pixel_ratio.is_off()),
         ("color_depth", f.color_depth.is_off()),
+        ("media_features", f.media_features.is_off()),
         ("webgl", f.webgl.is_off()),
         ("fonts", f.fonts.is_off()),
+        ("storage_quota", f.storage_quota.is_off()),
         ("proxy", f.proxy.is_off()),
     ];
     match off.iter().find(|(_, is_off)| *is_off) {
         Some((setting, _)) => Err(FingerprintError::OffNotAvailable { setting }),
         None => Ok(()),
     }
+}
+
+/// The graphics API a WebGL vendor and renderer string names, with the systems
+/// that report it: Direct3D on Windows, Apple's GPU or Metal on macOS and iOS,
+/// Mesa on Linux, a mobile GPU on Android. `None` for a string that names no
+/// family this crate knows.
+pub(crate) fn renderer_family(named: &str) -> Option<(&'static str, &'static [OsType])> {
+    const FAMILIES: [(&[&str], &str, &[OsType]); 4] = [
+        (&["Direct3D", "D3D11"], "Direct3D", &[OsType::Windows]),
+        (
+            &["Metal", "Apple"],
+            "Apple GPU or Metal",
+            &[OsType::Macos, OsType::Ios],
+        ),
+        (&["Mesa"], "Mesa", &[OsType::Linux]),
+        (
+            &["Adreno", "Mali", "PowerVR"],
+            "mobile GPU",
+            &[OsType::Android],
+        ),
+    ];
+    FAMILIES
+        .iter()
+        .find(|(needles, _, _)| needles.iter().any(|needle| named.contains(needle)))
+        .map(|(_, api, systems)| (*api, *systems))
 }
 
 /// Whether any setting asks to be drawn at random.
@@ -1957,10 +2091,12 @@ fn has_random(f: &Fields) -> bool {
         f.languages.is_random(),
         f.accept_languages.is_random(),
         f.timezone.is_random(),
+        f.keyboard_layout.is_random(),
         f.screen.is_random(),
         f.avail_screen.is_random(),
         f.pixel_ratio.is_random(),
         f.color_depth.is_random(),
+        f.media_features.is_random(),
         f.webgl.is_random(),
         f.media_devices.is_random(),
         f.geolocation.is_random(),
@@ -1969,6 +2105,7 @@ fn has_random(f: &Fields) -> bool {
         f.webrtc.is_random(),
         f.battery.is_random(),
         f.connection.is_random(),
+        f.storage_quota.is_random(),
         f.speech_voices.is_random(),
         f.bluetooth.is_random(),
         f.client_hints.is_random(),
@@ -2105,6 +2242,13 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
         need_place("timezone")?;
         f.timezone = Spoof::Value(draw.region.timezone.to_owned());
     }
+    if f.keyboard_layout.is_random() {
+        // The layout of the locale the persona ends up with, the given one or
+        // the drawn region's; a language with no layout everybody uses draws none.
+        let locale = f.locale.as_str().unwrap_or(draw.region.tag);
+        f.keyboard_layout = KeyboardLayout::for_locale(locale).map_or(Spoof::Natural, Spoof::Value);
+    }
+
     if f.geolocation.is_random() {
         need_place("geolocation")?;
         f.geolocation = Spoof::Value(
@@ -2124,7 +2268,7 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
             .map_or((profile.screen.width, profile.screen.height), |size| {
                 (size.width, size.height)
             });
-        let lost = if os.is_mobile() { 0 } else { 40 };
+        let lost = if os.is_mobile() { 0 } else { TASKBAR_HEIGHT };
         f.avail_screen = Spoof::Value(ScreenSize::new(width, height.saturating_sub(lost)));
     }
     if f.pixel_ratio.is_random() {
@@ -2132,6 +2276,9 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
     }
     if f.color_depth.is_random() {
         f.color_depth = Spoof::Value(profile.color_depth);
+    }
+    if f.media_features.is_random() {
+        f.media_features = Spoof::Value(draw.media_features());
     }
     if f.webgl.is_random() {
         f.webgl = Spoof::Value(profile.graphics.clone());
@@ -2162,6 +2309,10 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
     if f.connection.is_random() {
         f.connection = draw.connection().map_or(Spoof::Off, Spoof::Value);
     }
+    if f.storage_quota.is_random() {
+        f.storage_quota = Spoof::Value(draw.storage_quota());
+    }
+
     if f.speech_voices.is_random() {
         f.speech_voices = Spoof::Value(draw.speech_voices());
     }
@@ -2271,10 +2422,12 @@ mod tests {
     }
 
     /// Every dimension.
-    const EVERY_DIMENSION: [Dimension; 22] = [
+    const EVERY_DIMENSION: [Dimension; 25] = [
+        Dimension::MediaFeatures,
         Dimension::Navigator,
         Dimension::Localization,
         Dimension::Timezone,
+        Dimension::Keyboard,
         Dimension::Screen,
         Dimension::Graphics,
         Dimension::Fonts,
@@ -2285,6 +2438,7 @@ mod tests {
         Dimension::Audio,
         Dimension::Battery,
         Dimension::Connection,
+        Dimension::Storage,
         Dimension::Speech,
         Dimension::ClientHints,
         Dimension::Proxy,
@@ -2318,7 +2472,7 @@ mod tests {
         );
         assert_eq!(
             on(Fingerprint::builder().locale("de-DE")),
-            [Dimension::Localization]
+            [Dimension::Localization, Dimension::Keyboard]
         );
         assert_eq!(
             on(Fingerprint::builder().timezone("Europe/Berlin")),
@@ -2356,6 +2510,11 @@ mod tests {
             on(Fingerprint::builder().connection(Spoof::Off)),
             [Dimension::Connection]
         );
+        assert_eq!(
+            on(Fingerprint::builder().storage_quota(300_000_000_000_u64)),
+            [Dimension::Storage]
+        );
+
         assert_eq!(
             on(Fingerprint::builder().speech_voices(Spoof::Off)),
             [Dimension::Speech]
@@ -2632,6 +2791,266 @@ mod tests {
     }
 
     #[test]
+    fn media_features_round_trip_through_the_builder_and_the_file() {
+        let features = MediaFeatures {
+            color_scheme: ColorScheme::Dark,
+            reduced_motion: true,
+            contrast: Contrast::More,
+            ..MediaFeatures::new(ColorGamut::P3)
+        };
+        let fp = built(
+            Fingerprint::builder()
+                .os_type(OsType::Macos)
+                .media_features(features),
+        );
+
+        assert_eq!(fp.media_features().value(), Some(&features));
+        let text = serde_json::to_string(&fp).unwrap();
+        assert!(text.contains(r#""color_gamut":"p3""#), "{text}");
+        assert!(text.contains(r#""contrast":"more""#), "{text}");
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(again, fp);
+        assert!(
+            Fingerprint::default().media_features().is_natural(),
+            "the browser's own display and preferences by default"
+        );
+    }
+
+    #[test]
+    fn media_features_have_no_off() {
+        let error = Fingerprint::builder()
+            .media_features(Spoof::Off)
+            .build()
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            FingerprintError::OffNotAvailable {
+                setting: "media_features"
+            }
+        );
+    }
+
+    #[test]
+    fn a_locale_fills_the_keyboard_layout() {
+        let layout = |locale: &str| built(Fingerprint::builder().locale(locale));
+
+        assert_eq!(
+            layout("de-DE").keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwertz)
+        );
+        assert_eq!(
+            layout("fr-FR").keyboard_layout().value(),
+            Some(&KeyboardLayout::Azerty)
+        );
+        assert_eq!(
+            layout("en-US").keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwerty)
+        );
+        assert!(
+            layout("fr-CA").keyboard_layout().is_natural(),
+            "Canada has no one layout, so none is claimed"
+        );
+        assert!(layout("ru-RU").keyboard_layout().is_natural());
+        let none = built(Fingerprint::builder().os_type(OsType::Windows));
+        assert!(none.keyboard_layout().is_natural());
+        assert!(!none.is_masked(Dimension::Keyboard));
+        assert!(layout("de-DE").is_masked(Dimension::Keyboard));
+    }
+
+    #[test]
+    fn a_given_layout_is_never_replaced() {
+        let fp = built(
+            Fingerprint::builder()
+                .locale("de-DE")
+                .keyboard_layout(KeyboardLayout::Azerty),
+        );
+
+        assert_eq!(fp.keyboard_layout().value(), Some(&KeyboardLayout::Azerty));
+        assert!(
+            fp.validate()
+                .warnings
+                .iter()
+                .any(|w| w.contains("keyboard layout")),
+            "{:?}",
+            fp.validate().warnings
+        );
+        let text = serde_json::to_string(&fp).unwrap();
+        assert!(text.contains(r#""keyboard_layout":"azerty""#), "{text}");
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(again, fp);
+    }
+
+    #[test]
+    fn a_random_layout_follows_the_locale() {
+        let german = built(
+            Fingerprint::builder()
+                .locale("de-DE")
+                .keyboard_layout(Spoof::Random),
+        );
+        assert_eq!(
+            german.keyboard_layout().value(),
+            Some(&KeyboardLayout::Qwertz)
+        );
+
+        for seed in 0..40 {
+            let fp = built(
+                Fingerprint::builder()
+                    .seed(seed)
+                    .locale(Spoof::Random)
+                    .keyboard_layout(Spoof::Random),
+            );
+            let locale = fp.locale().as_str().expect("a drawn locale");
+            assert_eq!(
+                fp.keyboard_layout().value().copied(),
+                KeyboardLayout::for_locale(locale),
+                "seed {seed}, locale {locale}"
+            );
+        }
+        let russian = built(
+            Fingerprint::builder()
+                .locale("ru-RU")
+                .keyboard_layout(Spoof::Random),
+        );
+        assert!(
+            russian.keyboard_layout().is_natural(),
+            "a language with no one layout draws none"
+        );
+    }
+
+    #[test]
+    fn the_keyboard_layout_has_no_off() {
+        let error = Fingerprint::builder()
+            .keyboard_layout(Spoof::Off)
+            .build()
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            FingerprintError::OffNotAvailable {
+                setting: "keyboard_layout"
+            }
+        );
+    }
+
+    #[test]
+
+    fn the_storage_quota_round_trips_through_the_builder_and_the_file() {
+        let fp = built(Fingerprint::builder().storage_quota(300_000_000_000_u64));
+
+        assert_eq!(fp.storage_quota().value(), Some(&300_000_000_000));
+        let text = serde_json::to_string(&fp).unwrap();
+        assert!(text.contains(r#""storage_quota":300000000000"#), "{text}");
+        let again: Fingerprint = serde_json::from_str(&text).unwrap();
+        assert_eq!(again, fp);
+        assert!(
+            Fingerprint::default().storage_quota().is_natural(),
+            "the browser's own quota by default"
+        );
+        for preset in [
+            Fingerprint::windows_desktop(),
+            Fingerprint::android_mobile(),
+            Fingerprint::ios_mobile_safari(),
+        ] {
+            assert!(preset.storage_quota().is_value());
+            assert!(preset.is_masked(Dimension::Storage));
+        }
+    }
+
+    #[test]
+    fn the_storage_quota_has_no_off() {
+        let error = Fingerprint::builder()
+            .storage_quota(Spoof::Off)
+            .build()
+            .unwrap_err();
+
+        assert_eq!(
+            error,
+            FingerprintError::OffNotAvailable {
+                setting: "storage_quota"
+            }
+        );
+    }
+
+    #[test]
+    fn a_random_quota_is_drawn_for_the_machine_and_follows_the_seed() {
+        let drawn = |os: OsType, seed: u64| {
+            built(
+                Fingerprint::builder()
+                    .os_type(os)
+                    .seed(seed)
+                    .storage_quota(Spoof::Random),
+            )
+        };
+
+        assert_eq!(
+            drawn(OsType::Windows, 3).storage_quota(),
+            drawn(OsType::Windows, 3).storage_quota()
+        );
+        assert!(drawn(OsType::Windows, 3).storage_quota().is_value());
+        assert_ne!(
+            drawn(OsType::Windows, 3).storage_quota(),
+            drawn(OsType::Windows, 4).storage_quota()
+        );
+    }
+
+    #[test]
+
+    fn the_default_battery_is_the_shape_chrome_gives_a_full_one() {
+        let battery = BatteryProfile::default();
+
+        // Chrome on a desktop with no battery reports exactly this, and a full one on the
+        // charger reports it too: no 94 % with no time left to charge.
+        assert!(battery.charging);
+        assert!((battery.level - 1.0).abs() < f64::EPSILON, "{battery:?}");
+        assert!(battery.charging_time.abs() < f64::EPSILON, "{battery:?}");
+        assert!(battery.discharging_time.is_infinite(), "{battery:?}");
+        for preset in [Fingerprint::windows_desktop(), Fingerprint::macos_desktop()] {
+            assert_eq!(preset.battery().value(), Some(&battery));
+        }
+    }
+
+    #[test]
+
+    fn a_wide_gamut_on_a_windows_persona_is_a_coherence_warning() {
+        let wide = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .media_features(MediaFeatures::new(ColorGamut::P3)),
+        );
+        let narrow = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .media_features(MediaFeatures::new(ColorGamut::Srgb)),
+        );
+        let forced = built(
+            Fingerprint::builder()
+                .os_type(OsType::Macos)
+                .media_features(MediaFeatures {
+                    forced_colors: true,
+                    ..MediaFeatures::new(ColorGamut::P3)
+                }),
+        );
+
+        assert!(
+            wide.validate().warnings.iter().any(|w| w.contains("gamut")),
+            "{:?}",
+            wide.validate().warnings
+        );
+        assert!(narrow.validate().warnings.is_empty());
+        assert!(
+            forced
+                .validate()
+                .warnings
+                .iter()
+                .any(|w| w.contains("forced-colors")),
+            "{:?}",
+            forced.validate().warnings
+        );
+    }
+
+    #[test]
+
     fn off_where_it_means_nothing_names_the_setting() {
         let refused = |builder: FingerprintBuilder| builder.build().unwrap_err();
         let off: [(&str, FingerprintBuilder); 12] = [

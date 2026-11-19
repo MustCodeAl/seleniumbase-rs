@@ -128,4 +128,24 @@ mod fingerprint_tests {
         sorted.sort_unstable();
         assert_eq!(methods, sorted);
     }
+
+    #[test]
+    fn a_webdriver_session_keeps_its_window_viewport() {
+        // The device metrics a desktop persona sends have no viewport of their
+        // own (`0` by `0`), so the page keeps the viewport its window has and
+        // only `screen.*` reads the persona's screen.
+        let fingerprint = Fingerprint::randomized(OsType::Linux, 3);
+        let screen = fingerprint.screen().value().expect("a screen");
+        let sent = fingerprint_overrides(&fingerprint);
+        let (_, metrics) = sent
+            .iter()
+            .find(|(method, _)| method == "Emulation.setDeviceMetricsOverride")
+            .expect("a device metrics override");
+
+        assert_eq!(metrics["width"], 0);
+        assert_eq!(metrics["height"], 0);
+        assert_eq!(metrics["screenWidth"], screen.width);
+        assert_eq!(metrics["screenHeight"], screen.height);
+        assert_eq!(metrics["mobile"], false);
+    }
 }

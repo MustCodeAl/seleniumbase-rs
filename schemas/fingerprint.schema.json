@@ -180,6 +180,46 @@
       ],
       "type": "object"
     },
+    "ColorGamut": {
+      "description": "The `color-gamut` a display covers.",
+      "oneOf": [
+        {
+          "const": "srgb",
+          "description": "`srgb`: the gamut of an ordinary desktop display.",
+          "type": "string"
+        },
+        {
+          "const": "p3",
+          "description": "`p3`: a Retina Mac or a recent phone.",
+          "type": "string"
+        },
+        {
+          "const": "rec2020",
+          "description": "`rec2020`.",
+          "type": "string"
+        }
+      ]
+    },
+    "ColorScheme": {
+      "description": "The colour scheme a page's `prefers-color-scheme` media query reports.",
+      "oneOf": [
+        {
+          "const": "light",
+          "description": "`(prefers-color-scheme: light)` matches.",
+          "type": "string"
+        },
+        {
+          "const": "dark",
+          "description": "`(prefers-color-scheme: dark)` matches.",
+          "type": "string"
+        },
+        {
+          "const": "no-preference",
+          "description": "No override: the browser's own setting decides again.",
+          "type": "string"
+        }
+      ]
+    },
     "ConnectionProfile": {
       "description": "Network Information API profile (`navigator.connection`).",
       "properties": {
@@ -206,6 +246,31 @@
         "save_data"
       ],
       "type": "object"
+    },
+    "Contrast": {
+      "description": "`prefers-contrast`.",
+      "oneOf": [
+        {
+          "const": "no-preference",
+          "description": "No preference.",
+          "type": "string"
+        },
+        {
+          "const": "more",
+          "description": "`more`.",
+          "type": "string"
+        },
+        {
+          "const": "less",
+          "description": "`less`.",
+          "type": "string"
+        },
+        {
+          "const": "custom",
+          "description": "`custom`.",
+          "type": "string"
+        }
+      ]
     },
     "Fields": {
       "additionalProperties": false,
@@ -504,6 +569,24 @@
           },
           "description": "Humanized input timing."
         },
+        "keyboard_layout": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/KeyboardLayout"
+            }
+          ],
+          "description": "The layout `navigator.keyboard.getLayoutMap()` reports."
+        },
         "languages": {
           "anyOf": [
             {
@@ -589,6 +672,24 @@
             }
           ],
           "description": "What `enumerateDevices()` lists. `off` lists none."
+        },
+        "media_features": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "$ref": "#/$defs/MediaFeatures"
+            }
+          ],
+          "description": "The display's colour gamut and the user's preferences, as `matchMedia` and `@media` report them."
         },
         "os_type": {
           "anyOf": [
@@ -773,6 +874,26 @@
           ],
           "description": "`speechSynthesis.getVoices()`. `off` lists none."
         },
+        "storage_quota": {
+          "anyOf": [
+            {
+              "enum": [
+                "natural",
+                "random"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            },
+            {
+              "format": "uint64",
+              "minimum": 0,
+              "type": "integer"
+            }
+          ],
+          "description": "The quota `navigator.storage.estimate()` reports, in bytes."
+        },
         "timezone": {
           "anyOf": [
             {
@@ -943,6 +1064,26 @@
       ],
       "type": "object"
     },
+    "KeyboardLayout": {
+      "description": "The layout `navigator.keyboard.getLayoutMap()` reports: the character each writing-system key types, unshifted. The maps are Windows's own layouts (KBDUS, KBDGR, KBDFR); a Mac's punctuation keys differ a little.",
+      "oneOf": [
+        {
+          "const": "qwerty",
+          "description": "The US layout, used for English and most of the world.",
+          "type": "string"
+        },
+        {
+          "const": "qwertz",
+          "description": "The German layout, used in central Europe.",
+          "type": "string"
+        },
+        {
+          "const": "azerty",
+          "description": "The French layout.",
+          "type": "string"
+        }
+      ]
+    },
     "MediaDeviceSpec": {
       "description": "A single labeled media device used by `MediaDevicesProvider`.",
       "properties": {
@@ -997,6 +1138,43 @@
           "format": "uint32",
           "minimum": 0,
           "type": "integer"
+        }
+      },
+      "type": "object"
+    },
+    "MediaFeatures": {
+      "additionalProperties": false,
+      "description": "What `matchMedia` and `@media` rules report about the display and the user's preferences. The pointer and hover features belong to the device: a phone persona's touch emulation gives them.",
+      "properties": {
+        "color_gamut": {
+          "$ref": "#/$defs/ColorGamut",
+          "default": "srgb",
+          "description": "`color-gamut`: the widest gamut the display covers."
+        },
+        "color_scheme": {
+          "$ref": "#/$defs/ColorScheme",
+          "default": "light",
+          "description": "`prefers-color-scheme`."
+        },
+        "contrast": {
+          "$ref": "#/$defs/Contrast",
+          "default": "no-preference",
+          "description": "`prefers-contrast`."
+        },
+        "forced_colors": {
+          "default": false,
+          "description": "`forced-colors: active`, Windows high contrast.",
+          "type": "boolean"
+        },
+        "reduced_motion": {
+          "default": false,
+          "description": "`prefers-reduced-motion: reduce`.",
+          "type": "boolean"
+        },
+        "reduced_transparency": {
+          "default": false,
+          "description": "`prefers-reduced-transparency: reduce`.",
+          "type": "boolean"
         }
       },
       "type": "object"
@@ -1174,7 +1352,7 @@
         },
         "headless_fixes": {
           "default": false,
-          "description": "Apply the headless fixes: `matchMedia`, permissions consistency, page visibility and the hairline media query.",
+          "description": "Apply the headless fixes: permissions consistency, page visibility and the hairline media query.",
           "type": "boolean"
         },
         "native_spoofing": {

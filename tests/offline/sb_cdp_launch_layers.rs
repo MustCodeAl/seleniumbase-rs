@@ -65,7 +65,9 @@ fn setting_window_size() -> Setting {
         on_builder: |builder| builder.window_size(801, 601),
         on_config: |config| config.browser.window_size = Some(WindowSize::new(802, 602)),
         on_fingerprint: |print| print.screen(803, 603),
-        values: ["801,601", "802,602", "803,603"],
+        // A desktop persona's window is a maximized browser window: the screen less the 40-pixel
+        // taskbar and Chrome's 85-pixel tab strip and toolbar on Linux, so 603 gives 478.
+        values: ["801,601", "802,602", "803,478"],
     }
 }
 

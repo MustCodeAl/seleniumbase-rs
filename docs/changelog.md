@@ -38,6 +38,26 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 - Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
+  dependencies.
+- The `media_features` setting (`MediaFeatures`: `color_gamut`, `color_scheme`, `reduced_motion`,
+  `reduced_transparency`, `contrast`, `forced_colors`); `ColorScheme` moved to
+  `evasion::settings` and is still `sb_cdp::ColorScheme`.
+- A phone persona's browser opens PDFs outside it, so it lists no plugins and says
+  `pdfViewerEnabled: false`, as Chrome on Android (`evasions::pdf_viewer_enabled`).
+- The `api_presence` provider removes the APIs Chrome on the persona's system does not have
+  (`navigator.hid` on a phone, `BarcodeDetector` on Windows and Linux, ...), and adds none.
+- A phone persona turns touch emulation on, so touch events, the touch points and a coarse
+  pointer that cannot hover agree.
+- The `keyboard_layout` setting (`KeyboardLayout`: `Qwerty`, `Qwertz`, `Azerty`), filled from a
+  given locale, answered by the `keyboard_layout` provider (`navigator.keyboard.getLayoutMap()`)
+  and read back by the capture.
+- The `storage_quota` setting (bytes, the quota `navigator.storage.estimate()` reports): a random one
+  is 60 % of a disk of the machine's kind, and a preset claims a 512 GB desktop or a 128 GB phone;
+  the `storage_quota` provider answers `estimate()` and `webkitTemporaryStorage` with it, and the
+  capture reads it back (`storage_quota_vs_device` is closed).
+- A phone GPU's WebGL lists no S3TC, BPTC or RGTC texture compression (`webgl_extensions_vs_renderer`
+  is closed): the `webgl` provider drops those extensions when the renderer is an Adreno, Mali or
+  PowerVR.
   dependencies: `owo-colors` writes every style (a style puts its colours before its
   attributes, as in `ESC[31;1m`), and
   the `rich_helper` printers write through `anstream`, which strips the escape codes when the
@@ -59,6 +79,15 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Changed
 
+- `media_codecs` answers `MediaSource.isTypeSupported` and `mediaCapabilities.decodingInfo` as it
+  answers `canPlayType`.
+- The `headless` provider no longer patches `matchMedia`; `media_features` goes through
+  `Emulation.setEmulatedMedia`, which `@media` rules see too (`media_query_lie` and
+  `color_gamut_vs_os` are closed). `capture_fingerprint` reads `media_features` back.
+- A fingerprint built with a locale now also holds a `keyboard_layout` (`build()` fills it, as it
+  fills `languages`), and every preset and drawn identity holds a `storage_quota`, so a file saved
+  by an earlier build reads back as before and a file saved now has the two settings. A layout
+  that disagrees with the locale is a `validate()` warning.
 - **Chrome version data moved to the current stable, 157.0.8103.38** (Chrome for Testing
   last-known-good, 2026-11-08). A generated identity claims 157 four times in five and 156 once
   (no Beta); the presets, `MOBILE_USER_AGENT` and the docs name 157. `randomize` has a new
@@ -86,6 +115,21 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 
 
+
+
+### Fixed
+
+- A fingerprint capture reads `speechSynthesis.getVoices()` until the list holds still. Chrome
+  fills it in batches (the remote voices, then the system's), so a capture used to keep only the
+  first batch and a second capture of the same browser listed more voices.
+- `BatteryProfile::default()` is a full battery on the charger; it charged at 94 % with no time
+  to full, a shape Chrome never reports (`battery_shape` is closed).
+- Without native spoofing, Intl followed the machine's locale while `navigator.language` said
+  the persona's; every Intl constructor and `toLocale*String` now default to the persona's
+  language (the `localization` provider).
+- A WebDriver session given a desktop fingerprint keeps its window's viewport; the
+  device-metrics override made it the size of the screen. Both engines now send the desktop form
+  (`width` and `height` `0`, the screen in `screenWidth` and `screenHeight`).
 
 
 ### Breaking
@@ -694,6 +738,43 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Added
 
+- **Fingerprint consistency: a browser is asked whether it agrees with itself.**
+  `CapturedFingerprint::contradictions()` returns every pair of surfaces of one capture that
+  disagree (`Contradiction`: the rule, the two surfaces, their values, the persona rule they
+  break, why, and a `Severity`), loudest first. The persona is the one the capture's own user
+  agent names, so no expected fingerprint is needed. The rules are the ones the open-source
+  detectors apply (fpscanner, CreepJS, BotD, FingerprintJS, rebrowser-bot-detector, fp-collect,
+  ThumbmarkJS): the WebGPU adapter against the WebGL renderer and the system, a worker and an
+  `about:blank` frame against the window, the window against the screen, the CSS media features
+  against the device (and `matchMedia` against `@media`), the three codec answers, the fonts, the
+  API presence, plugins, touch, Intl against `navigator.language`, the offsets against the time
+  zone, Client Hints against the user agent, voices, the keyboard map, WebGL extensions, the
+  storage quota, the battery shape and the engine. The capture script reads the surfaces these
+  rules need (a worker, a frame, WebGPU, the media features through `matchMedia` and `@media`,
+  the codecs, the keyboard map, the storage quota, the API map, the Intl locales and offsets, the
+  fonts by measurement, touch), kept under `CapturedFingerprint::unmapped`. `compare_fingerprint`
+  and `explain_fingerprint` on the MCP servers answer a `contradictions` field (a loud one raises
+  `explain_fingerprint`'s risk), and `sbrs fingerprint capture` lists them in its summary and
+  writes them with `--readings`. The inventory of surfaces, detectors and ranked gaps is
+  `docs/design/fingerprint_consistency.md`; `tests/chrome/fingerprint_consistency_chrome.rs`
+  launches each preset in a headless Chrome and fails on a contradiction the evasions should
+  avoid; `tests/chrome/identity_linking_chrome.rs` proves that a second browser context and a
+  second profile start with every store empty (cookies, `localStorage`, IndexedDB, the Cache
+  API, service worker registrations, the HTTP cache's `ETag`). `Contradiction::RULES` lists
+  every rule by name (a test keeps it equal to the rules the checker fires), and the API rule is
+  two, `api_present_vs_persona` (the page has an API the persona never has) and
+  `api_missing_vs_persona` (the persona has an API the host's Chrome lacks, a limit of the host);
+  `api_presence_vs_persona` is gone. `webgl_extensions_vs_renderer` read a key the capture never
+  writes, so it never fired; it now reads `webgl_extensions`.
+- The `webgpu` provider: `GPUAdapterInfo.vendor` and `architecture` name the GPU the `WebGl`
+  renderer names (`nvidia` and `lovelace` for an RTX 40 card, `apple` and `metal-3` for a Mac,
+  `qualcomm` and `adreno-7xx` for a phone), so WebGPU and WebGL agree, which fpscanner and
+  CreepJS check. A Linux persona whose GPU is not Intel's answers no adapter, as Chrome on Linux
+  has WebGPU for Intel Gen 12 and later only.
+- A fingerprint's `hardware_concurrency` is also sent as
+  `Emulation.setHardwareConcurrencyOverride`, so Chrome answers the persona's core count from
+  its own side as well as from the page script. Chrome applies it to the page and not to a
+  dedicated worker, which still reports the host's count (`worker_vs_window` stays open).
 - Docs: the stealth crates' HTTP/3 page is on the site, as Stealth › Advanced stealth ›
   HTTP/3 (`docs/stealth/advanced/http3.md`, ported from the stealth repository's
   `docs/http3.md`): the `sbrs-h3d` helper, the `http3` feature, and what was measured equal to
@@ -925,6 +1006,18 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Fixed
 
+- A desktop persona's launch window is a maximized browser window, the available screen less
+  the tab strip and toolbar (`evasions::window_size`, `--window-size` and the pure CDP engine's
+  launch use it); it was the whole screen, which no headed browser shows
+  (`viewport_is_screen`). The 40 pixels of a taskbar are one constant, `TASKBAR_HEIGHT`.
+- A phone persona's window is its screen: `window.outerWidth` is the screen width and
+  `outerHeight` the available height whatever the layout viewport is (a page without a viewport
+  meta lays out at 980 pixels), as Chrome on Android reports them. The `window_geometry` provider
+  made the window as wide as the layout viewport, wider than the screen, which every detector
+  reads as a lie. A desktop window is still as large as the screen and never smaller than its
+  real viewport.
+- The user agent override of an Android persona without Client Hints of its own sends no
+  `architecture`, as Chrome on Android reports none; it sent `arm`.
 - `get_cookie` of a cookie the page does not have is `Ok(None)`, as Python's is `None`. It was
   the driver's "no such cookie" error, and `examples/cookies_storage.rs` asserted that. Any
   other driver error is still an error.

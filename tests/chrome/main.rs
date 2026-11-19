@@ -32,9 +32,13 @@ mod element_chrome;
 
 mod esc_end_chrome;
 mod examples_parity_chrome;
+mod fingerprint_consistency_chrome;
+mod fingerprint_surfaces_chrome;
+
 mod form_fields_chrome;
 mod frames_windows_alerts_chrome;
 mod generate_referral_chrome;
+mod identity_linking_chrome;
 mod jqc_dialogs_chrome;
 mod masterqa_chrome;
 mod mcp_cdp_chrome;

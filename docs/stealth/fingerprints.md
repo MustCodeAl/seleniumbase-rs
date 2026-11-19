@@ -211,18 +211,21 @@ and `media_devices` (`(audio_in, audio_out, video_in)`).
 
 | Setting | `Random` draws | `Off` means | Dimension | What then acts |
 |---|---|---|---|---|
-| `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `product_sub`, `app_version` | The machine's value for the operating system. | no `Off` | `Navigator` | The `navigator_props` and `plugins` providers, `--user-agent`, `Network.setUserAgentOverride`. |
+| `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `product_sub`, `app_version` | The machine's value for the operating system. | no `Off` | `Navigator` | The `navigator_props` and `plugins` providers, `--user-agent`, `Network.setUserAgentOverride`, and `Emulation.setHardwareConcurrencyOverride` for `hardware_concurrency`. A phone persona also sends `Emulation.setTouchEmulationEnabled` with its touch points and has the browser open PDFs outside it (`plugins.always_open_pdf_externally`, set at launch for every context of the profile), so it lists no plugins and says `pdfViewerEnabled: false`; a browser that is already running keeps its viewer. |
 | `oscpu`, `build_id` | nothing to draw (an error) | no `Off` | `Navigator` | The `navigator_props` provider. |
 | `locale`, `languages`, `accept_languages` | The place's locale and language list. | no `Off` | `Localization` | The `localization` provider, `--lang`, `Emulation.setLocaleOverride`, and the `Accept-Language` of the user agent override. |
 | `timezone` | The place's time zone. | no `Off` | `Timezone` | The `timezone` provider and `Emulation.setTimezoneOverride`. |
-| `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth` | The machine's screen. | no `Off` | `Screen` | The `window_geometry` provider, `--window-size` and `Emulation.setDeviceMetricsOverride`. |
-| `webgl` | An adapter the operating system reports. | no `Off` | `Graphics` | The `webgl` provider. |
+| `keyboard_layout` | The locale's layout (`Qwerty`, `Qwertz` or `Azerty`), none for a language with no layout everybody uses. | no `Off` | `Keyboard` | The `keyboard_layout` provider. |
+| `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth` | The machine's screen. | no `Off` | `Screen` | The `window_geometry` provider, `--window-size` (a desktop's maximized browser window: the available screen less the tab strip and toolbar; a phone's screen) and `Emulation.setDeviceMetricsOverride`. |
+| `media_features` | The display's gamut (P3 on a Mac or an iPhone, sRGB elsewhere) and a light or dark scheme, with reduced motion, reduced transparency, contrast and forced colours. | no `Off` | `MediaFeatures` | `Emulation.setEmulatedMedia`. |
+| `webgl` | An adapter the operating system reports. | no `Off` | `Graphics` | The `webgl` and `webgpu` providers: the WebGPU adapter names the same GPU. |
 | `fonts` | The system's fonts, with a few of the less common left out. | no `Off` | `Fonts` | The `fonts` provider. |
 | `media_devices` | A microphone, a speaker and, usually, a camera. | No device is listed. | `MediaDevices` | The `media_devices` provider. |
 | `geolocation` | A spot in the place's main city. | The request is denied (`PERMISSION_DENIED`). | `Geolocation` | The `geolocation` provider, `Emulation.setGeolocationOverride`, and the geolocation permission for a position. |
 | `webrtc` | A public and a local address. | `RTCPeerConnection` and the rest of WebRTC are not there. | `WebRtc` | The `webrtc` provider and `--force-webrtc-ip-handling-policy`. |
 | `battery` | A battery that is mostly charged. | `getBattery` is not there. | `Battery` | The `battery` provider. |
 | `connection` | A 4G connection. | `navigator.connection` is not there. | `Connection` | The `connection` provider. |
+| `storage_quota` | 60 % of a disk of the machine's kind (a desktop's 256 GB to 2 TB, a phone's 128 to 512 GB, less what the system keeps). | no `Off` | `Storage` | The `storage_quota` provider. |
 | `speech_voices` | The system's voices. | No voice is listed. | `Speech` | The `speech` provider. |
 | `bluetooth` (`true`: an adapter, `false`: none) | Whether an adapter is there. | `navigator.bluetooth` is not there. | `Bluetooth` | The `bluetooth` provider. |
 | `client_hints` | Client Hints built the way Chromium builds them. | `navigator.userAgentData` is not there. | `ClientHints` | The `client_hints` provider, and the metadata of the user agent override. |
@@ -250,10 +253,93 @@ setting and why. `.seed(u64)` makes the draw repeatable. Without it the draw use
 fresh entropy, and the seed it used is kept in the fingerprint (`fp.seed()`), so
 `fp.to_builder().build()` reproduces it.
 
-`build()` also fills two values the caller left out: `languages`, from a given
+`build()` also fills three values the caller left out: `languages`, from a given
 locale (the table's list for a known locale, else the locale and its language),
-and `navigator.platform` and the operating-system persona, from a recognised user
-agent. A value you set is never replaced.
+`keyboard_layout`, from a given locale whose language has a layout everybody
+uses (German QWERTZ, French AZERTY except in Canada and Switzerland, English and
+most others QWERTY; `KeyboardLayout::for_locale` is the one table), and
+`navigator.platform` and the operating-system persona, from a recognised user
+agent. A value you set is never replaced, and `validate()` warns when a layout you
+set is not the one the locale has.
+
+## Consistency
+
+A detector does not need to know the real machine. It needs two surfaces that
+disagree: a WebGL renderer that names an NVIDIA card next to a WebGPU adapter
+that says `apple`, a worker that reports ten cores next to a window that reports
+eight, a phone whose pointer is `fine`. A spoof that contradicts another surface
+is worse than no spoof, so a capture can be asked whether the browser agrees
+with itself:
+
+```rust
+use seleniumbase_rs::sb_cdp::Page;
+
+async fn check(page: &Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let captured = page.capture_fingerprint().await?;
+    for contradiction in captured.contradictions() {
+        println!("{contradiction}");
+    }
+    Ok(())
+}
+```
+
+`CapturedFingerprint::contradictions()` returns every pair of surfaces of one
+capture that disagree, loudest first, as a `Contradiction`: the rule (a short
+name such as `webgpu_vs_webgl`), the two surfaces as a page reads them, their
+two values, the persona rule they break, why, and a `Severity` (`high`: a value
+that names the other machine or that every detector reads; `medium`; `low`: a
+quiet preference). The persona is the one the capture's own user agent names,
+so no expected fingerprint is needed: `compare_to` answers whether the page
+matches a fingerprint, `contradictions` whether it matches itself. The rules
+are the ones the open-source detectors apply (fpscanner, CreepJS, BotD,
+FingerprintJS, rebrowser-bot-detector, fp-collect, ThumbmarkJS); the inventory
+with the sources and the ranked gaps is
+[Fingerprint consistency](/design/fingerprint_consistency).
+
+The same list is the `contradictions` field of the MCP tools
+`compare_fingerprint` and `explain_fingerprint`, and the summary of
+`sbrs fingerprint capture` prints it (`--readings` writes it). A rule whose
+readings the capture lacks says nothing: a page whose policy blocked a worker is
+not a contradiction.
+
+What the evasions make agree, so a contradiction there is a regression (the
+rules of `tests/chrome/fingerprint_consistency_chrome.rs` that a headless Chrome
+may never show for a preset):
+
+- the user agent against `navigator.platform`, `vendor`, `productSub`, the
+  Client Hints and the engine;
+- `navigator.language` against `languages` and the Intl locales (also without
+  native spoofing), the time zone against the `Date` offsets, the keyboard map
+  against the locale;
+- the window against the screen: a desktop persona's maximized window, the
+  taskbar, the pixel ratio, the headless 800x600;
+- the display: `matchMedia` and `@media` rules agree (`media_features`), and
+  the gamut and `forced-colors` fit the system;
+- a phone persona's touch events, coarse pointer, empty plugin list and missing
+  PDF viewer, and no desktop-only API on it (`api_present_vs_persona`);
+- WebGL against WebGPU and the operating system, and a phone GPU's extension
+  list (no S3TC, BPTC or RGTC);
+- the three codec answers, the speech voices, the storage quota (also in a new
+  browser context) and the battery shape;
+- an `about:blank` frame against the window.
+
+What stays open, because no script or protocol command can close it honestly:
+
+- a dedicated worker's `navigator`, WebGL and Intl (the init script does not
+  reach workers; the core count is sent through the protocol, but Chrome applies
+  it to the page and not to a worker): `worker_vs_window`, its own lane;
+- a phone persona's `any-pointer: fine` on a host that has a mouse
+  (`media_pointer_vs_device`);
+- the host's fonts (`fonts_vs_os`): the cure is a host of the persona's system,
+  or a persona of the host's;
+- an API the host's Chrome lacks (`api_missing_vs_persona`): a stub a page can
+  call is a lie the call reveals.
+
+A desktop persona's launch window is a maximized browser window, so its viewport
+is never the whole screen (`viewport_is_screen`) and `screen.availHeight` is
+less than `screen.height` (`no_taskbar`). `StealthPolicy::native_only()` runs no
+script, so `availHeight` stays the screen's and `no_taskbar` shows; the presets
+use `balanced()`.
 
 ## What is spoofed
 
@@ -269,13 +355,23 @@ conditions), for the values the fingerprint holds:
 * `navigator.permissions.query` for notifications
 * `screen.width`, `height`, `availWidth`, `availHeight`, `colorDepth`,
   `outerWidth`, `outerHeight` and `devicePixelRatio`
-* WebGL `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL`
+* WebGL `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL`, and the WebGPU
+  adapter's `vendor` and `architecture` for the same GPU (no adapter at all for a
+  Linux persona whose GPU is not Intel's)
 * Canvas `toDataURL`, `toBlob` and `getImageData` noise
 * Audio noise (when the policy's `audio_noise` is not `Natural`, which
   `balanced()` and so every preset and every `randomized` identity set)
 * `navigator.mediaDevices.enumerateDevices` (when `media_devices` is a value)
 * Time zone, through `Intl.DateTimeFormat`, the local-time methods of `Date`, and
   `Emulation.setTimezoneOverride`
+* The keyboard layout map (`navigator.keyboard.getLayoutMap()`): the
+  `keyboard_layout` provider answers `get`, `has`, `keys`, `values`, `entries`,
+  `forEach`, `size` and the iterator with the persona's 48 keys (a Chromium
+  persona only)
+* The storage quota (`navigator.storage.estimate()` and
+  `navigator.webkitTemporaryStorage.queryUsageAndQuota`): the `storage_quota`
+  provider answers with the persona's quota and the real usage; the quota Chrome
+  enforces is not changed
 * Geolocation, through `Emulation.setGeolocationOverride`, the JavaScript
   provider, and the geolocation permission
 * `$cdc_`, `__webdriver`, `__selenium` and similar marker properties
@@ -284,7 +380,7 @@ conditions), for the values the fingerprint holds:
 * Client Hints (`navigator.userAgentData`), when `client_hints` is a value and the
   page is a secure context; `Off` removes it, as it removes `getBattery`,
   `navigator.connection`, `navigator.bluetooth` and WebRTC
-* `matchMedia` answers and page visibility, `canPlayType` for MP4/AAC/MP3, and
+* the media features (`color-gamut`, the colour scheme, reduced motion, reduced transparency, contrast and forced colours) through `Emulation.setEmulatedMedia`, so `matchMedia` and `@media` rules agree, page visibility, `canPlayType`, `MediaSource.isTypeSupported` and `mediaCapabilities.decodingInfo` for MP4/AAC/MP3, the operating-system APIs the persona's system lacks (`api_presence` removes them and adds none), and
   `attachShadow` roots forced open
 * STUN and TURN servers dropped from `RTCPeerConnection` configs, and Chrome's
   WebRTC IP-handling flag
