@@ -1354,3 +1354,101 @@ fn plugin_run_help_describes_the_input_the_output_and_the_exit_status() {
         assert!(text.contains(expected), "{expected:?} in:\n{text}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// sbrs plugin NAME: the tasks of the catalog (plugin_catalog.rs)
+// ---------------------------------------------------------------------------
+
+/// The plugins of the default build that offer a task.
+const TASK_PLUGINS: [&str; 4] = ["fetcher", "extractor", "batcher", "crawler"];
+
+#[test]
+fn the_help_of_the_plugin_command_lists_the_plugins_with_a_task() {
+    let output = in_a_new_folder(&[], &["plugin", "--help"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    let listed = |name: &str| {
+        text.lines()
+            .any(|line| line.trim_start().starts_with(name))
+    };
+    for name in TASK_PLUGINS {
+        assert!(listed(name), "{name} in:\n{text}");
+    }
+    // The commands the declarations hold stay, and a plugin with no task is no command.
+    for name in ["list", "info", "run"] {
+        assert!(listed(name), "{name} in:\n{text}");
+    }
+    assert!(!listed("shield"), "{text}");
+}
+
+#[test]
+fn a_plugin_task_has_a_page_of_its_own() {
+    let output = in_a_new_folder(&[], &["plugin", "crawler", "--help"]);
+
+    assert!(output.status.success(), "{}", stderr(&output));
+    let text = stdout(&output);
+    for expected in ["crawler", "--input", "--out", "sbrs plugin run crawler"] {
+        assert!(text.contains(expected), "{expected:?} in:\n{text}");
+    }
+}
+
+#[test]
+fn a_plugin_task_is_refused_for_an_option_it_does_not_have() {
+    let output = in_a_new_folder(&[], &["plugin", "crawler", "--nosuch"]);
+
+    let text = stderr(&output);
+    assert_eq!(output.status.code(), Some(2), "{text}");
+    assert!(text.contains("--nosuch"), "{text}");
+    assert!(stdout(&output).is_empty(), "no result was written");
+}
+
+#[test]
+fn a_name_that_is_no_task_is_an_unknown_command_of_plugin() {
+    // `shield` is a plugin, but has no task: it is no command of the catalog.
+    for name in ["shield", "no-such-plugin"] {
+        let output = in_a_new_folder(&[], &["plugin", name]);
+
+        let text = stderr(&output);
+        assert_eq!(output.status.code(), Some(2), "{name}: {text}");
+        assert!(text.contains("Usage: sbrs plugin"), "{name}: {text}");
+        assert!(
+            text.contains(&format!("unrecognized subcommand '{name}'")),
+            "{name}: {text}"
+        );
+        assert!(stdout(&output).is_empty(), "no result was written");
+    }
+}
+
+#[test]
+fn a_plugin_task_is_plugin_run_of_that_plugin() {
+    // Neither starts a browser: the input file is read, and found missing, before the launch.
+    // The same words the same way, with `run` or without it.
+    let with_run = in_a_new_folder(
+        &[],
+        &["plugin", "run", "crawler", "--input", "no-such-input.json"],
+    );
+    let without = in_a_new_folder(&[], &["plugin", "crawler", "--input", "no-such-input.json"]);
+
+    let (said_with, said_without) = (stderr(&with_run), stderr(&without));
+    assert_ne!(with_run.status.code(), Some(0), "{said_with}");
+    assert_eq!(without.status.code(), with_run.status.code(), "{said_without}");
+    for text in [&said_with, &said_without] {
+        assert!(text.contains("no-such-input.json"), "{text}");
+    }
+}
+
+#[test]
+fn the_global_options_of_a_plugin_task_go_before_plugin() {
+    // The task has its own options only; a global option written before `plugin` is read as it
+    // is for `plugin run` (here a settings file that does not exist is refused by name).
+    let output = in_a_new_folder(
+        &[],
+        &["--config", "no-such-settings.toml", "plugin", "crawler"],
+    );
+
+    let text = stderr(&output);
+    assert_ne!(output.status.code(), Some(0), "{text}");
+    assert!(text.contains("no-such-settings.toml"), "{text}");
+}
+

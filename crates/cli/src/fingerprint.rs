@@ -106,12 +106,7 @@ impl From<OsArg> for OsType {
 #[usage(args_override_self = false)]
 pub struct ExportArgs {
     /// The preset to write: windows, edge, macos, linux, android or ios (safari is ios).
-    #[usage(
-        long,
-        value_name = "NAME",
-        choices("windows", "edge", "macos", "linux", "android", "ios"),
-        choices_strict = false
-    )]
+    #[usage(long, value_name = "NAME", complete = crate::runtime_values::preset_candidates)]
     preset: Option<String>,
     /// Write a random identity instead of a preset.
     #[usage(long, bool_value)]

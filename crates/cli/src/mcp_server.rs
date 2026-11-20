@@ -65,6 +65,8 @@ mod mcp_client;
 
 mod mcp_cmd;
 mod mcp_install;
+#[cfg(test)]
+mod man;
 
 // The derive of `Cli` names the type of the subcommand field by its last path segment.
 use mcp_cmd::Command;
@@ -507,6 +509,16 @@ mod tests {
         let mut out = Vec::new();
         walk(&spec.bin, &spec.cmd, &mut out);
         out
+    }
+
+    /// `man/man1/sbrs-mcp.1` is the usage spec of this program rendered as a man page
+    /// (`man.rs`). `SB_UPDATE_COMPLETIONS=1` writes it again, as it does the files of `sbrs`.
+    /// The page describes the default build, which has the client commands.
+    #[cfg(feature = "mcp-client")]
+    #[test]
+    fn the_committed_man_page_matches_the_cli() {
+        let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
+        man::assert_current("man/man1/sbrs-mcp.1", &man::render(&spec));
     }
 
     /// The flag of a variable says so in its help, and every flag that the registry lists for

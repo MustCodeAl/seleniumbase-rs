@@ -984,7 +984,9 @@ If the command launches a browser, prefer creating a `BaseCase` through
 
 Write `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` again with
 `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`;
-the same test fails in CI when they are stale.
+the same test fails in CI when they are stale. It writes the man page `man/man1/sbrs.1`
+too; `man/man1/sbrs-mcp.1` comes from
+`SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs-mcp man_page`.
 
 </Step>
 

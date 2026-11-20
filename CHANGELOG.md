@@ -10,6 +10,25 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Man pages**: `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1`, written by usage from the same
+  specs as the completions and the CLI reference (`crates/cli/src/man.rs`), with one section for
+  every command. `sbrs completions man` prints the first, so an installed binary can write its own
+  page (`sbrs completions man > ~/.local/share/man/man1/sbrs.1`). A test fails when a page is
+  stale; `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs --bin sbrs-mcp
+  man_page` writes them again.
+- **Completions that ask the running program**: `--plugin NAME`, `sbrs plugin info NAME` and
+  `sbrs plugin run NAME` offer the built-in plugins of the binary in hand (the last one only those
+  with a task), each with its summary, and `sbrs fingerprint export --preset` the library's own
+  list of presets, when Tab is pressed, so no spec and no page holds a list that depends on the
+  build (`crates/cli/src/runtime_values.rs`).
+- **Commands that exist at run time**: every built-in plugin that offers a task is a command of
+  `sbrs plugin`, so `sbrs plugin crawler --input crawl.json` is `sbrs plugin run crawler
+  --input crawl.json`. A `usage-dynamic` catalog (`crates/cli/src/plugin_catalog.rs`) adds them
+  to `sbrs plugin --help`, to the completion and to the parse; `sbrs plugin NAME --help` is the
+  page of one. The declarations hold only the catch-all, so the usage spec, the CLI reference and
+  the man pages do not list the plugins of a build.
+- The command line is built on usage 7.4 (`usage-rs` and `usage-lib`) and `usage-dynamic` 7.4
+  (the same release train; usage-dynamic 6 is built on usage-rs 6).
 - Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new

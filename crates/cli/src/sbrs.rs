@@ -64,6 +64,8 @@ mod fig;
 mod fingerprint;
 mod info;
 
+mod plugin_catalog;
+mod plugin_flags;
 mod proxy;
 mod recorder_flags;
 
@@ -71,8 +73,11 @@ mod browser_flags;
 #[cfg(feature = "turso")]
 mod history;
 #[cfg(test)]
+mod man;
+#[cfg(test)]
 mod reference;
 mod report;
+mod runtime_values;
 mod strict;
 mod trace;
 
@@ -299,6 +304,11 @@ enum PluginCommand {
     /// status 2 and lists the plugins that have a task when the name is not one of them.
     #[usage(example = "sbrs plugin run crawler --input crawl.json --out found.jsonl")]
     Run(PluginRunArgs),
+    // The task of a plugin as a command of its own (`sbrs plugin crawler --input crawl.json`):
+    // the plugins that have a task depend on the build, so the words are met by the catalog of
+    // `plugin_catalog.rs`, which makes them `plugin run`. (Plain comments, not docs.)
+    #[usage(external_subcommand)]
+    External(Vec<std::ffi::OsString>),
 }
 
 // The argument of `plugin info`. (Plain comments, not docs: a doc comment on this struct
@@ -306,7 +316,7 @@ enum PluginCommand {
 #[derive(Debug, usage::Args)]
 struct PluginInfoArgs {
     /// The plugin's name, as `sbrs plugin list` shows it.
-    #[usage(value_hint = usage::ValueHint::Other)]
+    #[usage(complete = runtime_values::plugin_candidates)]
     name: String,
 }
 
@@ -315,7 +325,7 @@ struct PluginInfoArgs {
 #[derive(Debug, usage::Args)]
 struct PluginRunArgs {
     /// The plugin whose task to run, as `sbrs plugin list` shows it.
-    #[usage(value_hint = usage::ValueHint::Other)]
+    #[usage(complete = runtime_values::task_plugin_candidates)]
     name: String,
     /// A JSON file with the task's input, or `-` to read it from standard input.
     #[usage(long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
@@ -660,8 +670,9 @@ struct Cli {
     /// the file enables), then the settings file. `sbrs plugin list` shows the plugins this
     /// build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
     #[allow(rustdoc::broken_intra_doc_links)] // `[plugins]` is a TOML table in help text, not a link
-    #[usage(long, global, value_name = "NAME", value_hint = usage::ValueHint::Other)]
-    plugin: Vec<String>,
+    // The flag is declared in `PluginFlags`: a completer needs an `Args` struct of its own.
+    #[usage(flatten)]
+    plugin_flags: plugin_flags::PluginFlags,
     /// Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
     ///
     /// Quote the whole option so the shell keeps the quotes of a string:
@@ -2949,6 +2960,14 @@ fn is_broken_pipe(error: &(dyn std::error::Error + 'static)) -> bool {
 }
 
 fn run_command() -> std::process::ExitCode {
+    // A completion request is answered before the runtime starts, with the commands of the
+    // plugin catalog among the candidates; without a catalog `Cli::parse` answers it as usual.
+    let argv: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
+    if let Some(answer) = plugin_catalog::completion(&argv) {
+        // A reader that went away is the end of a pipeline, not a failure.
+        let _ = std::io::stdout().lock().write_all(answer.as_bytes());
+        return std::process::ExitCode::SUCCESS;
+    }
     let runtime = match tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
@@ -3007,14 +3026,75 @@ fn parse_command_line() -> Cli {
         std::process::exit(2);
     }
     match Cli::parse_from(&words) {
-        Ok(cli) => with_settings_file(cli),
-        Err(error) if failure::is_request(&error) => Cli::parse(),
-        Err(error) => {
-            eprint!("{}", failure::render(&words, &error));
+            Ok(cli) => match plugin_task_words(&cli) {
+                Some(captured) => plugin_task(&words, captured),
+                None => with_settings_file(cli),
+            },
+            Err(error) if failure::is_request(&error) => {
+                print_catalog_help(&error);
+                Cli::parse()
+            }
+            Err(error) => {
+                eprint!("{}", failure::render(&words, &error));
+                std::process::exit(2);
+            }
+        }
+}
+
+/// The words after `sbrs plugin` that the declarations do not know, when `cli` holds them: a
+/// command of the catalog of [`plugin_catalog`], or a mistake.
+fn plugin_task_words(cli: &Cli) -> Option<&[std::ffi::OsString]> {
+    match &cli.command {
+        Commands::Plugin(PluginArgs {
+            command: PluginCommand::External(words),
+        }) => Some(words),
+        _ => None,
+    }
+}
+
+/// `sbrs plugin NAME ...`, which the catalog of [`plugin_catalog`] judges: the options of the task
+/// of the plugin `NAME` make `sbrs plugin run NAME ...`, a request for its page is answered on
+/// standard output with status 0, and anything else is refused like a failed parse, with status 2.
+/// `words` is the command line without the program name, and ends with `captured`.
+fn plugin_task(words: &[&std::ffi::OsStr], captured: &[std::ffi::OsString]) -> Cli {
+    match plugin_catalog::dispatch(captured) {
+        plugin_catalog::Dispatch::Run => {
+            let mut run = words.to_vec();
+            run.insert(words.len() - captured.len(), std::ffi::OsStr::new("run"));
+            match Cli::parse_from(&run) {
+                Ok(cli) => with_settings_file(cli),
+                Err(error) => {
+                    eprint!("{}", failure::render(&run, &error));
+                    std::process::exit(2);
+                }
+            }
+        }
+        plugin_catalog::Dispatch::Page(page) => {
+            print!("{page}");
+            std::process::exit(0);
+        }
+        plugin_catalog::Dispatch::Refused(message) => {
+            let error = ArgumentError::new(plugin_catalog::PARENT, message);
+            eprint!("{}", failure::render_argument_error(&error));
             std::process::exit(2);
         }
     }
 }
+
+/// The help page of `sbrs plugin` lists the plugins that have a task, which no declaration
+/// holds: when `error` asks for that page, prints the page the catalog makes and exits with 0.
+/// Any other request is left to `Cli::parse`.
+fn print_catalog_help(error: &usage::Error<'_, '_>) {
+    if let usage::Error::Help { cmd, long } = error
+        && let Some((path, _)) = usage::help::find(Cli::spec(), cmd)
+        && path[1..].join(" ") == plugin_catalog::PARENT
+        && let Some(page) = plugin_catalog::help_page(plugin_catalog::PARENT, *long)
+    {
+        print!("{page}");
+        std::process::exit(0);
+    }
+}
+
 
 async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     // One bad SB_* variable must not drop the good ones, SB_LOG_LEVEL among
@@ -3295,7 +3375,7 @@ fn import_script(
     Ok(())
 }
 
-/// What `sbrs completions` writes: a shell's completion script, or a Fig spec.
+/// What `sbrs completions` writes: a shell's completion script, a Fig spec, the usage spec or the man page.
 #[derive(Clone, Copy, Debug, usage::ValueEnum)]
 enum CompletionFormat {
     Bash,
@@ -3309,10 +3389,16 @@ enum CompletionFormat {
     /// A usage spec (KDL) for jdx/usage and mise, which turn it into completions,
     /// Markdown and man pages.
     Usage,
+    /// The man page of `sbrs` (roff), the same page as `man/man1/sbrs.1` of the repository:
+    /// write it to a `man1` folder of `MANPATH` and `man sbrs` reads it.
+    Man,
 }
 
 /// The usage spec, generated from the declarations above by a test in this file.
 const USAGE_SPEC: &str = include_str!("../../../completions/sbrs.usage.kdl");
+
+/// The man page of `sbrs`, which usage writes from the usage spec: a test keeps the file current.
+const MAN_PAGE: &str = include_str!("../../../man/man1/sbrs.1");
 
 impl CompletionFormat {
     /// The shell this format is for, or `None` for the Fig and usage specs.
@@ -3324,7 +3410,7 @@ impl CompletionFormat {
             Self::Fish => Some(Shell::Fish),
             Self::Elvish => Some(Shell::Elvish),
             Self::Powershell => Some(Shell::PowerShell),
-            Self::Fig | Self::Usage => None,
+            Self::Fig | Self::Usage | Self::Man => None,
         }
     }
 }
@@ -3333,7 +3419,7 @@ impl CompletionFormat {
 /// `SB_PLUGINS` (nothing else of the settings is read), with `--plugin` and `--plugin-opt`
 /// on top, and where each name came from.
 fn plugin_choice(args: &Cli) -> Result<PluginChoice, seleniumbase_rs::SeleniumBaseError> {
-    PluginChoice::load(args.config.as_deref(), &args.plugin, &args.plugin_opt)
+    PluginChoice::load(args.config.as_deref(), &args.plugin_flags.plugin, &args.plugin_opt)
 }
 
 /// `sbrs plugin list` and `sbrs plugin info NAME`. They start no browser and read only the
@@ -3344,6 +3430,15 @@ async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn s
         PluginCommand::List => plugin_cmd::list(choice.selection()),
         PluginCommand::Info(info) => plugin_cmd::info(&info.name, choice.selection())?,
         PluginCommand::Run(run) => return run_plugin_task(run, args).await,
+        // `parse_command_line` has turned these words into `plugin run` or refused them.
+        PluginCommand::External(words) => {
+            let name = words.first().map(|word| word.to_string_lossy().into_owned());
+            return Err(ArgumentError::new(
+                plugin_catalog::PARENT,
+                format!("unrecognized subcommand '{}'", name.unwrap_or_default()),
+            )
+            .into());
+        }
     };
     std::io::stdout().lock().write_all(text.as_bytes())?;
     Ok(())
@@ -3377,7 +3472,7 @@ async fn run_plugin_task(
     use seleniumbase_rs::plugin_host;
 
     // The task's plugin is named by the command line, whatever else turned it on.
-    let mut names = args.plugin.clone();
+    let mut names = args.plugin_flags.plugin.clone();
     if !names.contains(&run.name) {
         names.push(run.name.clone());
     }
@@ -3481,6 +3576,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 ),
                 (_, Some(shell)) => Cli::completion_script(shell),
                 (CompletionFormat::Usage, None) => USAGE_SPEC.to_owned(),
+                (CompletionFormat::Man, None) => MAN_PAGE.to_owned(),
                 (_, None) => fig::spec(Cli::spec()),
             };
             std::io::stdout().write_all(completion.as_bytes())?;
@@ -3813,7 +3909,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let choice = if launches || is_test {
         Some(PluginChoice::load(
             args.config.as_deref(),
-            &args.plugin,
+            &args.plugin_flags.plugin,
             &args.plugin_opt,
         )?)
     } else {
@@ -3826,7 +3922,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         )
         .into());
     }
-    let forward_plugins = !args.plugin.is_empty();
+    let forward_plugins = !args.plugin_flags.plugin.is_empty();
     if let (true, Some(choice)) = (launches, &choice) {
         choice.check()?;
         choice.log();
@@ -5009,7 +5105,7 @@ mod plugin_cli_tests {
             "https://example.test/",
         ]);
 
-        assert_eq!(cli.plugin, ["shield", "block-resources"]);
+        assert_eq!(cli.plugin_flags.plugin, ["shield", "block-resources"]);
         assert_eq!(
             cli.plugin_opt,
             [
@@ -5018,7 +5114,7 @@ mod plugin_cli_tests {
             ]
         );
         assert!(matches!(cli.command, Commands::Open { .. }));
-        assert!(parse(&["sbrs", "open", "x"]).plugin.is_empty());
+        assert!(parse(&["sbrs", "open", "x"]).plugin_flags.plugin.is_empty());
         assert!(parse(&["sbrs", "open", "x"]).start_page.is_none());
         assert!(parse(&["sbrs", "open", "x"]).plugin_opt.is_empty());
     }
@@ -5043,7 +5139,7 @@ mod plugin_cli_tests {
     #[test]
     fn a_plugin_option_after_the_command_is_global_like_the_other_options() {
         let cli = try_parse(&["sbrs", "open", "x", "--plugin", "shield"]).expect("accepted");
-        assert_eq!(cli.plugin, ["shield"]);
+        assert_eq!(cli.plugin_flags.plugin, ["shield"]);
         let cli = try_parse(&["sbrs", "open", "x", "--plugin-opt", "a.b=1"]).expect("accepted");
         assert_eq!(cli.plugin_opt, ["a.b=1"]);
         assert!(
@@ -5063,7 +5159,7 @@ mod plugin_cli_tests {
         ));
 
         let info = parse(&["sbrs", "--plugin", "shield", "plugin", "info", "shield"]);
-        assert_eq!(info.plugin, ["shield"]);
+        assert_eq!(info.plugin_flags.plugin, ["shield"]);
         let Commands::Plugin(PluginArgs {
             command: PluginCommand::Info(info),
         }) = info.command
@@ -5100,7 +5196,7 @@ mod plugin_cli_tests {
             "shield",
         ]);
         // The plugin options are global, so they stay valid after the subcommand.
-        assert_eq!(cli.plugin, ["shield"]);
+        assert_eq!(cli.plugin_flags.plugin, ["shield"]);
         let Commands::Plugin(PluginArgs {
             command: PluginCommand::Run(run),
         }) = cli.command
@@ -5639,6 +5735,15 @@ mod usage_spec_tests {
         let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
         assert_generated("docs/help/cli_reference.md", &reference::render(&spec));
     }
+
+    /// `man/man1/sbrs.1` is the usage spec rendered as a man page (`man.rs`), the page that
+    /// `sbrs completions man` prints. `SB_UPDATE_COMPLETIONS=1` writes it again, like the files above.
+    #[cfg(not(feature = "turso"))]
+    #[test]
+    fn the_committed_man_page_matches_the_cli() {
+        let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
+        man::assert_current("man/man1/sbrs.1", &man::render(&spec));
+    }
 }
 
 #[cfg(test)]
@@ -5738,7 +5843,7 @@ mod page_cli_tests {
         assert_eq!(cli.browser, Some(BrowserArg::Chromium));
         assert_eq!(cli.proxy.as_deref(), Some("p:1"));
         let cli = parse(&["sbrs", "open", "x", "--plugin", "shield", "--plugin", "b"]);
-        assert_eq!(cli.plugin, ["shield", "b"]);
+        assert_eq!(cli.plugin_flags.plugin, ["shield", "b"]);
     }
 
     /// Every option of the root is a browser or session option for the command that

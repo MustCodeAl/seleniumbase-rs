@@ -11,9 +11,11 @@
 
 use usage::complete::{Candidate, CompleteCtx};
 
-/// What a plugin is called and what it does, for the words a completer offers.
+/// What each built-in plugin of this build is called and what it does, for the words a completer
+/// offers and for the commands of the plugin catalog (`plugin_catalog.rs`); only the plugins
+/// that offer a task when `only_with_task` is set.
 #[cfg(feature = "plugins")]
-fn plugin_summaries(only_with_task: bool) -> Vec<(String, String)> {
+pub(crate) fn plugin_summaries(only_with_task: bool) -> Vec<(String, String)> {
     let registry = seleniumbase_rs::plugin_host::builtin_registry();
     let with_task = seleniumbase_rs::cli::plugin_cmd::task_names_with(&registry);
     registry
@@ -32,7 +34,7 @@ fn plugin_summaries(only_with_task: bool) -> Vec<(String, String)> {
 
 /// A build without the plugin API has no plugin to name.
 #[cfg(not(feature = "plugins"))]
-fn plugin_summaries(_only_with_task: bool) -> Vec<(String, String)> {
+pub(crate) fn plugin_summaries(_only_with_task: bool) -> Vec<(String, String)> {
     Vec::new()
 }
 

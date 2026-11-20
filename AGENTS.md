@@ -82,7 +82,9 @@ cargo check --features turso --all-targets
   dependencies in `crates/cli` (`tests/library_manifest.rs` checks).
 - **After changing the command line** (`crates/cli/src/sbrs.rs`), write the
   generated `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` again with
-  `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
+  `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`
+  (that also writes `man/man1/sbrs.1`; the man page of `sbrs-mcp` is written by
+  `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs-mcp man_page`).
 - **After changing a public method of `BaseCase` or the pure CDP engine**, write
   `src/mcp/dev/api_index.json` (what the `dev` MCP server's `find_api` searches)
   again with `SB_UPDATE_API_INDEX=1 cargo test -p seleniumbase-rs --features

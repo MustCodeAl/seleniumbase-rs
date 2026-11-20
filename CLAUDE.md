@@ -153,6 +153,11 @@ binaries with `cargo install --path crates/cli`.
   `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`.
   `docs/completions/fig-sbrs.ts` is `sbrs completions fig` through prettier (see the
   README beside it) and is not checked by a test.
+- The man pages `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1` are usage's rendering of the same
+  specs (`crates/cli/src/man.rs`; `sbrs completions man` prints the first); a test of each
+  binary fails when its page is stale, and the same variable writes them again:
+  `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs --bin sbrs-mcp man_page`
+  (the `usage_spec` command above writes `sbrs.1` too).
 - The `dev` server's `cli_help` embeds `completions/sbrs.usage.kdl` and reads it with the
   small KDL reader in `src/mcp/dev/spec.rs` (the library may not use `usage-lib`), so a new
   command or flag reaches it once the spec is written again. A `usage` upgrade that writes

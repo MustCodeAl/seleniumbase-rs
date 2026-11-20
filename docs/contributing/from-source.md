@@ -712,10 +712,12 @@ Some files are generated. Edit their source, then write them again:
 | File | Made from | Command |
 |---|---|---|
 | `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` | the declarations in `crates/cli/src/sbrs.rs` | `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec` |
+| `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1` | the declarations of `crates/cli/src/sbrs.rs` and `mcp_server.rs`, rendered by usage | `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs --bin sbrs-mcp man_page` |
 | `docs/parity.md` | `parity/api.toml` | `mise run parity-docs` |
 | `docs/completions/fig-sbrs.ts` | `sbrs completions fig`, through prettier | see `docs/completions/README.md` |
 
-The `usage_spec` test fails when the first two are stale, and `mise run parity-docs`
+The `usage_spec` test fails when the usage spec or the reference is stale, the `man_page` tests
+when a man page is, and `mise run parity-docs`
 fails when `docs/parity.md` was out of date. No test checks the Fig spec.
 
 The navigation in `docs/docs.json` is written by hand. `mise run mdx` (needs Bun)

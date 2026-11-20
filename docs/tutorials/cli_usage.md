@@ -1147,6 +1147,21 @@ With the script loaded, `sbrs install <Tab>` offers the driver names, and
 whether it comes before or after the command, so `sbrs get-title --hea<Tab>`
 offers the global flags that start with `--hea`.
 
+Some words are not in the script or in any spec, because they depend on the
+binary in hand: `sbrs --plugin <Tab>` and `sbrs plugin info <Tab>` list the
+built-in plugins this build has, each with its summary, `sbrs plugin run <Tab>`
+the ones that offer a task, and `sbrs fingerprint export --preset <Tab>` the presets
+of the library. The script asks `sbrs` for them when you press Tab, so they always
+match the version you run.
+
+The commands are not all in the declarations either: each plugin that offers a task is a
+command of `plugin` at run time (`sbrs plugin crawler --input crawl.json` is
+`sbrs plugin run crawler --input crawl.json`), so `sbrs plugin --help` lists them next
+to `list`, `info` and `run`, `sbrs plugin crawler --help` has a page for each, and
+`sbrs plugin <Tab>` offers them. The usage spec, the CLI reference and the man pages come
+from the declarations and do not list them; the global options go before `plugin`, as
+`sbrs --headless plugin crawler`.
+
 ### usage and mise
 
 `sbrs completions usage` prints a [usage](https://usage.jdx.dev) spec (KDL),
@@ -1170,6 +1185,11 @@ sbrs completions man > "$HOME/.local/share/man/man1/sbrs.1"
 man sbrs
 ```
 
+For every user of the machine, copy the page into a `man1` folder of the system's
+`MANPATH` instead, such as `/usr/local/share/man/man1`, and read it with `man sbrs`
+(`sudo cp man/man1/sbrs.1 man/man1/sbrs-mcp.1 /usr/local/share/man/man1/` from a
+checkout). The pages in the repository are the ones of the default build.
+
 usage makes one page for a program, not one for each subcommand: after the options
 that go with every command and the list of commands, each command has its own
 section, such as `SBRS OPEN` or `SBRS PLUGIN LIST`, with its usage, arguments, flags
@@ -1181,7 +1201,6 @@ of `MANPATH`: add the folder you installed into, if your system does not search 
 The pages are generated, like the usage spec: a test fails when one is stale, and
 `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs --bin sbrs-mcp
 man_page` writes them again.
-
 
 ### Warp, inshellisense and Amazon Q
 

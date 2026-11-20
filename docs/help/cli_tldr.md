@@ -147,6 +147,7 @@ sbrs plugin info shield
 sbrs --plugin shield open https://example.com
 sbrs --plugin shield --plugin-opt 'shield.level="strict"' open https://example.com
 sbrs plugin run crawler --input crawl.json --out pages.jsonl   # the task of a plugin: fetcher, extractor, batcher, crawler or imap
+sbrs plugin crawler --input crawl.json              # the same, shorter: each plugin with a task is a command of plugin
 ```
 
 The built-in plugins are shield, block-resources, crx, fetcher, extractor, batcher, crawler,
@@ -156,6 +157,7 @@ browser, imap and tor; [Choosing plugins](/plugins/selecting) has every way to t
 
 ```bash
 sbrs completions zsh > ~/.zfunc/_sbrs              # bash, zsh, fish, elvish, powershell
+sbrs completions man > ~/.local/share/man/man1/sbrs.1   # the man page: `man sbrs`
 sbrs prompt                                        # Chrome's major version and the driver, for a prompt
 sbrs encrypt "secret text"                         # prints a token
 sbrs decrypt TOKEN

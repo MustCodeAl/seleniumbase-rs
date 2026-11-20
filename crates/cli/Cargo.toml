@@ -45,6 +45,12 @@ seleniumbase-rs = { path = "../.." }
 # and no longer look for a renamed dependency in this manifest. The binaries' roots bring
 # it in as `usage` (`extern crate usage_rs as usage;`), the name the sources use.
 usage-rs = { version = "7.4", features = ["completions"] }
+# The commands that exist only at run time (the task of each built-in plugin that offers one,
+# `sbrs plugin NAME`): a catalog added to the parser's tables for the help, the completion and
+# the parse of a word the declarations do not know. The same release train as `usage-rs`
+# (usage-dynamic 6 builds on usage-rs 6 and would not accept the types of 7).
+usage-dynamic = "7.4"
+
 # `preserve_order`: `sbrs-mcp install` rewrites a client's JSON config and must keep the order
 # of its keys (thirtyfour turns the feature on already).
 serde_json = { version = "1.0", features = ["preserve_order"] }
@@ -113,9 +119,10 @@ tokio-console = ["seleniumbase-rs/tokio-console"]
 
 [dev-dependencies]
 # Writes the CLI reference page (docs/help/cli_reference.md) from the usage spec in a
-# test; usage-lib is the renderer of the usage tool (`usage generate markdown`), and
-# the binary does not link it. The same release train as `usage-rs` above.
-usage_lib = { package = "usage-lib", version = "7.4", default-features = false, features = ["markdown"] }
+# test, and the man pages (man/man1/*.1) from the same spec; usage-lib is the renderer of the
+# usage tool (`usage generate markdown`, `usage generate manpage`), and the binary does not
+# link it. The same release train as `usage-rs` above.
+usage_lib = { package = "usage-lib", version = "7.4", default-features = false, features = ["markdown", "manpage"] }
 # The `report` module's test (feature `turso`) matches a timestamp.
 regex = "1.13"
 # `cli_scaffold` parses what `sbrs mkfile` and `sbrs mkdir` write.

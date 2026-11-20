@@ -51,6 +51,7 @@ python3 -I tools/docs7_changelog.py
 
 ```bash Terminal
 SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec
+SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs --bin sbrs-mcp man_page
 SB_UPDATE_API_INDEX=1 cargo test -p seleniumbase-rs --features mcp-server api_index
 python3 -I tools/parity/render_docs.py
 ```
