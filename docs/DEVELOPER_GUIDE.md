@@ -633,8 +633,8 @@ capability trait.
 <LayoutFile name="presentation.rs" note="presentations" />
 <LayoutDir name="recorder" open note="the page recorder: state, generated output and its page script">
 <LayoutFile name="breakpoint.rs" note="the pause while a person records" />
-<LayoutFile name="calls.rs" note="the recorded calls" />
 <LayoutFile name="cdp.rs" note="recording over CDP" />
+<LayoutFile name="command.rs" note="the typed recorded commands (RecordedCommand)" />
 <LayoutFile name="extras.rs" note="extra recorded actions" />
 <LayoutFile name="generate.rs" note="turns a recording into a test" />
 <LayoutDir name="js" open note="scripts the recorder runs in the page">
@@ -644,6 +644,7 @@ capability trait.
 <LayoutFile name="output.rs" note="where a recording is written" />
 <LayoutFile name="process.rs" note="processes the recorded actions" />
 <LayoutFile name="raw.rs" note="the raw recording" />
+<LayoutFile name="rust_call.rs" note="the Rust call each recorded command becomes" />
 <LayoutFile name="state.rs" note="the recorder state" />
 </LayoutDir>
 <LayoutFile name="recorder.rs" note="the recorder on BaseCase" />
