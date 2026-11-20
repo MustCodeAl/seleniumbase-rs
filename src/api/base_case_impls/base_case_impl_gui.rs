@@ -65,7 +65,7 @@ impl BaseCase {
     /// pixels are the screen's, which holds when the display is not scaled.
     async fn element_center_screen_coords(&self, css: &SelectorBuf) -> Result<(i32, i32), SeleniumBaseError> { let value = self
         .session
-        .execute_script(&element_center_script(css))
+        .execute_script(&element_center_script(css.as_str()))
         .await?;
     screen_point(&value) }
 
@@ -135,17 +135,13 @@ impl BaseCase {
     }
 
     /// Drag the center of `source_css` to the center of `target_css`.
-    pub async fn gui_drag_and_drop(
-        &mut self,
-        source_css: &str,
-        target_css: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        let from = self.element_center_screen_coords(source_css).await?;
-        let to = self.element_center_screen_coords(target_css).await?;
-        let mut gui = Gui::new()?;
-        gui.drag(from, to)?;
-        Ok(())
-    }
+    pub async fn gui_drag_and_drop(&mut self, source: impl Into<SelectorBuf>, target: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+            let from = self.element_center_screen_coords(&source.into()).await?;
+            let to = self.element_center_screen_coords(&target.into()).await?;
+            let mut gui = Gui::new()?;
+            gui.drag(from, to)?;
+            Ok(())
+        }
 
     /// Press the left mouse button at `(x, y)` without releasing it.
     /// The held coordinates are tracked so `gui_release` can resume the
@@ -275,7 +271,7 @@ mod tests_gui {
 
     /// Runs the position script in a page that pretends to be a headed window
     /// with an 85px toolbar and 8px side borders, and returns the result.
-    async fn position_in_a_headed_window(page: &crate::sb_cdp::Page, css: &SelectorBuf, context: &str,) -> serde_json::Value { page.evaluate(
+    async fn position_in_a_headed_window(page: &crate::sb_cdp::Page, css: &str, context: &str,) -> serde_json::Value { page.evaluate(
         "Object.defineProperty(window, 'outerHeight', {configurable: true, value: window.innerHeight + 85 + 8}); \
          Object.defineProperty(window, 'outerWidth', {configurable: true, value: window.innerWidth + 16}); 1",
     )

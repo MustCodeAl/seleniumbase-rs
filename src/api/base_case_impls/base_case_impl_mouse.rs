@@ -227,13 +227,16 @@ impl BaseCase {
     /// parent or the child before the click, [`SeleniumBaseError::ElementNotInteractable`]
     /// if the driver refuses the click, as when another element intercepts it, and
     /// [`SeleniumBaseError::WebDriver`] for any other failure of the driver.
-    pub async fn nested_click(&mut self,
-    parent_css: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn nested_click(&mut self, parent: impl Into<SelectorBuf>, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+            self.nested_click_selected(&parent.into(), selector.into()).await
+        }
+    
+        /// [`nested_click`](Self::nested_click) once both selectors are read.
+        async fn nested_click_selected(&mut self, parent_css: &SelectorBuf, selector: SelectorBuf) -> Result<(), SeleniumBaseError> { let css: &SelectorBuf = &selector.into();
         let parent = self.find_element(parent_css).await?;
         let tag = parent.tag().await?;
         if tag.eq_ignore_ascii_case("iframe") || tag.eq_ignore_ascii_case("frame") {
-            self.switch_to_frame(parent_css).await?;
+            self.switch_to_frame(parent_css.to_string()).await?;
             let clicked = self.click(css).await;
             self.switch_to_default_content().await?;
             return clicked;
@@ -244,8 +247,7 @@ impl BaseCase {
             _ => SeleniumBaseError::element_not_found(format!("{parent_css} {css}")),
         })?;
         child.click().await?;
-        Ok(())
-    }
+        Ok(()) }
 
     /// Attempts the first supported CAPTCHA widget on the page.
     ///

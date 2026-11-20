@@ -449,7 +449,7 @@ them from the live page.
 - **Title.** `BaseCase::title`, `assert_title(expected)` and
   `assert_title_contains(expected)`. The pure CDP engine has `Page::title()` and
   page expectations `to_have_title` and `to_contain_title`.
-- **Tags in the head.** `BaseCase::attribute(css, attribute)` returns the
+- **Tags in the head.** `BaseCase::attribute(selector, attribute)` returns the
   attribute of an element as an `Option<String>`. It first waits for the element
   to be present, so it suits tags that must exist. For a tag that may be absent,
   read it with `execute_script`, or `Page::evaluate` on the pure CDP engine.

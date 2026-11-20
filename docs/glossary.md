@@ -1171,7 +1171,7 @@ See [Media queries](/concepts/mobile-and-accessibility#media-queries).
 
 <Badge color="green">Testing</Badge>
 
-Multi-factor authentication: a login that asks for a second proof, here usually a [TOTP](#totp) code. `enter_totp_code(css, secret)` types the code into a field and presses Enter.
+Multi-factor authentication: a login that asks for a second proof, here usually a [TOTP](#totp) code. `enter_totp_code(selector, secret)` types the code into a field and presses Enter.
 
 See [MFA / TOTP Guide](/tutorials/mfa_totp).
 

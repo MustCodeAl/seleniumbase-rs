@@ -233,6 +233,55 @@ async fn the_driver_servers_debugging_tools_need_a_started_browser_like_the_sb_s
     assert_eq!(info.as_json(), Some(&json!({ "running": false })));
 }
 
+#[test_log::test(tokio::test)]
+async fn an_empty_selector_argument_is_refused_at_the_argument() {
+    // No browser is started. The argument is read before the session is asked
+    // for, so a selector no engine accepts is refused first, by name, and
+    // never reaches a page.
+    let hosts = [
+        driver::host(Settings::new("unused")),
+        sb::host(Settings::new("unused")),
+    ];
+    for host in &hosts {
+        for tool in [
+            "click_element",
+            "find_elements_count",
+            "get_text",
+            "is_element_visible",
+        ] {
+            for selector in ["", "   ", "my-app ::shadow"] {
+                let error = call(host, tool, json!({ "selector": selector }))
+                    .await
+                    .unwrap_err();
+                assert!(
+                    matches!(&error, ToolError::InvalidArgument { name, .. } if name == "selector"),
+                    "{tool} {selector:?}: {error}"
+                );
+            }
+        }
+    }
+}
+
+#[test_log::test(tokio::test)]
+async fn a_selector_that_passes_the_check_reaches_the_session() {
+    // The strict read accepts what the engines accept (CSS, XPath, link text,
+    // :contains()), so the call goes on to the session, which is not started.
+    let host = sb::host(Settings::new("unused"));
+    for selector in ["#a", "//a[@id='x']", "link=Home", "p:contains('x')"] {
+        let error = call(
+            &host,
+            "find_elements_count",
+            json!({ "selector": selector }),
+        )
+        .await
+        .unwrap_err();
+        assert!(
+            matches!(error, ToolError::NoBrowser),
+            "{selector:?}: {error}"
+        );
+    }
+}
+
 /// The tools this crate adds for developing, debugging and testing.
 const DEVELOPER_TOOLS: [&str; 17] = [
     "capture_fingerprint",

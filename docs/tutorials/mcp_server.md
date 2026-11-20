@@ -939,7 +939,7 @@ documentation and whether it is `async`.
       "name": "wait_for_text",
       "owner": "BaseCase",
       "engine": "basecase",
-      "signature": "pub async fn wait_for_text(&self, text: &str, css: &str, timeout_secs: u64) -> Result<(), SeleniumBaseError>",
+      "signature": "pub async fn wait_for_text(&self, text: &str, selector: impl Into<SelectorBuf>, timeout_secs: u64) -> Result<(), SeleniumBaseError>",
       "doc": "Waits up to `timeout_secs` for the element `css` to be displayed and contain `text`. ...",
       "is_async": true,
       "file": "src/api/base_case.rs"
