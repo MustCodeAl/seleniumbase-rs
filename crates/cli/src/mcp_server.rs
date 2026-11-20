@@ -437,7 +437,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let server = cli.server.or(environment.server).unwrap_or(Profile::Sb);
     let http = http_options(&cli, &environment).unwrap_or_else(|error| exit_with(&error));
     let serving_http = http.is_some();
-    let settings = mcp::Settings::from_env().with_plugin_selection(choice.selection().clone());
+    let settings = mcp::Settings::from_env()
+        .into_builder()
+        .plugin_selection(choice.selection().clone())
+        .build();
     if let Some(token) = http.as_ref().and_then(|http| http.generated.as_deref()) {
         announce_token(token, settings.output_dir());
     }

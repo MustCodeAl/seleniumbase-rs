@@ -62,7 +62,7 @@ impl BaseCase {
     }
 
     /// The id of the test this case runs: the name given by
-    /// [`with_test_name`](Self::with_test_name) (the `sb` fixture gives it the
+    /// [`set_test_name`](Self::set_test_name) (the `sb` fixture gives it the
     /// test's id), else the id of the test running on this thread
     /// ([`current_test_id`](crate::common::test_id::current_test_id)).
     #[must_use]
@@ -126,7 +126,8 @@ mod test_data_tests {
     fn the_test_id_is_the_given_name_or_the_running_test() {
         let sb = case_with(TestData::default());
         assert!(sb.test_id().ends_with("the_test_id_is_the_given_name_or_the_running_test"));
-        let sb = sb.with_test_name("login.valid_login");
+        let mut sb = sb;
+                sb.set_test_name("login.valid_login");
         assert_eq!(sb.test_id(), "login.valid_login");
     }
 }

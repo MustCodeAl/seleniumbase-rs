@@ -10,13 +10,13 @@ use serde_json::{Map, Value};
 
 use super::journal::CallRecord;
 use super::tool::Effect;
-use crate::api::recorder::{ActionRecorder, RecordedAction};
+use crate::api::recorder::{ActionRecorder, RecordedAction, RecordedCommand};
 
 /// What one call becomes in the exported test.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub(crate) enum Replay {
-    /// Calls on `BaseCase`, as `(action, target, value)`.
-    Steps(Vec<(&'static str, Option<String>, Option<String>)>),
+    /// Calls on `BaseCase`, as recorded commands.
+    Steps(Vec<RecordedCommand>),
     /// A change to the page the test cannot repeat, and why.
     Skip(String),
     /// Nothing: the call only read the page, or the test scaffold covers it.
@@ -54,10 +54,8 @@ pub(crate) fn export(calls: &[CallRecord]) -> Export {
     for call in calls.iter().filter(|call| call.ok) {
         match replay(&call.tool, &call.arguments, call.effect) {
             Replay::Steps(steps) => {
-                for (action, target, value) in steps {
-                    export
-                        .recorder
-                        .record(action, target.as_deref(), value.as_deref());
+                for command in steps {
+                    export.recorder.record(command);
                     export.steps += 1;
                 }
             }
@@ -69,7 +67,11 @@ pub(crate) fn export(calls: &[CallRecord]) -> Export {
                 export
                     .recorder
                     .actions
-                    .push(RecordedAction::new(&note, None, None));
+                    .push(RecordedAction::new(RecordedCommand::Unknown {
+                        name: note,
+                        target: None,
+                        value: None,
+                    }));
                 export.skipped.push((call.tool.clone(), reason));
             }
             Replay::Leave => {}
@@ -94,8 +96,16 @@ fn flag(arguments: &Map<String, Value>, name: &str) -> bool {
         .unwrap_or(false)
 }
 
-fn one(action: &'static str, target: Option<String>, value: Option<String>) -> Replay {
-    Replay::Steps(vec![(action, target, value)])
+#[expect(
+    clippy::needless_pass_by_value,
+    reason = "every caller hands over the owned text it read from the tool call"
+)]
+fn step(action: &str, target: Option<String>, value: Option<String>) -> RecordedCommand {
+    RecordedCommand::from_parts(action, target.as_deref(), value.as_deref())
+}
+
+fn one(action: &str, target: Option<String>, value: Option<String>) -> Replay {
+    Replay::Steps(vec![step(action, target, value)])
 }
 
 fn skip(reason: &str) -> Replay {
@@ -160,15 +170,15 @@ pub(crate) fn replay(tool: &str, arguments: &Map<String, Value>, effect: Effect)
         }
         "hover_action" => match arg("action").as_deref() {
             Some("hover_and_click") => Replay::Steps(vec![
-                ("hover", selector, None),
-                ("click", arg("secondary_selector"), None),
+                step("hover", selector, None),
+                step("click", arg("secondary_selector"), None),
             ]),
             Some("drag_and_drop") => one("drag_and_drop", selector, arg("secondary_selector")),
             _ => one("hover", selector, None),
         },
         "hover_and_click" => Replay::Steps(vec![
-            ("hover", arg("hover_selector"), None),
-            ("click", arg("click_selector"), None),
+            step("hover", arg("hover_selector"), None),
+            step("click", arg("click_selector"), None),
         ]),
         "drag_and_drop" => one("drag_and_drop", arg("drag_selector"), arg("drop_selector")),
         "manage_history" => match arg("action").as_deref() {

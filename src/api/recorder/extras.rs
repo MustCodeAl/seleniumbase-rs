@@ -4,8 +4,8 @@
 //! Python keeps these in `__extra_actions`, stamped with the browser's
 //! `Date.now()`. [`BaseCase`](crate::BaseCase) logs every call of a method
 //! that records itself ([`RecordedAction`], stamped with the local clock);
-//! at the end of a recording [`extra_raw_actions`] turns the entries named in
-//! [`EXTRA_ACTIONS`] into [`RawAction`]s that [`process`](super::process)
+//! at the end of a recording [`extra_raw_actions`] turns the entries that
+//! [`extra_layout`] knows into [`RawAction`]s that [`process`](super::process)
 //! merges with the ones the page recorded.
 //!
 //! A click or a typed text is not in the list: the page script sees those as
@@ -16,7 +16,7 @@
 use serde_json::{json, Value};
 
 use super::raw::text;
-use super::{RawAction, RecordedAction};
+use super::{RawAction, RecordedAction, RecordedCommand};
 
 /// Where the arguments of a logged call go in a raw action.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -40,43 +40,47 @@ pub(crate) enum Layout {
 /// The log names that become raw actions, with the kind Python writes and
 /// where the arguments go. A call that is not here is left out of the
 /// recording.
-pub(crate) const EXTRA_ACTIONS: &[(&str, &str, Layout)] = &[
-    ("hover", "hover", Layout::Selector),
-    ("context_click", "r_clk", Layout::Selector),
-    ("highlight", "hi_li", Layout::Selector),
-    ("js_click", "js_cl", Layout::ScriptClick),
-    ("js_click_all", "js_ca", Layout::ScriptClick),
-    ("jquery_click", "jq_cl", Layout::ScriptClick),
-    ("jquery_click_all", "jq_ca", Layout::ScriptClick),
-    ("js_type", "js_ty", Layout::Typed),
-    ("jquery_type", "jq_ty", Layout::Typed),
-    ("press_keys", "pkeys", Layout::Typed),
-    ("set_value", "s_val", Layout::Typed),
-    ("enter_mfa_code", "e_mfa", Layout::Typed),
-    ("accept_alert", "acc_a", Layout::Bare),
-    ("dismiss_alert", "dis_a", Layout::Bare),
-    ("show_file_choosers", "sh_fc", Layout::Bare),
-    ("sleep", "sleep", Layout::Sleep),
-    ("wait_for_element_visible", "wf_el", Layout::Selector),
-    ("assert_element", "as_el", Layout::Selector),
-    ("assert_element_present", "as_ep", Layout::Selector),
-    ("assert_element_not_visible", "asenv", Layout::Selector),
-    ("assert_non_empty_text", "asnet", Layout::Selector),
-    ("assert_link_text", "as_lt", Layout::Value),
-    ("assert_title", "as_ti", Layout::Value),
-    ("assert_title_contains", "as_tc", Layout::Value),
-    ("assert_url", "a_url", Layout::Value),
-    ("assert_url_contains", "a_u_c", Layout::Value),
-    ("assert_text", "as_te", Layout::TextAssert),
-    ("assert_exact_text", "as_et", Layout::TextAssert),
-    ("assert_text_not_visible", "astnv", Layout::TextAssert),
-    ("assert_exact_text_not_visible", "aetnv", Layout::TextAssert),
-    ("deferred_assert_element", "da_el", Layout::Selector),
-    ("deferred_assert_element_present", "da_ep", Layout::Selector),
-    ("deferred_assert_non_empty_text", "danet", Layout::Selector),
-    ("deferred_assert_text", "da_te", Layout::TextAssert),
-    ("deferred_assert_exact_text", "da_et", Layout::TextAssert),
-];
+pub(crate) fn extra_layout(command: &RecordedCommand) -> Option<(&'static str, Layout)> {
+    use RecordedCommand as C;
+    Some(match command {
+        C::Hover { .. } => ("hover", Layout::Selector),
+        C::ContextClick { .. } => ("r_clk", Layout::Selector),
+        C::Highlight { .. } => ("hi_li", Layout::Selector),
+        C::JsClick { .. } => ("js_cl", Layout::ScriptClick),
+        C::JsClickAll { .. } => ("js_ca", Layout::ScriptClick),
+        C::JqueryClick { .. } => ("jq_cl", Layout::ScriptClick),
+        C::JqueryClickAll { .. } => ("jq_ca", Layout::ScriptClick),
+        C::JsType { .. } => ("js_ty", Layout::Typed),
+        C::JqueryType { .. } => ("jq_ty", Layout::Typed),
+        C::PressKeys { .. } => ("pkeys", Layout::Typed),
+        C::SetValue { .. } => ("s_val", Layout::Typed),
+        C::EnterMfaCode { .. } => ("e_mfa", Layout::Typed),
+        C::AcceptAlert => ("acc_a", Layout::Bare),
+        C::DismissAlert => ("dis_a", Layout::Bare),
+        C::ShowFileChoosers => ("sh_fc", Layout::Bare),
+        C::Sleep { .. } => ("sleep", Layout::Sleep),
+        C::WaitForElementVisible { .. } => ("wf_el", Layout::Selector),
+        C::AssertElement { .. } => ("as_el", Layout::Selector),
+        C::AssertElementPresent { .. } => ("as_ep", Layout::Selector),
+        C::AssertElementNotVisible { .. } => ("asenv", Layout::Selector),
+        C::AssertNonEmptyText { .. } => ("asnet", Layout::Selector),
+        C::AssertLinkText { .. } => ("as_lt", Layout::Value),
+        C::AssertTitle { .. } => ("as_ti", Layout::Value),
+        C::AssertTitleContains { .. } => ("as_tc", Layout::Value),
+        C::AssertUrl { .. } => ("a_url", Layout::Value),
+        C::AssertUrlContains { .. } => ("a_u_c", Layout::Value),
+        C::AssertText { .. } => ("as_te", Layout::TextAssert),
+        C::AssertExactText { .. } => ("as_et", Layout::TextAssert),
+        C::AssertTextNotVisible { .. } => ("astnv", Layout::TextAssert),
+        C::AssertExactTextNotVisible { .. } => ("aetnv", Layout::TextAssert),
+        C::DeferredAssertElement { .. } => ("da_el", Layout::Selector),
+        C::DeferredAssertElementPresent { .. } => ("da_ep", Layout::Selector),
+        C::DeferredAssertNonEmptyText { .. } => ("danet", Layout::Selector),
+        C::DeferredAssertText { .. } => ("da_te", Layout::TextAssert),
+        C::DeferredAssertExactText { .. } => ("da_et", Layout::TextAssert),
+        _ => return None,
+    })
+}
 
 /// Whether a page at `url` is one that is recorded: Python records `http`,
 /// `https` and `file` pages only.
@@ -138,10 +142,10 @@ pub(crate) fn extra_raw_actions(
         if time < start_ms {
             continue;
         }
-        let target = entry.target.as_deref().unwrap_or("");
-        let value = entry.value.as_deref().unwrap_or("");
-        if entry.name == "open" {
-            let origin = origin_of(target);
+        let target = entry.command.target().unwrap_or_default();
+        let value = entry.command.value().unwrap_or_default();
+        if matches!(entry.command, RecordedCommand::Open { .. }) {
+            let origin = origin_of(&target);
             out.push(RawAction::new(
                 "o_url",
                 json!(origin),
@@ -152,12 +156,11 @@ pub(crate) fn extra_raw_actions(
             opens.push(Open {
                 time,
                 origin,
-                url: target.to_owned(),
+                url: target.clone(),
             });
             continue;
         }
-        let Some(&(_, kind, layout)) = EXTRA_ACTIONS.iter().find(|(name, ..)| *name == entry.name)
-        else {
+        let Some((kind, layout)) = extra_layout(&entry.command) else {
             continue;
         };
         if layout == Layout::Sleep && !record_sleep {
@@ -210,9 +213,7 @@ mod tests {
 
     fn entry(name: &str, target: Option<&str>, value: Option<&str>, at: u128) -> RecordedAction {
         RecordedAction {
-            name: name.to_owned(),
-            target: target.map(str::to_owned),
-            value: value.map(str::to_owned),
+            command: RecordedCommand::from_parts(name, target, value),
             timestamp_ms: at,
         }
     }
@@ -308,13 +309,13 @@ mod tests {
         let mut all = page.to_vec();
         all.extend(rows);
         let calls = super::super::to_actions(&super::super::process(all, 0, &[]), false);
-        let names: Vec<_> = calls.iter().map(|call| call.name.as_str()).collect();
+        let names: Vec<_> = calls.iter().map(|call| call.command.name()).collect();
         assert_eq!(
             names,
             ["goto", "hover", "assert_text", "assert_url_contains"]
         );
-        assert_eq!(calls[2].target.as_deref(), Some("h1"));
-        assert_eq!(calls[2].value.as_deref(), Some("Hello"));
+        assert_eq!(calls[2].command.target().as_deref(), Some("h1"));
+        assert_eq!(calls[2].command.value().as_deref(), Some("Hello"));
     }
 
     #[test]

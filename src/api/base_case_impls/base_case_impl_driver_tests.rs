@@ -996,7 +996,7 @@ mod tests_ready_state {
     async fn skipping_js_waits_returns_at_once_on_a_loading_page() {
         let driver = page_in("loading");
         let mut sb = driver.base_case().await;
-        sb.set_run_settings(RunSettings::default().with_skip_js_waits(true));
+        sb.set_run_settings(RunSettings::builder().skip_js_waits(true).build());
         let (waited, lasted) = wait_on_a_loading_page(&sb).await;
         waited.unwrap();
         assert!(lasted < Duration::from_secs(1), "waited {lasted:?}");
@@ -1071,10 +1071,7 @@ mod tests_page_load_hooks {
 
     /// The settings of `--check-js`, `--wfa` and `--disable-beforeunload`.
     fn all_three() -> RunSettings {
-        RunSettings::default()
-            .with_check_js(true)
-            .with_wait_for_angularjs(true)
-            .with_disable_beforeunload(true)
+        RunSettings::builder().check_js(true).wait_for_angularjs(true).disable_beforeunload(true).build()
     }
 
     fn log_reads(driver: &MockWebDriver) -> usize {
@@ -1106,7 +1103,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn check_js_reads_the_browser_log_when_the_page_is_ready() {
         let driver = page(json!([]));
-        let sb = case(&driver, RunSettings::default().with_check_js(true)).await;
+        let sb = case(&driver, RunSettings::builder().check_js(true).build()).await;
         sb.wait_for_ready_state_complete().await.unwrap();
         assert_eq!(log_reads(&driver), 1);
         assert!(!ran(&driver, ANGULAR) && !ran(&driver, BEFOREUNLOAD));
@@ -1117,7 +1114,7 @@ mod tests_page_load_hooks {
         let driver = page(json!([
             { "level": "SEVERE", "message": "http://localhost/app.js 1:1 Uncaught TypeError: x", "timestamp": 3 },
         ]));
-        let sb = case(&driver, RunSettings::default().with_check_js(true)).await;
+        let sb = case(&driver, RunSettings::builder().check_js(true).build()).await;
         let error = sb.wait_for_ready_state_complete().await.unwrap_err();
         let SeleniumBaseError::AssertionFailed(message) = error else {
             panic!("expected an assertion failure, got {error:?}");
@@ -1128,7 +1125,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn wait_for_angularjs_asks_the_page_about_its_angular_requests() {
         let driver = page(json!([]));
-        let sb = case(&driver, RunSettings::default().with_wait_for_angularjs(true)).await;
+        let sb = case(&driver, RunSettings::builder().wait_for_angularjs(true).build()).await;
         sb.wait_for_ready_state_complete().await.unwrap();
         assert!(ran(&driver, ANGULAR));
         assert_eq!(log_reads(&driver), 0);
@@ -1138,7 +1135,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn disable_beforeunload_runs_its_script_when_the_page_is_ready() {
         let driver = page(json!([]));
-        let sb = case(&driver, RunSettings::default().with_disable_beforeunload(true)).await;
+        let sb = case(&driver, RunSettings::builder().disable_beforeunload(true).build()).await;
         sb.wait_for_ready_state_complete().await.unwrap();
         assert!(ran(&driver, BEFOREUNLOAD));
         assert_eq!(log_reads(&driver), 0);
@@ -1148,7 +1145,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn skipping_the_js_waits_skips_all_three_hooks() {
         let driver = page(json!([]));
-        let sb = case(&driver, all_three().with_skip_js_waits(true)).await;
+        let sb = case(&driver, all_three().into_builder().skip_js_waits(true).build()).await;
         sb.wait_for_ready_state_complete().await.unwrap();
         assert!(driver.requests("/execute/sync").is_empty());
         assert_eq!(log_reads(&driver), 0);
@@ -1197,7 +1194,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn skipping_the_js_waits_skips_the_hooks_of_an_open_too() {
         let driver = page(json!([]));
-        let mut sb = case(&driver, all_three().with_skip_js_waits(true)).await;
+        let mut sb = case(&driver, all_three().into_builder().skip_js_waits(true).build()).await;
         sb.open(LOCAL).await.unwrap();
         assert!(driver.requests("/execute/sync").is_empty());
         assert_eq!(log_reads(&driver), 0);
@@ -1206,7 +1203,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn back_forward_and_refresh_run_the_hooks_too() {
         let driver = page(json!([]));
-        let sb = case(&driver, RunSettings::default().with_check_js(true)).await;
+        let sb = case(&driver, RunSettings::builder().check_js(true).build()).await;
         sb.go_back().await.unwrap();
         assert_eq!(log_reads(&driver), 1);
         sb.go_forward().await.unwrap();
@@ -1222,7 +1219,7 @@ mod tests_page_load_hooks {
         quiet.click("#a").await.unwrap();
         assert!(!ran(&driver, ANGULAR));
 
-        let mut waiting = case(&driver, RunSettings::default().with_wait_for_angularjs(true)).await;
+        let mut waiting = case(&driver, RunSettings::builder().wait_for_angularjs(true).build()).await;
         waiting.click("#a").await.unwrap();
         assert!(ran(&driver, ANGULAR));
     }
@@ -1230,7 +1227,7 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn the_multiplier_scales_the_default_wait_but_not_the_time_a_call_names() {
         let mut sb = BaseCase::without_session(BrowserConfig::default());
-        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(1.5));
+        sb.set_run_settings(RunSettings::builder().timeout_multiplier(1.5).build());
         assert_eq!(sb.default_wait_secs(), 15);
         sb.set_timeout(3).await.unwrap();
         assert_eq!(sb.default_wait_secs(), 5);
@@ -1241,14 +1238,14 @@ mod tests_page_load_hooks {
     #[tokio::test]
     async fn a_multiplier_below_half_waits_half_as_long() {
         let mut sb = BaseCase::without_session(BrowserConfig::default());
-        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(0.3));
+        sb.set_run_settings(RunSettings::builder().timeout_multiplier(0.3).build());
         assert_eq!(sb.default_wait_secs(), 5);
     }
 
     #[tokio::test]
     async fn the_time_limit_still_cuts_a_scaled_wait() {
         let mut sb = BaseCase::without_session(BrowserConfig::default());
-        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(3.0));
+        sb.set_run_settings(RunSettings::builder().timeout_multiplier(3.0).build());
         assert_eq!(sb.default_wait_secs(), 30);
         sb.set_time_limit(5).unwrap();
         assert_eq!(sb.default_wait_secs(), 5);
@@ -1256,7 +1253,7 @@ mod tests_page_load_hooks {
 
     #[tokio::test]
     async fn the_multiplier_of_the_browser_config_reaches_the_case() {
-        let config = BrowserConfig::builder().run_settings(RunSettings::default().with_timeout_multiplier(2.0)).build().expect("a valid config");
+        let config = BrowserConfig::builder().run_settings(RunSettings::builder().timeout_multiplier(2.0).build()).build().expect("a valid config");
         assert_eq!(BaseCase::without_session(config).default_wait_secs(), 20);
     }
 
@@ -1270,7 +1267,7 @@ mod tests_page_load_hooks {
         });
         let mut sb = driver.base_case().await;
         sb.set_timeout(1).await.unwrap();
-        sb.set_run_settings(RunSettings::default().with_timeout_multiplier(2.0));
+        sb.set_run_settings(RunSettings::builder().timeout_multiplier(2.0).build());
         let started = Instant::now();
         let waited = tokio::time::timeout(Duration::from_secs(10), sb.wait_for_ready_state_complete())
             .await

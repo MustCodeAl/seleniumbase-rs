@@ -175,7 +175,7 @@ and exits with a status that follows the error's category, so a CI
 script can tell a bad selector from a missing browser.
 
 In reports, a failed test carries its failure kind, hint, page URL and title and
-links to its evidence (`FailureDetails`, `ReportPlugin::with_evidence`). When an
+links to its evidence (`FailureDetails`, `ReportPlugin::evidence`). When an
 AI agent drives the browser through the MCP servers, a failed tool call is
 answered with the call, the page's state (URL, title, ready state, script
 errors, selector matches, read within two seconds), the hint and the next tools

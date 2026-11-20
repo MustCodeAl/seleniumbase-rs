@@ -14,8 +14,8 @@ use std::time::Duration;
 
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
 use seleniumbase_rs::mcp::{
-    Args, Closeable, Ctx, Effect, Host, HttpOptions, HttpServer, Output, Profile, Schema, Settings,
-    Started, ToolDef,
+    Args, Closeable, Ctx, Effect, Host, HttpOptions, HttpOptionsBuilder, HttpServer, Output,
+    Profile, Schema, Settings, Started, ToolDef,
 };
 use seleniumbase_rs::SeleniumBaseError;
 use serde_json::{json, Value};
@@ -27,16 +27,26 @@ const PATIENCE: Duration = Duration::from_secs(15);
 
 const TOKEN: &str = "t0ken-for-the-http-tests";
 
-fn loopback_any_port() -> HttpOptions {
-    HttpOptions::default()
-        .with_listen("127.0.0.1:0".parse().expect("an address"))
-        // These tests are about the server; the token policy has its own tests.
-        .with_no_token()
+fn loopback_any_port() -> HttpOptionsBuilder {
+    HttpOptions::builder()
+        .listen("127.0.0.1:0".parse().expect("an address"))
+        .no_token()
 }
 
 // ----------------------------------------------------------------------
 // A running server
 // ----------------------------------------------------------------------
+
+/// Options the builder would refuse (an address other machines can reach, no
+/// token), made through the public fields to show that `bind` checks them too.
+fn exposed_without_a_token() -> HttpOptions {
+    let mut options = HttpOptions::builder()
+        .no_token()
+        .build()
+        .expect("valid options");
+    options.listen = "0.0.0.0:0".parse().expect("an address");
+    options
+}
 
 /// A server that is serving, and the way to stop it.
 struct Running {
@@ -47,7 +57,8 @@ struct Running {
 }
 
 impl Running {
-    async fn dev(options: HttpOptions) -> Self {
+    async fn dev(options: HttpOptionsBuilder) -> Self {
+        let options = options.build().expect("valid options");
         let server = HttpServer::bind(Profile::Dev, Settings::new("out"), options)
             .await
             .expect("the dev server binds");
@@ -58,7 +69,7 @@ impl Running {
         let (stop, stopped) = oneshot::channel::<()>();
         let url = server.url();
         let port = server.local_addr().port();
-        let task = tokio::spawn(server.with_grace(Duration::from_secs(5)).serve(async move {
+        let task = tokio::spawn(server.grace(Duration::from_secs(5)).serve(async move {
             let _ = stopped.await;
         }));
         Self {
@@ -121,7 +132,7 @@ impl Mcp {
         }
     }
 
-    fn with_token(mut self, token: &str) -> Self {
+    fn token(mut self, token: &str) -> Self {
         self.token = Some(token.to_owned());
         self
     }
@@ -289,7 +300,7 @@ async fn a_dev_server_answers_the_handshake_and_lists_its_tools_over_http() {
 
 #[test_log::test(tokio::test)]
 async fn the_endpoint_is_only_at_its_path() {
-    let server = Running::dev(loopback_any_port().with_path("/sbrs/mcp")).await;
+    let server = Running::dev(loopback_any_port().path("/sbrs/mcp")).await;
     assert!(server.url.ends_with("/sbrs/mcp"), "{}", server.url);
     let base = format!("http://127.0.0.1:{}", server.port);
 
@@ -309,13 +320,10 @@ async fn the_endpoint_is_only_at_its_path() {
 
 #[test_log::test(tokio::test)]
 async fn a_missing_or_wrong_token_is_401_and_the_right_one_works() {
-    let server = Running::dev(loopback_any_port().with_token(TOKEN)).await;
+    let server = Running::dev(loopback_any_port().token(TOKEN)).await;
     let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
 
-    for client in [
-        Mcp::new(&server.url),
-        Mcp::new(&server.url).with_token("nope"),
-    ] {
+    for client in [Mcp::new(&server.url), Mcp::new(&server.url).token("nope")] {
         let response = client.post(&ping).await;
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         let challenge = response
@@ -330,7 +338,7 @@ async fn a_missing_or_wrong_token_is_401_and_the_right_one_works() {
         assert!(!body.contains(TOKEN), "{body}");
     }
 
-    let mut client = Mcp::new(&server.url).with_token(TOKEN);
+    let mut client = Mcp::new(&server.url).token(TOKEN);
     client.initialize().await;
     let listed = client.rpc("tools/list", json!({})).await;
     assert!(listed["result"]["tools"].is_array(), "{listed}");
@@ -338,8 +346,8 @@ async fn a_missing_or_wrong_token_is_401_and_the_right_one_works() {
 
 #[test_log::test(tokio::test)]
 async fn a_foreign_origin_is_403_even_with_the_token() {
-    let server = Running::dev(loopback_any_port().with_token(TOKEN)).await;
-    let client = Mcp::new(&server.url).with_token(TOKEN);
+    let server = Running::dev(loopback_any_port().token(TOKEN)).await;
+    let client = Mcp::new(&server.url).token(TOKEN);
     let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
 
     for origin in ["https://evil.test", "null", "http://localhost.evil.test"] {
@@ -365,8 +373,7 @@ async fn a_foreign_origin_is_403_even_with_the_token() {
 
 #[test_log::test(tokio::test)]
 async fn an_origin_the_operator_allowed_is_let_in() {
-    let server =
-        Running::dev(loopback_any_port().with_allow_origin("https://app.example.com")).await;
+    let server = Running::dev(loopback_any_port().allow_origin("https://app.example.com")).await;
     let client = Mcp::new(&server.url);
     let ping = json!({ "jsonrpc": "2.0", "id": 1, "method": "ping" });
 
@@ -428,7 +435,7 @@ async fn options_that_fail_validation_bind_nothing() {
     let error = HttpServer::bind(
         Profile::Dev,
         Settings::new("out"),
-        HttpOptions::default().with_listen("0.0.0.0:0".parse().unwrap()),
+        exposed_without_a_token(),
     )
     .await
     .expect_err("a reachable address without a token is refused");
@@ -443,7 +450,11 @@ async fn an_address_that_is_taken_is_an_mcp_error() {
     let error = HttpServer::bind(
         Profile::Dev,
         Settings::new("out"),
-        HttpOptions::default().with_listen(taken).with_no_token(),
+        HttpOptions::builder()
+            .listen(taken)
+            .no_token()
+            .build()
+            .expect("valid options"),
     )
     .await
     .expect_err("the port is in use");
@@ -457,7 +468,7 @@ async fn an_address_that_is_taken_is_an_mcp_error() {
 
 #[test_log::test(tokio::test)]
 async fn an_initialize_over_the_session_cap_is_503_until_a_session_ends() {
-    let server = Running::dev(loopback_any_port().with_max_sessions(2)).await;
+    let server = Running::dev(loopback_any_port().max_sessions(2)).await;
     let mut first = Mcp::new(&server.url);
     let mut second = Mcp::new(&server.url);
     first.initialize().await;
@@ -567,7 +578,8 @@ async fn stand_in_server() -> (Running, Arc<Mutex<Vec<usize>>>) {
     stand_in_server_with(loopback_any_port()).await
 }
 
-async fn stand_in_server_with(options: HttpOptions) -> (Running, Arc<Mutex<Vec<usize>>>) {
+async fn stand_in_server_with(options: HttpOptionsBuilder) -> (Running, Arc<Mutex<Vec<usize>>>) {
+    let options = options.build().expect("valid options");
     let started = Arc::new(AtomicUsize::new(0));
     let closed = Arc::new(Mutex::new(Vec::new()));
     let (for_hosts, for_closed) = (Arc::clone(&started), Arc::clone(&closed));
@@ -662,7 +674,7 @@ async fn shutdown_closes_the_browser_of_every_live_session() {
 
 #[test_log::test(tokio::test)]
 async fn a_session_that_stays_silent_is_ended_and_its_browser_closed() {
-    let options = loopback_any_port().with_idle(Duration::from_millis(400));
+    let options = loopback_any_port().idle(Duration::from_millis(400));
     let (server, closed) = stand_in_server_with(options).await;
     let mut client = Mcp::new(&server.url);
     client.initialize().await;

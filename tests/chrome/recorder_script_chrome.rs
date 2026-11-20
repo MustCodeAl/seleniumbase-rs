@@ -109,14 +109,14 @@ async fn a_label_click_typing_a_password_and_enter_become_the_calls_of_a_test() 
     assert!(password.is_some(), "the password is marked: {raw:?}");
 
     let recorder = ActionRecorder::from_raw_actions(raw, 0, &[], false);
-    let calls: Vec<(&str, &str, &str)> = recorder
+    let calls: Vec<(String, String, String)> = recorder
         .actions
         .iter()
         .map(|a| {
             (
-                a.name.as_str(),
-                a.target.as_deref().unwrap_or(""),
-                a.value.as_deref().unwrap_or(""),
+                a.command.name().to_owned(),
+                a.command.target().unwrap_or_default(),
+                a.command.value().unwrap_or_default(),
             )
         })
         .collect();

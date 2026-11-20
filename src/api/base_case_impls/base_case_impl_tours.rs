@@ -928,7 +928,7 @@ mod tests_tours {
     }
 
     async fn two_step_shepherd_tour(driver: &MockWebDriver) -> BaseCase {
-        let mut sb = driver.base_case().await.with_somebody_watching();
+        let mut sb = driver.base_case().await.somebody_watching();
         sb.create_shepherd_tour().theme(ShepherdTheme::Dark).await.unwrap();
         sb.add_tour_step("Look here").selector("#go").await.unwrap();
         sb.add_tour_step("And then here").await.unwrap();
@@ -946,7 +946,7 @@ mod tests_tours {
     #[tokio::test]
     async fn playing_a_tour_that_does_not_exist_names_it() {
         let driver = tour_page(Arc::default(), 0, true);
-        let mut sb = driver.base_case().await.with_somebody_watching();
+        let mut sb = driver.base_case().await.somebody_watching();
         sb.add_tour_step("only").name("other").await.unwrap();
         let error = sb.play_tour().name("mine").await.unwrap_err();
         assert!(matches!(error, SeleniumBaseError::InvalidConfig(_)), "{error:?}");
@@ -958,7 +958,7 @@ mod tests_tours {
     #[tokio::test]
     async fn playing_a_tour_without_steps_is_refused() {
         let driver = tour_page(Arc::default(), 0, true);
-        let mut sb = driver.base_case().await.with_somebody_watching();
+        let mut sb = driver.base_case().await.somebody_watching();
         sb.create_tour().await.unwrap();
         let error = sb.play_tour().await.unwrap_err();
         assert!(error.to_string().contains("Tour {default} has no steps!"), "{error}");
@@ -971,9 +971,7 @@ mod tests_tours {
         // The element is waited for 7 seconds, scaled down for the test, and
         // the error message is shown for a moment only.
         sb.set_run_settings(
-            RunSettings::default()
-                .with_timeout_multiplier(0.1)
-                .with_message_duration(Duration::from_millis(30)),
+            RunSettings::builder().timeout_multiplier(0.1).message_duration(Duration::from_millis(30)).build(),
         );
         let error = sb.play_tour().await.unwrap_err();
         assert!(
@@ -1041,8 +1039,8 @@ mod tests_tours {
     async fn the_interval_of_the_run_plays_a_tour_that_has_none_of_its_own() {
         let taken = Arc::new(AtomicUsize::new(0));
         let driver = tour_page(Arc::clone(&taken), 1, true);
-        let mut sb = driver.base_case().await.with_somebody_watching();
-        sb.set_run_settings(RunSettings::default().with_interval(Duration::from_millis(500)));
+        let mut sb = driver.base_case().await.somebody_watching();
+        sb.set_run_settings(RunSettings::builder().interval(Duration::from_millis(500)).build());
         sb.create_shepherd_tour().await.unwrap();
         sb.add_tour_step("only step").await.unwrap();
         sb.play_tour().await.expect("the tour plays to its end");
@@ -1052,7 +1050,7 @@ mod tests_tours {
     #[tokio::test]
     async fn the_introjs_colours_are_applied_when_the_tour_is_played() {
         let driver = tour_page(Arc::default(), 0, true);
-        let mut sb = driver.base_case().await.with_somebody_watching();
+        let mut sb = driver.base_case().await.somebody_watching();
         sb.set_introjs_colors(Some("#aa3300"), Some("#882200")).unwrap();
         sb.create_introjs_tour().await.unwrap();
         sb.add_tour_step("A step").await.unwrap();
@@ -1069,7 +1067,7 @@ mod tests_tours {
     #[tokio::test]
     async fn an_exported_tour_is_a_js_file_in_the_folder_and_checks_its_arguments() {
         let driver = tour_page(Arc::default(), 0, true);
-        let mut sb = driver.base_case().await.with_somebody_watching();
+        let mut sb = driver.base_case().await.somebody_watching();
         sb.create_hopscotch_tour().name("hops").await.unwrap();
         sb.add_tour_step("Hello <b>there</b>").name("hops").selector("#go").await.unwrap();
 
@@ -1095,7 +1093,7 @@ mod tests_tours {
     #[tokio::test]
     async fn the_default_export_goes_below_the_working_directory_and_starts_on_the_current_page() {
         let driver = tour_page(Arc::default(), 0, true);
-        let mut sb = driver.base_case().await.with_somebody_watching();
+        let mut sb = driver.base_case().await.somebody_watching();
         sb.add_tour_step("Hello").await.unwrap();
         let path = tempfile::tempdir().unwrap();
         // The folder is a relative one; build the file in a temporary folder

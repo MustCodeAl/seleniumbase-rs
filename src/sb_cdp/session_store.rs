@@ -48,18 +48,32 @@ impl Session {
         }
     }
 
-    /// Adds the local storage of `origin`, such as `https://example.com`.
-    #[must_use]
-    pub fn with_local_storage(
-        mut self,
-        origin: impl Into<String>,
-        entries: BTreeMap<String, String>,
-    ) -> Self {
-        self.origin = Some(origin.into());
-        self.local_storage = entries;
-        self
+    /// Starts building a session: no cookies, no local storage.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::BTreeMap;
+    /// use seleniumbase_rs::sb_cdp::{Cookie, Session};
+    ///
+    /// let session = Session::builder()
+    ///     .cookies(vec![Cookie::new("sid", "s3cret")])
+    ///     .local_storage("https://example.com", BTreeMap::from([("k".to_owned(), "v".to_owned())]))
+    ///     .build();
+    /// assert_eq!(session.cookies().len(), 1);
+    /// assert_eq!(session.origin(), Some("https://example.com"));
+    /// ```
+    pub fn builder() -> SessionBuilder {
+        SessionBuilder::default()
     }
 
+    /// Starts building from this session, to change some of it.
+    pub fn into_builder(self) -> SessionBuilder {
+        SessionBuilder { session: self }
+    }
+}
+
+impl Session {
     /// The cookies.
     #[must_use]
     pub fn cookies(&self) -> &[Cookie] {
@@ -85,6 +99,66 @@ impl Session {
         self.cookies
             .retain(|cookie| cookie.expires.is_none_or(|expires| expires > now));
         self
+    }
+}
+
+/// Builds a [`Session`].
+///
+/// [`Session::builder`] starts empty,
+/// [`Session::into_builder`] from a session you hold. A setter takes the
+/// builder and gives it back; [`build`](Self::build) returns the session. Like
+/// the session, its `Debug` output never shows a cookie value.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::sb_cdp::{Cookie, Session};
+///
+/// let session = Session::new(vec![Cookie::new("sid", "s3cret")]);
+/// let session = session
+///     .into_builder()
+///     .local_storage("https://example.com", [("k".to_owned(), "v".to_owned())].into())
+///     .build();
+/// assert_eq!(session.local_storage()["k"], "v");
+/// assert!(!format!("{session:?}").contains("s3cret"));
+/// ```
+#[derive(Clone, Default)]
+#[must_use = "a builder does nothing until `build` is called"]
+pub struct SessionBuilder {
+    session: Session,
+}
+
+impl SessionBuilder {
+    /// The cookies of the session, replacing any set before.
+    pub fn cookies(mut self, cookies: Vec<Cookie>) -> Self {
+        self.session.cookies = cookies;
+        self
+    }
+
+    /// The local storage of `origin`, such as `https://example.com`, replacing
+    /// the local storage set before.
+    pub fn local_storage(
+        mut self,
+        origin: impl Into<String>,
+        entries: BTreeMap<String, String>,
+    ) -> Self {
+        self.session.origin = Some(origin.into());
+        self.session.local_storage = entries;
+        self
+    }
+
+    /// The session.
+    #[must_use]
+    pub fn build(self) -> Session {
+        self.session
+    }
+}
+
+impl fmt::Debug for SessionBuilder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SessionBuilder")
+            .field("session", &self.session)
+            .finish()
     }
 }
 
@@ -232,8 +306,10 @@ mod tests {
         let store = SessionStore::new();
         store.save("x", Session::new(vec![cookie("a", None)]));
         let mut mine = store.load("x").unwrap();
-        mine =
-            mine.with_local_storage("https://a.test", BTreeMap::from([("k".into(), "v".into())]));
+        mine = mine
+            .into_builder()
+            .local_storage("https://a.test", BTreeMap::from([("k".into(), "v".into())]))
+            .build();
 
         assert_eq!(mine.origin(), Some("https://a.test"));
         assert!(store.load("x").unwrap().origin().is_none());
@@ -284,10 +360,13 @@ mod tests {
     fn debug_output_never_shows_a_value() {
         let store = SessionStore::new();
         let secret = Cookie::new("sid", "hunter2-secret");
-        let session = Session::new(vec![secret]).with_local_storage(
-            "https://a.test",
-            BTreeMap::from([("token".into(), "tok-secret".into())]),
-        );
+        let session = Session::new(vec![secret])
+            .into_builder()
+            .local_storage(
+                "https://a.test",
+                BTreeMap::from([("token".into(), "tok-secret".into())]),
+            )
+            .build();
         store.save("login", session.clone());
 
         let shown = format!("{store:?} {session:?}");

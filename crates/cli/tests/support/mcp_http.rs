@@ -220,7 +220,7 @@ impl Mcp {
         }
     }
 
-    pub fn with_token(mut self, token: &str) -> Self {
+    pub fn token(mut self, token: &str) -> Self {
         self.token = Some(token.to_owned());
         self
     }

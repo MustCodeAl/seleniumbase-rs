@@ -5,7 +5,7 @@
 //! (`visual_baseline/` unless you name another). The first
 //! [`check`](VisualBaseline::check) of a name saves the screenshot as its
 //! baseline; every later one compares the new screenshot with it and fails
-//! when the two are less similar than the [threshold](VisualBaseline::with_threshold).
+//! when the two are less similar than the [threshold](VisualBaselineBuilder::threshold).
 //! A failure writes `<name>.actual.png` (the new screenshot) and
 //! `<name>.diff.png` (where they differ) next to the baseline, so you can look
 //! at both and either fix the page or accept the change.
@@ -98,7 +98,7 @@ use crate::error::SeleniumBaseError;
 use crate::plugins::observer::PageEvidence;
 
 /// The similarity below which a check fails unless
-/// [`with_threshold`](VisualBaseline::with_threshold) sets another; see
+/// [`threshold`](VisualBaselineBuilder::threshold) sets another; see
 /// [the module docs](self#the-threshold) for why 0.999.
 pub const DEFAULT_THRESHOLD: f64 = 0.999;
 
@@ -127,6 +127,68 @@ impl Default for VisualBaseline {
     }
 }
 
+/// Builds a [`VisualBaseline`].
+///
+/// [`VisualBaseline::builder`] starts from the
+/// defaults, [`VisualBaseline::into_builder`] from baselines you hold. A setter
+/// takes the builder and gives it back; [`build`](Self::build) checks the
+/// threshold and returns the baselines.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::visual::VisualBaseline;
+///
+/// let lenient = VisualBaseline::new("tests/visual")
+///     .into_builder()
+///     .threshold(0.5)
+///     .update_baselines(false)
+///     .build()?;
+/// assert_eq!(lenient.threshold(), 0.5);
+/// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+/// ```
+#[derive(Debug, Clone, Default)]
+#[must_use = "a builder does nothing until `build` is called"]
+pub struct VisualBaselineBuilder {
+    baseline: VisualBaseline,
+}
+
+impl VisualBaselineBuilder {
+    /// Keeps the baselines in `dir`; the folder is created when the first
+    /// baseline is saved.
+    pub fn dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.baseline.dir = dir.into();
+        self
+    }
+
+    /// Fails a check when the similarity is below `threshold`, a number from
+    /// 0.0 to 1.0 (1.0 accepts only identical images). [`build`](Self::build)
+    /// refuses a value outside that range.
+    pub fn threshold(mut self, threshold: f64) -> Self {
+        self.baseline.threshold = threshold;
+        self
+    }
+
+    /// With `true`, every check saves its screenshot as the new baseline
+    /// instead of comparing with the old one; use it once after an intended
+    /// change of the page.
+    pub fn update_baselines(mut self, update: bool) -> Self {
+        self.baseline.update = update;
+        self
+    }
+
+    /// The baselines.
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidConfig`] if the threshold is outside 0.0 to
+    /// 1.0 (or not a number).
+    pub fn build(self) -> Result<VisualBaseline, SeleniumBaseError> {
+        self.baseline.valid_threshold()?;
+        Ok(self.baseline)
+    }
+}
+
 /// What a successful check did.
 #[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
@@ -137,7 +199,7 @@ pub enum VisualOutcome {
         baseline: PathBuf,
     },
     /// The baseline was replaced, because baselines are being
-    /// [updated](VisualBaseline::update_baselines).
+    /// [updated](VisualBaselineBuilder::update_baselines).
     Updated {
         /// Where the baseline was written.
         baseline: PathBuf,
@@ -169,25 +231,33 @@ impl VisualBaseline {
         }
     }
 
-    /// Fails a check when the similarity is below `threshold`, a number from
-    /// 0.0 to 1.0 (1.0 accepts only identical images). A value outside that
-    /// range makes every check fail with
-    /// [`SeleniumBaseError::InvalidConfig`].
-    #[must_use]
-    pub fn with_threshold(mut self, threshold: f64) -> Self {
-        self.threshold = threshold;
-        self
+    /// Starts building baselines kept in [`DEFAULT_DIR`], compared with the
+    /// [`DEFAULT_THRESHOLD`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::visual::VisualBaseline;
+    ///
+    /// let baselines = VisualBaseline::builder()
+    ///     .dir("tests/visual")
+    ///     .threshold(0.9995)
+    ///     .build()?;
+    /// assert_eq!(baselines.threshold(), 0.9995);
+    /// assert!(VisualBaseline::builder().threshold(1.5).build().is_err());
+    /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+    /// ```
+    pub fn builder() -> VisualBaselineBuilder {
+        VisualBaselineBuilder::default()
     }
 
-    /// With `true`, every check saves its screenshot as the new baseline
-    /// instead of comparing with the old one; use it once after an intended
-    /// change of the page.
-    #[must_use]
-    pub fn update_baselines(mut self, update: bool) -> Self {
-        self.update = update;
-        self
+    /// Starts building from these baselines, to change some of their settings.
+    pub fn into_builder(self) -> VisualBaselineBuilder {
+        VisualBaselineBuilder { baseline: self }
     }
+}
 
+impl VisualBaseline {
     /// The folder the baselines are kept in.
     #[must_use]
     pub fn dir(&self) -> &Path {
@@ -212,7 +282,7 @@ impl VisualBaseline {
 
     /// Compares the PNG image `png` with the baseline saved as `name`, or
     /// saves it as that baseline when there is none yet (or when baselines
-    /// are being [updated](Self::update_baselines)).
+    /// are being [updated](VisualBaselineBuilder::update_baselines)).
     ///
     /// On a mismatch the image is saved as `<name>.actual.png` and a picture
     /// of the differences as `<name>.diff.png`: the new image dimmed to grey,
@@ -643,7 +713,10 @@ mod tests {
         baselines(dir.path()).check("home", &first).unwrap();
 
         let outcome = baselines(dir.path())
+            .into_builder()
             .update_baselines(true)
+            .build()
+            .unwrap()
             .check("home", &second)
             .unwrap();
 
@@ -672,7 +745,11 @@ mod tests {
             .unwrap();
 
         assert!(baselines(dir.path()).check("home", &png(&changed)).is_err());
-        let lenient = baselines(dir.path()).with_threshold(0.5);
+        let lenient = baselines(dir.path())
+            .into_builder()
+            .threshold(0.5)
+            .build()
+            .unwrap();
         assert!(matches!(
             lenient.check("home", &png(&changed)),
             Ok(VisualOutcome::Matched { .. })
@@ -716,11 +793,12 @@ mod tests {
     #[test]
     fn a_threshold_outside_zero_to_one_is_refused() {
         let dir = tempfile::tempdir().unwrap();
-        let shot = png(&page_image(20, 20));
+        // `build` is where a threshold is checked: no baselines hold a bad one.
         for threshold in [-0.1, 1.5, f64::NAN] {
             let error = baselines(dir.path())
-                .with_threshold(threshold)
-                .check("home", &shot)
+                .into_builder()
+                .threshold(threshold)
+                .build()
                 .unwrap_err();
             assert!(
                 matches!(error, SeleniumBaseError::InvalidConfig(_)),

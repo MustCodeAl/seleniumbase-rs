@@ -52,7 +52,10 @@ async fn launch() -> (Browser, Page) {
 async fn score(baselines: &VisualBaseline, name: &str, page: &Page) -> f64 {
     match baselines
         .clone()
-        .with_threshold(0.0)
+        .into_builder()
+        .threshold(0.0)
+        .build()
+        .expect("a valid threshold")
         .check_page(name, page)
         .await
     {
@@ -157,7 +160,7 @@ async fn assert_visual_match_sees_a_colour_change_check_window_does_not() {
     let pixels = sb.assert_visual_match("home").await;
 
     // A reset makes the red page the baseline.
-    sb.set_run_settings(RunSettings::default().with_visual_baseline_reset(true));
+    sb.set_run_settings(RunSettings::builder().reset_visual_baseline(true).build());
     sb.assert_visual_match("home").await.expect("reset");
     sb.set_run_settings(RunSettings::default());
     let after_reset = sb.assert_visual_match("home").await;

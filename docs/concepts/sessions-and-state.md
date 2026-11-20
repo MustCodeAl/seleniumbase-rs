@@ -389,8 +389,8 @@ site's origin first, because cookies belong to a domain, then call
 `load_cookies`, `page.cookies().load(path, filter)` or `load_session`.
 
 The in-memory form is a `Session`: the cookies plus the `localStorage` entries
-of one origin, built with `Session::new(cookies)` and
-`with_local_storage(origin, entries)`. A `SessionStore` keeps named sessions
+`Session::new(cookies)` or `Session::builder()` (its `local_storage(origin, entries)`
+setter adds the origin's entries, and `build()` returns the session). A `SessionStore` keeps named sessions
 for as long as the process runs; it does not write to disk. Both drop what has
 expired: `Session::without_expired(now)` and `SessionStore::prune_expired(now)`,
 where `now` is a Unix time in seconds, the unit a `Cookie`'s `expires` field
@@ -550,7 +550,7 @@ sb.load_cookies("app_login").await?;
 
 The pure CDP engine ([DevTools Protocol](/concepts/cdp)) keeps logins in memory.
 A `Session` is a set of cookies and, optionally, the local storage of one origin
-(`Session::new(cookies)`, `with_local_storage(origin, entries)`). A
+(`Session::new(cookies)`, or `Session::builder()` with `cookies(..)` and `local_storage(origin, entries)`). A
 `SessionStore` holds named sessions for many workers:
 
 - `save(name, session)`, `load(name)`, `remove(name)`, `names()`, `len()`,

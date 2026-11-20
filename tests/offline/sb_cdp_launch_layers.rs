@@ -371,7 +371,9 @@ fn options_made_again_with_a_fingerprint_are_what_the_builder_gives() {
         let again = base
             .build()
             .unwrap()
-            .with_fingerprint(&fingerprint)
+            .into_builder()
+            .fingerprint(&fingerprint)
+            .build()
             .unwrap();
         assert_eq!(browser_args(&again), browser_args(&direct));
         assert_eq!(again.fingerprint(), direct.fingerprint());
@@ -394,11 +396,15 @@ fn a_second_fingerprint_replaces_the_first_and_nothing_else() {
 
     let rotated = options
         .clone()
-        .with_fingerprint(&first)
+        .into_builder()
+        .fingerprint(&first)
+        .build()
         .unwrap()
-        .with_fingerprint(&second)
+        .into_builder()
+        .fingerprint(&second)
+        .build()
         .unwrap();
-    let fresh = options.with_fingerprint(&second).unwrap();
+    let fresh = options.into_builder().fingerprint(&second).build().unwrap();
     assert_eq!(browser_args(&rotated), browser_args(&fresh));
     assert_eq!(rotated.fingerprint(), Some(&second));
     assert_eq!(rotated.user_agent(), Some("Second/2"));
@@ -424,13 +430,13 @@ fn the_other_setters_of_built_options_make_them_again() {
 
     let changed = options
         .clone()
-        .with_headless(true)
-        .unwrap()
-        .with_proxy("alice:s3cret@proxy.example:8080")
-        .unwrap()
-        .with_args(["--second", "--third"])
-        .unwrap()
-        .with_url("https://example.com/")
+        .into_builder()
+        .headless(true)
+        .proxy("alice:s3cret@proxy.example:8080")
+        .arg("--second")
+        .arg("--third")
+        .url("https://example.com/")
+        .build()
         .unwrap();
     let direct = LaunchOptions::builder()
         .no_sandbox(false)
@@ -459,10 +465,24 @@ fn made_again_the_combination_is_checked_again() {
         .build()
         .unwrap();
     // A browser that is only attached to cannot be given a proxy.
-    assert!(attached.clone().with_proxy("proxy.example:8080").is_err());
-    assert!(attached.clone().with_url("https://example.com/").is_ok());
+    assert!(attached
+        .clone()
+        .into_builder()
+        .proxy("proxy.example:8080")
+        .build()
+        .is_err());
+    assert!(attached
+        .clone()
+        .into_builder()
+        .url("https://example.com/")
+        .build()
+        .is_ok());
 
     let phone = LaunchOptions::builder().mobile(true).build().unwrap();
     let fingerprint = Fingerprint::randomized(OsType::Linux, 5);
-    assert!(phone.with_fingerprint(&fingerprint).is_err());
+    assert!(phone
+        .into_builder()
+        .fingerprint(&fingerprint)
+        .build()
+        .is_err());
 }

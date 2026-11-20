@@ -27,7 +27,7 @@
 //!
 //! # Demo Mode
 //!
-//! With [`RunSettings::with_demo_mode`](crate::api::run_settings::RunSettings::with_demo_mode)
+//! With [`RunSettingsBuilder::demo_mode`](crate::api::run_settings::RunSettingsBuilder::demo_mode)
 //! (`--demo`), or after [`BaseCase::activate_demo_mode`](crate::api::base_case::BaseCase::activate_demo_mode),
 //! every action first scrolls its element to the middle of the page slowly and
 //! plays the highlight animation on it (four loops of about 0.2 s), then acts, then

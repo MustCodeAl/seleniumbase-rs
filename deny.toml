@@ -18,9 +18,8 @@ all-features = true
 ignore = [
     # RUSTSEC-2026-0543: chrono unmaintained (an announcement, not a
     # vulnerability). Reached through rmcp and schemars (the MCP servers) and
-    # async-imap (the imap plugin), and named by this crate directly. Waiting on
-    # those crates to move off it; our own use moves to jiff, which we already
-    # depend on.
+    # async-imap (the imap plugin); this crate uses jiff and names no chrono.
+    # Waiting on those crates to move off it.
     "RUSTSEC-2026-0543",
 
     # RUSTSEC-2025-0141: bincode 1.x unmaintained. Reached only through

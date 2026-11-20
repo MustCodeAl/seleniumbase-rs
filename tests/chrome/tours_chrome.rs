@@ -88,7 +88,7 @@ async fn watched_case() -> BaseCase {
     let mut sb = BaseCase::new(test_config())
         .await
         .expect("connect to browser")
-        .with_somebody_watching();
+        .somebody_watching();
     // A tour nobody finishes waits for ever; the time limit ends it.
     sb.set_time_limit(120).expect("set the limit");
     sb.open(&serve_page()).await.expect("open the page");

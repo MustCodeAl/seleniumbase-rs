@@ -187,7 +187,7 @@ use seleniumbase_rs::{ChromeBinaryPatcher, EnginePatch};
 
 fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let patcher = ChromeBinaryPatcher::new("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
-        .with_cache_dir("/tmp/sb-chrome-patches");
+        .cache_dir("/tmp/sb-chrome-patches");
     let patched = patcher.patch(EnginePatch::chrome_binary())?;
     println!("Patched binary: {}", patched.display());
     Ok(())

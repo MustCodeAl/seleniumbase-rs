@@ -205,11 +205,11 @@ fn seen_before(path: &Path) -> bool {
 ///
 /// ```
 /// use seleniumbase_rs::api::recorder::{
-///     write_recording, ActionRecorder, RecordingOptions, RecordingTarget,
+///     write_recording, ActionRecorder, RecordedCommand, RecordingOptions, RecordingTarget,
 /// };
 ///
 /// let mut recorder = ActionRecorder::default();
-/// recorder.record("goto", Some("https://example.com"), None);
+/// recorder.record(RecordedCommand::Goto { url: "https://example.com".to_owned() });
 /// let folder = std::env::temp_dir().join("sbrs-doc-write-recording");
 /// let target = RecordingTarget::new("login", "Login", "test_login").in_folder(&folder);
 /// let mut out = Vec::new();
@@ -402,6 +402,7 @@ fn write_feature(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::api::recorder::RecordedCommand;
 
     fn temp(name: &str) -> PathBuf {
         let folder =
@@ -412,8 +413,8 @@ mod tests {
 
     fn actions(url: &str) -> Vec<RecordedAction> {
         vec![
-            RecordedAction::new("goto", Some(url), None),
-            RecordedAction::new("click", Some("a"), None),
+            RecordedAction::new(RecordedCommand::from_parts("goto", Some(url), None)),
+            RecordedAction::new(RecordedCommand::from_parts("click", Some("a"), None)),
         ]
     }
 

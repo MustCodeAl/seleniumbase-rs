@@ -62,7 +62,7 @@ async fn capture_debug_bundle<S: DevSession>(ctx: Ctx<S>, args: Args) -> Result<
     let wanted_calls = bounded(&args, "calls", 20, 200)?;
     let folder = format!(
         "debug_bundles/{label}_{}",
-        chrono::Local::now().format("%Y%m%d_%H%M%S_%3f")
+        jiff::Zoned::now().strftime("%Y%m%d_%H%M%S_%3f")
     );
     let settings = ctx.settings().clone();
     let path_of = |file: &str| settings.output_path(Some(&folder), file);
@@ -116,7 +116,7 @@ async fn capture_debug_bundle<S: DevSession>(ctx: Ctx<S>, args: Args) -> Result<
         })
     };
     let bundle = json!({
-        "captured_at": chrono::Local::now().to_rfc3339(),
+        "captured_at": crate::mcp::journal::rfc3339_auto(&jiff::Zoned::now()),
         "engine": engine,
         "page": facts,
         "console": outcome("console", console),

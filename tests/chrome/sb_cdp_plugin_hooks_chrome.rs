@@ -240,7 +240,7 @@ async fn the_browser_plugin_waits_for_a_service_worker_and_keeps_a_session(
         let plugins = build(
             &PluginSelection::new()
                 .enable("browser")
-                .with_options("browser", plugin),
+                .options("browser", plugin),
         )?;
         LaunchOptions::builder()
             .headless(true)

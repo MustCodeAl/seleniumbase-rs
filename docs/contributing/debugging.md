@@ -300,9 +300,10 @@ use seleniumbase_rs::{BrowserConfig, RunSettings};
 let config = BrowserConfig::builder()
     .headless(false)
     .run_settings(
-        RunSettings::default()
-            .with_demo_mode(true)
-            .with_demo_sleep(Duration::from_millis(800)),
+        RunSettings::builder()
+            .demo_mode(true)
+            .demo_sleep(Duration::from_millis(800))
+            .build(),
     )
     .build()?;
 ```

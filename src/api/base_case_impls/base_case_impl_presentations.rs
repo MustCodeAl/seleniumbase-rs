@@ -236,41 +236,41 @@ pub struct AddSlide<'a> {
 impl<'a> AddSlide<'a> {
     /// Shows the image at `url` below the content (Python's `image`).
     pub fn image(mut self, url: &str) -> Self {
-        self.slide = self.slide.with_image(url);
+        self.slide = self.slide.image(url);
         self
     }
 
     /// Shows `code` below the content, with syntax highlighting (Python's
     /// `code`). It is shown as text.
     pub fn code(mut self, code: &str) -> Self {
-        self.slide = self.slide.with_code(code);
+        self.slide = self.slide.code(code);
         self
     }
 
     /// Shows the page at `url` in a frame below the content (Python's
     /// `iframe`).
     pub fn iframe(mut self, url: &str) -> Self {
-        self.slide = self.slide.with_iframe(url);
+        self.slide = self.slide.iframe(url);
         self
     }
 
     /// Shows the HTML `content2` after the image, the code and the frame
     /// (Python's `content2`).
     pub fn content2(mut self, content2: &str) -> Self {
-        self.slide = self.slide.with_content2(content2);
+        self.slide = self.slide.content2(content2);
         self
     }
 
     /// Adds speaker notes, as HTML (Python's `notes`). They are only seen when
     /// the presentation is saved or shown with notes.
     pub fn notes(mut self, notes: &str) -> Self {
-        self.slide = self.slide.with_notes(notes);
+        self.slide = self.slide.notes(notes);
         self
     }
 
     /// Gives this slide a transition of its own (Python's `transition`).
     pub fn transition(mut self, transition: Transition) -> Self {
-        self.slide = self.slide.with_transition(transition);
+        self.slide = self.slide.transition(transition);
         self
     }
 
@@ -479,12 +479,12 @@ mod tests_presentations {
         assert_eq!(
             slide,
             &Slide::new("c")
-                .with_image("i")
-                .with_code("k")
-                .with_iframe("f")
-                .with_content2("c2")
-                .with_notes("n")
-                .with_transition(Transition::Fade)
+                .image("i")
+                .code("k")
+                .iframe("f")
+                .content2("c2")
+                .notes("n")
+                .transition(Transition::Fade)
         );
     }
 
@@ -529,7 +529,7 @@ mod tests_presentations {
     #[test]
     fn a_presentation_is_written_with_the_run_s_interval_unless_one_is_given() {
         let folder = tempfile::tempdir().unwrap();
-        let settings = RunSettings::default().with_interval(Duration::from_secs(4));
+        let settings = RunSettings::builder().interval(Duration::from_secs(4)).build();
         let mut sb = BaseCase::with_session(
             BrowserConfig::builder().run_settings(settings).build().expect("a valid config"),
             BrowserSession::disconnected(),

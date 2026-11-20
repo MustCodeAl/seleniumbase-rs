@@ -116,7 +116,7 @@ Each setting method takes `impl Into<Spoof<T>>`. Calls can come in any order. A 
 | `custom_start_urls`, `cmd_params` | URLs opened at start, and extra command-line parameters stored on the fingerprint. |
 | `humanize(HumanizeConfig)` | Humanized input timing. |
 | `policy(StealthPolicy)` | Base policy. Order against the settings does not matter. |
-| `with_policy(change)` | A change applied after the base, in call order. |
+| `change_policy(change)` | A change applied after the base, in call order. |
 | `webrtc_policy`, `canvas_noise`, `audio_noise`, `native_spoofing`, `grant_permissions`, `block_trackers`, `blocked_trackers`, `blocked_ports`, `disable_csp`, `quic` | Shortcuts that change the policy. They run after `policy()`, in the order they were called. |
 | `build()` | `Result<Fingerprint, FingerprintError>`. |
 

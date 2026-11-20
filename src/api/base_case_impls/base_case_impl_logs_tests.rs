@@ -113,7 +113,8 @@ mod tests_to_logs {
         // This thread records a different test; the case belongs to the named one.
         let _own = Active::here(&own);
         let driver = page();
-        let sb = driver.base_case().await.with_test_name("shop.checkout");
+        let mut sb = driver.base_case().await;
+                sb.set_test_name("shop.checkout");
 
         let path = sb.save_screenshot_to_logs().await.unwrap();
 
@@ -127,7 +128,8 @@ mod tests_to_logs {
         let own = root.path().join("recorded.here");
         let _own = Active::here(&own);
         let driver = page();
-        let sb = driver.base_case().await.with_test_name("no.recorder.has.this.id");
+        let mut sb = driver.base_case().await;
+                sb.set_test_name("no.recorder.has.this.id");
 
         let path = sb.save_page_source_to_logs().await.unwrap();
 

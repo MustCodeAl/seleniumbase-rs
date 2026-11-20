@@ -50,7 +50,7 @@ async fn watched_case(settings: RunSettings) -> BaseCase {
     let mut sb = BaseCase::new(test_config())
         .await
         .expect("connect to browser")
-        .with_somebody_watching();
+        .somebody_watching();
     sb.set_run_settings(settings);
     sb.open(PAGE).await.expect("open the page");
     sb
@@ -130,9 +130,10 @@ async fn a_flash_adds_its_dot_and_takes_it_away() {
 async fn demo_mode_animates_before_the_click_and_pauses_after_it() {
     let _lock = BROWSER_LOCK.lock().await;
     let mut sb = watched_case(
-        RunSettings::default()
-            .with_demo_mode(true)
-            .with_demo_sleep(Duration::from_millis(340)),
+        RunSettings::builder()
+            .demo_mode(true)
+            .demo_sleep(Duration::from_millis(340))
+            .build(),
     )
     .await;
     let started = Instant::now();
@@ -153,9 +154,10 @@ async fn demo_mode_animates_before_the_click_and_pauses_after_it() {
 async fn a_passed_assertion_shows_a_messenger_success_message_in_demo_mode() {
     let _lock = BROWSER_LOCK.lock().await;
     let mut sb = watched_case(
-        RunSettings::default()
-            .with_demo_mode(true)
-            .with_message_duration(Duration::from_millis(600)),
+        RunSettings::builder()
+            .demo_mode(true)
+            .message_duration(Duration::from_millis(600))
+            .build(),
     )
     .await;
     let started = Instant::now();

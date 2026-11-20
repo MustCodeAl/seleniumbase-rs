@@ -385,7 +385,10 @@ async fn the_browser_binary_is_the_operators_choice_not_a_tool_argument() {
 #[test_log::test(tokio::test)]
 async fn the_operators_binary_and_use_chromium_do_not_mix() {
     let dir = tempfile::tempdir().unwrap();
-    let settings = Settings::new(dir.path()).with_browser_binary("/opt/browsers/chrome");
+    let settings = Settings::builder()
+        .output_dir(dir.path())
+        .browser_binary("/opt/browsers/chrome")
+        .build();
     assert_eq!(
         settings.browser_binary().map(Path::to_path_buf),
         Some(Path::new("/opt/browsers/chrome").to_path_buf())
