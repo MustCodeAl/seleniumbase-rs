@@ -41,7 +41,7 @@ const SENSITIVE_ARGUMENTS: [&str; 9] = [
 
 /// `time` as RFC 3339 with its numeric offset and as many fractional digits as it needs, in
 /// groups of three: `2026-10-22T15:24:01+02:00`, `2026-10-22T15:24:01.123456+02:00`.
-fn rfc3339_auto(time: &Zoned) -> String {
+pub(super) fn rfc3339_auto(time: &Zoned) -> String {
     let nanos = time.subsec_nanosecond();
     let (digits, divisor) = match nanos {
         0 => (0, 1),

@@ -103,9 +103,8 @@ url = "2.5"
 tokio-tungstenite = "0.30"
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 # Every time the crate reads, writes or prints is jiff's (`Zoned` for the local clock, `Timestamp`
-# for an instant). chrono is left only for `mcp::devtools`, until that file moves to jiff too.
+# for an instant). The crate names no chrono; rmcp, schemars and async-imap still pull it in.
 jiff = "0.2.38"
-chrono = "0.4"
 enigo = { version = "0.6", optional = true }
 ring = "0.17"
 zip = { version = "9.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
