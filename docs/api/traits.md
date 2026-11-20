@@ -20,7 +20,7 @@ type; to keep an element handle, use `BaseCase::find_element` (an
 `Element`) or `Page::locator(..)`. Every method returns
 `seleniumbase_rs::Result<T>`. Selector strings are the same on both engines:
 CSS by default, XPath for `//...`, link text for `link=...` (see the
-[Selectors guide](/tutorials/selectors)).
+[Selectors guide](/tutorials/selectors)). A selector parameter is `impl Into<SelectorBuf> + Send`: a string, or a `SelectorBuf` built with `css`, `xpath`, `link_text` or `partial_link_text` to skip the guess.
 
 ```rust,no_run
 use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi};
@@ -52,19 +52,19 @@ where
 
 | Method | `BaseCase` | `Page` |
 |---|---|---|
-| `click(&mut self, css: &str) -> Result<()>` | Clicks the element. | `locator(css).click()`. |
-| `double_click(&mut self, css: &str) -> Result<()>` | Double-clicks it. | `locator(css).double_click()`. |
-| `type_text(&mut self, css: &str, text: &str) -> Result<()>` | Waits for the element to be visible, clears it and types. | Clears the field, then types one key at a time. |
-| `text(&mut self, css: &str) -> Result<String>` | The element's visible text, after waiting for it to be present. | `locator(css).text()`. |
-| `attribute(&mut self, css: &str, attr: &str) -> Result<Option<String>>` | The attribute value, `None` when absent. | `locator(css).attribute(attr)`. |
+| `click(&mut self, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Clicks the element. | `locator(selector).click()`. |
+| `double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Double-clicks it. | `locator(selector).double_click()`. |
+| `type_text(&mut self, selector: impl Into<SelectorBuf> + Send, text: &str) -> Result<()>` | Waits for the element to be visible, clears it and types. | Clears the field, then types one key at a time. |
+| `text(&mut self, selector: impl Into<SelectorBuf> + Send) -> Result<String>` | The element's visible text, after waiting for it to be present. | `locator(selector).text()`. |
+| `attribute(&mut self, selector: impl Into<SelectorBuf> + Send, attr: &str) -> Result<Option<String>>` | The attribute value, `None` when absent. | `locator(selector).attribute(attr)`. |
 
 ### AssertionApi
 
 | Method | `BaseCase` | `Page` |
 |---|---|---|
 | `assert_title(&mut self, expected: &str) -> Result<()>` | Fails with `AssertionFailed` unless the title equals `expected` exactly. | `expect().to_have_title(expected)`, which retries until the timeout. |
-| `assert_element(&self, css: &str) -> Result<()>` | Fails unless the element is present in the DOM (visible or not). | `locator(css).expect().to_exist()`. |
-| `assert_text(&mut self, expected: &str, css: &str) -> Result<()>` | Fails unless the element's text contains `expected`. | `locator(css).expect().to_contain_text(expected)`. |
+| `assert_element(&self, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Fails unless the element is present in the DOM (visible or not). | `locator(selector).expect().to_exist()`. |
+| `assert_text(&mut self, expected: &str, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Fails unless the element's text contains `expected`. | `locator(selector).expect().to_contain_text(expected)`. |
 | `assert_no_js_errors(&self) -> Result<()>` | Fails if the browser log holds a `SEVERE` entry (a few known CDN sources are ignored). | Fails if the document raised an uncaught script error; the message names the first. |
 
 <Note>

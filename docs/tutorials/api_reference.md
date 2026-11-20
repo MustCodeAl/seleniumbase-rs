@@ -49,7 +49,7 @@ sb.set_attribute("#email", "placeholder", "you@example.com").await?;
 ```
 
 ```rust,ignore The signature
-pub async fn set_attribute(&mut self, css: &str, attribute: &str, value: &str)
+pub async fn set_attribute(&mut self, selector: impl Into<SelectorBuf>, attribute: &str, value: &str)
     -> Result<(), SeleniumBaseError>
 ```
 
@@ -58,11 +58,11 @@ pub async fn set_attribute(&mut self, css: &str, attribute: &str, value: &str)
 ### Common arguments
 
 The same names mean the same thing in every table. The signatures sometimes
-use a longer name (`css` for `selector`, `timeout_secs` for `timeout`).
+use a longer name (`timeout_secs` for `timeout`).
 
 | Argument | Type | What it is |
 |---|---|---|
-| `selector` (also `src`, `dst`, `container`) | `&str` | Which element to act on, as CSS, XPath or link text (see [Selector syntax](#selector-syntax)). The first match is used. |
+| `selector` (also `src`, `dst`, `container`) | `impl Into<SelectorBuf>` | Which element to act on, as CSS, XPath or link text (see [Selector syntax](#selector-syntax)). A string, or a `SelectorBuf` built with `css`, `xpath`, `link_text` or `partial_link_text` to skip the guess. The first match is used. |
 | `text`, `expected` | `&str` | Text to type, or the text an assertion expects. `assert_text(text, selector)` takes the text first. |
 | `attr`, `prop` | `&str` | An attribute or property name, such as `"href"` or `"value"`. |
 | `value` | `&str` | The value to set: of an attribute, a field or a storage item. |

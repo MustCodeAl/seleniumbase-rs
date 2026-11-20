@@ -438,7 +438,8 @@ tree would name differently.
 ```rust,ignore src/main.rs
 use seleniumbase_rs::utils::selectors::SelectorBuf;
 
-// Pure CDP engine: Page::locator takes anything that converts to a SelectorBuf.
+// Page::locator and every BaseCase selector parameter take anything that converts to a SelectorBuf.
+sb.click(SelectorBuf::role("button", Some("Sign in"), false)).await?;
 page.locator(SelectorBuf::role("button", Some("Sign in"), false)).click().await?;
 page.locator(SelectorBuf::label("Email", false)).fill("me@example.test").await?;
 ```

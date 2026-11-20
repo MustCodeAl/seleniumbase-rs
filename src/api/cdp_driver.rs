@@ -47,6 +47,7 @@ use serde_json::{json, Value};
 use crate::api::cdp_page::CdpNode;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Browser, Page};
+use crate::utils::selectors::SelectorBuf;
 
 /// A minimal CDP driver for a browser that is already running.
 ///
@@ -154,7 +155,11 @@ impl CdpDriver {
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches, and
     /// [`SeleniumBaseError::InvalidSelector`] if the page rejects the selector.
-    pub async fn find(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
+    pub async fn find(&self, selector: impl Into<SelectorBuf>) -> Result<CdpNode, SeleniumBaseError> {
+        // `querySelector` reads CSS only: a selector of another kind is told so by
+        // the page, as it always was.
+        let text = Into::<SelectorBuf>::into(selector).to_string();
+        let selector = text.as_str();
         let expression = format!(
             "document.querySelector({})",
             Value::String(selector.to_owned())
@@ -195,9 +200,7 @@ impl CdpDriver {
     /// Returns [`SeleniumBaseError::ElementNotFound`] or
     /// [`SeleniumBaseError::ElementNotInteractable`] if the element does not
     /// become ready in time.
-    pub async fn click(&self, selector: &str) -> Result<(), SeleniumBaseError> {
-        self.page()?.locator(selector).click().await
-    }
+    pub async fn click(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> { self.page()?.locator(selector).click().await }
 
     /// Focuses the element, clears it, and types `text` one key at a time,
     /// so the page sees key events.
@@ -205,9 +208,7 @@ impl CdpDriver {
     /// # Errors
     ///
     /// See [`click`](Self::click).
-    pub async fn type_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        self.page()?.locator(selector).type_text(text).await
-    }
+    pub async fn type_text(&self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> { self.page()?.locator(selector).type_text(text).await }
 
     /// Evaluates `expression` and returns its value, such as `2` for `1 + 1`.
     ///

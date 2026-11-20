@@ -57,7 +57,7 @@ use crate::api::call::CallFuture;
 use crate::api::run_settings::DEFAULT_HIGHLIGHT_LOOPS;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::messenger::html_escape;
-use crate::utils::selectors::Selector;
+use crate::utils::selectors::SelectorBuf;
 
 /// How far apart the steps of the highlight animation are, in milliseconds. Six
 /// steps make a loop of about 0.2 s, as in Python.
@@ -257,11 +257,10 @@ pub(crate) fn is_hex_colour(color: &str) -> bool {
 }
 
 /// The selector a highlight looks for: `html` is `body`, as in Python.
-pub(crate) fn highlight_target(css: &str) -> &str {
-    if css == "html" {
-        "body"
-    } else {
-        css
+pub(crate) fn highlight_target(selector: &SelectorBuf) -> SelectorBuf {
+    match selector {
+        SelectorBuf::Css(css) if css == "html" => SelectorBuf::css("body"),
+        other => other.clone(),
     }
 }
 
@@ -298,59 +297,51 @@ pub(crate) fn whole_seconds_up(wait: Duration) -> u64 {
 // ---------------------------------------------------------------------------
 
 /// How Python names the way `css` finds its element in the messages.
-pub(crate) fn strategy_word(css: &str) -> &'static str {
-    match Selector::auto(css) {
-        Selector::XPath(_) => "XPATH",
-        Selector::LinkText(_) => "LINK TEXT",
-        Selector::PartialLinkText(_) => "PARTIAL LINK TEXT",
-        Selector::Css(_) | Selector::Id(_) => "CSS SELECTOR",
+pub(crate) fn strategy_word(selector: &SelectorBuf) -> &'static str {
+    match selector {
+        SelectorBuf::XPath(_) => "XPATH",
+        SelectorBuf::LinkText(_) => "LINK TEXT",
+        SelectorBuf::PartialLinkText(_) => "PARTIAL LINK TEXT",
+        SelectorBuf::Css(_) => "CSS SELECTOR",
     }
 }
 
 /// `<b>ASSERT CSS SELECTOR</b>: h1`
-pub(crate) fn element_message(css: &str) -> String {
-    format!("<b>ASSERT {}</b>: {}", strategy_word(css), html_escape(css))
-}
+pub(crate) fn element_message(css: &SelectorBuf) -> String { format!("<b>ASSERT {}</b>: {}", strategy_word(css), html_escape(&css.to_string())) }
 
 /// `<b>ASSERT TEXT</b>: {Welcome} in CSS SELECTOR: h1` (or `ASSERT EXACT TEXT`).
-pub(crate) fn text_message(css: &str, text: &str, exact: bool) -> String {
-    let label = if exact {
-        "ASSERT EXACT TEXT"
-    } else {
-        "ASSERT TEXT"
-    };
-    format!(
-        "<b>{label}</b>: {{{}}} in {}: {}",
-        html_escape(text),
-        strategy_word(css),
-        html_escape(css)
-    )
-}
+pub(crate) fn text_message(css: &SelectorBuf, text: &str, exact: bool) -> String { let label = if exact {
+    "ASSERT EXACT TEXT"
+} else {
+    "ASSERT TEXT"
+};
+format!(
+    "<b>{label}</b>: {{{}}} in {}: {}",
+    html_escape(text),
+    strategy_word(css),
+        html_escape(&css.to_string())
+) }
 
 /// `<b>ASSERT NON-EMPTY TEXT</b> in CSS SELECTOR: h1`
-pub(crate) fn non_empty_text_message(css: &str) -> String {
-    format!(
-        "<b>ASSERT NON-EMPTY TEXT</b> in {}: {}",
-        strategy_word(css),
-        html_escape(css)
-    )
-}
+pub(crate) fn non_empty_text_message(css: &SelectorBuf) -> String { format!(
+    "<b>ASSERT NON-EMPTY TEXT</b> in {}: {}",
+    strategy_word(css),
+        html_escape(&css.to_string())
+) }
 
 /// `<b>ASSERT ATTRIBUTE</b>: [href="/x"] in CSS SELECTOR: a`; without a value
 /// `[href]`.
-pub(crate) fn attribute_message(css: &str, attribute: &str, value: Option<&str>) -> String {
-    let part = match value {
-        Some(value) if !value.is_empty() => {
-            format!("[{}=\"{}\"]", html_escape(attribute), html_escape(value))
-        }
-        _ => format!("[{}]", html_escape(attribute)),
-    };
-    format!(
-        "<b>ASSERT ATTRIBUTE</b>: {part} in {}: {}",
-        strategy_word(css),
-        html_escape(css)
-    )
-}
+pub(crate) fn attribute_message(css: &SelectorBuf, attribute: &str, value: Option<&str>) -> String { let part = match value {
+    Some(value) if !value.is_empty() => {
+        format!("[{}=\"{}\"]", html_escape(attribute), html_escape(value))
+    }
+    _ => format!("[{}]", html_escape(attribute)),
+};
+format!(
+    "<b>ASSERT ATTRIBUTE</b>: {part} in {}: {}",
+    strategy_word(css),
+        html_escape(&css.to_string())
+) }
 
 /// `<b>ASSERT TITLE</b>: {Example}`: the label in bold, the text in braces.
 pub(crate) fn braced_message(label: &str, text: &str) -> String {
@@ -384,22 +375,22 @@ pub(crate) fn bracketed_message(label: &str, text: &str) -> String {
 #[must_use = "nothing happens until the call is awaited"]
 pub struct Highlight<'a> {
     pub(crate) sb: &'a BaseCase,
-    pub(crate) selector: &'a str,
+    pub(crate) selector: SelectorBuf,
     pub(crate) loops: Option<u32>,
     pub(crate) scroll: bool,
     pub(crate) timeout: Duration,
 }
 
 impl<'a> Highlight<'a> {
-    pub(crate) fn new(sb: &'a BaseCase, selector: &'a str) -> Self {
-        Self {
-            sb,
-            selector,
-            loops: None,
-            scroll: true,
-            timeout: DEFAULT_TIMEOUT,
+    pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
+            Self {
+                sb,
+                selector: selector.into(),
+                loops: None,
+                scroll: true,
+                timeout: DEFAULT_TIMEOUT,
+            }
         }
-    }
 
     /// How many times the animation repeats. Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -426,8 +417,7 @@ impl<'a> IntoFuture for Highlight<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb
-                .run_highlight(self.selector, self.loops, self.scroll, self.timeout)
+            self.sb.run_highlight(&self.selector, self.loops, self.scroll, self.timeout)
                 .await
         })
     }
@@ -440,22 +430,22 @@ impl<'a> IntoFuture for Highlight<'a> {
 #[must_use = "nothing happens until the call is awaited"]
 pub struct HighlightClick<'a> {
     pub(crate) sb: &'a mut BaseCase,
-    pub(crate) selector: &'a str,
+    pub(crate) selector: SelectorBuf,
     pub(crate) loops: Option<u32>,
     pub(crate) scroll: bool,
     pub(crate) timeout: Duration,
 }
 
 impl<'a> HighlightClick<'a> {
-    pub(crate) fn new(sb: &'a mut BaseCase, selector: &'a str) -> Self {
-        Self {
-            sb,
-            selector,
-            loops: None,
-            scroll: true,
-            timeout: DEFAULT_TIMEOUT,
+    pub(crate) fn new(sb: &'a mut BaseCase, selector: impl Into<SelectorBuf>) -> Self {
+            Self {
+                sb,
+                selector: selector.into(),
+                loops: None,
+                scroll: true,
+                timeout: DEFAULT_TIMEOUT,
+            }
         }
-    }
 
     /// How many times the animation repeats (default 3). Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -489,7 +479,7 @@ impl<'a> IntoFuture for HighlightClick<'a> {
                 scroll,
                 timeout,
             } = self;
-            sb.run_highlight_click(selector, loops, scroll, timeout)
+            sb.run_highlight_click(&selector, loops, scroll, timeout)
                 .await
         })
     }
@@ -502,7 +492,7 @@ impl<'a> IntoFuture for HighlightClick<'a> {
 #[must_use = "nothing happens until the call is awaited"]
 pub struct HighlightType<'a> {
     pub(crate) sb: &'a mut BaseCase,
-    pub(crate) selector: &'a str,
+    pub(crate) selector: SelectorBuf,
     pub(crate) text: &'a str,
     pub(crate) loops: Option<u32>,
     pub(crate) scroll: bool,
@@ -510,16 +500,16 @@ pub struct HighlightType<'a> {
 }
 
 impl<'a> HighlightType<'a> {
-    pub(crate) fn new(sb: &'a mut BaseCase, selector: &'a str, text: &'a str) -> Self {
-        Self {
-            sb,
-            selector,
-            text,
-            loops: None,
-            scroll: true,
-            timeout: DEFAULT_TIMEOUT,
+    pub(crate) fn new(sb: &'a mut BaseCase, selector: impl Into<SelectorBuf>, text: &'a str) -> Self {
+            Self {
+                sb,
+                selector: selector.into(),
+                text,
+                loops: None,
+                scroll: true,
+                timeout: DEFAULT_TIMEOUT,
+            }
         }
-    }
 
     /// How many times the animation repeats (default 3). Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -554,7 +544,7 @@ impl<'a> IntoFuture for HighlightType<'a> {
                 scroll,
                 timeout,
             } = self;
-            sb.run_highlight_type(selector, text, loops, scroll, timeout)
+            sb.run_highlight_type(&selector, text, loops, scroll, timeout)
                 .await
         })
     }
@@ -566,20 +556,20 @@ impl<'a> IntoFuture for HighlightType<'a> {
 #[must_use = "nothing happens until the call is awaited"]
 pub struct HighlightIfVisible<'a> {
     pub(crate) sb: &'a BaseCase,
-    pub(crate) selector: &'a str,
+    pub(crate) selector: SelectorBuf,
     pub(crate) loops: Option<u32>,
     pub(crate) scroll: bool,
 }
 
 impl<'a> HighlightIfVisible<'a> {
-    pub(crate) fn new(sb: &'a BaseCase, selector: &'a str) -> Self {
-        Self {
-            sb,
-            selector,
-            loops: None,
-            scroll: true,
+    pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
+            Self {
+                sb,
+                selector: selector.into(),
+                loops: None,
+                scroll: true,
+            }
         }
-    }
 
     /// How many times the animation repeats. Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -600,8 +590,7 @@ impl<'a> IntoFuture for HighlightIfVisible<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb
-                .run_highlight_if_visible(self.selector, self.loops, self.scroll)
+            self.sb.run_highlight_if_visible(&self.selector, self.loops, self.scroll)
                 .await
         })
     }
@@ -613,22 +602,22 @@ impl<'a> IntoFuture for HighlightIfVisible<'a> {
 #[must_use = "nothing happens until the call is awaited"]
 pub struct HighlightElements<'a> {
     pub(crate) sb: &'a BaseCase,
-    pub(crate) selector: &'a str,
+    pub(crate) selector: SelectorBuf,
     pub(crate) loops: Option<u32>,
     pub(crate) scroll: bool,
     pub(crate) limit: usize,
 }
 
 impl<'a> HighlightElements<'a> {
-    pub(crate) fn new(sb: &'a BaseCase, selector: &'a str) -> Self {
-        Self {
-            sb,
-            selector,
-            loops: None,
-            scroll: true,
-            limit: 0,
+    pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
+            Self {
+                sb,
+                selector: selector.into(),
+                loops: None,
+                scroll: true,
+                limit: 0,
+            }
         }
-    }
 
     /// How many times the animation repeats. Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -655,8 +644,7 @@ impl<'a> IntoFuture for HighlightElements<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb
-                .run_highlight_elements(self.selector, self.loops, self.scroll, self.limit)
+            self.sb.run_highlight_elements(&self.selector, self.loops, self.scroll, self.limit)
                 .await
         })
     }
@@ -673,22 +661,22 @@ impl<'a> IntoFuture for HighlightElements<'a> {
 #[must_use = "nothing happens until the call is awaited"]
 pub struct Flash<'a> {
     pub(crate) sb: &'a BaseCase,
-    pub(crate) selector: &'a str,
+    pub(crate) selector: SelectorBuf,
     pub(crate) duration: Duration,
     pub(crate) color: &'a str,
     pub(crate) pause: Duration,
 }
 
 impl<'a> Flash<'a> {
-    pub(crate) fn new(sb: &'a BaseCase, selector: &'a str) -> Self {
-        Self {
-            sb,
-            selector,
-            duration: Duration::from_secs(1),
-            color: DEFAULT_FLASH_COLOR,
-            pause: Duration::ZERO,
+    pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
+            Self {
+                sb,
+                selector: selector.into(),
+                duration: Duration::from_secs(1),
+                color: DEFAULT_FLASH_COLOR,
+                pause: Duration::ZERO,
+            }
         }
-    }
 
     /// How long the dot lasts. Python's `duration`.
     pub fn duration(mut self, duration: Duration) -> Self {
@@ -715,8 +703,7 @@ impl<'a> IntoFuture for Flash<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb
-                .run_flash(self.selector, self.duration, self.color, self.pause)
+            self.sb.run_flash(&self.selector, self.duration, self.color, self.pause)
                 .await
         })
     }

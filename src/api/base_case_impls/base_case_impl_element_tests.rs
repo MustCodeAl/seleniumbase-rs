@@ -6,6 +6,82 @@
 // `webdriver_support` (no browser needed). Included (for tests only) at the end
 // of `base_case.rs` like the files beside it.
 
+mod tests_selector_forms {
+    use super::webdriver_support::{element, MockWebDriver, Reply};
+    use super::SelectorBuf;
+    use serde_json::{json, Value};
+
+    /// A page whose every lookup finds the element `a`, displayed and enabled.
+    fn any_selector_finds_a() -> MockWebDriver {
+        MockWebDriver::start(json!({}), |request| {
+            match (request.method.as_str(), request.path.as_str()) {
+                ("POST", "/element") => Reply::Value(element("a")),
+                ("POST", "/elements") => Reply::Value(json!([element("a")])),
+                ("GET", "/element/a/displayed" | "/element/a/enabled") => Reply::Value(json!(true)),
+                _ => Reply::Value(Value::Null),
+            }
+        })
+    }
+
+    #[tokio::test]
+    async fn a_selector_may_be_a_str_a_string_or_a_selector_buf() {
+        let driver = any_selector_finds_a();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(5).await.unwrap();
+        let owned = String::from("#a");
+        let typed = SelectorBuf::css("#a");
+
+        sb.click("#a").await.unwrap();
+        sb.click(owned.clone()).await.unwrap();
+        sb.click(&owned).await.unwrap();
+        sb.click(SelectorBuf::css("#a")).await.unwrap();
+        sb.click(&typed).await.unwrap();
+
+        // Every form reaches the driver as the same lookup, and the same click.
+        assert_eq!(driver.requests("/element/a/click").len(), 5);
+        let lookups = driver.requests("/element");
+        assert!(lookups.len() >= 5, "{} lookups", lookups.len());
+        for lookup in lookups {
+            assert_eq!(lookup.body["using"], "css selector");
+            assert_eq!(lookup.body["value"], "#a");
+        }
+    }
+
+    #[tokio::test]
+    async fn an_explicit_kind_is_not_guessed_again_by_the_method() {
+        let driver = any_selector_finds_a();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(5).await.unwrap();
+
+        // The guess reads `//a` as XPath; the constructor says it is CSS, and
+        // every lookup the method makes keeps that.
+        sb.click(SelectorBuf::css("//a")).await.unwrap();
+        for lookup in driver.requests("/element") {
+            assert_eq!(lookup.body["using"], "css selector");
+            assert_eq!(lookup.body["value"], "//a");
+        }
+        sb.click("//a").await.unwrap();
+        assert_eq!(
+            driver.requests("/element").pop().unwrap().body["using"],
+            "xpath"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_contains_selector_is_looked_up_as_xpath_by_the_method() {
+        let driver = any_selector_finds_a();
+        let mut sb = driver.base_case().await;
+        sb.set_timeout(5).await.unwrap();
+
+        sb.click("p:contains('x')").await.unwrap();
+
+        let lookup = driver.requests("/element").pop().unwrap();
+        assert_eq!(lookup.body["using"], "xpath");
+        assert_eq!(lookup.body["value"], ".//p[contains(., 'x')]");
+    }
+}
+
+
 mod tests_element_semantics {
     use super::webdriver_support::{element, MockWebDriver, Reply};
     use serde_json::{json, Value};

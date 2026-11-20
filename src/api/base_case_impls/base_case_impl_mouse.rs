@@ -103,17 +103,20 @@ impl BaseCase {
     }
 
     /// Alias for `hover`.
-    pub async fn hover_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn hover_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.hover(css).await
     }
 
     /// Alias for `hover`.
-    pub async fn hover_on_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn hover_on_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.hover(css).await
     }
 
     /// Alias for `hover`.
-    pub async fn hover_over_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn hover_over_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.hover(css).await
     }
 
@@ -141,89 +144,70 @@ impl BaseCase {
     }
 
     /// The work of [`click_nth_visible_element`](Self::click_nth_visible_element).
-    pub(crate) async fn run_click_nth(
-        &mut self,
-        selector: &str,
-        number: usize,
-        timeout: Option<Duration>,
-        scroll: bool,
-    ) -> Result<(), SeleniumBaseError> {
-        if number == 0 {
-            return Err(SeleniumBaseError::InvalidConfig(
-                "number counts from 1, as in Python (got 0)".to_owned(),
-            ));
-        }
-        let seconds = self.wait_secs(timeout);
-        self.await_ready_within(selector, Ready::Present, seconds)
-            .await?;
-        let visible = self.find_visible_elements(selector).await?;
-        let Some(element) = visible.get(number - 1) else {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Not enough matching {{{selector}}} elements to click number {number}!"
-            )));
-        };
-        if scroll {
-            element.scroll_into_view().await?;
-        }
-        element.click().await?;
-        Ok(())
+    pub(crate) async fn run_click_nth(&mut self, selector: &SelectorBuf, number: usize,
+    timeout: Option<Duration>,
+    scroll: bool,) -> Result<(), SeleniumBaseError> { if number == 0 {
+        return Err(SeleniumBaseError::InvalidConfig(
+            "number counts from 1, as in Python (got 0)".to_owned(),
+        ));
     }
+    let seconds = self.wait_secs(timeout);
+    self.await_ready_within(selector, Ready::Present, seconds)
+        .await?;
+    let visible = self.find_visible_elements(selector).await?;
+    let Some(element) = visible.get(number - 1) else {
+        return Err(SeleniumBaseError::AssertionFailed(format!(
+            "Not enough matching {{{selector}}} elements to click number {number}!"
+        )));
+    };
+    if scroll {
+        element.scroll_into_view().await?;
+    }
+    element.click().await?;
+    Ok(()) }
 
     /// The work of the four `press_*_arrow` calls.
-    pub(crate) async fn run_press_arrow(
-        &self,
-        arrow: Arrow,
-        selector: &str,
-        times: u32,
-    ) -> Result<(), SeleniumBaseError> {
-        if times < 1 {
-            return Ok(());
-        }
-        let seconds = self.wait_secs(None);
-        self.await_ready_within(selector, Ready::Present, seconds)
-            .await?;
-        self.demo_highlight(selector).await?;
-        let element = self.session.find(shadow_find::checked(selector)?)
-            .await?;
-        if !self.run_settings.demo_mode() && !self.run_settings.slow_mode() {
-            element.scroll_into_view().await?;
-        }
-        let key = match arrow {
-            Arrow::Up => Key::Up,
-            Arrow::Down => Key::Down,
-            Arrow::Left => Key::Left,
-            Arrow::Right => Key::Right,
-        };
-        for _ in 0..times {
-            element.send_keys(key.value().to_string()).await?;
-            tokio::time::sleep(Duration::from_millis(10)).await;
-            if self.run_settings.slow_mode() {
-                tokio::time::sleep(Duration::from_millis(100)).await;
-            }
-        }
-        Ok(())
+    pub(crate) async fn run_press_arrow(&self,
+    arrow: Arrow, selector: &SelectorBuf, times: u32,) -> Result<(), SeleniumBaseError> { if times < 1 {
+        return Ok(());
     }
+    let seconds = self.wait_secs(None);
+    self.await_ready_within(selector, Ready::Present, seconds)
+        .await?;
+    self.demo_highlight(selector).await?;
+    let element = self.session.find(shadow_find::checked(selector)?)
+        .await?;
+    if !self.run_settings.demo_mode() && !self.run_settings.slow_mode() {
+        element.scroll_into_view().await?;
+    }
+    let key = match arrow {
+        Arrow::Up => Key::Up,
+        Arrow::Down => Key::Down,
+        Arrow::Left => Key::Left,
+        Arrow::Right => Key::Right,
+    };
+    for _ in 0..times {
+        element.send_keys(key.value().to_string()).await?;
+        tokio::time::sleep(Duration::from_millis(10)).await;
+        if self.run_settings.slow_mode() {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+    Ok(()) }
 
     /// The work of [`hover_and_double_click`](Self::hover_and_double_click) and
     /// [`hover_and_js_click`](Self::hover_and_js_click).
-    pub(crate) async fn run_hover_and_click(
-        &mut self,
-        hover_selector: &str,
-        click_selector: &str,
-        kind: HoverClick,
-        timeout: Option<Duration>,
-    ) -> Result<(), SeleniumBaseError> {
-        let seconds = self.wait_secs(timeout);
-        self.await_ready_within(hover_selector, Ready::Visible, seconds)
-            .await?;
-        self.hover(hover_selector).await?;
-        self.await_ready_within(click_selector, Ready::Visible, seconds)
-            .await?;
-        match kind {
-            HoverClick::Double => self.double_click(click_selector).await,
-            HoverClick::Js => self.js_click(click_selector).await,
-        }
-    }
+    pub(crate) async fn run_hover_and_click(&mut self, hover_selector: &SelectorBuf, click_selector: &SelectorBuf, kind: HoverClick,
+    timeout: Option<Duration>,) -> Result<(), SeleniumBaseError> { let seconds = self.wait_secs(timeout);
+    self.await_ready_within(hover_selector, Ready::Visible, seconds)
+        .await?;
+    self.hover(hover_selector).await?;
+    self.await_ready_within(click_selector, Ready::Visible, seconds)
+        .await?;
+    match kind {
+        HoverClick::Double => self.double_click(click_selector).await,
+        HoverClick::Js => self.js_click(click_selector).await,
+    } }
 }
 
 impl BaseCase {
@@ -243,11 +227,9 @@ impl BaseCase {
     /// parent or the child before the click, [`SeleniumBaseError::ElementNotInteractable`]
     /// if the driver refuses the click, as when another element intercepts it, and
     /// [`SeleniumBaseError::WebDriver`] for any other failure of the driver.
-    pub async fn nested_click(
-        &mut self,
-        parent_css: &str,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn nested_click(&mut self,
+    parent_css: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let parent = self.find_element(parent_css).await?;
         let tag = parent.tag().await?;
         if tag.eq_ignore_ascii_case("iframe") || tag.eq_ignore_ascii_case("frame") {

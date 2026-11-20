@@ -63,13 +63,11 @@ impl BaseCase {
     /// Takes the window's toolbar and borders into account, and the frames the
     /// element is in when they are of the same origin. Assumes the browser's
     /// pixels are the screen's, which holds when the display is not scaled.
-    async fn element_center_screen_coords(&self, css: &str) -> Result<(i32, i32), SeleniumBaseError> {
-        let value = self
-            .session
-            .execute_script(&element_center_script(css))
-            .await?;
-        screen_point(&value)
-    }
+    async fn element_center_screen_coords(&self, css: &SelectorBuf) -> Result<(i32, i32), SeleniumBaseError> { let value = self
+        .session
+        .execute_script(&element_center_script(css))
+        .await?;
+    screen_point(&value) }
 
     /// Move the mouse to absolute screen coordinates `(x, y)` and click.
     pub fn gui_click_x_y(&mut self, x: i32, y: i32) -> Result<(), SeleniumBaseError> {
@@ -80,7 +78,8 @@ impl BaseCase {
     }
 
     /// Move the mouse to the center of the element matching `css` and click.
-    pub async fn gui_click_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn gui_click_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let (x, y) = self.element_center_screen_coords(css).await?;
         let mut gui = Gui::new()?;
         gui.move_mouse(x, y)?;
@@ -90,12 +89,9 @@ impl BaseCase {
 
     /// Move the mouse to the center of the element matching `css` plus an
     /// offset and click.
-    pub async fn gui_click_with_offset(
-        &mut self,
-        css: &str,
-        x: i32,
-        y: i32,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn gui_click_with_offset(&mut self, selector: impl Into<SelectorBuf>, x: i32,
+    y: i32,) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let (cx, cy) = self.element_center_screen_coords(css).await?;
         let mut gui = Gui::new()?;
         gui.move_mouse(cx + x, cy + y)?;
@@ -175,7 +171,8 @@ impl BaseCase {
     }
 
     /// Move the mouse to the center of the element matching `css`.
-    pub async fn gui_move_to_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn gui_move_to_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let (x, y) = self.element_center_screen_coords(css).await?;
         let mut gui = Gui::new()?;
         gui.move_mouse(x, y)?;
@@ -190,12 +187,14 @@ impl BaseCase {
     }
 
     /// Move the mouse to the center of the element matching `css`.
-    pub async fn gui_hover_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn gui_hover_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.gui_move_to_element(css).await
     }
 
     /// Move the mouse to the center of the element matching `css` and click it.
-    pub async fn gui_hover_and_click(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn gui_hover_and_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let (x, y) = self.element_center_screen_coords(css).await?;
         let mut gui = Gui::new()?;
         gui.move_mouse(x, y)?;
@@ -237,7 +236,8 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not
     /// become visible, and [`SeleniumBaseError::Gui`] if the native click
     /// fails.
-    pub async fn uc_gui_handle_captcha(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn uc_gui_handle_captcha(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.wait_for_element_visible(css, self.timeout_secs).await?;
         self.gui_click_element(css).await
     }
@@ -275,24 +275,18 @@ mod tests_gui {
 
     /// Runs the position script in a page that pretends to be a headed window
     /// with an 85px toolbar and 8px side borders, and returns the result.
-    async fn position_in_a_headed_window(
-        page: &crate::sb_cdp::Page,
-        css: &str,
-        context: &str,
-    ) -> serde_json::Value {
-        page.evaluate(
-            "Object.defineProperty(window, 'outerHeight', {configurable: true, value: window.innerHeight + 85 + 8}); \
-             Object.defineProperty(window, 'outerWidth', {configurable: true, value: window.innerWidth + 16}); 1",
-        )
-        .await
-        .unwrap();
-        page.evaluate(format!(
-            "{context}.eval({})",
-            quote(&format!("(function () {{ {} }})()", element_center_script(css)))
-        ))
-        .await
-        .unwrap()
-    }
+    async fn position_in_a_headed_window(page: &crate::sb_cdp::Page, css: &SelectorBuf, context: &str,) -> serde_json::Value { page.evaluate(
+        "Object.defineProperty(window, 'outerHeight', {configurable: true, value: window.innerHeight + 85 + 8}); \
+         Object.defineProperty(window, 'outerWidth', {configurable: true, value: window.innerWidth + 16}); 1",
+    )
+    .await
+    .unwrap();
+    page.evaluate(format!(
+        "{context}.eval({})",
+        quote(&format!("(function () {{ {} }})()", element_center_script(css)))
+    ))
+    .await
+    .unwrap() }
 
     #[tokio::test]
     #[ignore = "needs Chrome"]

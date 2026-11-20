@@ -134,6 +134,24 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.0 s
 
 ### Breaking
 
+- **Breaking: every selector parameter of `BaseCase`, `CdpDriver` and the `ElementApi` and
+  `AssertionApi` traits is `impl Into<SelectorBuf>` (it was `css: &str`).** A string still works
+  (`sb.click("#id")`, a `String`, a `&String`), and so does a `SelectorBuf` built with `css`, `xpath`,
+  `link_text` or `partial_link_text` to skip the guess, which a method now keeps instead of reading
+  the text again; `&&str` does not (it was an `&selector` where `selector: &str`). The parameter is
+  called `selector`. The internal helpers take `&SelectorBuf`, so a string is read as a selector
+  once per call. `SelectorBuf` gains `FromStr` (the strict form, which refuses an empty selector or
+  CSS that ends on `::shadow`: for an MCP argument, the command line, a saved file),
+  `Deserialize` (the mirror of `Serialize`: `{"kind": "css", "value": "a"}`), `as_str`, `check` (the one
+  place that rule is written) and `lookup_form`, `From<&SelectorBuf>`, and is `#[non_exhaustive]`, so a
+  kind can be added without a major version. A `:contains()` selector now keeps the text it was
+  written with (`Display`, the recorder and generated test code show it as written); the rewrite as
+  XPath happens in `lookup_form`, when an engine looks the element up, and applies to
+  `SelectorBuf::css("p:contains('x')")` too, which the engines used to send to the browser as CSS.
+  The `link_text`, `partial_link_text` and `text=` prefixes display as `link=` and `partial_link=`.
+  The MCP tools read the `selector` argument with `Args::selector`, so an empty selector is refused
+  at the argument; the wire format of every tool is unchanged.
+
 - **Breaking: `BrowserConfig` is built with `BrowserConfig::builder()` and `into_builder()`.** The
   new hand-written type `BrowserConfigBuilder` (no bon) has one setter for each `with_*` method
   `BrowserConfig` had, named without the prefix (`headless`, `mode`, `proxy`, `switch`, `plugins`;
