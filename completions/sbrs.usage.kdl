@@ -12,6 +12,16 @@ logo #"""
 unknown_flags error
 args_override_self #false
 subcommand_required #true
+flagset plugin-flags {
+    flag --plugin help="Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)" global=#true var=#true {
+        long_help #"""
+Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)
+
+Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on. Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names the file enables), then the settings file. `sbrs plugin list` shows the plugins this build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
+"""#
+        arg <NAME>
+    }
+}
 flagset test-options {
     flag --browser help="The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)" help_heading="Browser and page options" {
         arg <BROWSER> {
@@ -717,14 +727,7 @@ The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` wr
 """#
     arg <FILE>
 }
-flag --plugin help="Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)" global=#true var=#true {
-    long_help #"""
-Turn on a built-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)
-
-Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on. Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names the file enables), then the settings file. `sbrs plugin list` shows the plugins this build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
-"""#
-    arg <NAME>
-}
+use plugin-flags
 flag --plugin-opt help="Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)" global=#true var=#true {
     long_help #"""
 Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
@@ -1074,12 +1077,12 @@ complete proxy_pac_url type=url
 complete user_data_dir type=dir
 complete extension_dir type=dir
 complete config type=path:toml,json
-complete name type=none
 complete "name.key=value" type=none
 complete path type=path
 complete value type=none
 complete seconds type=none
 complete count type=none
+complete name run="sbrs __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
 cmd version help_heading="Info and setup" help="Print the sbrs version, as `sbrs --version` does." {
     flag "-h --help" help="Print help" action=help builtin=#true
     example "sbrs version"
@@ -2394,6 +2397,7 @@ cmd completions help_heading="Info and setup" help="Generate a completion script
             choice powershell
             choice fig help="A Fig completion spec (TypeScript), the format of the withfig/autocomplete repository that Warp's built-in completions, inshellisense and Amazon Q use."
             choice usage help="A usage spec (KDL) for jdx/usage and mise, which turn it into completions, Markdown and man pages."
+            choice man help="The man page of `sbrs` (roff), the same page as `man/man1/sbrs.1` of the repository: write it to a `man1` folder of `MANPATH` and `man sbrs` reads it."
         }
     }
     example "sbrs completions zsh"
@@ -2566,7 +2570,7 @@ Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HT
     complete path type=executable
     example "sbrs devtools --port 9222"
 }
-cmd plugin help_heading="Info and setup" help="List the built-in plugins, or show what one declares." subcommand_required=#true {
+cmd plugin help_heading="Info and setup" help="List the built-in plugins, or show what one declares." subcommand_required=#true external_subcommand=#true {
     long_help #"""
 List the built-in plugins, or show what one declares.
 
@@ -2590,7 +2594,7 @@ Prints the plugin's category, phase, capabilities (with their risk, and whether 
 """#
         flag "-h --help" help="Print help" action=help builtin=#true
         arg <NAME> help="The plugin's name, as `sbrs plugin list` shows it."
-        complete name type=none
+        complete name run="sbrs __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
         example "sbrs plugin info shield"
     }
     cmd run help="Run the task of a plugin on a browser it starts, and write its results as JSON lines." {
@@ -2607,8 +2611,8 @@ Only plugins that offer a task can be run, and the named plugin is turned on for
         }
         flag "-h --help" help="Print help" action=help builtin=#true
         arg <NAME> help="The plugin whose task to run, as `sbrs plugin list` shows it."
-        complete name type=none
         complete file type=path
+        complete name run="sbrs __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
         example "sbrs plugin run crawler --input crawl.json --out found.jsonl"
     }
     example "sbrs plugin list"
@@ -2666,9 +2670,7 @@ Write a preset or a random identity as a fingerprint file.
 Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A random identity follows --seed, so the same seed gives the same file, and --os, the system it claims (default: this machine's). The file goes to FILE, else to standard output.
 """#
         flag --preset help="The preset to write: windows, edge, macos, linux, android or ios (safari is ios)." {
-            arg <NAME> {
-                choices strict=#false windows edge macos linux android ios
-            }
+            arg <NAME>
         }
         flag --random help="Write a random identity instead of a preset." bool_value=#true
         flag --seed help="With --random, the seed of the draw: the same seed gives the same identity." {
@@ -2691,6 +2693,7 @@ Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A ra
         flag "-h --help" help="Print help" action=help builtin=#true
         complete n type=none
         complete file type=path:json
+        complete name run="sbrs __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
         example "sbrs fingerprint export --preset windows --output windows.json"
     }
     cmd check help="Check that a fingerprint file loads and is coherent." {

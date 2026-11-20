@@ -1492,7 +1492,7 @@ sbrs completions <SHELL>
 
 Shell (or `fig` for a Fig spec) to generate completions for
 
-One of: `bash`, `zsh`, `fish`, `elvish`, `powershell`, `fig`, `usage`
+One of: `bash`, `zsh`, `fish`, `elvish`, `powershell`, `fig`, `usage`, `man`
 
 </ParamField>
 
@@ -1924,8 +1924,6 @@ sbrs fingerprint export [FLAGS]
 <ParamField query="--preset <NAME>" type="string">
 
 The preset to write: windows, edge, macos, linux, android or ios (safari is ios).
-
-One of: `windows`, `edge`, `macos`, `linux`, `android`, `ios`
 
 </ParamField>
 

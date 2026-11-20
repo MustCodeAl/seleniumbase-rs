@@ -3378,7 +3378,7 @@ const completionSpec: Fig.Spec = {
         {
           name: "shell",
           description: "Shell (or `fig` for a Fig spec) to generate completions for",
-          suggestions: ["bash", "zsh", "fish", "elvish", "powershell", "fig", "usage"],
+          suggestions: ["bash", "zsh", "fish", "elvish", "powershell", "fig", "usage", "man"],
         },
       ],
     },
@@ -3854,7 +3854,6 @@ const completionSpec: Fig.Spec = {
               description: "The preset to write: windows, edge, macos, linux, android or ios (safari is ios).",
               args: {
                 name: "name",
-                suggestions: ["windows", "edge", "macos", "linux", "android", "ios"],
               },
             },
             {

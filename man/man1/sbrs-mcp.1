@@ -1,0 +1,562 @@
+.TH SBRS-MCP 1
+.SH NAME
+sbrs\-mcp \- SeleniumBaseRust MCP server (stdio or streamable HTTP)
+.SH SYNOPSIS
+\fBsbrs\-mcp\fR [OPTIONS] [COMMAND]
+.SH DESCRIPTION
+SeleniumBaseRust MCP server (stdio or streamable HTTP)
+.PP
+.SH OPTIONS
+.TP
+\fB\-\-server\fR \fI<SERVER>\fR
+Which toolset to serve: cdp, driver, sb (the default) or dev (development tools, no browser) (SB_MCP_SERVER)
+.TP
+\fB\-\-plugin\fR \fI<NAME>\fR
+Give every browser the server starts a built\-in plugin (SB_PLUGINS; repeatable)
+
+The operator chooses; no tool argument adds a plugin. Adds to the plugins the [plugins] table of the settings file (sbase_config.toml in the folder the server runs in) and SB_PLUGINS turn on. Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names the file enables), then the settings file. `sbrs plugin list` shows the plugins this build has.
+.TP
+\fB\-\-plugin\-opt\fR \fI<NAME.KEY=VALUE>\fR
+Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
+
+Quote the whole option so the shell keeps the quotes of a string: \-\-plugin\-opt 'shield.level="strict"'. An option given here replaces the same option from SB_PLUGINS or the settings file and keeps the plugin's other options. The plugin must be turned on by \-\-plugin, SB_PLUGINS or the file.
+.TP
+\fB\-\-transport\fR \fI<stdio|http>\fR
+How to serve: stdio (the default) or http (streamable HTTP) (SB_MCP_TRANSPORT)
+
+With http, each MCP session gets a browser of its own and the server prints one line to standard error, `sbrs\-mcp: listening on http://ADDR/PATH (server NAME)`. `\-\-listen` alone implies http.
+.TP
+\fB\-\-listen\fR \fI<ADDR>\fR
+Serve over HTTP on this IP address and port (default 127.0.0.1:8931; implies \-\-transport http; SB_MCP_LISTEN)
+
+Port 0 picks a free port. Any address that is not loopback needs a token (SB_MCP_TOKEN or \-\-token\-file), and the server then logs a warning: it speaks plain HTTP, so put TLS in front of it.
+.TP
+\fB\-\-path\fR \fI<PATH>\fR
+The URL path of the HTTP endpoint (default /mcp; SB_MCP_PATH)
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for HTTP clients from this file (SB_MCP_TOKEN_FILE; default: SB_MCP_TOKEN)
+
+There is no flag that takes the token itself: a command line can be read by every user of the machine. The file wins over SB_MCP_TOKEN. Keep it readable by you only.
+.TP
+\fB\-\-no\-token\fR
+Serve HTTP without a bearer token, on a loopback address only (SB_MCP_NO_TOKEN)
+
+Without it, a loopback listener given no token gets a random one, printed once on standard error and written to mcp\-token in the output folder (SB_MCP_OUTPUT_DIR), readable by you only. Addresses other machines can reach always need a token of yours.
+.TP
+\fB\-\-allow\-origin\fR \fI<ORIGIN>\fR
+Let a browser page from this origin use the HTTP endpoint (SB_MCP_ALLOW_ORIGIN; repeatable)
+
+ORIGIN is scheme://host[:port]. Pages from localhost and requests that carry no Origin header (every client that is not a browser) are always let in.
+.TP
+\fB\-\-allow\-host\fR \fI<HOST>\fR
+Accept this name in the Host header of HTTP requests, besides localhost (SB_MCP_ALLOW_HOST; repeatable)
+
+HOST is a name or an IP address, optionally followed by :PORT. Needed when the server is reached by a name or from another machine.
+.TP
+\fB\-\-max\-sessions\fR \fI<N>\fR
+The most MCP sessions, and so browsers, the HTTP server holds at once (default 4; SB_MCP_MAX_SESSIONS)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.TP
+\fB\-V, \-\-version\fR
+Print version
+.SH COMMANDS
+.TP
+\fBinstall\fR
+Register sbrs\-mcp with MCP clients, so an assistant can use it.
+.TP
+\fBuninstall\fR
+Remove the entries `install` made (NAME and NAME\-dev) from MCP clients.
+.TP
+\fBclients\fR
+List the MCP clients, where each keeps its config and whether it is on this machine.
+.TP
+\fBtools\fR
+List the tools of an MCP server, or show one with the schema of its arguments.
+.TP
+\fBcall\fR
+Call a tool of an MCP server and print what it returns.
+.TP
+\fBbatch\fR
+Run several tool calls in one MCP session, so a browser one call starts is there for the next.
+.TP
+\fBresources\fR
+List the resources of an MCP server (read\-only data such as the call journal).
+.TP
+\fBread\fR
+Read a resource of an MCP server by its URI, such as sbrs://journal.
+.TP
+\fBprompts\fR
+List the prompts of an MCP server.
+.TP
+\fBprompt\fR
+Render a prompt of an MCP server with its arguments (\-\-arg KEY=VALUE, always text).
+.SH "SBRS-MCP INSTALL"
+Register sbrs\-mcp with MCP clients, so an assistant can use it.
+
+Registers two servers: the browser server as NAME (\-\-server picks cdp, driver or sb) and the development server as NAME\-dev, which starts no browser. \-\-only registers just one. Both start this program by its absolute path, because desktop apps do not have your shell PATH, and write their files to \-\-output\-dir (SB_MCP_OUTPUT_DIR).
+
+Clients: claude\-code, claude\-desktop, codex, cursor, gemini\-cli, grok, opencode, vscode, zed. `sbrs\-mcp clients` shows where each keeps its config. Claude Code and Codex are changed through their own `mcp` commands, the others by editing their config file: only the key that holds the servers changes, a backup FILE.bak\-sbrs\-mcp is written first, and a file with comments (JSONC) is never rewritten; the snippet to add by hand is printed instead.
+
+An entry of the same name that starts the same process is left as it is (exit 0). A different one is left alone and reported (exit 2) unless \-\-force replaces it. Exit status 2 also means a refusal: an unknown client, a scope the client does not have, a file that cannot be rewritten, or a program that is not on PATH.
+.PP
+\fBUsage:\fR sbrs\-mcp install [OPTIONS] [<CLIENT>] ...
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-server\fR \fI<SERVER>\fR
+Which browser toolset to register: cdp, driver or sb.
+.RS
+\fIDefault: \fRcdp
+.RE
+.TP
+\fB\-\-name\fR \fI<NAME>\fR
+The name of the browser entry; the development entry is NAME\-dev.
+.RS
+\fIDefault: \fRseleniumbase
+.RE
+.TP
+\fB\-\-output\-dir\fR \fI<DIR>\fR
+The folder the tools write their files to (SB_MCP_OUTPUT_DIR; default: sbrs\-mcp in your data folder).
+
+Registered as SB_MCP_OUTPUT_DIR and created now.
+.TP
+\fB\-\-plugin\fR \fI<NAME>\fR
+Give every browser the server starts a built\-in plugin (repeatable)
+
+Added to the browser server's arguments as \-\-plugin NAME; the development server starts no browser and gets none. Checked now against the plugins this build has.
+.TP
+\fB\-\-plugin\-opt\fR \fI<NAME.KEY=VALUE>\fR
+Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
+
+Added as \-\-plugin\-opt. Quote the whole option so the shell keeps the quotes of a string: \-\-plugin\-opt 'shield.level="strict"'.
+.TP
+\fB\-\-scope\fR \fI<SCOPE>\fR
+Register in your own config (user) or in the one in this folder (project).
+
+Project works for claude\-code (.mcp.json), cursor (.cursor/mcp.json), vscode (.vscode/mcp.json), gemini\-cli (.gemini/settings.json) and opencode (opencode.json). The other clients refuse it with exit status 2.
+.RS
+\fIDefault: \fRuser
+.RE
+.TP
+\fB\-\-only\fR \fI<ONLY>\fR
+Register just the browser server or just the development server.
+.TP
+\fB\-\-print\fR
+Show what would be written or run, and write and run nothing.
+.TP
+\fB\-\-force\fR
+Replace an entry of the same name that starts something different.
+.TP
+\fB\-\-all\fR
+Install into every client that is installed on this machine.
+
+A client counts as installed when its config file or its own config folder is there, or when its program is on PATH. Clients that are not installed are skipped, and that is said. What will change is printed before anything is written.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<CLIENT>\fR
+The clients to register with.
+.SH "SBRS-MCP UNINSTALL"
+Remove the entries `install` made (NAME and NAME\-dev) from MCP clients.
+
+An entry that is not there is reported and is not an error. \-\-only removes just one.
+.PP
+\fBUsage:\fR sbrs\-mcp uninstall [OPTIONS] [<CLIENT>] ...
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-name\fR \fI<NAME>\fR
+The name of the browser entry; the development entry is NAME\-dev.
+.RS
+\fIDefault: \fRseleniumbase
+.RE
+.TP
+\fB\-\-scope\fR \fI<SCOPE>\fR
+Remove from your own config (user) or from the one in this folder (project).
+.RS
+\fIDefault: \fRuser
+.RE
+.TP
+\fB\-\-only\fR \fI<ONLY>\fR
+Remove just the browser server or just the development server.
+.TP
+\fB\-\-print\fR
+Show what would be removed, and remove nothing.
+.TP
+\fB\-\-all\fR
+Remove the registration from every client that is installed on this machine.
+
+The same detection as `install \-\-all`: a config file, the client's own config folder, or its program on PATH. Clients that are not installed are skipped. What will change is printed before anything is removed.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<CLIENT>\fR
+The clients to remove the registration from.
+.SH "SBRS-MCP CLIENTS"
+List the MCP clients, where each keeps its config and whether it is on this machine.
+
+For each client: the user config file and the project one, whether they exist, whether the client's program (claude, codex, grok, code) is on PATH, and which of NAME and NAME\-dev are registered.
+.PP
+\fBUsage:\fR sbrs\-mcp clients [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-name\fR \fI<NAME>\fR
+The name of the browser entry to look for; the development entry is NAME\-dev.
+.RS
+\fIDefault: \fRseleniumbase
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SBRS-MCP TOOLS"
+List the tools of an MCP server, or show one with the schema of its arguments.
+
+The server is \-\-url (streamable HTTP, token in SB_MCP_TOKEN or \-\-token\-file), \-\-connect PROGRAM (any server that speaks stdio) or \-\-server cdp|driver|sb|dev (this program, started as that server); with none of them it is SB_MCP_URL, else the dev server, so `sbrs\-mcp tools` works with no setup. Exit status: 0 worked, 1 the tool reported a failure, 2 a mistake in what you typed (an unknown tool, a bad argument), 3 the server could not be reached, refused the token or broke the protocol.
+.PP
+\fBUsage:\fR sbrs\-mcp tools [OPTIONS] [<TOOL>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-raw\fR
+Print JSON (the tools as the server lists them) instead of a table.
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Connect to the streamable HTTP server at this URL (default: SB_MCP_URL)
+
+The URL of the endpoint, such as http://127.0.0.1:8931/mcp. The bearer token the server asks for comes from SB_MCP_TOKEN or \-\-token\-file, never from the command line. Each command makes its own MCP session, and with it its own browser; `batch` runs several calls in one session.
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for \-\-url from this file (default: SB_MCP_TOKEN)
+.TP
+\fB\-\-connect\fR \fI<PROGRAM>\fR
+Start this program as the server and talk to it on its standard input and output
+
+Any MCP server that speaks stdio. Its arguments are \-\-connect\-arg, one each.
+.TP
+\fB\-\-connect\-arg\fR \fI<ARG>\fR
+One argument of the program of \-\-connect (repeatable)
+
+Write it as \-\-connect\-arg=\-\-flag when it starts with a dash.
+.TP
+\fB\-\-server\fR \fI<cdp|driver|sb|dev>\fR
+Start this program as the server: cdp, driver, sb or dev (the default, with no flags)
+
+The server stops when the command ends, and closes its browser.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Seconds to wait for the connection, and for each request (default 60)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<TOOL>\fR
+Show this one tool with its description and the JSON Schema of its arguments.
+.SH "SBRS-MCP CALL"
+Call a tool of an MCP server and print what it returns.
+
+The arguments are a JSON object (sbrs\-mcp call open_url '{"url":"https://x.test"}', or `\-` for standard input), \-\-json, or \-\-arg KEY=VALUE (repeatable). The text goes to standard output; \-\-raw prints the structured result as compact JSON; \-\-out DIR saves images; \-\-progress prints progress to standard error. The server is chosen as for `tools`. A command is its own MCP session: a browser a server starts closes when the command ends, so use `batch` to run several calls in one session.
+.PP
+\fBUsage:\fR sbrs\-mcp call [OPTIONS] <TOOL> [<JSON>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-arg\fR \fI<KEY=VALUE>\fR
+One argument, KEY=VALUE (repeatable)
+
+VALUE is JSON when it parses as JSON (`true`, `3`, `"text"`, `[1,2]`, `{"a":1}`), text in single quotes is that text, and anything else is a string: `\-\-arg selector=ref=e1` sends the string `ref=e1`. Not with JSON or \-\-json.
+.TP
+\fB\-\-json\fR \fI<OBJECT|\->\fR
+All the arguments as one JSON object, or `\-` to read it from standard input
+.TP
+\fB\-\-raw\fR
+Print the structured result as compact JSON and nothing else
+
+A tool that sends no structured result prints its text.
+.TP
+\fB\-\-out\fR \fI<DIR>\fR
+Save the images of the result in this folder, as image\-1.png, image\-2.png, ...
+.TP
+\fB\-\-progress\fR
+Print the progress of the tool to standard error (on by default on a terminal)
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Connect to the streamable HTTP server at this URL (default: SB_MCP_URL)
+
+The URL of the endpoint, such as http://127.0.0.1:8931/mcp. The bearer token the server asks for comes from SB_MCP_TOKEN or \-\-token\-file, never from the command line. Each command makes its own MCP session, and with it its own browser; `batch` runs several calls in one session.
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for \-\-url from this file (default: SB_MCP_TOKEN)
+.TP
+\fB\-\-connect\fR \fI<PROGRAM>\fR
+Start this program as the server and talk to it on its standard input and output
+
+Any MCP server that speaks stdio. Its arguments are \-\-connect\-arg, one each.
+.TP
+\fB\-\-connect\-arg\fR \fI<ARG>\fR
+One argument of the program of \-\-connect (repeatable)
+
+Write it as \-\-connect\-arg=\-\-flag when it starts with a dash.
+.TP
+\fB\-\-server\fR \fI<cdp|driver|sb|dev>\fR
+Start this program as the server: cdp, driver, sb or dev (the default, with no flags)
+
+The server stops when the command ends, and closes its browser.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Seconds to wait for the connection, and for each request (default 60)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<TOOL>\fR
+The tool to call.
+.TP
+\fB<JSON>\fR
+The arguments as a JSON object, or `\-` for a JSON object on standard input.
+.SH "SBRS-MCP BATCH"
+Run several tool calls in one MCP session, so a browser one call starts is there for the next.
+
+Reads one JSON object per line from FILE or standard input, such as {"tool":"open_url","arguments":{"url":"https://x.test"}}; blank lines and lines that start with # are skipped, and a bad line stops the command before anything runs. The calls run in order and stop at the first failure unless \-\-keep\-going. The exit status is that of the first failure.
+.PP
+\fBUsage:\fR sbrs\-mcp batch [OPTIONS] [<FILE>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-keep\-going\fR
+Go on after a call fails (default: stop at the first failure)
+.TP
+\fB\-\-raw\fR
+Print one JSON object per call, with the text and the structured result
+.TP
+\fB\-\-out\fR \fI<DIR>\fR
+Save the images of the results in this folder, numbered across the calls
+.TP
+\fB\-\-progress\fR
+Print the progress of the tools to standard error (on by default on a terminal)
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Connect to the streamable HTTP server at this URL (default: SB_MCP_URL)
+
+The URL of the endpoint, such as http://127.0.0.1:8931/mcp. The bearer token the server asks for comes from SB_MCP_TOKEN or \-\-token\-file, never from the command line. Each command makes its own MCP session, and with it its own browser; `batch` runs several calls in one session.
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for \-\-url from this file (default: SB_MCP_TOKEN)
+.TP
+\fB\-\-connect\fR \fI<PROGRAM>\fR
+Start this program as the server and talk to it on its standard input and output
+
+Any MCP server that speaks stdio. Its arguments are \-\-connect\-arg, one each.
+.TP
+\fB\-\-connect\-arg\fR \fI<ARG>\fR
+One argument of the program of \-\-connect (repeatable)
+
+Write it as \-\-connect\-arg=\-\-flag when it starts with a dash.
+.TP
+\fB\-\-server\fR \fI<cdp|driver|sb|dev>\fR
+Start this program as the server: cdp, driver, sb or dev (the default, with no flags)
+
+The server stops when the command ends, and closes its browser.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Seconds to wait for the connection, and for each request (default 60)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+Read the calls from this file (default: standard input).
+
+One JSON object per line, `{"tool": "open_url", "arguments": {"url": "https://x.test"}}`; blank lines and lines that start with # are skipped. The calls run in order in one MCP session, so a browser that one call starts is there for the next.
+.SH "SBRS-MCP RESOURCES"
+List the resources of an MCP server (read\-only data such as the call journal).
+.PP
+\fBUsage:\fR sbrs\-mcp resources [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-raw\fR
+Print JSON instead of a table.
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Connect to the streamable HTTP server at this URL (default: SB_MCP_URL)
+
+The URL of the endpoint, such as http://127.0.0.1:8931/mcp. The bearer token the server asks for comes from SB_MCP_TOKEN or \-\-token\-file, never from the command line. Each command makes its own MCP session, and with it its own browser; `batch` runs several calls in one session.
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for \-\-url from this file (default: SB_MCP_TOKEN)
+.TP
+\fB\-\-connect\fR \fI<PROGRAM>\fR
+Start this program as the server and talk to it on its standard input and output
+
+Any MCP server that speaks stdio. Its arguments are \-\-connect\-arg, one each.
+.TP
+\fB\-\-connect\-arg\fR \fI<ARG>\fR
+One argument of the program of \-\-connect (repeatable)
+
+Write it as \-\-connect\-arg=\-\-flag when it starts with a dash.
+.TP
+\fB\-\-server\fR \fI<cdp|driver|sb|dev>\fR
+Start this program as the server: cdp, driver, sb or dev (the default, with no flags)
+
+The server stops when the command ends, and closes its browser.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Seconds to wait for the connection, and for each request (default 60)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SBRS-MCP READ"
+Read a resource of an MCP server by its URI, such as sbrs://journal.
+.PP
+\fBUsage:\fR sbrs\-mcp read [OPTIONS] <URI>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-out\fR \fI<DIR>\fR
+Save a binary resource in this folder (text is printed)
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Connect to the streamable HTTP server at this URL (default: SB_MCP_URL)
+
+The URL of the endpoint, such as http://127.0.0.1:8931/mcp. The bearer token the server asks for comes from SB_MCP_TOKEN or \-\-token\-file, never from the command line. Each command makes its own MCP session, and with it its own browser; `batch` runs several calls in one session.
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for \-\-url from this file (default: SB_MCP_TOKEN)
+.TP
+\fB\-\-connect\fR \fI<PROGRAM>\fR
+Start this program as the server and talk to it on its standard input and output
+
+Any MCP server that speaks stdio. Its arguments are \-\-connect\-arg, one each.
+.TP
+\fB\-\-connect\-arg\fR \fI<ARG>\fR
+One argument of the program of \-\-connect (repeatable)
+
+Write it as \-\-connect\-arg=\-\-flag when it starts with a dash.
+.TP
+\fB\-\-server\fR \fI<cdp|driver|sb|dev>\fR
+Start this program as the server: cdp, driver, sb or dev (the default, with no flags)
+
+The server stops when the command ends, and closes its browser.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Seconds to wait for the connection, and for each request (default 60)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URI>\fR
+The URI of the resource, such as sbrs://journal.
+.SH "SBRS-MCP PROMPTS"
+List the prompts of an MCP server.
+
+A `*` marks an argument that is required.
+.PP
+\fBUsage:\fR sbrs\-mcp prompts [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-raw\fR
+Print JSON instead of a table.
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Connect to the streamable HTTP server at this URL (default: SB_MCP_URL)
+
+The URL of the endpoint, such as http://127.0.0.1:8931/mcp. The bearer token the server asks for comes from SB_MCP_TOKEN or \-\-token\-file, never from the command line. Each command makes its own MCP session, and with it its own browser; `batch` runs several calls in one session.
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for \-\-url from this file (default: SB_MCP_TOKEN)
+.TP
+\fB\-\-connect\fR \fI<PROGRAM>\fR
+Start this program as the server and talk to it on its standard input and output
+
+Any MCP server that speaks stdio. Its arguments are \-\-connect\-arg, one each.
+.TP
+\fB\-\-connect\-arg\fR \fI<ARG>\fR
+One argument of the program of \-\-connect (repeatable)
+
+Write it as \-\-connect\-arg=\-\-flag when it starts with a dash.
+.TP
+\fB\-\-server\fR \fI<cdp|driver|sb|dev>\fR
+Start this program as the server: cdp, driver, sb or dev (the default, with no flags)
+
+The server stops when the command ends, and closes its browser.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Seconds to wait for the connection, and for each request (default 60)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.SH "SBRS-MCP PROMPT"
+Render a prompt of an MCP server with its arguments (\-\-arg KEY=VALUE, always text).
+.PP
+\fBUsage:\fR sbrs\-mcp prompt [OPTIONS] <NAME>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-arg\fR \fI<KEY=VALUE>\fR
+One argument of the prompt, KEY=VALUE, always text (repeatable)
+.TP
+\fB\-\-raw\fR
+Print the messages as JSON.
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Connect to the streamable HTTP server at this URL (default: SB_MCP_URL)
+
+The URL of the endpoint, such as http://127.0.0.1:8931/mcp. The bearer token the server asks for comes from SB_MCP_TOKEN or \-\-token\-file, never from the command line. Each command makes its own MCP session, and with it its own browser; `batch` runs several calls in one session.
+.TP
+\fB\-\-token\-file\fR \fI<FILE>\fR
+Read the bearer token for \-\-url from this file (default: SB_MCP_TOKEN)
+.TP
+\fB\-\-connect\fR \fI<PROGRAM>\fR
+Start this program as the server and talk to it on its standard input and output
+
+Any MCP server that speaks stdio. Its arguments are \-\-connect\-arg, one each.
+.TP
+\fB\-\-connect\-arg\fR \fI<ARG>\fR
+One argument of the program of \-\-connect (repeatable)
+
+Write it as \-\-connect\-arg=\-\-flag when it starts with a dash.
+.TP
+\fB\-\-server\fR \fI<cdp|driver|sb|dev>\fR
+Start this program as the server: cdp, driver, sb or dev (the default, with no flags)
+
+The server stops when the command ends, and closes its browser.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Seconds to wait for the connection, and for each request (default 60)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<NAME>\fR
+The name of the prompt.
