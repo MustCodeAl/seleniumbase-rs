@@ -1192,11 +1192,11 @@ impl BaseCase {
     /// Drags the source element onto the target element.
     pub async fn drag_and_drop(
         &mut self,
-        source: impl Into<SelectorBuf>,
-        target: impl Into<SelectorBuf>,
+        source_selector: impl Into<SelectorBuf>,
+        target_selector: impl Into<SelectorBuf>,
     ) -> Result<(), SeleniumBaseError> {
-        let source_css: &SelectorBuf = &source.into();
-        let target_css: &SelectorBuf = &target.into();
+        let source_css: &SelectorBuf = &source_selector.into();
+        let target_css: &SelectorBuf = &target_selector.into();
         let source = shadow_find::checked(source_css)?;
         let target = shadow_find::checked(target_css)?;
         self.await_ready(source_css, Ready::Visible).await?;

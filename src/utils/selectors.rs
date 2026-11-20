@@ -26,7 +26,7 @@
 //!
 //! `From` (what a method does with the string it is given) never fails and keeps
 //! the text as written. The strict form for text that crosses an external
-//! boundary is [`FromStr`](std::str::FromStr) (`"#a".parse::<SelectorBuf>()`),
+//! boundary is [`FromStr`] (`"#a".parse::<SelectorBuf>()`),
 //! which also runs [`SelectorBuf::check`], the one place the rule of what no
 //! engine accepts is written (empty or blank text, CSS that ends on `::shadow`).
 //! SeleniumBase's `:contains("text")` pseudo-class is not CSS: the selector

@@ -227,12 +227,12 @@ impl BaseCase {
     /// parent or the child before the click, [`SeleniumBaseError::ElementNotInteractable`]
     /// if the driver refuses the click, as when another element intercepts it, and
     /// [`SeleniumBaseError::WebDriver`] for any other failure of the driver.
-    pub async fn nested_click(&mut self, parent: impl Into<SelectorBuf>, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-            self.nested_click_selected(&parent.into(), selector.into()).await
+    pub async fn nested_click(&mut self, parent_selector: impl Into<SelectorBuf>, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+            self.nested_click_selected(&parent_selector.into(), selector.into()).await
         }
     
         /// [`nested_click`](Self::nested_click) once both selectors are read.
-        async fn nested_click_selected(&mut self, parent_css: &SelectorBuf, selector: SelectorBuf) -> Result<(), SeleniumBaseError> { let css: &SelectorBuf = &selector.into();
+        async fn nested_click_selected(&mut self, parent_css: &SelectorBuf, selector: SelectorBuf) -> Result<(), SeleniumBaseError> { let css = &selector;
         let parent = self.find_element(parent_css).await?;
         let tag = parent.tag().await?;
         if tag.eq_ignore_ascii_case("iframe") || tag.eq_ignore_ascii_case("frame") {

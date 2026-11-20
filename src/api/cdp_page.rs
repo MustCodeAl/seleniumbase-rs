@@ -99,7 +99,6 @@ impl CdpNode {
 /// [`SelectorBuf`]. The page is queried with `document.querySelector`, so only
 /// a CSS selector finds anything; an XPath expression is handed to the
 /// browser as it is and refused as [`SeleniumBaseError::InvalidSelector`].
-
 pub struct CdpPage<'a> {
     session: &'a BrowserSession,
 }

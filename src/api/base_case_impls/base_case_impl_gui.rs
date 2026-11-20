@@ -135,9 +135,9 @@ impl BaseCase {
     }
 
     /// Drag the center of `source_css` to the center of `target_css`.
-    pub async fn gui_drag_and_drop(&mut self, source: impl Into<SelectorBuf>, target: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-            let from = self.element_center_screen_coords(&source.into()).await?;
-            let to = self.element_center_screen_coords(&target.into()).await?;
+    pub async fn gui_drag_and_drop(&mut self, source_selector: impl Into<SelectorBuf>, target_selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+            let from = self.element_center_screen_coords(&source_selector.into()).await?;
+            let to = self.element_center_screen_coords(&target_selector.into()).await?;
             let mut gui = Gui::new()?;
             gui.drag(from, to)?;
             Ok(())

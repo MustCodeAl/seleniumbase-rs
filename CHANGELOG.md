@@ -129,8 +129,8 @@ work, `docs/parity.md` the per-API status).
   The MCP tools read the `selector` argument with `Args::selector`, so an empty selector is refused
   at the argument; the wire format of every tool is unchanged.
   `CdpPage` queries with `querySelector`, so it still finds only CSS; `BeautifulSoup` refuses any
-  other kind with `InvalidSelector`; `BaseCase::gui_drag_and_drop` and `nested_click` take
-  `source`/`target` and `parent` as selectors too. `Browser::select_page` is unchanged: its argument
+  other kind with `InvalidSelector`; `BaseCase::drag_and_drop`, `gui_drag_and_drop` and
+  `nested_click` take `source_selector`, `target_selector` and `parent_selector` as selectors too. `Browser::select_page` is unchanged: its argument
   is a tab (a target id or part of a URL), not an element selector.
 
 

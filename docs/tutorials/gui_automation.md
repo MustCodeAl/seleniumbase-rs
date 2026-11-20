@@ -80,7 +80,7 @@ otherwise.
 | `gui_click_with_offset(selector, x, y)` (async) | Click the element's center plus an offset. |
 | `gui_move_to_element(selector)`, `gui_hover_element(selector)` (async) | Move the cursor to an element's center. |
 | `gui_hover_and_click(selector)` (async) | Move to an element's center and click. |
-| `gui_drag_and_drop(source, target)` (async) | Drag one element's center onto another's. |
+| `gui_drag_and_drop(source_selector, target_selector)` (async) | Drag one element's center onto another's. |
 | `uc_gui_click_x_y`, `uc_gui_write`, `uc_gui_press_key`, `uc_gui_handle_captcha(selector)` | Aliases under the Python `uc_gui_*` names; the last clicks an element with native input (it does not solve CAPTCHAs). |
 
 Key names are case-insensitive: `enter` or `return`, `tab`, `esc` or `escape`,
