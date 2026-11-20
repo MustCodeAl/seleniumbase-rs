@@ -125,13 +125,13 @@ the getting-started guide lists the exceptions and why.
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.5" }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.0", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.5", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]
@@ -436,11 +436,11 @@ Playwright engine and no `playwright` feature). It uses the
 Chrome that `sb_cdp` launches.
 
 ```bash
-cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --branch main
+cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.5
 cargo run -p seleniumbase-rs-playwright --example playwright_mode
 ```
 
-`PlaywrightSidecar` is on `main` and is not in the v0.8.0 tag; the next release carries it.
+`PlaywrightSidecar` is in every release from v0.8.5 on.
 
 See [Playwright Mode](./docs/help/playwright_mode.md).
 

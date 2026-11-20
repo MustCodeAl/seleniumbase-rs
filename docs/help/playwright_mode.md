@@ -46,13 +46,13 @@ cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniu
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", branch = "main" }
-seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", branch = "main" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.5" }
+seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.5" }
 ```
 
 </CodeGroup>
 
-`PlaywrightSidecar` is on `main` and is not in the v0.8.0 tag; the next release carries it, so both lines name the branch.
+`PlaywrightSidecar` is in every release from v0.8.5 on, so both lines name that tag.
 
 A plain build of the library does not compile `rustwright`; only a project that lists the bridge
 does. Playwright does not launch a browser here, so there is no `playwright install` step and

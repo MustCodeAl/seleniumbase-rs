@@ -8,6 +8,8 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-11-20
+
 ### Added
 
 - Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
