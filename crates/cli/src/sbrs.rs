@@ -3574,9 +3574,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
             let completion = match (shell, shell.shell()) {
-                (_, Some(usage::complete::Shell::Zsh)) => {
-                    completion::zsh(&Cli::completion_script(usage::complete::Shell::Zsh))
-                }
                 (_, Some(usage::complete::Shell::PowerShell)) => completion::powershell(
                     &Cli::completion_script(usage::complete::Shell::PowerShell),
                 ),
@@ -5180,7 +5177,8 @@ mod plugin_cli_tests {
         for argv in [
             &["sbrs", "plugin"][..],
             &["sbrs", "plugin", "info"],
-            &["sbrs", "plugin", "remove", "shield"],
+            // `plugin remove shield` parses: the catch-all takes it and the plugin catalog refuses it
+            // (`cli_plugins.rs`: a_name_that_is_no_task_is_an_unknown_command_of_plugin).
             &["sbrs", "plugin", "list", "extra"],
         ] {
             assert!(try_parse(argv).is_err(), "{argv:?} was accepted");

@@ -909,7 +909,7 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutFile name="tools.rs" note="the smaller tool commands" />
 </LayoutDir>
 <LayoutFile name="browser_flags.rs" note="the browser options, their SB_ variables and the settings file" />
-<LayoutFile name="completion.rs" note="the patched shell completion scripts" />
+<LayoutFile name="completion.rs" note="the patched PowerShell completion script" />
 <LayoutFile name="crypto.rs" note="sbrs encrypt and decrypt" />
 <LayoutFile name="diagnostic.rs" note="the miette report printed when a command fails" />
 <LayoutFile name="failure.rs" note="a command line that does not parse prints the command page, then the error" />

@@ -623,7 +623,7 @@ fn a_reader_that_goes_away_early_is_not_an_error() {
 
 #[test]
 fn zsh_completion_ends_a_complete_word_with_a_space() {
-    // usage 7.2's zsh script adds every candidate with `compadd -S ''`, so `sbrs pl<Tab>`
+    // usage 7.2's zsh script added every candidate with `compadd -S ''` (7.4 gives a complete word `-S ' '`), so `sbrs pl<Tab>`
     // stopped at `plugin` with no space and the next Tab never reached `info` and `list`.
     // The script runs in a real zsh with a stub `compadd` that prints whether zsh would add
     // its space ("space") or nothing ("none"), and the words it was given.
@@ -646,7 +646,7 @@ compadd() {
     local suffix=space array=
     while (( $# )); do
         case $1 in
-            -S) suffix=none; shift 2 ;;
+            -S) [[ $2 == ' ' ]] && suffix=space || suffix=none; shift 2 ;;
             -a) array=$2; shift 2 ;;
             -d) shift 2 ;;
             *) shift ;;

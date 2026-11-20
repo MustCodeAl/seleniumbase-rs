@@ -451,7 +451,7 @@ def cli_package_detail():
     return [
         args,
         _file("browser_flags.rs", "the browser options, their SB_ variables and the settings file"),
-        _file("completion.rs", "the patched shell completion scripts"),
+        _file("completion.rs", "the patched PowerShell completion script"),
         _file("crypto.rs", "sbrs encrypt and decrypt"),
         _file("diagnostic.rs", "the miette report printed when a command fails"),
         _file("failure.rs", "a command line that does not parse prints the command page, then the error"),
