@@ -170,3 +170,57 @@ fn a_global_flag_completes_after_the_command() {
         ["--headed", "--headless", "--headless1"]
     );
 }
+
+/// The built-in plugins are not in the spec: which ones a build has is known when the word is
+/// asked for (`runtime_values.rs`), so a Tab at a plugin name lists the plugins of this binary.
+#[test]
+fn a_plugin_name_is_offered_from_the_plugins_of_the_build() {
+    for line in [
+        "sbrs --plugin ",
+        "sbrs get-title --plugin ",
+        "sbrs plugin info ",
+    ] {
+        let words = complete(line);
+        for plugin in ["shield", "crawler"] {
+            assert!(words.iter().any(|word| word == plugin), "{line:?}: {words:?}");
+        }
+    }
+    assert_eq!(complete("sbrs plugin info sh"), ["shield"]);
+    assert_eq!(complete("sbrs --plugin cra"), ["crawler"]);
+}
+
+/// `sbrs plugin run NAME` runs the task of a plugin, so only the plugins that offer one are
+/// worth a Tab there.
+#[test]
+fn plugin_run_offers_the_plugins_that_have_a_task() {
+    let words = complete("sbrs plugin run ");
+    assert!(words.iter().any(|word| word == "crawler"), "{words:?}");
+    assert!(!words.iter().any(|word| word == "shield"), "{words:?}");
+    assert_eq!(complete("sbrs plugin run cra"), ["crawler"]);
+}
+
+/// The preset names are the library's own list, offered when the word is asked for.
+#[test]
+fn a_fingerprint_preset_is_offered_from_the_library_list() {
+    assert_eq!(
+        complete("sbrs fingerprint export --preset "),
+        ["windows", "edge", "macos", "linux", "android", "ios"]
+    );
+}
+
+/// The plugin tasks are commands of `sbrs plugin` that no declaration holds: a catalog of
+/// runtime commands (usage-dynamic) adds them to the help and to the completion.
+#[test]
+fn the_plugins_with_a_task_are_commands_of_the_plugin_command() {
+    let words = complete("sbrs plugin ");
+    for command in ["list", "info", "run", "crawler"] {
+        assert!(words.iter().any(|word| word == command), "{command}: {words:?}");
+    }
+    assert!(!words.iter().any(|word| word == "shield"), "{words:?}");
+    assert_eq!(complete("sbrs plugin cra"), ["crawler"]);
+    let flags = complete("sbrs plugin crawler --");
+    for flag in ["--input", "--out"] {
+        assert!(flags.iter().any(|word| word == flag), "{flag}: {flags:?}");
+    }
+}
+

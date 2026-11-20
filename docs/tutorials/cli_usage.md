@@ -1158,6 +1158,31 @@ turns it into completions for more shells, Markdown and man pages:
 usage generate completion zsh sbrs --file sbrs.usage.kdl
 ```
 
+### Man pages
+
+usage also writes man pages from the same spec. The repository holds one for each
+program, `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1`, and `sbrs completions man`
+prints the first, so a binary installed by itself can write its own page:
+
+```bash
+mkdir -p "$HOME/.local/share/man/man1"
+sbrs completions man > "$HOME/.local/share/man/man1/sbrs.1"
+man sbrs
+```
+
+usage makes one page for a program, not one for each subcommand: after the options
+that go with every command and the list of commands, each command has its own
+section, such as `SBRS OPEN` or `SBRS PLUGIN LIST`, with its usage, arguments, flags
+and examples. To read the pages of a checkout without installing them, point `man`
+at the file (`man ./man/man1/sbrs.1`, or `man -l man/man1/sbrs.1` with man-db) or at
+the folder (`MANPATH="$PWD/man" man sbrs-mcp`). `man` looks for a page in the folders
+of `MANPATH`: add the folder you installed into, if your system does not search it.
+
+The pages are generated, like the usage spec: a test fails when one is stale, and
+`SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs --bin sbrs-mcp
+man_page` writes them again.
+
+
 ### Warp, inshellisense and Amazon Q
 
 **Warp** uses your shell's own completions for commands it has no built-in spec

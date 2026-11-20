@@ -1,0 +1,4353 @@
+.TH SBRS 1
+.SH NAME
+sbrs \- SeleniumBaseRust CLI
+.SH SYNOPSIS
+\fBsbrs\fR [OPTIONS] <COMMAND>
+.SH DESCRIPTION
+A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command\-line helper.
+.PP
+.SH OPTIONS
+.TP
+\fB\-\-webdriver\fR \fI<URL>\fR
+WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)
+.TP
+\fB\-\-browser\fR \fI<BROWSER>\fR
+Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)
+.TP
+\fB\-\-headed\fR
+Run the browser in headed mode (SB_HEADLESS=false)
+.TP
+\fB\-\-headless\fR
+Run the browser in headless mode (SB_HEADLESS)
+.TP
+\fB\-\-cdp\fR
+Enable Chrome DevTools Protocol mode (SB_MODE=cdp)
+.TP
+\fB\-\-uc\fR
+Enable undetected\-chromedriver style evasions (SB_MODE=uc)
+.TP
+\fB\-\-user\-agent\fR \fI<USER_AGENT>\fR
+Override the default user agent string (SB_USER_AGENT)
+.TP
+\fB\-a, \-\-agent\fR \fI<AGENT>\fR
+Alias for \-\-user\-agent (SB_USER_AGENT)
+.TP
+\fB\-\-locale\fR \fI<LOCALE>\fR
+Locale string for the browser context (SB_LOCALE)
+.TP
+\fB\-\-start\-page, \-\-url, \-\-start_page\fR \fI<URL>\fR
+Page the browser opens first, Python's \-\-start\-page (SB_START_PAGE; aliases \-\-url and \-\-start_page)
+
+Every command starts its own browser and closes it at the end, so a command that acts on a page (get\-text, click, screenshot, assert\-element, ...) acts on this one: `sbrs \-\-url https://example.com get\-text \-\-css p`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download\-file, print\-pdf, pdf\-text, assert\-pdf\-text, record) refuse it.
+.TP
+\fB\-\-save\-screenshot, \-\-save_screenshot\fR
+Save a screenshot to latest_logs/ just before the browser closes, and print its path (SB_SAVE_SCREENSHOT)
+
+Python's `\-\-save\-screenshot`. A command that acts on the page (click, type, ...) also prints where it ended up as `Now at: <url> (<title>)`.
+.TP
+\fB\-\-ad\-block\fR
+Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver sessions)
+.TP
+\fB\-\-proxy\fR \fI<PROXY>\fR
+Proxy (SB_PROXY; host:port or scheme://host:port); with \-\-proxy\-list, a name from the list
+.TP
+\fB\-\-proxy\-list\fR \fI<FILE>\fR
+File of proxies to choose from; without \-\-proxy a random one is used (SB_PROXY_LIST)
+.TP
+\fB\-\-proxy\-pac\-url\fR \fI<PROXY_PAC_URL>\fR
+URL to a proxy auto\-config (PAC) file (SB_PROXY_PAC_URL)
+.TP
+\fB\-\-user\-data\-dir\fR \fI<USER_DATA_DIR>\fR
+Path to a persistent browser user\-data directory (SB_USER_DATA_DIR)
+.TP
+\fB\-\-extension\-dir\fR \fI<EXTENSION_DIR>\fR
+Path to an unpacked extension directory (SB_EXTENSION_DIR)
+.TP
+\fB\-\-reuse\-session, \-\-reuse_session, \-\-rs\fR
+Share browsers among the tests of the run (SB_REUSE_SESSION)
+.TP
+\fB\-\-rcs, \-\-reuse\-class\-session, \-\-reuse_class_session\fR
+Share a browser among the tests of one Rust module (SB_REUSE_CLASS_SESSION)
+.TP
+\fB\-\-mobile\fR
+Use a mobile device emulation profile (SB_MOBILE)
+.TP
+\fB\-\-esc\-end, \-\-esc_end, \-\-ee\fR
+End the current test when ESC is pressed in the browser (SB_ESC_END)
+.TP
+\fB\-\-rec\-sb\-cdp, \-\-rec_sb_cdp\fR
+Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)
+.TP
+\fB\-c, \-\-config\fR \fI<CONFIG>\fR
+Path to a TOML/JSON settings file (SB_SETTINGS_FILE)
+.TP
+\fB\-\-fingerprint\fR \fI<FILE>\fR
+Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
+
+The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write. A Chromium browser then runs in the CDP mode unless \-\-uc or another mode is given. The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of the settings file. The user agent, language and proxy named by their own options win over the fingerprint's.
+.TP
+\fB\-\-plugin\fR \fI<NAME>\fR
+Turn on a built\-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)
+
+Adds to the plugins the settings file (the [plugins] table) and SB_PLUGINS turn on. Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names the file enables), then the settings file. `sbrs plugin list` shows the plugins this build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
+.TP
+\fB\-\-plugin\-opt\fR \fI<NAME.KEY=VALUE>\fR
+Set one option of a plugin, NAME.KEY=VALUE with a TOML VALUE (repeatable)
+
+Quote the whole option so the shell keeps the quotes of a string: \-\-plugin\-opt 'shield.level="strict"'. An option given here replaces the same option from SB_PLUGINS or the settings file and keeps the plugin's other options, so the precedence is the command line, then SB_PLUGINS, then the file. The plugin must be turned on by \-\-plugin, SB_PLUGINS or the file. Not available for `sbrs test`: put the options in the [plugins.NAME] table of the settings file.
+.TP
+\fB\-\-binary\-location\fR \fI<PATH>\fR
+The browser binary to run (SB_CHROME_BIN)
+.TP
+\fB\-\-mode\fR \fI<VALUE>\fR
+The driver mode: webdriver, cdp or uc (SB_MODE)
+.TP
+\fB\-\-chrome\fR \fI<CHROME>\fR
+Run Chrome (SB_BROWSER=chrome)
+.TP
+\fB\-\-edge\fR \fI<EDGE>\fR
+Run Edge (SB_BROWSER=edge)
+.TP
+\fB\-\-firefox\fR \fI<FIREFOX>\fR
+Run Firefox (SB_BROWSER=firefox)
+.TP
+\fB\-\-brave\fR \fI<BRAVE>\fR
+Run Brave (SB_BROWSER=brave)
+.TP
+\fB\-\-comet\fR \fI<COMET>\fR
+Run Comet (SB_BROWSER=comet)
+.TP
+\fB\-\-opera\fR \fI<OPERA>\fR
+Run Opera (SB_BROWSER=opera)
+.TP
+\fB\-\-safari\fR \fI<SAFARI>\fR
+Run Safari (SB_BROWSER=safari)
+.TP
+\fB\-\-ie\fR \fI<IE>\fR
+Run Internet Explorer (SB_BROWSER=ie)
+.TP
+\fB\-\-cft\fR \fI<CFT>\fR
+Run Chrome for Testing (SB_BROWSER=cft)
+.TP
+\fB\-\-chs\fR \fI<CHS>\fR
+Run chrome\-headless\-shell (SB_BROWSER=chs)
+.TP
+\fB\-\-chromium\fR \fI<CHROMIUM>\fR
+Run Chromium (SB_BROWSER=chromium)
+.TP
+\fB\-\-headless1\fR \fI<HEADLESS1>\fR
+Run headless with chrome\-headless\-shell (Chrome's old headless mode) (SB_HEADLESS1)
+.TP
+\fB\-\-locale\-code\fR \fI<VALUE>\fR
+The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)
+.TP
+\fB\-\-server\fR \fI<VALUE>\fR
+The Selenium Grid server to connect to (SB_SERVER)
+.TP
+\fB\-\-port\fR \fI<VALUE>\fR
+The port of the Selenium Grid server (SB_PORT)
+.TP
+\fB\-\-protocol\fR \fI<VALUE>\fR
+The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)
+.TP
+\fB\-\-chromium\-arg\fR \fI<VALUE>\fR
+Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)
+.TP
+\fB\-\-dark\-mode\fR \fI<DARK_MODE>\fR
+Force Chrome's dark theme on web pages (SB_DARK_MODE)
+.TP
+\fB\-\-devtools\fR \fI<DEVTOOLS>\fR
+Open the developer tools with each tab (headed only) (SB_DEVTOOLS)
+.TP
+\fB\-\-disable\-features\fR \fI<VALUE>\fR
+Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)
+.TP
+\fB\-\-disable\-gpu\fR \fI<DISABLE_GPU>\fR
+Switch the GPU off (SB_DISABLE_GPU)
+.TP
+\fB\-\-disable\-ws\fR \fI<DISABLE_WS>\fR
+Switch web security off (SB_DISABLE_WS)
+.TP
+\fB\-\-guest\-mode\fR \fI<GUEST_MODE>\fR
+Open the browser as a guest (SB_GUEST_MODE)
+.TP
+\fB\-\-incognito\fR \fI<INCOGNITO>\fR
+Open the browser in an incognito window (SB_INCOGNITO)
+.TP
+\fB\-\-host\-resolver\-rules\fR \fI<VALUE>\fR
+Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)
+.TP
+\fB\-\-no\-sandbox\fR \fI<NO_SANDBOX>\fR
+Start Chromium without its sandbox (SB_NO_SANDBOX)
+.TP
+\fB\-\-swiftshader\fR \fI<SWIFTSHADER>\fR
+Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)
+.TP
+\fB\-\-enable\-3d\-apis\fR \fI<ENABLE_3D_APIS>\fR
+Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)
+.TP
+\fB\-\-maximize\fR \fI<MAXIMIZE>\fR
+Maximize the browser window (SB_MAXIMIZE)
+.TP
+\fB\-\-block\-images\fR \fI<BLOCK_IMAGES>\fR
+Do not load images (SB_BLOCK_IMAGES)
+.TP
+\fB\-\-disable\-js\fR \fI<DISABLE_JS>\fR
+Turn JavaScript off (SB_DISABLE_JS)
+.TP
+\fB\-\-disable\-cookies\fR \fI<DISABLE_COOKIES>\fR
+Refuse every cookie (SB_DISABLE_COOKIES)
+.TP
+\fB\-\-do\-not\-track\fR \fI<DO_NOT_TRACK>\fR
+Send the DNT: 1 header (SB_DO_NOT_TRACK)
+.TP
+\fB\-\-external\-pdf\fR \fI<EXTERNAL_PDF>\fR
+Download PDF files instead of showing them (SB_EXTERNAL_PDF)
+.TP
+\fB\-\-enable\-sync\fR \fI<ENABLE_SYNC>\fR
+Leave Chrome Sync on (SB_ENABLE_SYNC)
+.TP
+\fB\-\-disable\-csp\fR \fI<DISABLE_CSP>\fR
+Strip the Content Security Policy from every response (SB_DISABLE_CSP)
+.TP
+\fB\-\-use\-auto\-ext\fR \fI<USE_AUTO_EXT>\fR
+Keep Chrome's automation extension (SB_USE_AUTO_EXT)
+.TP
+\fB\-\-proxy\-driver\fR \fI<PROXY_DRIVER>\fR
+Download the driver through the proxy (SB_PROXY_DRIVER)
+.TP
+\fB\-\-page\-load\-strategy\fR \fI<STRATEGY>\fR
+How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)
+.TP
+\fB\-\-window\-size\fR \fI<VALUE>\fR
+The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)
+.TP
+\fB\-\-window\-position\fR \fI<VALUE>\fR
+The window position: X,Y (SB_WINDOW_POSITION)
+.TP
+\fB\-\-device\-metrics\fR \fI<VALUE>\fR
+Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)
+.TP
+\fB\-\-proxy\-bypass\-list\fR \fI<VALUE>\fR
+Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)
+.TP
+\fB\-\-driver\-version\fR \fI<VALUE>\fR
+The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)
+.TP
+\fB\-\-cap\-file\fR \fI<PATH>\fR
+A JSON file of capabilities to add to the session's (SB_CAP_FILE)
+.TP
+\fB\-\-cap\-string\fR \fI<VALUE>\fR
+A JSON object of capabilities to add to the session's (SB_CAP_STRING)
+.TP
+\fB\-\-extension\-zip\fR \fI<VALUE>\fR
+Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)
+.TP
+\fB\-\-firefox\-arg\fR \fI<VALUE>\fR
+Firefox arguments, separated by commas (SB_FIREFOX_ARG)
+.TP
+\fB\-\-firefox\-pref\fR \fI<VALUE>\fR
+Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)
+.TP
+\fB\-\-xvfb\fR \fI<XVFB>\fR
+Open a virtual display for a headed browser on Linux (SB_XVFB)
+.TP
+\fB\-\-xvfb\-metrics\fR \fI<VALUE>\fR
+The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)
+.TP
+\fB\-\-remote\-debug\fR \fI<REMOTE_DEBUG>\fR
+Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)
+.TP
+\fB\-\-log\-cdp\-events\fR \fI<LOG_CDP_EVENTS>\fR
+Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)
+.TP
+\fB\-\-uc\-cdp\-events\fR \fI<UC_CDP_EVENTS>\fR
+Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)
+.TP
+\fB\-\-demo\fR \fI<DEMO>\fR
+Highlight each element and pause after an action (SB_DEMO)
+.TP
+\fB\-\-slow\fR \fI<SLOW>\fR
+Pause briefly after each action (SB_SLOW)
+.TP
+\fB\-\-demo\-sleep\fR \fI<SECONDS>\fR
+Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)
+.TP
+\fB\-\-message\-duration\fR \fI<SECONDS>\fR
+Seconds a message stays on the page (SB_MESSAGE_DURATION)
+.TP
+\fB\-\-skip\-js\-waits\fR \fI<SKIP_JS_WAITS>\fR
+Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)
+.TP
+\fB\-\-highlights\fR \fI<COUNT>\fR
+How many times to flash a highlighted element (SB_HIGHLIGHTS)
+.TP
+\fB\-\-interval\fR \fI<SECONDS>\fR
+Seconds between the steps of a tour or presentation (SB_INTERVAL)
+.TP
+\fB\-\-verify\-delay\fR \fI<SECONDS>\fR
+Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)
+.TP
+\fB\-\-check\-js\fR \fI<CHECK_JS>\fR
+Check each page for JavaScript errors after it opens (SB_CHECK_JS)
+.TP
+\fB\-\-wait\-for\-angularjs\fR \fI<WAIT_FOR_ANGULARJS>\fR
+Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)
+.TP
+\fB\-\-disable\-beforeunload\fR \fI<DISABLE_BEFOREUNLOAD>\fR
+Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)
+.TP
+\fB\-\-visual\-baseline\fR \fI<VISUAL_BASELINE>\fR
+Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)
+.TP
+\fB\-\-crumbs\fR \fI<CRUMBS>\fR
+Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)
+.TP
+\fB\-\-timeout\-multiplier\fR \fI<VALUE>\fR
+Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)
+.TP
+\fB\-\-rec, \-\-recorder, \-\-record, \-\-codegen\fR
+Record the browser actions as a test (SB_RECORDER)
+
+Python's `\-\-rec`. Every test that runs writes `recordings/NAME_rec.rs` when its browser quits; `sb.recorder_breakpoint("...")` pauses a test so the actions can be done by hand. `sbrs test` runs the tests one at a time while it is on.
+.TP
+\fB\-\-rec\-print, \-\-rec_print\fR
+Print the recording when the test ends (SB_REC_PRINT)
+.TP
+\fB\-\-rec\-behave, \-\-rec_behave, \-\-rec\-gherkin\fR
+Also write the recording as a Gherkin feature (SB_REC_BEHAVE)
+.TP
+\fB\-\-rec\-sb\-mgr, \-\-rec_sb_mgr\fR
+Write the recording as a script, not a test (SB_REC_SB_MGR)
+.TP
+\fB\-\-rec\-sleep, \-\-record\-sleep, \-\-rec_sleep, \-\-record_sleep\fR
+Keep the sleeps of the recording (SB_REC_SLEEP)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+.TP
+\fB\-V, \-\-version\fR
+Print version
+.SH COMMANDS
+.TP
+\fBversion\fR
+Print the sbrs version, as `sbrs \-\-version` does.
+.TP
+\fBopen\fR
+Open a URL in the browser.
+.TP
+\fBsmoke\fR
+Run a smoke test against a URL.
+.TP
+\fBcdp\fR
+Execute a Chrome DevTools Protocol command.
+.TP
+\fBcache\-clear\fR
+Clear the browser cache via CDP.
+.TP
+\fBscreenshot\fR
+Capture a screenshot of the current page.
+.TP
+\fBsave\-source\fR
+Save the current page source to a file.
+.TP
+\fBassert\-element\fR
+Assert that an element exists.
+.TP
+\fBwait\-for\-text\fR
+Wait until an element contains the expected text.
+.TP
+\fBhover\fR
+Hover over an element.
+.TP
+\fBhover\-and\-click\fR
+Hover over one element, then click another.
+.TP
+\fBselect\-option\fR
+Select an option from a dropdown.
+.TP
+\fBdrag\-and\-drop\fR
+Drag one element onto another.
+.TP
+\fBcdp\-click\-element\fR
+Click an element using CDP.
+.TP
+\fBcdp\-type\-text\fR
+Type text using CDP input injection.
+.TP
+\fBget\-text\fR
+Print the visible text of an element.
+.TP
+\fBget\-attribute\fR
+Print an element attribute value.
+.TP
+\fBget\-property\fR
+Print an element property value.
+.TP
+\fBget\-title\fR
+Print the page title.
+.TP
+\fBget\-current\-url\fR
+Print the current URL.
+.TP
+\fBclear\-cookies\fR
+Delete all browser cookies.
+.TP
+\fBaccept\-alert\fR
+Accept the alert that the page opens when it loads.
+.TP
+\fBdismiss\-alert\fR
+Dismiss the alert that the page opens when it loads.
+.TP
+\fBget\-alert\-text\fR
+Print the text of the alert that the page opens when it loads.
+.TP
+\fBtype\-alert\-text\fR
+Type text into the prompt that the page opens when it loads.
+.TP
+\fBclear\-local\-storage\fR
+Clear the page local storage.
+.TP
+\fBget\-local\-storage\-item\fR
+Print a local storage value by key.
+.TP
+\fBset\-local\-storage\-item\fR
+Set a local storage key/value pair.
+.TP
+\fBremove\-local\-storage\-item\fR
+Remove a local storage entry by key.
+.TP
+\fBget\-cookies\fR
+Print the cookies of the current page as JSON (the line starts with Cookies:).
+.TP
+\fBpatch\-chromedriver\fR
+Patch a chromedriver binary to reduce detection surface.
+.TP
+\fBpatch\-chrome\fR
+Patch a Chrome/Chromium binary for native\-level spoofing.
+.TP
+\fBproxy\fR
+Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
+.TP
+\fBdownload\fR
+Download Selenium Server 4, the jar that `grid\-hub` and `grid\-node` run.
+.TP
+\fBdownload server\fR
+Download the Selenium Server 4 jar that `grid\-hub` and `grid\-node` run.
+.TP
+\fBencrypt\fR
+Encrypt text with a passphrase (AES\-256\-GCM); read from stdin if TEXT is omitted.
+.RS
+\fIAliases: \fRobfuscate
+.RE
+.TP
+\fBdecrypt\fR
+Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command.
+.RS
+\fIAliases: \fRunobfuscate
+.RE
+.TP
+\fBreport\fR
+Finish a test run and write its reports, or show the runs of a results database.
+.TP
+\fBreport finish\fR
+Finish the test run of the current folder and write its reports.
+.TP
+\fBdoctor\fR
+Run a diagnostic check on the environment and configuration.
+.TP
+\fBprompt\fR
+Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand.
+.TP
+\fBassert\-text\-visible\fR
+Assert that an element contains the expected text.
+.TP
+\fBassert\-text\-not\-visible\fR
+Assert that an element does not contain the given text.
+.TP
+\fBassert\-attribute\fR
+Assert an element attribute equals an expected value.
+.TP
+\fBassert\-title\fR
+Assert the page title contains the expected text.
+.TP
+\fBwait\-for\-ready\-state\-complete\fR
+Wait until the document readyState is complete.
+.TP
+\fBget\-window\-position\fR
+Print the browser window position.
+.TP
+\fBis\-element\-visible\fR
+Print whether an element is visible.
+.TP
+\fBis\-text\-visible\fR
+Print whether the expected text is visible in an element.
+.TP
+\fBwait\-for\-element\-not\-visible\fR
+Wait until an element is no longer visible.
+.TP
+\fBsave\-cookies\fR
+Save browser cookies to a JSON file.
+.TP
+\fBload\-cookies\fR
+Load browser cookies from a JSON file.
+.TP
+\fBhighlight\-click\fR
+Highlight an element, then click it.
+.TP
+\fBis\-checked\fR
+Print whether a checkbox is checked.
+.TP
+\fBcheck\-if\-unchecked\fR
+Check a checkbox only if it is unchecked.
+.TP
+\fBuncheck\-if\-checked\fR
+Uncheck a checkbox only if it is checked.
+.TP
+\fBwait\-for\-element\-present\fR
+Wait until an element is present in the DOM.
+.TP
+\fBadd\-text\fR
+Append text to an input or textarea.
+.TP
+\fBsend\-keys\fR
+Send keystrokes to an element.
+.TP
+\fBget\-value\fR
+Print the value of a form element.
+.TP
+\fBclick\-visible\-elements\fR
+Click all visible elements matching a selector.
+.TP
+\fBwait\-for\-and\-accept\-alert\fR
+Wait for an alert that the page opens, then accept it.
+.TP
+\fBwait\-for\-and\-dismiss\-alert\fR
+Wait for an alert that the page opens, then dismiss it.
+.TP
+\fBis\-link\-text\-visible\fR
+Print whether a link with the given text is visible.
+.TP
+\fBis\-partial\-link\-text\-visible\fR
+Print whether a link containing the given text is visible.
+.TP
+\fBassert\-link\-text\fR
+Assert a link with the given text is visible.
+.TP
+\fBclick\-partial\-link\-text\fR
+Click a link containing the given text.
+.TP
+\fBhuman\-type\fR
+Type text with human\-like timing and noise.
+.TP
+\fBhuman\-click\fR
+Click an element with human\-like timing and noise.
+.TP
+\fBsmooth\-scroll\-to\fR
+Smoothly scroll an element into view.
+.TP
+\fBuc\-click\fR
+Perform a UC\-mode click on an element.
+.TP
+\fBuc\-type\fR
+Perform UC\-mode typing into an element.
+.TP
+\fBsolve\-captcha\fR
+Solve the CAPTCHA on the page and check that it cleared.
+.TP
+\fBinstall\fR
+Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).
+.RS
+\fIAliases: \fRget
+.RE
+.TP
+\fBtest\fR
+Run the project's tests, or one example, through Cargo or cargo\-nextest.
+.TP
+\fBbehave\-options\fR
+Print how Python SeleniumBase's behave options map to `sbrs test`.
+.TP
+\fBoptions\fR
+List the browser options: each flag, its `SB_*` variable and its key in the settings file.
+.TP
+\fBmethods\fR
+List the common methods of the test API, as they are called on `sb`.
+.TP
+\fBgrid\-hub\fR
+Start, stop, restart or check a Selenium Grid hub.
+.RS
+\fIAliases: \fRgrid_hub
+.RE
+.TP
+\fBgrid\-node\fR
+Start, stop, restart or check a Selenium Grid node.
+.RS
+\fIAliases: \fRgrid_node
+.RE
+.TP
+\fBtranslate\fR
+Write the actions of a JSON scenario in another language.
+.TP
+\fBmkdir\fR
+Create a folder with a runnable browser\-test suite.
+.TP
+\fBmkfile\fR
+Create a browser\-test file.
+.RS
+\fIAliases: \fRnew
+.RE
+.TP
+\fBcommander\fR
+Launch the Commander, a terminal app (needs a build with the `tui` feature).
+.RS
+\fIAliases: \fRgui
+.RE
+.TP
+\fBcaseplans\fR
+Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).
+.RS
+\fIAliases: \fRcase\-plans, case_plans
+.RE
+.TP
+\fBbehave\-gui\fR
+Launch the Behave Commander, a terminal app (needs a build with the `tui` feature).
+.RS
+\fIAliases: \fRgui\-behave
+.RE
+.TP
+\fBprint\fR
+Print a file, with a line number in front of every line if you ask for it.
+.TP
+\fBextract\-objects\fR
+Move the selectors of a Rust test into page objects in `page_objects.rs`.
+.RS
+\fIAliases: \fRextract_objects
+.RE
+.TP
+\fBinject\-objects\fR
+Replace the selectors of a Rust test with the page objects of `page_objects.rs`.
+.RS
+\fIAliases: \fRinject_objects
+.RE
+.TP
+\fBrevert\-objects\fR
+Put the selectors back where a Rust test uses page objects.
+.RS
+\fIAliases: \fRrevert_objects
+.RE
+.TP
+\fBobjectify\fR
+Turn the selectors of a Rust test into page objects: extract\-objects, then inject\-objects.
+.TP
+\fBmkpres\fR
+Create a test that builds a slide deck.
+.TP
+\fBmkchart\fR
+Create a test that shows a chart on a slide.
+.TP
+\fBconvert\fR
+Convert an exported Selenium WebDriver test (Python) into a Rust test.
+.TP
+\fBmkrec\fR
+Create a new test file with the Recorder: record your actions in a browser, then save them as a test.
+.RS
+\fIAliases: \fRcodegen, record
+.RE
+.TP
+\fBrecorder\fR
+Launch the Recorder, a terminal app (needs a build with the `tui` feature).
+.TP
+\fBrun\-scenario\fR
+Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
+.TP
+\fBcompletions\fR
+Generate a completion script for a supported shell, or a Fig spec.
+.TP
+\fBimport\-python\fR
+Convert common SeleniumBase or Selenium Python code into a Rust test.
+.TP
+\fBimport\-playwright\fR
+Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.
+.RS
+\fIAliases: \fRimport\-pw
+.RE
+.TP
+\fBimport\-puppeteer\fR
+Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine.
+.RS
+\fIAliases: \fRimport\-pptr
+.RE
+.TP
+\fBdownload\-file\fR
+Download a file from a URL (browser download with an HTTP fallback).
+.TP
+\fBprint\-pdf\fR
+Print a page to PDF and save it to disk.
+.TP
+\fBpdf\-text\fR
+Print the text extracted from a page or PDF URL.
+.TP
+\fBassert\-pdf\-text\fR
+Assert that a page or PDF URL contains the expected text.
+.TP
+\fBchoose\-file\fR
+Upload a local file into a file input.
+.TP
+\fBdeferred\fR
+Run several assertions, then report every failure at once.
+.TP
+\fBreplay\fR
+Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser.
+.TP
+\fBdevtools\fR
+Launch Chrome with an open DevTools endpoint and print MCP client configs.
+.TP
+\fBplugin\fR
+List the built\-in plugins, or show what one declares.
+.TP
+\fBplugin list\fR
+List the built\-in plugins of this build, and whether they are on.
+.TP
+\fBplugin info\fR
+Show what one plugin declares and what it may do.
+.TP
+\fBplugin run\fR
+Run the task of a plugin on a browser it starts, and write its results as JSON lines.
+.TP
+\fBtrace\fR
+Look at a recorded trace.
+.TP
+\fBtrace show\fR
+Open the viewer of a trace folder in the system's default browser.
+.TP
+\fBfingerprint\fR
+Capture, write, check and compare browser fingerprints.
+.TP
+\fBfingerprint capture\fR
+Read the fingerprint of a real browser and write it as a fingerprint file.
+.TP
+\fBfingerprint export\fR
+Write a preset or a random identity as a fingerprint file.
+.TP
+\fBfingerprint check\fR
+Check that a fingerprint file loads and is coherent.
+.TP
+\fBfingerprint diff\fR
+Compare two fingerprint files.
+.TP
+\fBfingerprint presets\fR
+List the presets and what each claims.
+.SH "SBRS VERSION"
+Print the sbrs version, as `sbrs \-\-version` does.
+.PP
+\fBUsage:\fR sbrs version [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs version
+.RE
+.SH "SBRS OPEN"
+Open a URL in the browser.
+.PP
+\fBUsage:\fR sbrs open [OPTIONS] <URL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URL>\fR
+URL to open in the browser.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs open https://example.com
+.RE
+.SH "SBRS SMOKE"
+Run a smoke test against a URL.
+.PP
+\fBUsage:\fR sbrs smoke [OPTIONS] <URL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-title\-contains\fR \fI<TITLE_CONTAINS>\fR
+Expected substring in the page title
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URL>\fR
+URL to open or smoke\-test
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs smoke https://example.com \-\-title\-contains Example
+.RE
+.SH "SBRS CDP"
+Execute a Chrome DevTools Protocol command.
+.PP
+\fBUsage:\fR sbrs cdp [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-cmd\fR \fI<CMD>\fR
+CDP method name (e.g. Runtime.evaluate)
+.TP
+\fB\-\-params\fR \fI<PARAMS>\fR
+JSON object of CDP parameters
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs cdp \-\-cmd Browser.getVersion
+.RE
+.SH "SBRS CACHE-CLEAR"
+Clear the browser cache via CDP.
+.PP
+\fBUsage:\fR sbrs cache\-clear [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com \-\-user\-data\-dir ./profile cache\-clear
+.RE
+.SH "SBRS SCREENSHOT"
+Capture a screenshot of the current page.
+.PP
+\fBUsage:\fR sbrs screenshot [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-path\fR \fI<PATH>\fR
+Output image file path (default: a new file in latest_logs/)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com screenshot \-\-path page.png
+.RE
+.SH "SBRS SAVE-SOURCE"
+Save the current page source to a file.
+.PP
+\fBUsage:\fR sbrs save\-source [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-path\fR \fI<PATH>\fR
+Output HTML file path (default: a new file in latest_logs/)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com save\-source \-\-path page.html
+.RE
+.SH "SBRS ASSERT-ELEMENT"
+Assert that an element exists.
+.PP
+\fBUsage:\fR sbrs assert\-element [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com assert\-element \-\-css p
+.RE
+.SH "SBRS WAIT-FOR-TEXT"
+Wait until an element contains the expected text.
+.PP
+\fBUsage:\fR sbrs wait\-for\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Expected text substring to wait for
+.TP
+\fB\-\-timeout\fR \fI<TIMEOUT>\fR
+Maximum wait time in seconds
+.RS
+\fIDefault: \fR10
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com wait\-for\-text \-\-css p \-\-text 'This domain is for use in' \-\-timeout 5
+.RE
+.SH "SBRS HOVER"
+Hover over an element.
+.PP
+\fBUsage:\fR sbrs hover [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com hover \-\-css p
+.RE
+.SH "SBRS HOVER-AND-CLICK"
+Hover over one element, then click another.
+.PP
+\fBUsage:\fR sbrs hover\-and\-click [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-hover\-css\fR \fI<HOVER_CSS>\fR
+CSS selector to hover over
+.TP
+\fB\-\-click\-css\fR \fI<CLICK_CSS>\fR
+CSS selector to click
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com hover\-and\-click \-\-hover\-css nav \-\-click\-css 'nav a'
+.RE
+.SH "SBRS SELECT-OPTION"
+Select an option from a dropdown.
+.PP
+\fBUsage:\fR sbrs select\-option [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Visible text of the option to select
+.TP
+\fB\-\-value\fR \fI<VALUE>\fR
+Option value attribute
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com select\-option \-\-css select \-\-text Two
+.RE
+.SH "SBRS DRAG-AND-DROP"
+Drag one element onto another.
+.PP
+\fBUsage:\fR sbrs drag\-and\-drop [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-source\-css\fR \fI<SOURCE_CSS>\fR
+CSS selector of the element to drag
+.TP
+\fB\-\-target\-css\fR \fI<TARGET_CSS>\fR
+CSS selector of the drop target
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com drag\-and\-drop \-\-source\-css '#a' \-\-target\-css '#b'
+.RE
+.SH "SBRS CDP-CLICK-ELEMENT"
+Click an element using CDP.
+.PP
+\fBUsage:\fR sbrs cdp\-click\-element [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com cdp\-click\-element \-\-css a
+.RE
+.SH "SBRS CDP-TYPE-TEXT"
+Type text using CDP input injection.
+.PP
+\fBUsage:\fR sbrs cdp\-type\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Text to inject via CDP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com cdp\-type\-text \-\-text hello
+.RE
+.SH "SBRS GET-TEXT"
+Print the visible text of an element.
+.PP
+\fBUsage:\fR sbrs get\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-text \-\-css p
+.RE
+.SH "SBRS GET-ATTRIBUTE"
+Print an element attribute value.
+.PP
+\fBUsage:\fR sbrs get\-attribute [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-attribute\fR \fI<ATTRIBUTE>\fR
+Attribute name to read or assert
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-attribute \-\-css a \-\-attribute href
+.RE
+.SH "SBRS GET-PROPERTY"
+Print an element property value.
+.PP
+\fBUsage:\fR sbrs get\-property [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-property\fR \fI<PROPERTY>\fR
+Property name to read
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-property \-\-css input \-\-property value
+.RE
+.SH "SBRS GET-TITLE"
+Print the page title.
+.PP
+\fBUsage:\fR sbrs get\-title [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-title
+.RE
+.SH "SBRS GET-CURRENT-URL"
+Print the current URL.
+.PP
+\fBUsage:\fR sbrs get\-current\-url [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-current\-url
+.RE
+.SH "SBRS CLEAR-COOKIES"
+Delete all browser cookies.
+.PP
+\fBUsage:\fR sbrs clear\-cookies [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com \-\-user\-data\-dir ./profile clear\-cookies
+.RE
+.SH "SBRS ACCEPT-ALERT"
+Accept the alert that the page opens when it loads.
+.PP
+\fBUsage:\fR sbrs accept\-alert [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com accept\-alert
+.RE
+.SH "SBRS DISMISS-ALERT"
+Dismiss the alert that the page opens when it loads.
+.PP
+\fBUsage:\fR sbrs dismiss\-alert [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com dismiss\-alert
+.RE
+.SH "SBRS GET-ALERT-TEXT"
+Print the text of the alert that the page opens when it loads.
+.PP
+\fBUsage:\fR sbrs get\-alert\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-alert\-text
+.RE
+.SH "SBRS TYPE-ALERT-TEXT"
+Type text into the prompt that the page opens when it loads.
+.PP
+\fBUsage:\fR sbrs type\-alert\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Text to type into the alert prompt
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com type\-alert\-text \-\-text hello
+.RE
+.SH "SBRS CLEAR-LOCAL-STORAGE"
+Clear the page local storage.
+.PP
+\fBUsage:\fR sbrs clear\-local\-storage [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com \-\-user\-data\-dir ./profile clear\-local\-storage
+.RE
+.SH "SBRS GET-LOCAL-STORAGE-ITEM"
+Print a local storage value by key.
+.PP
+\fBUsage:\fR sbrs get\-local\-storage\-item [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-key\fR \fI<KEY>\fR
+Storage key
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-local\-storage\-item \-\-key theme
+.RE
+.SH "SBRS SET-LOCAL-STORAGE-ITEM"
+Set a local storage key/value pair.
+.PP
+\fBUsage:\fR sbrs set\-local\-storage\-item [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-key\fR \fI<KEY>\fR
+Storage key
+.TP
+\fB\-\-value\fR \fI<VALUE>\fR
+Value to store in local storage
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com \-\-user\-data\-dir ./profile set\-local\-storage\-item \-\-key theme \-\-value dark
+.RE
+.SH "SBRS REMOVE-LOCAL-STORAGE-ITEM"
+Remove a local storage entry by key.
+.PP
+\fBUsage:\fR sbrs remove\-local\-storage\-item [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-key\fR \fI<KEY>\fR
+Storage key
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com \-\-user\-data\-dir ./profile remove\-local\-storage\-item \-\-key theme
+.RE
+.SH "SBRS GET-COOKIES"
+Print the cookies of the current page as JSON (the line starts with Cookies:).
+.PP
+\fBUsage:\fR sbrs get\-cookies [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-cookies
+.RE
+.SH "SBRS PATCH-CHROMEDRIVER"
+Patch a chromedriver binary to reduce detection surface.
+.PP
+\fBUsage:\fR sbrs patch\-chromedriver [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-path\fR \fI<PATH>\fR
+Path to the chromedriver binary
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs patch\-chromedriver \-\-path ./chromedriver
+.RE
+.SH "SBRS PATCH-CHROME"
+Patch a Chrome/Chromium binary for native\-level spoofing.
+.PP
+\fBUsage:\fR sbrs patch\-chrome [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-path\fR \fI<PATH>\fR
+Path to the Chrome/Chromium binary
+.TP
+\fB\-\-cache\-dir\fR \fI<CACHE_DIR>\fR
+Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs patch\-chrome \-\-path ./chrome \-\-cache\-dir ./patched
+.RE
+.SH "SBRS PROXY"
+Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
+
+Point a browser at it with the global \-\-proxy option. `CONNECT host:port` becomes a tunnel, so HTTPS passes through untouched; an absolute `http://` request is sent to its host once and the connection closed. It listens on 127.0.0.1:8899 unless told otherwise, and a request head over 64 KiB, more than 256 connections at once and 30 seconds without a byte are refused or cut. Each request is logged at INFO (SB_LOG_LEVEL=info). Ctrl\-C or SIGTERM stops it with status 0.
+.PP
+\fBUsage:\fR sbrs proxy [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-hostname\fR \fI<HOST>\fR
+The address to listen on. Anything but a loopback address makes this an open proxy for other machines, and the command says so.
+.RS
+\fIDefault: \fR127.0.0.1
+.RE
+.TP
+\fB\-\-port\fR \fI<PORT>\fR
+The port to listen on; 0 picks a free one.
+.RS
+\fIDefault: \fR8899
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs proxy \-\-port 8899
+.RE
+.SH "SBRS DOWNLOAD"
+Download Selenium Server 4, the jar that `grid\-hub` and `grid\-node` run.
+
+`sbrs download server` saves selenium\-server\-VERSION.jar in ./downloaded_drivers/ and prints its path and SHA\-256. The release this build pins is checked against its checksum; another one is not.
+.PP
+\fBUsage:\fR sbrs download [OPTIONS] <COMMAND>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs download server
+.RE
+.SH "SBRS DOWNLOAD SERVER"
+Download the Selenium Server 4 jar that `grid\-hub` and `grid\-node` run.
+
+Saves selenium\-server\-VERSION.jar in ./downloaded_drivers/ and prints its path. The default version is pinned in this build and the download is checked against its SHA\-256; another \-\-version is saved as it arrives, with its SHA\-256 printed and `not verified`. When neither \-\-jar nor SB_SELENIUM_SERVER_JAR is given, `grid\-hub` and `grid\-node` use the newest jar in that folder. Python's Selenium 3 server is not offered, because Grid 3 is gone.
+.PP
+\fBUsage:\fR sbrs download server [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-version\fR \fI<VERSION>\fR
+The release to download, such as 4.51.0 (default: the version this build pins).
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs download server
+.RE
+.SH "SBRS ENCRYPT"
+Encrypt text with a passphrase (AES\-256\-GCM); read from stdin if TEXT is omitted.
+
+The passphrase comes from the SB_ENCRYPTION_KEY environment variable, never from an argument, so it stays out of shell history and process listings. Python's `sbrs obfuscate` is the same command.
+
+With no TEXT and a terminal on standard input it prompts as Python's `obfuscate` does: the text and its verification are read without echo, the token is printed with the line that decrypts it in a test, and it asks again until Ctrl\-C. When SB_ENCRYPTION_KEY is not set it asks once for the passphrase (twice, to catch a typo), without echo; the passphrase is never printed or saved.
+.PP
+\fBUsage:\fR sbrs encrypt [OPTIONS] [<TEXT>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<TEXT>\fR
+The text to encrypt.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs encrypt 'my secret'
+.RE
+.SH "SBRS DECRYPT"
+Decrypt a token made by `sbrs encrypt`; read from stdin if TOKEN is omitted. Python's `sbrs unobfuscate` is the same command.
+
+With no TOKEN and a terminal on standard input it asks for a token on the screen, prints the text and asks again until Ctrl\-C, as Python's `unobfuscate` does. When SB_ENCRYPTION_KEY is not set it asks once for the passphrase, without echo.
+.PP
+\fBUsage:\fR sbrs decrypt [OPTIONS] [<TOKEN>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<TOKEN>\fR
+The token to decrypt.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs decrypt TOKEN
+.RE
+.SH "SBRS REPORT"
+Finish a test run and write its reports, or show the runs of a results database.
+
+`sbrs report finish` ends the run of the current folder: the dashboard, the HTML report and the JUnit XML are written a last time. Use it after a plain `cargo test`, which leaves the live dashboard going; `sbrs test` finishes its run by itself. `sbrs report history` lists the runs recorded in a results database (a build with the `turso` feature).
+.PP
+\fBUsage:\fR sbrs report [OPTIONS] <COMMAND>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs report finish \-\-html report.html
+.RE
+.SH "SBRS REPORT FINISH"
+Finish the test run of the current folder and write its reports.
+
+A plain `cargo test` leaves the live dashboard running, because the standard test harness cannot tell when the last test has ended. This command ends the run: the tests that started and never ended become unreported, the dashboard, the HTML report and the JUnit XML are written a last time, the logs are archived when asked, and the results go to the results database when `with_db_reporting` is on. `sbrs test` does the same by itself. The run is the one in `SB_REPORT_ROOT`, or in the current folder; the flags replace the settings the run was started with.
+.PP
+\fBUsage:\fR sbrs report finish [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-dashboard\fR
+Write the live dashboard (dashboard.html) in its final form (SB_DASHBOARD).
+.TP
+\fB\-\-dash\-title\fR \fI<TITLE>\fR
+The dashboard's title; an underscore stands for a space (SB_DASH_TITLE).
+.TP
+\fB\-\-html\fR \fI<PATH>\fR
+Write an HTML report to this file (SB_HTML).
+.TP
+\fB\-\-junit\-xml\fR \fI<PATH>\fR
+Write a JUnit XML report to this file (SB_JUNIT_XML).
+.TP
+\fB\-\-archive\-logs\fR
+Keep the logs of the run in archived_logs/ instead of deleting them later (SB_ARCHIVE_LOGS).
+.TP
+\fB\-\-show\-report\fR
+Open the HTML report or the dashboard in a browser window and wait until it is closed.
+.TP
+\fB\-\-json\fR
+Print what was done as JSON instead of the `\-\-\-\-\-` lines.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs report finish \-\-html report.html \-\-junit\-xml report.xml
+.RE
+.SH "SBRS DOCTOR"
+Run a diagnostic check on the environment and configuration.
+
+Prints the settings in effect, the browser found, the patch cache and the chromedriver found, with a hint for anything that needs a fix. Exits with status 1 when no browser is found (or the one SB_CHROME_BIN names does not exist) or when the chromedriver does not match the installed Chrome, and with 0 otherwise. A chromedriver that is not found is only a hint, since the pure CDP engine needs none. \-\-warn\-only prints the same and always exits with 0. `\-\-fix` installs a missing or mismatched chromedriver (what `sbrs install chromedriver` downloads) and creates a missing patch\-cache directory. It does not install a browser and does not patch Chrome. A problem it repairs is not a failure; one it cannot repair still is.
+.PP
+\fBUsage:\fR sbrs doctor [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-warn\-only\fR
+Print the problems found but exit with 0 (the default exits with 1 when the browser is missing or the chromedriver does not match it)
+.TP
+\fB\-\-fix\fR
+Apply the fixes doctor already knows how to do: install a missing or mismatched chromedriver, and create a missing patch\-cache directory. Does not install a browser or patch Chrome
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs doctor
+.RE
+.PP
+.PP
+.RS 4
+sbrs doctor \-\-fix
+.RE
+.SH "SBRS PROMPT"
+Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand.
+
+Prints `chrome 155 ✓driver`, with `✗driver` when the chromedriver is missing or of another version and `?driver` when its version cannot be read. It starts no browser and uses no network: versions come from files (a macOS app's Info.plist, the version folder beside chrome.exe), and one that only `\-\-version` tells is cached for ten minutes in the user cache folder. Prints nothing and exits with 0 when no browser is found; \-\-verbose says why, on standard error. The chromedriver is looked for as `sbrs doctor` does: CHROMEDRIVER_PATH, downloaded_drivers/, PATH.
+.PP
+\fBUsage:\fR sbrs prompt [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-format\fR \fI<TEMPLATE>\fR
+The line to print; placeholders {browser} {major} {driver} {mark} {driver_major}, {{ and }} for braces
+.RS
+\fIDefault: \fR{browser} {major} {driver}
+.RE
+.TP
+\fB\-\-ascii\fR
+Mark the driver with + \- ? instead of ✓ ✗ ?
+.TP
+\fB\-\-browser\-path\fR \fI<PATH>\fR
+Browser to report on (default: SB_CHROME_BIN, else the installed Chrome or Chromium)
+.TP
+\fB\-\-no\-cache\fR
+Run \-\-version again instead of using the versions cached in the user cache folder
+.TP
+\fB\-\-verbose\fR
+Explain on standard error what was found and how
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs prompt
+.RE
+.SH "SBRS ASSERT-TEXT-VISIBLE"
+Assert that an element contains the expected text.
+.PP
+\fBUsage:\fR sbrs assert\-text\-visible [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Expected visible text
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com assert\-text\-visible \-\-css p \-\-text 'This domain is for use in'
+.RE
+.SH "SBRS ASSERT-TEXT-NOT-VISIBLE"
+Assert that an element does not contain the given text.
+.PP
+\fBUsage:\fR sbrs assert\-text\-not\-visible [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Text that should not be visible
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com assert\-text\-not\-visible \-\-css p \-\-text Error
+.RE
+.SH "SBRS ASSERT-ATTRIBUTE"
+Assert an element attribute equals an expected value.
+.PP
+\fBUsage:\fR sbrs assert\-attribute [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-attribute\fR \fI<ATTRIBUTE>\fR
+Attribute name to read or assert
+.TP
+\fB\-\-value\fR \fI<VALUE>\fR
+Expected attribute value
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com assert\-attribute \-\-css a \-\-attribute href \-\-value https://iana.org/domains/example
+.RE
+.SH "SBRS ASSERT-TITLE"
+Assert the page title contains the expected text.
+.PP
+\fBUsage:\fR sbrs assert\-title [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Expected page title substring
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com assert\-title \-\-text Example
+.RE
+.SH "SBRS WAIT-FOR-READY-STATE-COMPLETE"
+Wait until the document readyState is complete.
+.PP
+\fBUsage:\fR sbrs wait\-for\-ready\-state\-complete [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com wait\-for\-ready\-state\-complete
+.RE
+.SH "SBRS GET-WINDOW-POSITION"
+Print the browser window position.
+.PP
+\fBUsage:\fR sbrs get\-window\-position [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-window\-position
+.RE
+.SH "SBRS IS-ELEMENT-VISIBLE"
+Print whether an element is visible.
+.PP
+\fBUsage:\fR sbrs is\-element\-visible [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com is\-element\-visible \-\-css p
+.RE
+.SH "SBRS IS-TEXT-VISIBLE"
+Print whether the expected text is visible in an element.
+.PP
+\fBUsage:\fR sbrs is\-text\-visible [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Expected text to check
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com is\-text\-visible \-\-css p \-\-text domain
+.RE
+.SH "SBRS WAIT-FOR-ELEMENT-NOT-VISIBLE"
+Wait until an element is no longer visible.
+.PP
+\fBUsage:\fR sbrs wait\-for\-element\-not\-visible [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-timeout\fR \fI<TIMEOUT>\fR
+Maximum wait time in seconds
+.RS
+\fIDefault: \fR10
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com wait\-for\-element\-not\-visible \-\-css '#spinner' \-\-timeout 5
+.RE
+.SH "SBRS SAVE-COOKIES"
+Save browser cookies to a JSON file.
+.PP
+\fBUsage:\fR sbrs save\-cookies [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-file\fR \fI<FILE>\fR
+JSON file to save cookies to
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com save\-cookies \-\-file cookies.json
+.RE
+.SH "SBRS LOAD-COOKIES"
+Load browser cookies from a JSON file.
+.PP
+\fBUsage:\fR sbrs load\-cookies [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-file\fR \fI<FILE>\fR
+JSON file to load cookies from
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com \-\-user\-data\-dir ./profile load\-cookies \-\-file cookies.json
+.RE
+.SH "SBRS HIGHLIGHT-CLICK"
+Highlight an element, then click it.
+.PP
+\fBUsage:\fR sbrs highlight\-click [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com highlight\-click \-\-css a
+.RE
+.SH "SBRS IS-CHECKED"
+Print whether a checkbox is checked.
+.PP
+\fBUsage:\fR sbrs is\-checked [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com is\-checked \-\-css '#agree'
+.RE
+.SH "SBRS CHECK-IF-UNCHECKED"
+Check a checkbox only if it is unchecked.
+.PP
+\fBUsage:\fR sbrs check\-if\-unchecked [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com check\-if\-unchecked \-\-css '#agree'
+.RE
+.SH "SBRS UNCHECK-IF-CHECKED"
+Uncheck a checkbox only if it is checked.
+.PP
+\fBUsage:\fR sbrs uncheck\-if\-checked [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com uncheck\-if\-checked \-\-css '#agree'
+.RE
+.SH "SBRS WAIT-FOR-ELEMENT-PRESENT"
+Wait until an element is present in the DOM.
+.PP
+\fBUsage:\fR sbrs wait\-for\-element\-present [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-timeout\fR \fI<TIMEOUT>\fR
+Maximum wait time in seconds
+.RS
+\fIDefault: \fR10
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com wait\-for\-element\-present \-\-css p \-\-timeout 5
+.RE
+.SH "SBRS ADD-TEXT"
+Append text to an input or textarea.
+.PP
+\fBUsage:\fR sbrs add\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Text to append to the element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com add\-text \-\-css '#name' \-\-text hello
+.RE
+.SH "SBRS SEND-KEYS"
+Send keystrokes to an element.
+.PP
+\fBUsage:\fR sbrs send\-keys [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Keys to send to the element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com send\-keys \-\-css '#name' \-\-text hello
+.RE
+.SH "SBRS GET-VALUE"
+Print the value of a form element.
+.PP
+\fBUsage:\fR sbrs get\-value [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com get\-value \-\-css '#name'
+.RE
+.SH "SBRS CLICK-VISIBLE-ELEMENTS"
+Click all visible elements matching a selector.
+.PP
+\fBUsage:\fR sbrs click\-visible\-elements [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com click\-visible\-elements \-\-css button
+.RE
+.SH "SBRS WAIT-FOR-AND-ACCEPT-ALERT"
+Wait for an alert that the page opens, then accept it.
+.PP
+\fBUsage:\fR sbrs wait\-for\-and\-accept\-alert [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-timeout\fR \fI<TIMEOUT>\fR
+Maximum wait time in seconds
+.RS
+\fIDefault: \fR10
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com wait\-for\-and\-accept\-alert \-\-timeout 5
+.RE
+.SH "SBRS WAIT-FOR-AND-DISMISS-ALERT"
+Wait for an alert that the page opens, then dismiss it.
+.PP
+\fBUsage:\fR sbrs wait\-for\-and\-dismiss\-alert [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-timeout\fR \fI<TIMEOUT>\fR
+Maximum wait time in seconds
+.RS
+\fIDefault: \fR10
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com wait\-for\-and\-dismiss\-alert \-\-timeout 5
+.RE
+.SH "SBRS IS-LINK-TEXT-VISIBLE"
+Print whether a link with the given text is visible.
+.PP
+\fBUsage:\fR sbrs is\-link\-text\-visible [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Exact link text to check
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com is\-link\-text\-visible \-\-text 'More information...'
+.RE
+.SH "SBRS IS-PARTIAL-LINK-TEXT-VISIBLE"
+Print whether a link containing the given text is visible.
+.PP
+\fBUsage:\fR sbrs is\-partial\-link\-text\-visible [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Link text substring to check
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com is\-partial\-link\-text\-visible \-\-text 'More info'
+.RE
+.SH "SBRS ASSERT-LINK-TEXT"
+Assert a link with the given text is visible.
+.PP
+\fBUsage:\fR sbrs assert\-link\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Exact link text to assert
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com assert\-link\-text \-\-text 'More information...'
+.RE
+.SH "SBRS CLICK-PARTIAL-LINK-TEXT"
+Click a link containing the given text.
+.PP
+\fBUsage:\fR sbrs click\-partial\-link\-text [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Link text substring to click
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com click\-partial\-link\-text \-\-text 'More info'
+.RE
+.SH "SBRS HUMAN-TYPE"
+Type text with human\-like timing and noise.
+.PP
+\fBUsage:\fR sbrs human\-type [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Text to type with humanized timing
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com human\-type \-\-css '#q' \-\-text hello
+.RE
+.SH "SBRS HUMAN-CLICK"
+Click an element with human\-like timing and noise.
+.PP
+\fBUsage:\fR sbrs human\-click [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com human\-click \-\-css a
+.RE
+.SH "SBRS SMOOTH-SCROLL-TO"
+Smoothly scroll an element into view.
+.PP
+\fBUsage:\fR sbrs smooth\-scroll\-to [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com smooth\-scroll\-to \-\-css footer
+.RE
+.SH "SBRS UC-CLICK"
+Perform a UC\-mode click on an element.
+.PP
+\fBUsage:\fR sbrs uc\-click [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-uc \-\-url https://example.com uc\-click \-\-css a
+.RE
+.SH "SBRS UC-TYPE"
+Perform UC\-mode typing into an element.
+.PP
+\fBUsage:\fR sbrs uc\-type [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-css\fR \fI<CSS>\fR
+CSS selector for the target element
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Text to type in UC mode
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-uc \-\-url https://example.com uc\-type \-\-css '#q' \-\-text hello
+.RE
+.SH "SBRS SOLVE-CAPTCHA"
+Solve the CAPTCHA on the page and check that it cleared.
+
+Finds a Turnstile, reCAPTCHA, hCaptcha, Friendly Captcha or DataDome widget (in the page, its shadow roots and readable frames), waits for it to stand still, presses it along a human pointer path and waits for the page to show a result, pressing again up to three times if the page could show one and did not. It then checks what you expect of the page: text of the site's own page and a clearance cookie. Needs `\-\-cdp` or `\-\-uc`.
+.PP
+\fBUsage:\fR sbrs solve\-captcha [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-expect\-text\fR \fI<EXPECT_TEXT>\fR
+Text that must be on the page afterwards (any letter case)
+.TP
+\fB\-\-expect\-cookie\fR \fI<EXPECT_COOKIE>\fR
+Cookie the browser must hold afterwards, such as cf_clearance
+.TP
+\fB\-\-wait\fR \fI<WAIT>\fR
+Seconds to wait for the expected text
+.RS
+\fIDefault: \fR30
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-uc \-\-url https://nowsecure.nl solve\-captcha \-\-expect\-text nowsecure \-\-expect\-cookie cf_clearance
+.RE
+.SH "SBRS INSTALL"
+Download a driver or a browser into ./downloaded_drivers/ (Python's `sbrs get`).
+
+Without a version, chromedriver and edgedriver are the drivers for the installed Chrome and Edge, and geckodriver is the newest release. uc_driver is the chromedriver patched for the UC mode; cft, chs and chromium are browsers, and chromium takes a snapshot \-\-revision instead of a version.
+.PP
+\fBUsage:\fR sbrs install [OPTIONS] <DRIVER> [<VERSION>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-p, \-\-path\fR
+Also copy the driver into the folder named by SB_DRIVER_PATH_DIR (else /usr/local/bin). Never uses sudo and never replaces a symbolic link. Drivers only.
+.TP
+\fB\-\-revision\fR \fI<REVISION>\fR
+The Chromium snapshot to take (chromium only); the newest when left out.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<DRIVER>\fR
+The program: chromedriver, uc_driver, geckodriver (or firefoxdriver), edgedriver (or msedgedriver), or the browsers cft, chs and chromium.
+.TP
+\fB<VERSION>\fR
+A version word (stable, beta, dev, canary, latest, previous, mlatest, browser, keep), a major version, a full build, or for geckodriver a version such as 0.36.0.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs install chromedriver latest
+.RE
+.SH "SBRS TEST"
+Run the project's tests, or one example, through Cargo or cargo\-nextest.
+
+Every option of Python SeleniumBase's pytest plugin is a flag of `test`, in each of its spellings (`\-\-no\-sandbox`, `\-\-no_sandbox`, `\-\-dcsp`): the flags reach the tests as SB_* environment variables, which a test that loads `Settings` reads. The options before the command (`sbrs \-\-headless \-\-browser firefox test`) reach them too, and a flag after it wins. `\-\-plugin` reaches them as SB_PLUGINS, with the plugins the settings file and the variable already turn on; `\-\-plugin\-opt` cannot be passed on, so `sbrs test` refuses it.
+
+`\-k` and `\-m` select tests as pytest does (a marker is a module name), `\-n` sets how many run at once, `\-\-co` lists them, `\-\-pdb`, `\-\-trace` and `\-\-final\-debug` stop in a prompt (one test at a time, output shown), `\-\-reruns N` runs a failing test again, and `\-\-archive\-logs` keeps the old latest_logs folder, which a run otherwise empties. `\-c FILE` (or `\-\-settings\-file`) names the settings file the tests read.
+
+`sbrs test` starts the run of the tests before Cargo and ends it after: `\-\-dashboard` writes dashboard.html (live while the tests run), `\-\-html PATH` and `\-\-junit\-xml PATH` write a report, `\-\-alluredir DIR` Allure results (the tested crate needs the library's `allure` feature), `\-\-show\-report` opens the report in a browser window and waits until it is closed, and `\-\-with\-db\-reporting` records the run in the results database. The exit status is Cargo's, or 1 when a report could not be written. After a plain `cargo test` use `sbrs report finish`.
+.PP
+\fBUsage:\fR sbrs test [OPTIONS] [<FILTER>] [<HARNESS_ARGS>] ...
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-test\fR \fI<NAME>\fR
+Run one integration test file from tests/.
+.TP
+\fB\-\-example\fR \fI<NAME>\fR
+Run one example from examples/ instead of the tests.
+.TP
+\fB\-\-release\fR
+Build with the release profile.
+.TP
+\fB\-\-features\fR \fI<FEATURES>\fR
+Cargo features to enable, separated by commas.
+.TP
+\fB\-k\fR \fI<EXPR>\fR
+Select tests by name, as pytest's \-k: `login or signup`, `not slow`, `(a or b) and not c`.
+.TP
+\fB\-m\fR \fI<EXPR>\fR
+Select tests by marker, as pytest's \-m. A marker is a module name: `\-m smoke` runs the tests in `mod smoke`.
+.TP
+\fB\-n, \-\-threads\fR \fI<N|auto>\fR
+How many tests run at once, as pytest\-xdist's \-n: a number or `auto` (SB_THREADS).
+.TP
+\fB\-s, \-\-no\-capture\fR
+Show what the tests print as they run (pytest's \-s).
+.TP
+\fB\-\-co, \-\-collect\-only\fR
+List the tests that would run and how many (`collected N items`) without running them.
+.TP
+\fB\-\-all\-scripts\fR
+After the tests, run every example of the packages with `cargo run \-\-example`.
+.TP
+\fB\-\-show\-report\fR
+Open the HTML report or the dashboard in a browser window when the tests end, and wait until the window is closed.
+.TP
+\fB\-\-browser\fR \fI<BROWSER>\fR
+The browser to run: chrome, edge, firefox, brave, ... (SB_BROWSER)
+.TP
+\fB\-\-headless\fR \fI<HEADLESS>\fR
+Run without a visible window (Chrome's new headless mode) (SB_HEADLESS)
+.TP
+\fB\-\-binary\-location\fR \fI<PATH>\fR
+The browser binary to run (SB_CHROME_BIN)
+.TP
+\fB\-\-proxy\fR \fI<VALUE>\fR
+The proxy server: HOST:PORT or USER:PASS@HOST:PORT (SB_PROXY)
+.TP
+\fB\-\-user\-data\-dir\fR \fI<DIR>\fR
+The browser profile folder (SB_USER_DATA_DIR)
+.TP
+\fB\-\-extension\-dir\fR \fI<DIR>\fR
+Unpacked extension folders to load, separated by commas (SB_EXTENSION_DIR)
+.TP
+\fB\-\-locale\fR \fI<VALUE>\fR
+The browser locale (SB_LOCALE)
+.TP
+\fB\-\-user\-agent\fR \fI<VALUE>\fR
+The user agent string (SB_USER_AGENT)
+.TP
+\fB\-\-mode\fR \fI<MODE>\fR
+The driver mode: webdriver, cdp or uc (SB_MODE)
+.TP
+\fB\-\-ad\-block\fR \fI<AD_BLOCK>\fR
+Block the requests of ad and tracker hosts (SB_AD_BLOCK)
+.TP
+\fB\-\-reuse\-session\fR \fI<REUSE_SESSION>\fR
+Share browsers among the tests of the run (SB_REUSE_SESSION)
+.TP
+\fB\-\-reuse\-class\-session\fR \fI<REUSE_CLASS_SESSION>\fR
+Share a browser among the tests of one module (SB_REUSE_CLASS_SESSION)
+.TP
+\fB\-\-mobile\fR \fI<MOBILE>\fR
+Emulate a mobile phone (SB_MOBILE)
+.TP
+\fB\-\-proxy\-pac\-url\fR \fI<URL>\fR
+A proxy auto\-config URL (SB_PROXY_PAC_URL)
+.TP
+\fB\-\-esc\-end\fR \fI<ESC_END>\fR
+End the current test when ESC is pressed in the browser (SB_ESC_END)
+.TP
+\fB\-\-rec\-sb\-cdp\fR \fI<REC_SB_CDP>\fR
+Write recordings as pure CDP code (SB_REC_SB_CDP)
+.TP
+\fB\-\-fingerprint\fR \fI<PATH>\fR
+A fingerprint file every browser presents (SB_FINGERPRINT)
+.TP
+\fB\-\-start\-page\fR \fI<URL>\fR
+The page every browser opens first (SB_START_PAGE)
+.TP
+\fB\-\-settings\-file\fR \fI<PATH>\fR
+The settings file to read instead of sbase_config.toml (SB_SETTINGS_FILE)
+.TP
+\fB\-\-chrome\fR \fI<CHROME>\fR
+Run Chrome (SB_BROWSER=chrome)
+.TP
+\fB\-\-edge\fR \fI<EDGE>\fR
+Run Edge (SB_BROWSER=edge)
+.TP
+\fB\-\-firefox\fR \fI<FIREFOX>\fR
+Run Firefox (SB_BROWSER=firefox)
+.TP
+\fB\-\-brave\fR \fI<BRAVE>\fR
+Run Brave (SB_BROWSER=brave)
+.TP
+\fB\-\-comet\fR \fI<COMET>\fR
+Run Comet (SB_BROWSER=comet)
+.TP
+\fB\-\-opera\fR \fI<OPERA>\fR
+Run Opera (SB_BROWSER=opera)
+.TP
+\fB\-\-safari\fR \fI<SAFARI>\fR
+Run Safari (SB_BROWSER=safari)
+.TP
+\fB\-\-ie\fR \fI<IE>\fR
+Run Internet Explorer (SB_BROWSER=ie)
+.TP
+\fB\-\-cft\fR \fI<CFT>\fR
+Run Chrome for Testing (SB_BROWSER=cft)
+.TP
+\fB\-\-chs\fR \fI<CHS>\fR
+Run chrome\-headless\-shell (SB_BROWSER=chs)
+.TP
+\fB\-\-chromium\fR \fI<CHROMIUM>\fR
+Run Chromium (SB_BROWSER=chromium)
+.TP
+\fB\-\-headed\fR \fI<HEADED>\fR
+Run with a visible window (SB_HEADLESS=false)
+.TP
+\fB\-\-uc\fR \fI<UC>\fR
+Run in undetected\-chromedriver mode (SB_MODE=uc)
+.TP
+\fB\-\-headless1\fR \fI<HEADLESS1>\fR
+Run headless with chrome\-headless\-shell (Chrome's old headless mode) (SB_HEADLESS1)
+.TP
+\fB\-\-locale\-code\fR \fI<VALUE>\fR
+The browser language code, such as fr or ar_eg (SB_LOCALE_CODE)
+.TP
+\fB\-\-server\fR \fI<VALUE>\fR
+The Selenium Grid server to connect to (SB_SERVER)
+.TP
+\fB\-\-port\fR \fI<VALUE>\fR
+The port of the Selenium Grid server (SB_PORT)
+.TP
+\fB\-\-protocol\fR \fI<VALUE>\fR
+The protocol of the Selenium Grid server: http or https (SB_PROTOCOL)
+.TP
+\fB\-\-chromium\-arg\fR \fI<VALUE>\fR
+Extra Chromium switches, separated by commas (SB_CHROMIUM_ARG)
+.TP
+\fB\-\-dark\-mode\fR \fI<DARK_MODE>\fR
+Force Chrome's dark theme on web pages (SB_DARK_MODE)
+.TP
+\fB\-\-devtools\fR \fI<DEVTOOLS>\fR
+Open the developer tools with each tab (headed only) (SB_DEVTOOLS)
+.TP
+\fB\-\-disable\-features\fR \fI<VALUE>\fR
+Chromium features to switch off, separated by commas (SB_DISABLE_FEATURES)
+.TP
+\fB\-\-disable\-gpu\fR \fI<DISABLE_GPU>\fR
+Switch the GPU off (SB_DISABLE_GPU)
+.TP
+\fB\-\-disable\-ws\fR \fI<DISABLE_WS>\fR
+Switch web security off (SB_DISABLE_WS)
+.TP
+\fB\-\-guest\-mode\fR \fI<GUEST_MODE>\fR
+Open the browser as a guest (SB_GUEST_MODE)
+.TP
+\fB\-\-incognito\fR \fI<INCOGNITO>\fR
+Open the browser in an incognito window (SB_INCOGNITO)
+.TP
+\fB\-\-host\-resolver\-rules\fR \fI<VALUE>\fR
+Chromium rules that map host names to addresses (SB_HOST_RESOLVER_RULES)
+.TP
+\fB\-\-no\-sandbox\fR \fI<NO_SANDBOX>\fR
+Start Chromium without its sandbox (SB_NO_SANDBOX)
+.TP
+\fB\-\-swiftshader\fR \fI<SWIFTSHADER>\fR
+Render with SwiftShader, a software WebGL renderer (SB_SWIFTSHADER)
+.TP
+\fB\-\-enable\-3d\-apis\fR \fI<ENABLE_3D_APIS>\fR
+Keep the GPU on in a headless session, for WebGL (SB_ENABLE_3D_APIS)
+.TP
+\fB\-\-maximize\fR \fI<MAXIMIZE>\fR
+Maximize the browser window (SB_MAXIMIZE)
+.TP
+\fB\-\-block\-images\fR \fI<BLOCK_IMAGES>\fR
+Do not load images (SB_BLOCK_IMAGES)
+.TP
+\fB\-\-disable\-js\fR \fI<DISABLE_JS>\fR
+Turn JavaScript off (SB_DISABLE_JS)
+.TP
+\fB\-\-disable\-cookies\fR \fI<DISABLE_COOKIES>\fR
+Refuse every cookie (SB_DISABLE_COOKIES)
+.TP
+\fB\-\-do\-not\-track\fR \fI<DO_NOT_TRACK>\fR
+Send the DNT: 1 header (SB_DO_NOT_TRACK)
+.TP
+\fB\-\-external\-pdf\fR \fI<EXTERNAL_PDF>\fR
+Download PDF files instead of showing them (SB_EXTERNAL_PDF)
+.TP
+\fB\-\-enable\-sync\fR \fI<ENABLE_SYNC>\fR
+Leave Chrome Sync on (SB_ENABLE_SYNC)
+.TP
+\fB\-\-disable\-csp\fR \fI<DISABLE_CSP>\fR
+Strip the Content Security Policy from every response (SB_DISABLE_CSP)
+.TP
+\fB\-\-use\-auto\-ext\fR \fI<USE_AUTO_EXT>\fR
+Keep Chrome's automation extension (SB_USE_AUTO_EXT)
+.TP
+\fB\-\-proxy\-driver\fR \fI<PROXY_DRIVER>\fR
+Download the driver through the proxy (SB_PROXY_DRIVER)
+.TP
+\fB\-\-page\-load\-strategy\fR \fI<STRATEGY>\fR
+How long a navigation waits: normal, eager or none (SB_PAGE_LOAD_STRATEGY)
+.TP
+\fB\-\-window\-size\fR \fI<VALUE>\fR
+The window size: WIDTH,HEIGHT (SB_WINDOW_SIZE)
+.TP
+\fB\-\-window\-position\fR \fI<VALUE>\fR
+The window position: X,Y (SB_WINDOW_POSITION)
+.TP
+\fB\-\-device\-metrics\fR \fI<VALUE>\fR
+Emulate a phone screen: WIDTH,HEIGHT,PIXEL_RATIO (SB_DEVICE_METRICS)
+.TP
+\fB\-\-proxy\-bypass\-list\fR \fI<VALUE>\fR
+Hosts that skip the proxy (SB_PROXY_BYPASS_LIST)
+.TP
+\fB\-\-driver\-version\fR \fI<VALUE>\fR
+The driver version: a number, latest, stable, beta, ... (SB_DRIVER_VERSION)
+.TP
+\fB\-\-cap\-file\fR \fI<PATH>\fR
+A JSON file of capabilities to add to the session's (SB_CAP_FILE)
+.TP
+\fB\-\-cap\-string\fR \fI<VALUE>\fR
+A JSON object of capabilities to add to the session's (SB_CAP_STRING)
+.TP
+\fB\-\-extension\-zip\fR \fI<VALUE>\fR
+Extension .zip or .crx files to load, separated by commas (SB_EXTENSION_ZIP)
+.TP
+\fB\-\-firefox\-arg\fR \fI<VALUE>\fR
+Firefox arguments, separated by commas (SB_FIREFOX_ARG)
+.TP
+\fB\-\-firefox\-pref\fR \fI<VALUE>\fR
+Firefox preferences, NAME:VALUE separated by commas (SB_FIREFOX_PREF)
+.TP
+\fB\-\-xvfb\fR \fI<XVFB>\fR
+Open a virtual display for a headed browser on Linux (SB_XVFB)
+.TP
+\fB\-\-xvfb\-metrics\fR \fI<VALUE>\fR
+The virtual display size: WIDTH,HEIGHT (SB_XVFB_METRICS)
+.TP
+\fB\-\-remote\-debug\fR \fI<REMOTE_DEBUG>\fR
+Open Chrome's remote debugger on port 9222 (SB_REMOTE_DEBUG)
+.TP
+\fB\-\-log\-cdp\-events\fR \fI<LOG_CDP_EVENTS>\fR
+Log the DevTools Protocol events (SB_LOG_CDP_EVENTS)
+.TP
+\fB\-\-uc\-cdp\-events\fR \fI<UC_CDP_EVENTS>\fR
+Log the DevTools Protocol events in undetected mode (SB_UC_CDP_EVENTS)
+.TP
+\fB\-\-demo\fR \fI<DEMO>\fR
+Highlight each element and pause after an action (SB_DEMO)
+.TP
+\fB\-\-slow\fR \fI<SLOW>\fR
+Pause briefly after each action (SB_SLOW)
+.TP
+\fB\-\-demo\-sleep\fR \fI<SECONDS>\fR
+Seconds to pause after each action in demo mode (SB_DEMO_SLEEP)
+.TP
+\fB\-\-message\-duration\fR \fI<SECONDS>\fR
+Seconds a message stays on the page (SB_MESSAGE_DURATION)
+.TP
+\fB\-\-skip\-js\-waits\fR \fI<SKIP_JS_WAITS>\fR
+Do not wait for the page's JavaScript to settle (SB_SKIP_JS_WAITS)
+.TP
+\fB\-\-highlights\fR \fI<COUNT>\fR
+How many times to flash a highlighted element (SB_HIGHLIGHTS)
+.TP
+\fB\-\-interval\fR \fI<SECONDS>\fR
+Seconds between the steps of a tour or presentation (SB_INTERVAL)
+.TP
+\fB\-\-verify\-delay\fR \fI<SECONDS>\fR
+Seconds to wait before each MasterQA verification (SB_VERIFY_DELAY)
+.TP
+\fB\-\-check\-js\fR \fI<CHECK_JS>\fR
+Check each page for JavaScript errors after it opens (SB_CHECK_JS)
+.TP
+\fB\-\-wait\-for\-angularjs\fR \fI<WAIT_FOR_ANGULARJS>\fR
+Wait for AngularJS after opening a page and clicking (SB_WAIT_FOR_ANGULARJS)
+.TP
+\fB\-\-disable\-beforeunload\fR \fI<DISABLE_BEFOREUNLOAD>\fR
+Remove the beforeunload prompt after each page opens (SB_DISABLE_BEFOREUNLOAD)
+.TP
+\fB\-\-visual\-baseline\fR \fI<VISUAL_BASELINE>\fR
+Set the visual baselines again instead of comparing (SB_VISUAL_BASELINE)
+.TP
+\fB\-\-crumbs\fR \fI<CRUMBS>\fR
+Delete the cookies when a reused browser is handed to the next test (SB_CRUMBS)
+.TP
+\fB\-\-timeout\-multiplier\fR \fI<VALUE>\fR
+Multiply the default waits by this number (SB_TIMEOUT_MULTIPLIER)
+.TP
+\fB\-\-rec\-sleep\fR \fI<REC_SLEEP>\fR
+Keep the sleeps of a recording (SB_REC_SLEEP)
+.TP
+\fB\-\-env\fR \fI<ENV>\fR
+The environment the tests run against: qa, staging, production, ... (SB_ENV)
+.TP
+\fB\-\-account\fR \fI<VALUE>\fR
+A free account name for the tests (SB_ACCOUNT)
+.TP
+\fB\-\-data\fR \fI<VALUE>\fR
+Free test data (SB_DATA)
+.TP
+\fB\-\-var1\fR \fI<VALUE>\fR
+A free variable for the tests (SB_VAR1)
+.TP
+\fB\-\-var2\fR \fI<VALUE>\fR
+A free variable for the tests (SB_VAR2)
+.TP
+\fB\-\-var3\fR \fI<VALUE>\fR
+A free variable for the tests (SB_VAR3)
+.TP
+\fB\-\-variables\fR \fI<VALUE>\fR
+A dictionary of values: JSON or a Python dictionary literal (SB_VARIABLES)
+.TP
+\fB\-\-pdb\fR \fI<PDB>\fR
+Stop in a post\-mortem prompt when a test fails (SB_PDB)
+.TP
+\fB\-\-trace\fR \fI<TRACE>\fR
+Stop in a prompt before each test's body (SB_TRACE)
+.TP
+\fB\-\-final\-debug\fR \fI<FINAL_DEBUG>\fR
+Stop in a prompt after each test, before the browser quits (SB_FINAL_DEBUG)
+.TP
+\fB\-\-reruns\fR \fI<COUNT>\fR
+Run a failing test again this many times (SB_RERUNS)
+.TP
+\fB\-\-reruns\-delay\fR \fI<SECONDS>\fR
+Seconds to wait between reruns (SB_RERUNS_DELAY)
+.TP
+\fB\-\-time\-limit\fR \fI<SECONDS>\fR
+Fail a test that runs longer than this many seconds (SB_TIME_LIMIT)
+.TP
+\fB\-\-runner\fR \fI<RUNNER>\fR
+The test runner: cargo or nextest (SB_TEST_RUNNER)
+.TP
+\fB\-\-screenshot\fR \fI<SCREENSHOT>\fR
+Save a screenshot of passing tests too (SB_SAVE_SCREENSHOT)
+.TP
+\fB\-\-no\-screenshot\fR \fI<NO_SCREENSHOT>\fR
+Save no screenshot of failing tests (SB_NO_SCREENSHOT)
+.TP
+\fB\-\-list\-fail\-page\fR \fI<LIST_FAIL_PAGE>\fR
+Print the URL of the page a failing test ended on (SB_LIST_FAIL_PAGE)
+.TP
+\fB\-\-archive\-logs\fR \fI<ARCHIVE_LOGS>\fR
+Keep the old latest_logs folder in archived_logs (SB_ARCHIVE_LOGS)
+.TP
+\fB\-\-archive\-downloads\fR \fI<ARCHIVE_DOWNLOADS>\fR
+Keep the old downloaded_files folder in archived_files (SB_ARCHIVE_DOWNLOADS)
+.TP
+\fB\-\-dashboard\fR \fI<DASHBOARD>\fR
+Write the results dashboard (SB_DASHBOARD)
+.TP
+\fB\-\-dash\-title\fR \fI<VALUE>\fR
+The dashboard's title (SB_DASH_TITLE)
+.TP
+\fB\-\-html\fR \fI<PATH>\fR
+Write an HTML report to this file (SB_HTML)
+.TP
+\fB\-\-junit\-xml\fR \fI<PATH>\fR
+Write a JUnit XML report to this file (SB_JUNIT_XML)
+.TP
+\fB\-\-alluredir\fR \fI<PATH>\fR
+Write Allure results to this folder (SB_ALLURE_DIR)
+.TP
+\fB\-\-with\-db\-reporting\fR \fI<WITH_DB_REPORTING>\fR
+Record each test's outcome in the results database (SB_WITH_DB_REPORTING)
+.TP
+\fB\-\-database\-env\fR \fI<VALUE>\fR
+Which results database to use (SB_DATABASE_ENV)
+.TP
+\fB\-\-with\-s3\-logging\fR \fI<WITH_S3_LOGGING>\fR
+Upload each test's logs to S3 (SB_WITH_S3_LOGGING)
+.TP
+\fB\-\-rec\fR \fI<REC>\fR
+Record the browser actions as a test (SB_RECORDER)
+.TP
+\fB\-\-rec\-behave\fR \fI<REC_BEHAVE>\fR
+Also write the recording as a Gherkin feature (SB_REC_BEHAVE)
+.TP
+\fB\-\-rec\-print\fR \fI<REC_PRINT>\fR
+Print the recording when the test ends (SB_REC_PRINT)
+.TP
+\fB\-\-rec\-sb\-mgr\fR \fI<REC_SB_MGR>\fR
+Write the recording as a script (SB_REC_SB_MGR)
+.TP
+\fB\-\-with\-testing\-base\fR \fI<WITH_TESTING_BASE>\fR
+Accepted and ignored
+.TP
+\fB\-\-with\-basic\-test\-info\fR \fI<WITH_BASIC_TEST_INFO>\fR
+Accepted and ignored
+.TP
+\fB\-\-with\-page\-source\fR \fI<WITH_PAGE_SOURCE>\fR
+Accepted and ignored
+.TP
+\fB\-\-with\-screen\-shots\fR \fI<WITH_SCREEN_SHOTS>\fR
+Accepted and ignored
+.TP
+\fB\-\-log\-path\fR \fI<LOG_PATH>\fR
+Accepted and ignored
+.TP
+\fB\-\-with\-selenium\fR \fI<WITH_SELENIUM>\fR
+Accepted and ignored
+.TP
+\fB\-\-is\-pytest\fR \fI<IS_PYTEST>\fR
+Accepted and ignored
+.TP
+\fB\-\-uc\-sub\fR \fI<UC_SUB>\fR
+Accepted and ignored
+.TP
+\fB\-\-enable\-ws\fR \fI<ENABLE_WS>\fR
+Accepted and ignored
+.TP
+\fB\-\-fast\fR \fI<FAST>\fR
+Accepted and ignored
+.TP
+\fB\-\-multi\-proxy\fR \fI<MULTI_PROXY>\fR
+Accepted and ignored
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILTER>\fR
+Run only the tests whose name contains this text.
+.TP
+\fB<HARNESS_ARGS>\fR
+Arguments for the test harness, after `\-\-` (for example \-\-exact).
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs test login
+.RE
+.PP
+.PP
+.RS 4
+sbrs test \-k 'login and not slow' \-\-runner nextest \-\-headless \-\-browser firefox
+.RE
+.SH "SBRS BEHAVE-OPTIONS"
+Print how Python SeleniumBase's behave options map to `sbrs test`.
+.PP
+\fBUsage:\fR sbrs behave\-options [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs behave\-options
+.RE
+.SH "SBRS OPTIONS"
+List the browser options: each flag, its `SB_*` variable and its key in the settings file.
+
+The same options can be set in the settings file, in the environment and with these flags; the command line wins over the environment, which wins over the file. `\-\-env` lists the environment variables instead, those of `sbrs\-mcp` too. `\-\-markdown` prints the table for the documentation, and `\-\-all` adds the options of the test run (`sbrs test`).
+.PP
+\fBUsage:\fR sbrs options [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-markdown\fR
+Print a Markdown table, for the documentation.
+.TP
+\fB\-\-all\fR
+Also list the options of the test run (`sbrs test`).
+.TP
+\fB\-\-env\fR
+List the environment variables `sbrs` and `sbrs\-mcp` read instead of the options.
+
+One line for each variable: who reads it, the flag that sets the same thing, what it is when it is not set, and what it sets. `\-\-markdown` prints the table for the documentation. The table is made from the option table and the list of the other variables, so it names every variable the command lines read.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs options
+.RE
+.PP
+.PP
+.RS 4
+sbrs options \-\-markdown
+.RE
+.SH "SBRS METHODS"
+List the common methods of the test API, as they are called on `sb`.
+
+Python SeleniumBase's `sbase methods` in Rust spelling: the methods most tests use (`sb.open(url)`, `sb.click(selector)`, `sb.assert_text(text, selector)`, ...), each with what it does. The whole API is in `cargo doc \-\-open`, and docs/parity.md maps Python's names to it.
+.PP
+\fBUsage:\fR sbrs methods [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs methods
+.RE
+.SH "SBRS GRID-HUB"
+Start, stop, restart or check a Selenium Grid hub.
+
+Needs a Selenium Server jar: \-\-jar, SB_SELENIUM_SERVER_JAR, or the newest one in downloaded_drivers/ (`sbrs download server` saves one there). This command downloads nothing. The process record and log are kept in a folder of your own (SB_GRID_DIR).
+.PP
+\fBUsage:\fR sbrs grid\-hub [OPTIONS] <ACTION> [<EXTRA_ARGS>] ...
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-jar\fR \fI<PATH>\fR
+The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it.
+.TP
+\fB\-\-java\fR \fI<PATH>\fR
+The Java executable (default: `java` on PATH).
+.TP
+\fB\-\-grid\-host\fR \fI<HOST>\fR
+The address to listen on.
+.TP
+\fB\-\-grid\-port\fR \fI<PORT>\fR
+The port to listen on (default: 4444 for a hub, 5555 for a node).
+.TP
+\fB\-\-hub\fR \fI<HOST_OR_URL>\fR
+For a node, the hub to register with: a host or a URL.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Close sessions that have been idle this many seconds.
+.TP
+\fB\-\-wait\fR \fI<SECONDS>\fR
+How many seconds `start` waits for the Grid to become ready.
+.RS
+\fIDefault: \fR60
+.RE
+.TP
+\fB\-v, \-\-verbose\fR
+Log at INFO instead of WARNING.
+.TP
+\fB\-\-skip\-port\-check\fR
+Start even if something already accepts connections on the port.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<ACTION>\fR
+What to do with the Grid process.
+.TP
+\fB<EXTRA_ARGS>\fR
+More arguments for the Selenium Server, after `\-\-`.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs grid\-hub start
+.RE
+.PP
+.PP
+.RS 4
+sbrs grid_hub start \-v \-\-timeout 120
+.RE
+.SH "SBRS GRID-NODE"
+Start, stop, restart or check a Selenium Grid node.
+
+A node registers with the hub named by `\-\-hub`, or with this machine's.
+.PP
+\fBUsage:\fR sbrs grid\-node [OPTIONS] <ACTION> [<EXTRA_ARGS>] ...
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-jar\fR \fI<PATH>\fR
+The Selenium Server jar (default: SB_SELENIUM_SERVER_JAR, else the newest in downloaded_drivers/). This command never downloads it.
+.TP
+\fB\-\-java\fR \fI<PATH>\fR
+The Java executable (default: `java` on PATH).
+.TP
+\fB\-\-grid\-host\fR \fI<HOST>\fR
+The address to listen on.
+.TP
+\fB\-\-grid\-port\fR \fI<PORT>\fR
+The port to listen on (default: 4444 for a hub, 5555 for a node).
+.TP
+\fB\-\-hub\fR \fI<HOST_OR_URL>\fR
+For a node, the hub to register with: a host or a URL.
+.TP
+\fB\-\-timeout\fR \fI<SECONDS>\fR
+Close sessions that have been idle this many seconds.
+.TP
+\fB\-\-wait\fR \fI<SECONDS>\fR
+How many seconds `start` waits for the Grid to become ready.
+.RS
+\fIDefault: \fR60
+.RE
+.TP
+\fB\-v, \-\-verbose\fR
+Log at INFO instead of WARNING.
+.TP
+\fB\-\-skip\-port\-check\fR
+Start even if something already accepts connections on the port.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<ACTION>\fR
+What to do with the Grid process.
+.TP
+\fB<EXTRA_ARGS>\fR
+More arguments for the Selenium Server, after `\-\-`.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs grid\-node start
+.RE
+.PP
+.PP
+.RS 4
+sbrs grid\-node start \-\-hub 127.0.0.1
+.RE
+.SH "SBRS TRANSLATE"
+Write the actions of a JSON scenario in another language.
+
+Rewrites each step's `action` (`click`, `open`, ...) with the translation dictionary and changes nothing else in the file; the steps keep running, because a scenario can be read in any of the languages. Python SeleniumBase translates Python test files; a Rust test is compiled code, so this translates the portable JSON scenario instead.
+
+The language is a flag, `\-\-en`, `\-\-zh`, `\-\-nl`, `\-\-fr`, `\-\-it`, `\-\-ja`, `\-\-ko`, `\-\-pt`, `\-\-ru` or `\-\-es` (also by name: `\-\-spanish`). The action is `\-p`/`\-\-print` (the default), `\-o`/`\-\-overwrite` or `\-c`/`\-\-copy`; `\-p` may go with one of the other two. `\-n` numbers the printed lines.
+.PP
+\fBUsage:\fR sbrs translate [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-en\fR
+English strings
+.TP
+\fB\-\-english\fR
+.TP
+\fB\-\-English\fR
+.TP
+\fB\-\-zh\fR
+Chinese strings
+.TP
+\fB\-\-chinese\fR
+.TP
+\fB\-\-Chinese\fR
+.TP
+\fB\-\-nl\fR
+Dutch strings
+.TP
+\fB\-\-dutch\fR
+.TP
+\fB\-\-Dutch\fR
+.TP
+\fB\-\-fr\fR
+French strings
+.TP
+\fB\-\-french\fR
+.TP
+\fB\-\-French\fR
+.TP
+\fB\-\-it\fR
+Italian strings
+.TP
+\fB\-\-italian\fR
+.TP
+\fB\-\-Italian\fR
+.TP
+\fB\-\-ja\fR
+Japanese strings
+.TP
+\fB\-\-japanese\fR
+.TP
+\fB\-\-Japanese\fR
+.TP
+\fB\-\-ko\fR
+Korean strings
+.TP
+\fB\-\-korean\fR
+.TP
+\fB\-\-Korean\fR
+.TP
+\fB\-\-pt\fR
+Portuguese strings
+.TP
+\fB\-\-portuguese\fR
+.TP
+\fB\-\-Portuguese\fR
+.TP
+\fB\-\-ru\fR
+Russian strings
+.TP
+\fB\-\-russian\fR
+.TP
+\fB\-\-Russian\fR
+.TP
+\fB\-\-es\fR
+Spanish strings
+.TP
+\fB\-\-spanish\fR
+.TP
+\fB\-\-Spanish\fR
+.TP
+\fB\-p, \-\-print\fR
+Print the translation (the default when no other action is given). With \-o or \-c it is printed as well as written.
+.TP
+\fB\-o, \-\-overwrite\fR
+Replace the file with the translation.
+.TP
+\fB\-c, \-\-copy\fR
+Write the translation to a new file next to it, such as `login_es.json`.
+.TP
+\fB\-n, \-\-line\-numbers\fR
+Put the line number in front of every printed line.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The scenario file.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs translate scenario.json \-\-zh \-p \-n
+.RE
+.PP
+.PP
+.RS 4
+sbrs translate scenario.json \-\-es \-\-copy
+.RE
+.SH "SBRS MKDIR"
+Create a folder with a runnable browser\-test suite.
+
+Names are relative to the current directory and use letters, digits, `_`, `\-` and `.`, with `/` between folders. Nothing is overwritten unless `\-\-force` is given.
+
+The folder is one Cargo test target (`tests/<folder>/main.rs`) with example tests that use the rstest `sb` fixture, a parameterized test and a pure CDP test. `\-\-bdd` adds a Gherkin scenario that runs on the built\-in steps, and `\-\-gha` a GitHub Actions workflow in `.github/workflows/` of the current folder.
+.PP
+\fBUsage:\fR sbrs mkdir [OPTIONS] <DIR>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-b, \-\-basic\fR
+Create only the scaffolding, with no example tests.
+.TP
+\fB\-\-gha\fR
+Also write a GitHub Actions workflow, .github/workflows/sbrs\-tests.yml, here.
+.TP
+\fB\-\-bdd\fR
+Also write a Gherkin scenario that runs on the built\-in steps (needs the bdd feature).
+.TP
+\fB\-\-force\fR
+Replace generated files that already exist.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<DIR>\fR
+Folder to create, for example `tests/ui`.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs mkdir ui_tests
+.RE
+.SH "SBRS MKFILE"
+Create a browser\-test file.
+
+The name follows the same rules as `mkdir`; `.rs` is added when missing. An existing file is never overwritten unless `\-\-force` is given.
+
+The test uses the rstest `sb` fixture unless a syntax flag says otherwise: `\-\-pf` (the default), `\-\-bc` (a BaseCase made and quit by hand), `\-\-cm` (the run_browser_test closure), `\-\-dc` (the pure CDP `sb_cdp` fixture) or `\-\-dm` (a pure CDP browser launched by hand). A language flag (`\-\-en`, `\-\-zh`, `\-\-nl`, `\-\-fr`, `\-\-it`, `\-\-ja`, `\-\-ko`, `\-\-pt`, `\-\-ru`, `\-\-es`) localises the strings it types and expects. `\-\-rec` adds a recorder breakpoint for Recorder Mode, and `\-\-uc` and `\-\-cdp` write a basic test for UC Mode and for pure CDP.
+.PP
+\fBUsage:\fR sbrs mkfile [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-url\fR \fI<URL>\fR
+Page the test opens (default: https://example.com). A bare host such as wikipedia.org gets https://; the test is then the basic one.
+.TP
+\fB\-b, \-\-basic\fR
+Leave the test body empty: it only opens the page.
+.TP
+\fB\-r, \-\-rec\fR
+Add a recorder breakpoint for Recorder Mode (also \-\-record, \-\-recorder).
+.TP
+\fB\-\-uc\fR
+UC Mode: the run_browser_test closure with the UC driver, a basic body and English.
+.TP
+\fB\-\-cdp\fR
+Pure CDP: the sb_cdp fixture, a basic body and English.
+.TP
+\fB\-\-force\fR
+Replace the file if it already exists.
+.TP
+\fB\-\-en\fR
+English strings
+.TP
+\fB\-\-english\fR
+.TP
+\fB\-\-English\fR
+.TP
+\fB\-\-zh\fR
+Chinese strings
+.TP
+\fB\-\-chinese\fR
+.TP
+\fB\-\-Chinese\fR
+.TP
+\fB\-\-nl\fR
+Dutch strings
+.TP
+\fB\-\-dutch\fR
+.TP
+\fB\-\-Dutch\fR
+.TP
+\fB\-\-fr\fR
+French strings
+.TP
+\fB\-\-french\fR
+.TP
+\fB\-\-French\fR
+.TP
+\fB\-\-it\fR
+Italian strings
+.TP
+\fB\-\-italian\fR
+.TP
+\fB\-\-Italian\fR
+.TP
+\fB\-\-ja\fR
+Japanese strings
+.TP
+\fB\-\-japanese\fR
+.TP
+\fB\-\-Japanese\fR
+.TP
+\fB\-\-ko\fR
+Korean strings
+.TP
+\fB\-\-korean\fR
+.TP
+\fB\-\-Korean\fR
+.TP
+\fB\-\-pt\fR
+Portuguese strings
+.TP
+\fB\-\-portuguese\fR
+.TP
+\fB\-\-Portuguese\fR
+.TP
+\fB\-\-ru\fR
+Russian strings
+.TP
+\fB\-\-russian\fR
+.TP
+\fB\-\-Russian\fR
+.TP
+\fB\-\-es\fR
+Spanish strings
+.TP
+\fB\-\-spanish\fR
+.TP
+\fB\-\-Spanish\fR
+.TP
+\fB\-\-pf\fR
+The rstest `sb` fixture (the default)
+.TP
+\fB\-\-pytest\-fixture\fR
+.TP
+\fB\-\-bc\fR
+The BaseCase made and quit by hand
+.TP
+\fB\-\-basecase\fR
+.TP
+\fB\-\-cm\fR
+A closure run by run_browser_test
+.TP
+\fB\-\-context\-manager\fR
+.TP
+\fB\-\-dc\fR
+The pure CDP `sb_cdp` fixture
+.TP
+\fB\-\-driver\-context\fR
+.TP
+\fB\-\-dm\fR
+A pure CDP browser launched and closed by hand
+.TP
+\fB\-\-driver\-manager\fR
+.TP
+\fB\-\-cf\fR
+Not ported: class fixtures have no Rust form (use \-\-pf)
+.TP
+\fB\-\-class\-fixture\fR
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+File to create, for example `tests/login.rs`.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs mkfile tests/login.rs
+.RE
+.SH "SBRS COMMANDER"
+Launch the Commander, a terminal app (needs a build with the `tui` feature).
+
+Lists the tests and examples under PATH and runs the one you pick with `cargo test \-\-test NAME` or `cargo run \-\-example NAME`, then shows the end of the output. PATH is a project folder, a folder of test files or one test file; by default the `tests/` and `examples/` folders of the current folder. `\-k FILTER` starts with the list narrowed to the names that contain FILTER, as `/` does in the app.
+
+Python's `gui` is the same command, and its window is a terminal app here.
+.PP
+\fBUsage:\fR sbrs commander [OPTIONS] [<PATH>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-k\fR \fI<FILTER>\fR
+Start with the list narrowed to the names that contain FILTER.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<PATH>\fR
+A project folder, a folder of test files, or one test file.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs commander
+.RE
+.PP
+.PP
+.RS 4
+sbrs gui tests \-k login
+.RE
+.SH "SBRS CASEPLANS"
+Launch the Case Plans Generator, a terminal app (needs a build with the `tui` feature).
+
+Lists the tests under PATH and creates, edits and saves a case plan for each, `case_plans/<test>.md` next to its file, and writes a summary of the plans to `case_summary.md`. PATH is a folder of tests or one test file; by default the `tests/` and `examples/` folders of the current folder. `\-k FILTER` starts with the list narrowed to the tests whose id contains FILTER, as `/` does in the app.
+
+The Python command opens a Tkinter window; this one runs in the terminal.
+.PP
+\fBUsage:\fR sbrs caseplans [OPTIONS] [<PATH>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-k\fR \fI<FILTER>\fR
+Start with the list narrowed to the tests whose id contains FILTER.
+.TP
+\fB\-\-starter\fR
+Write the starter checklist `CASE_PLANS.md` instead; this needs no `tui` feature.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<PATH>\fR
+A folder of tests, or one test file.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs caseplans \-\-starter
+.RE
+.PP
+.PP
+.RS 4
+sbrs case_plans tests \-k login
+.RE
+.SH "SBRS BEHAVE-GUI"
+Launch the Behave Commander, a terminal app (needs a build with the `tui` feature).
+
+Lists the `.feature` files under PATH with their scenarios, runs the ones you mark with `cargo test` and shows the results. PATH is a folder of feature files or one file; by default `features`.
+
+A scenario is matched to the test your project binds to it with rstest\-bdd: one with no test named after it is reported as undefined. The Python command opens a Tkinter window; this one runs in the terminal.
+.PP
+\fBUsage:\fR sbrs behave\-gui [OPTIONS] [<PATH>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-new\fR
+Prompt for a name, a title and scenarios and write a new feature file instead; this needs no `tui` feature.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<PATH>\fR
+A folder of feature files, or one `.feature` file.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs behave\-gui features
+.RE
+.SH "SBRS PRINT"
+Print a file, with a line number in front of every line if you ask for it.
+
+The text is shown as it is: there is no syntax highlighting (Python's `sbase print` has it), and bytes that are not UTF\-8 are shown as U+FFFD.
+.PP
+\fBUsage:\fR sbrs print [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-n, \-\-line\-numbers\fR
+Put the line number in front of every line.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+File to print.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs print tests/login.rs \-n
+.RE
+.SH "SBRS EXTRACT-OBJECTS"
+Move the selectors of a Rust test into page objects in `page_objects.rs`.
+
+Python's `sbase extract\-objects`, for a Rust test. FILE is read for the string literals that are the selector of a call (`sb.click("#go")`, `sb.type_text("#user", "ada")`, `sb.assert_text("Hi", "h1")`, `sb.drag_and_drop(".a", ".b")`; `sbrs methods` lists the common calls), and each one becomes a constant of a module of `page_objects.rs` in the folder of FILE: one module for each page that the test opens, named with the words of its URL (`pub mod example_com_login`, and `page` before any `open`), one constant for each selector, named with the words of the selector (`pub const USER: &str = "#user";`, `_2` after a name that is taken). A `page_objects.rs` that is there is added to; one that `sbrs` did not write is refused. FILE is not changed: `inject\-objects` does that.
+.PP
+\fBUsage:\fR sbrs extract\-objects [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The Rust test file whose selectors become page objects.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs extract\-objects tests/login.rs
+.RE
+.SH "SBRS INJECT-OBJECTS"
+Replace the selectors of a Rust test with the page objects of `page_objects.rs`.
+
+Python's `sbase inject\-objects`, for a Rust test. Every selector of FILE that has a page object (made by `extract\-objects`) is written as `page_objects::<page>::NAME`, and `mod page_objects;` is declared above the first item of the file. A selector that has no page object stays as it is. With `\-c`, the selector is added as a comment at the end of each line that changed, as `// "#user"`.
+.PP
+\fBUsage:\fR sbrs inject\-objects [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-c, \-\-comments\fR
+Add the selector as a comment, such as `// "#user"`, at the end of each line it replaced.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The Rust test file whose selectors are replaced by page objects.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs inject\-objects tests/login.rs \-c
+.RE
+.SH "SBRS REVERT-OBJECTS"
+Put the selectors back where a Rust test uses page objects.
+
+Python's `sbase revert\-objects`, for a Rust test: the undo of `inject\-objects`. Every `page_objects::<page>::NAME` of FILE is replaced by the selector it stands for, and the `mod page_objects;` line goes when the file uses no page object any more. Extract, inject and revert give the original file back byte for byte. With `\-c` the comments that `inject\-objects \-c` appended are taken off as well (Python's `\-c` keeps them); without it they stay. `page_objects.rs` is kept.
+.PP
+\fBUsage:\fR sbrs revert\-objects [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-c, \-\-comments\fR
+Also take off the comments that `inject\-objects \-c` appended to the lines it changed.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The Rust test file whose page objects are replaced by their selectors.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs revert\-objects tests/login.rs \-c
+.RE
+.SH "SBRS OBJECTIFY"
+Turn the selectors of a Rust test into page objects: extract\-objects, then inject\-objects.
+
+Python's `sbase objectify`, for a Rust test: FILE is read as `extract\-objects` reads it, the page objects are written to `page_objects.rs` next to it, and the selectors of FILE are replaced by them as `inject\-objects` does (`\-c` adds the selector as a comment to each line that changes). `revert\-objects` undoes it. This replaces the starter `page_object.rs` that `sbrs objectify` used to write.
+.PP
+\fBUsage:\fR sbrs objectify [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-c, \-\-comments\fR
+Add the selector as a comment, such as `// "#user"`, at the end of each line it replaced.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The Rust test file whose selectors are replaced by page objects.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs objectify tests/login.rs \-c
+.RE
+.SH "SBRS MKPRES"
+Create a test that builds a slide deck.
+
+The name follows the same rules as `mkfile`; `.rs` is added when missing. The test uses the rstest `sb` fixture and builds three slides with `create_presentation`, `add_slide` and `begin_presentation` (theme `serif`, transition `slide`). A language flag (`\-\-en`, `\-\-zh`, `\-\-nl`, `\-\-fr`, `\-\-it`, `\-\-ja`, `\-\-ko`, `\-\-pt`, `\-\-ru`, `\-\-es`) writes the text of the slides in that language. An existing file is never overwritten unless `\-\-force` is given.
+.PP
+\fBUsage:\fR sbrs mkpres [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-force\fR
+Replace the file if it already exists.
+.TP
+\fB\-\-en\fR
+English strings
+.TP
+\fB\-\-english\fR
+.TP
+\fB\-\-English\fR
+.TP
+\fB\-\-zh\fR
+Chinese strings
+.TP
+\fB\-\-chinese\fR
+.TP
+\fB\-\-Chinese\fR
+.TP
+\fB\-\-nl\fR
+Dutch strings
+.TP
+\fB\-\-dutch\fR
+.TP
+\fB\-\-Dutch\fR
+.TP
+\fB\-\-fr\fR
+French strings
+.TP
+\fB\-\-french\fR
+.TP
+\fB\-\-French\fR
+.TP
+\fB\-\-it\fR
+Italian strings
+.TP
+\fB\-\-italian\fR
+.TP
+\fB\-\-Italian\fR
+.TP
+\fB\-\-ja\fR
+Japanese strings
+.TP
+\fB\-\-japanese\fR
+.TP
+\fB\-\-Japanese\fR
+.TP
+\fB\-\-ko\fR
+Korean strings
+.TP
+\fB\-\-korean\fR
+.TP
+\fB\-\-Korean\fR
+.TP
+\fB\-\-pt\fR
+Portuguese strings
+.TP
+\fB\-\-portuguese\fR
+.TP
+\fB\-\-Portuguese\fR
+.TP
+\fB\-\-ru\fR
+Russian strings
+.TP
+\fB\-\-russian\fR
+.TP
+\fB\-\-Russian\fR
+.TP
+\fB\-\-es\fR
+Spanish strings
+.TP
+\fB\-\-spanish\fR
+.TP
+\fB\-\-Spanish\fR
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+File to create, for example `tests/deck.rs`.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs mkpres tests/deck.rs \-\-es
+.RE
+.SH "SBRS MKCHART"
+Create a test that shows a chart on a slide.
+
+As `mkpres`, with a pie chart made by `create_pie_chart` and `add_data_point` and put on a slide with `extract_chart` (theme `sky`, transition `slide`).
+.PP
+\fBUsage:\fR sbrs mkchart [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-force\fR
+Replace the file if it already exists.
+.TP
+\fB\-\-en\fR
+English strings
+.TP
+\fB\-\-english\fR
+.TP
+\fB\-\-English\fR
+.TP
+\fB\-\-zh\fR
+Chinese strings
+.TP
+\fB\-\-chinese\fR
+.TP
+\fB\-\-Chinese\fR
+.TP
+\fB\-\-nl\fR
+Dutch strings
+.TP
+\fB\-\-dutch\fR
+.TP
+\fB\-\-Dutch\fR
+.TP
+\fB\-\-fr\fR
+French strings
+.TP
+\fB\-\-french\fR
+.TP
+\fB\-\-French\fR
+.TP
+\fB\-\-it\fR
+Italian strings
+.TP
+\fB\-\-italian\fR
+.TP
+\fB\-\-Italian\fR
+.TP
+\fB\-\-ja\fR
+Japanese strings
+.TP
+\fB\-\-japanese\fR
+.TP
+\fB\-\-Japanese\fR
+.TP
+\fB\-\-ko\fR
+Korean strings
+.TP
+\fB\-\-korean\fR
+.TP
+\fB\-\-Korean\fR
+.TP
+\fB\-\-pt\fR
+Portuguese strings
+.TP
+\fB\-\-portuguese\fR
+.TP
+\fB\-\-Portuguese\fR
+.TP
+\fB\-\-ru\fR
+Russian strings
+.TP
+\fB\-\-russian\fR
+.TP
+\fB\-\-Russian\fR
+.TP
+\fB\-\-es\fR
+Spanish strings
+.TP
+\fB\-\-spanish\fR
+.TP
+\fB\-\-Spanish\fR
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+File to create, for example `tests/chart.rs`.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs mkchart tests/chart.rs \-\-ja
+.RE
+.SH "SBRS CONVERT"
+Convert an exported Selenium WebDriver test (Python) into a Rust test.
+
+Python's `sbase convert` for a Selenium IDE or Katalon Recorder export: reads FILE.py as Selenium WebDriver code and writes FILE_SB.rs next to it. The original is kept, and an existing FILE_SB.rs is never replaced unless `\-\-force` is given. What could not be converted stays as a `TODO` in the file and is listed on standard error; if a statement could not be read at all the exit status is 1. `import\-python` converts any Python source and writes where you say.
+.PP
+\fBUsage:\fR sbrs convert [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-force\fR
+Replace the converted file if it already exists.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The exported Selenium WebDriver test (a Selenium IDE or Katalon Recorder export).
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs convert login.py
+.RE
+.SH "SBRS MKREC"
+Create a new test file with the Recorder: record your actions in a browser, then save them as a test.
+
+Python's `sbase mkrec` (also `codegen` and `record`). Starts a browser in Recorder Mode, opening \-\-url first when it is given, and waits: type `c` and press Enter at the prompt, or press SHIFT+ESC in the browser with \-\-ee. The recording is written to `recordings/NAME_rec.rs` and `recordings/NAME_rec.json`, shown, and copied to FILE.
+.PP
+\fBUsage:\fR sbrs mkrec [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-overwrite\fR
+Overwrite the file when it exists
+.TP
+\fB\-\-behave, \-\-gherkin\fR
+Also write the recording as a Gherkin feature (same as \-\-rec\-behave)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The test file to create (FILE.rs)
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs mkrec new_test.rs \-\-url seleniumbase.io/demo_page
+.RE
+.SH "SBRS RECORDER"
+Launch the Recorder, a terminal app (needs a build with the `tui` feature).
+
+A form for the file name, the start page, the browser and the output format, and three actions. Record hands the terminal to `sbrs mkrec` and takes it back when the recording is over; Run starts the recorded test (`cargo test \-\-test NAME`); Replay runs `recordings/NAME_rec.json` in a fresh browser (`sbrs replay`). `\-\-url`, `\-\-browser`, `\-\-uc`, `\-\-cdp`, `\-\-ee`, `\-\-rec\-behave`, `\-\-rec\-sb\-mgr` and `\-\-rec\-sb\-cdp` fill the form in when the app starts.
+
+Python's `sbase recorder` opens a Tkinter window; this one runs in the terminal.
+.PP
+\fBUsage:\fR sbrs recorder [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs recorder
+.RE
+.PP
+.PP
+.RS 4
+sbrs recorder \-\-uc \-\-url seleniumbase.io
+.RE
+.SH "SBRS RUN-SCENARIO"
+Run a scenario file, the way to do several steps in one browser, and write an optional dashboard.
+.PP
+\fBUsage:\fR sbrs run\-scenario [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-file\fR \fI<FILE>\fR
+Scenario file to run
+.TP
+\fB\-\-dashboard\fR \fI<DASHBOARD>\fR
+Optional path to write a scenario dashboard
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs run\-scenario \-\-file scenario.json
+.RE
+.SH "SBRS COMPLETIONS"
+Generate a completion script for a supported shell, or a Fig spec.
+.PP
+\fBUsage:\fR sbrs completions [OPTIONS] <SHELL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<SHELL>\fR
+Shell (or `fig` for a Fig spec) to generate completions for
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs completions zsh
+.RE
+.SH "SBRS IMPORT-PYTHON"
+Convert common SeleniumBase or Selenium Python code into a Rust test.
+.PP
+\fBUsage:\fR sbrs import\-python [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-o, \-\-output\fR \fI<OUTPUT>\fR
+Output file for the generated Rust test
+.TP
+\fB\-\-source\fR \fI<SOURCE>\fR
+Source API to assume when converting Python code
+.RS
+\fIDefault: \fRauto
+.RE
+.TP
+\fB\-\-test\-name\fR \fI<TEST_NAME>\fR
+Name of the generated test function
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+Python source file to convert.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs import\-python login.py \-\-output tests/login.rs
+.RE
+.SH "SBRS IMPORT-PLAYWRIGHT"
+Convert Playwright tests or a script (JavaScript, TypeScript or Python) into Rust tests for the pure CDP engine.
+.PP
+\fBUsage:\fR sbrs import\-playwright [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-o, \-\-output\fR \fI<OUTPUT>\fR
+Output file for the generated Rust tests
+.TP
+\fB\-\-language\fR \fI<LANGUAGE>\fR
+Source language (default: from the file extension, else from the content)
+.TP
+\fB\-\-test\-name\fR \fI<TEST_NAME>\fR
+Name of the test generated for a script without test titles (default: the file name)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+Playwright source file to convert.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs import\-playwright login.spec.ts \-\-output tests/login.rs
+.RE
+.SH "SBRS IMPORT-PUPPETEER"
+Convert Puppeteer scripts or tests (JavaScript, TypeScript) or a Chrome Recorder JSON export into Rust tests for the pure CDP engine.
+.PP
+\fBUsage:\fR sbrs import\-puppeteer [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-o, \-\-output\fR \fI<OUTPUT>\fR
+Output file for the generated Rust tests
+.TP
+\fB\-\-language\fR \fI<LANGUAGE>\fR
+Source language (default: from the file extension, else from the content)
+.TP
+\fB\-\-test\-name\fR \fI<TEST_NAME>\fR
+Name of the test generated for a script without test titles (default: the file name)
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+Puppeteer source file (or Recorder `.json` export) to convert.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs import\-puppeteer login.js \-\-output tests/login.rs
+.RE
+.SH "SBRS DOWNLOAD-FILE"
+Download a file from a URL (browser download with an HTTP fallback).
+.PP
+\fBUsage:\fR sbrs download\-file [OPTIONS] <URL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-o, \-\-output\fR \fI<OUTPUT>\fR
+Output file path (defaults to the URL file name in the current directory)
+.TP
+\fB\-\-timeout\fR \fI<TIMEOUT>\fR
+Seconds to wait for the browser download before falling back to HTTP
+.RS
+\fIDefault: \fR30
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URL>\fR
+URL of the file to download
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs download\-file https://example.com/report.pdf \-\-output report.pdf
+.RE
+.SH "SBRS PRINT-PDF"
+Print a page to PDF and save it to disk.
+.PP
+\fBUsage:\fR sbrs print\-pdf [OPTIONS] <URL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-o, \-\-output\fR \fI<OUTPUT>\fR
+Output PDF file path
+.RS
+\fIDefault: \fRpage.pdf
+.RE
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URL>\fR
+URL to render as a PDF
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs print\-pdf https://example.com \-\-output page.pdf
+.RE
+.SH "SBRS PDF-TEXT"
+Print the text extracted from a page or PDF URL.
+.PP
+\fBUsage:\fR sbrs pdf\-text [OPTIONS] <URL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-save\-pdf\fR \fI<SAVE_PDF>\fR
+Also keep the intermediate PDF at this path
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URL>\fR
+URL of the page or PDF to extract text from
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs pdf\-text https://example.com/report.pdf
+.RE
+.SH "SBRS ASSERT-PDF-TEXT"
+Assert that a page or PDF URL contains the expected text.
+.PP
+\fBUsage:\fR sbrs assert\-pdf\-text [OPTIONS] <URL>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-text\fR \fI<TEXT>\fR
+Text that must appear in the PDF
+.TP
+\fB\-\-save\-pdf\fR \fI<SAVE_PDF>\fR
+Also keep the intermediate PDF at this path
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URL>\fR
+URL of the page or PDF to check
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs assert\-pdf\-text https://example.com/report.pdf \-\-text Total
+.RE
+.SH "SBRS CHOOSE-FILE"
+Upload a local file into a file input.
+.PP
+\fBUsage:\fR sbrs choose\-file [OPTIONS] <SELECTOR> <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<SELECTOR>\fR
+CSS selector of the <input type=file> element
+.TP
+\fB<FILE>\fR
+Local file to upload
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com/upload choose\-file 'input[type=file]' ./photo.png
+.RE
+.SH "SBRS DEFERRED"
+Run several assertions, then report every failure at once.
+
+The page they run on is the global \-\-url, if there is one.
+.PP
+\fBUsage:\fR sbrs deferred [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-assert\fR \fI<SPEC>\fR
+Assertion spec: element=<css>, text=<css>:<text>, title=<text>, or url=<text>
+.TP
+\fB\-\-spec\fR \fI<SPEC>\fR
+JSON file containing an array of assertion specs
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs \-\-url https://example.com deferred \-\-assert element=p \-\-assert 'text=p:This domain is for use in'
+.RE
+.SH "SBRS REPLAY"
+Replay a recorded action file (recordings/NAME_rec.json) against a fresh browser.
+.PP
+\fBUsage:\fR sbrs replay [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+JSON or YAML action file (recordings/NAME_rec.json)
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs replay recordings/new_test_rec.json
+.RE
+.SH "SBRS DEVTOOLS"
+Launch Chrome with an open DevTools endpoint and print MCP client configs.
+
+Starts Chrome with the Pure CDP engine (no chromedriver), prints the DevTools HTTP endpoint, the browser WebSocket URL and configs for Google's chrome\-devtools\-mcp and Microsoft's Playwright MCP, then keeps the browser running until Ctrl+C, which closes it and exits with 0. The global \-\-browser (chrome, chromium, edge or another Chromium browser), \-\-headless, \-\-headed, \-\-user\-data\-dir, \-\-proxy, \-\-user\-agent, \-\-locale, \-\-ad\-block, \-\-extension\-dir \-\-proxy\-list and \-\-url (the page to open once the browser runs) apply as well.
+.PP
+\fBUsage:\fR sbrs devtools [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-port\fR \fI<PORT>\fR
+DevTools port on 127.0.0.1 (0 lets Chrome pick a free one)
+.RS
+\fIDefault: \fR9222
+.RE
+.TP
+\fB\-\-browser\-path\fR \fI<PATH>\fR
+Browser binary to launch, such as Microsoft Edge or another Chromium browser
+.TP
+\fB\-\-json\fR
+Print the endpoint and configs as one line of JSON instead of text
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs devtools \-\-port 9222
+.RE
+.SH "SBRS PLUGIN"
+List the built\-in plugins, or show what one declares.
+
+Plugins run inside the browsers a command starts. Turn them on by name with the global options \-\-plugin and \-\-plugin\-opt, the SB_PLUGINS variable, or the [plugins] table of the settings file; the command line wins over SB_PLUGINS, which wins over the file. `sbrs plugin list` shows the plugins this build has.
+.PP
+\fBUsage:\fR sbrs plugin [OPTIONS] <COMMAND>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs plugin list
+.RE
+.SH "SBRS PLUGIN LIST"
+List the built\-in plugins of this build, and whether they are on.
+
+Prints each plugin's name, category and summary, and `yes` under ENABLED when the settings file, SB_PLUGINS or the global \-\-plugin option turns it on. A build without built\-in plugins says so; rebuild it with \-\-features plugins\-builtin.
+.PP
+\fBUsage:\fR sbrs plugin list [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs plugin list
+.RE
+.SH "SBRS PLUGIN INFO"
+Show what one plugin declares and what it may do.
+
+Prints the plugin's category, phase, capabilities (with their risk, and whether the host enforces them), what it needs, its place among the other plugins and the options it was given. Exits with status 2 and lists the known names when there is no such plugin.
+.PP
+\fBUsage:\fR sbrs plugin info [OPTIONS] <NAME>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<NAME>\fR
+The plugin's name, as `sbrs plugin list` shows it.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs plugin info shield
+.RE
+.SH "SBRS PLUGIN RUN"
+Run the task of a plugin on a browser it starts, and write its results as JSON lines.
+
+Only plugins that offer a task can be run, and the named plugin is turned on for this run without \-\-plugin. The task reads its input from \-\-input (a JSON file, or `\-` for standard input; `{}` when there is none) and writes one JSON value per line to \-\-out (default: standard output). Its summary goes to standard error. The global options \-\-plugin, \-\-plugin\-opt, \-\-headless, \-\-proxy and the like shape the browser and the other plugins. Ctrl\-C stops the task, closes the browser and exits with status 130. Exits with status 2 and lists the plugins that have a task when the name is not one of them.
+.PP
+\fBUsage:\fR sbrs plugin run [OPTIONS] <NAME>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-input\fR \fI<FILE>\fR
+A JSON file with the task's input, or `\-` to read it from standard input.
+.TP
+\fB\-\-out\fR \fI<FILE>\fR
+Write the results to this file, one JSON value per line (default: standard output).
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<NAME>\fR
+The plugin whose task to run, as `sbrs plugin list` shows it.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs plugin run crawler \-\-input crawl.json \-\-out found.jsonl
+.RE
+.SH "SBRS TRACE"
+Look at a recorded trace.
+
+A trace is the folder `Page::start_trace` writes: the actions of a run, a screenshot and a copy of the page after each one, the console and the network, and index.html, the viewer, which holds all of it. `sbrs trace show` opens that viewer.
+.PP
+\fBUsage:\fR sbrs trace [OPTIONS] <COMMAND>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs trace show traces/checkout
+.RE
+.SH "SBRS TRACE SHOW"
+Open the viewer of a trace folder in the system's default browser.
+
+FOLDER is the folder the trace was written to, or its index.html. The viewer loads nothing from the network, so no server is needed. Exits with status 2 when FOLDER is not a trace or its recording was not stopped (the viewer is written when it stops), and with status 1 when the browser cannot be started.
+.PP
+\fBUsage:\fR sbrs trace show [OPTIONS] <FOLDER>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-print\fR
+Print the viewer's path instead of opening it.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FOLDER>\fR
+The trace folder, or its index.html.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs trace show traces/checkout
+.RE
+.SH "SBRS FINGERPRINT"
+Capture, write, check and compare browser fingerprints.
+
+A fingerprint file is what a browser claims to be: the user agent, the screen, the language, the graphics card and the rest, as one JSON file. `capture` reads it from a real browser; `export` writes a preset or a random identity; `check` and `diff` read files. The global \-\-fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint] table of the settings file) makes every browser a command starts present one.
+.PP
+\fBUsage:\fR sbrs fingerprint [OPTIONS] <COMMAND>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs fingerprint presets
+.RE
+.SH "SBRS FINGERPRINT CAPTURE"
+Read the fingerprint of a real browser and write it as a fingerprint file.
+
+Starts a browser as `sbrs open` does (the global \-\-browser, \-\-headless, \-\-proxy and the rest apply), opens URL (a blank page when there is none), reads what a page can see of the browser, and prints the fingerprint as JSON, or writes it to FILE. A summary goes to standard error. What no setting holds (window sizes, the automation markers, the canvas hash) stays out of the fingerprint; \-\-readings writes it to its own file.
+.PP
+\fBUsage:\fR sbrs fingerprint capture [OPTIONS] [<URL>]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-o, \-\-output\fR \fI<FILE>\fR
+Write the fingerprint to FILE instead of printing it.
+.TP
+\fB\-\-readings\fR \fI<FILE>\fR
+Also write the readings that no setting holds, and where the capture was taken, to FILE.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<URL>\fR
+The page to open first (default: a blank page).
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs fingerprint capture https://example.com \-\-output seen.json
+.RE
+.SH "SBRS FINGERPRINT EXPORT"
+Write a preset or a random identity as a fingerprint file.
+
+Give \-\-preset NAME (windows, edge, macos, linux, android, ios) or \-\-random. A random identity follows \-\-seed, so the same seed gives the same file, and \-\-os, the system it claims (default: this machine's). The file goes to FILE, else to standard output.
+.PP
+\fBUsage:\fR sbrs fingerprint export [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-\-preset\fR \fI<NAME>\fR
+The preset to write: windows, edge, macos, linux, android or ios (safari is ios).
+.TP
+\fB\-\-random\fR
+Write a random identity instead of a preset.
+.TP
+\fB\-\-seed\fR \fI<N>\fR
+With \-\-random, the seed of the draw: the same seed gives the same identity.
+.TP
+\fB\-\-os\fR \fI<OS>\fR
+With \-\-random, the system the identity claims (default: this machine's).
+.TP
+\fB\-o, \-\-output\fR \fI<FILE>\fR
+Write the fingerprint to FILE instead of printing it.
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs fingerprint export \-\-preset windows \-\-output windows.json
+.RE
+.SH "SBRS FINGERPRINT CHECK"
+Check that a fingerprint file loads and is coherent.
+
+Prints how many settings the file gives, each error and warning, and the verdict. Exits with status 2 when there is an error or the file does not load.
+.PP
+\fBUsage:\fR sbrs fingerprint check [OPTIONS] <FILE>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<FILE>\fR
+The fingerprint file to check.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs fingerprint check windows.json
+.RE
+.SH "SBRS FINGERPRINT DIFF"
+Compare two fingerprint files.
+
+EXPECTED is what is expected and FOUND what is found: a setting that EXPECTED leaves natural is never compared. Prints each setting that differs. Exits with status 1 when any differs, 0 when none does, and 2 when a file does not load.
+
+To check that a browser presents a file: `sbrs \-\-fingerprint f.json fingerprint capture \-o seen.json`, then `sbrs fingerprint diff f.json seen.json`.
+.PP
+\fBUsage:\fR sbrs fingerprint diff [OPTIONS] <EXPECTED> <FOUND>
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBArguments:\fR
+.PP
+.TP
+\fB<EXPECTED>\fR
+The file with what is expected.
+.TP
+\fB<FOUND>\fR
+The file with what is found.
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs fingerprint diff windows.json seen.json
+.RE
+.SH "SBRS FINGERPRINT PRESETS"
+List the presets and what each claims.
+.PP
+\fBUsage:\fR sbrs fingerprint presets [OPTIONS]
+.PP
+\fBOptions:\fR
+.PP
+.TP
+\fB\-h, \-\-help\fR
+Print help
+\fBExamples:\fR
+.PP
+.PP
+.RS 4
+sbrs fingerprint presets
+.RE
