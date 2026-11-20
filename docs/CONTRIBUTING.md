@@ -387,6 +387,12 @@ prompt that runs the checks, is in
 <LayoutDir name="completions" note="the usage spec of sbrs">
 <LayoutFile name="sbrs.usage.kdl" note="generated from crates/cli/src/sbrs.rs" />
 </LayoutDir>
+<LayoutDir name="man" note="the man pages of sbrs and sbrs-mcp, generated from their usage specs">
+<LayoutDir name="man1" note="section 1, user commands">
+<LayoutFile name="sbrs.1" note="generated; sbrs completions man prints it" />
+<LayoutFile name="sbrs-mcp.1" note="generated" />
+</LayoutDir>
+</LayoutDir>
 <LayoutDir name="schemas" note="JSON Schemas">
 <LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
 </LayoutDir>

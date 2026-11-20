@@ -190,6 +190,7 @@ seleniumbase-rs/               # the workspace root
 ├── docs/                      # the pages of this site
 ├── parity/                    # the Python parity manifests
 ├── completions/               # the usage spec of sbrs
+├── man/                       # the man pages of sbrs and sbrs-mcp, generated from their usage specs
 ├── schemas/                   # JSON Schemas
 ├── contrib/                   # files that are not part of the crate
 ├── scripts/                   # helper scripts

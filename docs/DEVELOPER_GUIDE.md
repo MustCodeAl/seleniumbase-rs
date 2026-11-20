@@ -253,6 +253,12 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="completions" note="the usage spec of sbrs">
 <LayoutFile name="sbrs.usage.kdl" note="generated from crates/cli/src/sbrs.rs" />
 </LayoutDir>
+<LayoutDir name="man" note="the man pages of sbrs and sbrs-mcp, generated from their usage specs">
+<LayoutDir name="man1" note="section 1, user commands">
+<LayoutFile name="sbrs.1" note="generated; sbrs completions man prints it" />
+<LayoutFile name="sbrs-mcp.1" note="generated" />
+</LayoutDir>
+</LayoutDir>
 <LayoutDir name="schemas" note="JSON Schemas">
 <LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
 </LayoutDir>
@@ -919,8 +925,12 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutFile name="output.rs" note="prints a tool result" />
 </LayoutDir>
 <LayoutFile name="mcp_cmd.rs" note="sbrs mcp" />
+<LayoutFile name="man.rs" note="renders the man pages man/man1/*.1 from the usage specs (tests only)" />
+<LayoutFile name="plugin_catalog.rs" note="the plugins with a task as commands of sbrs plugin: a usage-dynamic catalog" />
+<LayoutFile name="plugin_flags.rs" note="the --plugin flag, in a struct of its own so that it can complete the plugin names" />
 <LayoutFile name="proxy.rs" note="sbrs proxy" />
 <LayoutFile name="recorder_flags.rs" note="the recorder flags" />
+<LayoutFile name="runtime_values.rs" note="the completion words only the running program knows: plugins, presets" />
 <LayoutFile name="test_args.rs" note="sbrs test" />
 <LayoutFile name="test_session.rs" note="the test run sbrs test starts and finishes" />
 </LayoutDir>
