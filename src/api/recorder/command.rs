@@ -364,7 +364,10 @@ pub enum RecordedCommand {
     /// (`assert_downloaded_file`).
     AssertDownloadedFile { name: String },
     /// Saves a screenshot as the file `name` (`save_screenshot`).
-    SaveScreenshot { name: String },
+    SaveScreenshot {
+        name: String,
+        folder: Option<String>,
+    },
     /// Saves a screenshot in the logs (`save_screenshot_to_logs`).
     SaveScreenshotToLogs,
     /// Saves the source of the page in the logs (`save_page_source_to_logs`).
@@ -390,7 +393,10 @@ pub enum RecordedCommand {
     Captcha { provider: Option<String> },
     /// A drag with an offset (`drag_and_drop_with_offset`). `BaseCase` records
     /// the selector but not the offset, so there is no call to write.
-    DragAndDropWithOffset { selector: String },
+    DragAndDropWithOffset {
+        selector: String,
+        offset: Option<String>,
+    },
     /// A download (`download_file`) of `url`, into `destination` if the
     /// recording knows it. It does not say which folder the file went to, so
     /// there is no call to write.
@@ -1168,7 +1174,10 @@ impl RecordedCommand {
             "assert_url" => Self::AssertUrl { url: w.target()? },
             "assert_url_contains" => Self::AssertUrlContains { url: w.target()? },
             "assert_downloaded_file" => Self::AssertDownloadedFile { name: w.target()? },
-            "save_screenshot" => Self::SaveScreenshot { name: w.target()? },
+            "save_screenshot" => Self::SaveScreenshot {
+                name: w.target()?,
+                folder: value.map(str::to_owned),
+            },
             "save_screenshot_to_logs" => Self::SaveScreenshotToLogs,
             "save_page_source_to_logs" => Self::SavePageSourceToLogs,
             "show_file_choosers" => Self::ShowFileChoosers,
@@ -1184,6 +1193,7 @@ impl RecordedCommand {
             },
             "drag_and_drop_with_offset" => Self::DragAndDropWithOffset {
                 selector: w.target()?,
+                offset: value.map(str::to_owned),
             },
             "download_file" => Self::DownloadFile {
                 url: w.target()?,
@@ -1428,8 +1438,8 @@ impl RecordedCommand {
             | Self::AssertNonEmptyText { selector }
             | Self::DeferredAssertElement { selector }
             | Self::DeferredAssertElementPresent { selector }
-            | Self::DeferredAssertNonEmptyText { selector }
-            | Self::DragAndDropWithOffset { selector } => (own(selector), None),
+            | Self::DeferredAssertNonEmptyText { selector } => (own(selector), None),
+            Self::DragAndDropWithOffset { selector, offset } => (own(selector), offset.clone()),
             // An element and a text, in the target and the value.
             Self::TypeText { selector, text }
             | Self::SelectOptionByText { selector, text }
@@ -1518,9 +1528,9 @@ impl RecordedCommand {
             Self::SwitchToFrame { frame } | Self::SetContentToFrame { frame } => (own(frame), None),
             Self::AssertTitle { title } | Self::AssertTitleContains { title } => (own(title), None),
             Self::SwitchToWindow { window } => (own(window), None),
-            Self::DeleteCookie { name }
-            | Self::AssertDownloadedFile { name }
-            | Self::SaveScreenshot { name } => (own(name), None),
+            Self::DeleteCookie { name } | Self::AssertDownloadedFile { name } => (own(name), None),
+            Self::SaveScreenshot { name, folder }
+            | Self::SaveScreenshotToFolder { name, folder } => (own(name), folder.clone()),
             Self::TypeAlertText { text } => (own(text), None),
             Self::RemoveLocalStorageItem { key } => (own(key), None),
             Self::ClickXpath { xpath } => (own(xpath), None),
@@ -1539,7 +1549,6 @@ impl RecordedCommand {
             Self::OpenNewTab { url } => (url.clone(), None),
             Self::Captcha { provider } => (provider.clone(), None),
             Self::DownloadFile { url, destination } => (own(url), destination.clone()),
-            Self::SaveScreenshotToFolder { name, folder } => (own(name), folder.clone()),
             Self::Unknown { target, value, .. } | Self::Malformed { target, value, .. } => {
                 (target.clone(), value.clone())
             }
@@ -1730,6 +1739,10 @@ mod tests {
             RecordedCommand::from_parts("open_new_tab", Some("https://a.test/"), None),
             RecordedCommand::from_parts("hover_and_click", Some(".menu"), Some(".item")),
             RecordedCommand::from_parts("download_file", Some("https://a.test/f"), Some("dir")),
+            // What an action does not run is kept all the same: a saved recording loads back whole.
+            RecordedCommand::from_parts("drag_and_drop_with_offset", Some("#a"), Some("10, 20")),
+            RecordedCommand::from_parts("save_screenshot", Some("shot.png"), Some("folder")),
+            RecordedCommand::from_parts("save_screenshot_to_folder", Some("shot.png"), None),
             RecordedCommand::from_parts("captcha", Some("recaptcha"), None),
             RecordedCommand::from_parts("levitate", Some("#a"), None),
             RecordedCommand::from_parts("click", None, None),

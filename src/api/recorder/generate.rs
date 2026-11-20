@@ -557,11 +557,14 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
                 }
             }
         }
-        C::SaveScreenshot { name } => format!("Save screenshot as {}", quoted(name)),
-        C::SaveScreenshotToFolder { name, folder } => match folder {
-            None => format!("Save screenshot as {}", quoted(name)),
-            Some(folder) => format!("Save screenshot to {} as {}", quoted(folder), quoted(name)),
-        },
+        C::SaveScreenshot { name, folder } | C::SaveScreenshotToFolder { name, folder } => {
+            match folder {
+                None => format!("Save screenshot as {}", quoted(name)),
+                Some(folder) => {
+                    format!("Save screenshot to {} as {}", quoted(folder), quoted(name))
+                }
+            }
+        }
         C::Malformed { error, .. } => return Err(error.to_string()),
         // The name is whatever was recorded; a line break in it would end the
         // `# skipped:` comment and start a step, so it is escaped.

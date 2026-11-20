@@ -274,7 +274,7 @@ pub(super) fn rust_call(command: &RecordedCommand) -> Result<String, String> {
         C::SwitchToWindow { window } => literal(window),
         C::DeleteCookie { name }
         | C::AssertDownloadedFile { name }
-        | C::SaveScreenshot { name } => literal(name),
+        | C::SaveScreenshot { name, .. } => literal(name),
         C::TypeAlertText { text } => literal(text),
         C::RemoveLocalStorageItem { key } => literal(key),
         C::ClickXpath { xpath } => literal(xpath),
@@ -677,7 +677,7 @@ async fn call(sb: &mut BaseCase, command: &RecordedCommand) -> Result<bool, Stri
         C::AssertUrl { url } => ran(sb.assert_url(url).await)?,
         C::AssertUrlContains { url } => ran(sb.assert_url_contains(url).await)?,
         C::AssertDownloadedFile { name } => ran(sb.assert_downloaded_file(name).await)?,
-        C::SaveScreenshot { name } => ran(sb.save_screenshot(name).await)?,
+        C::SaveScreenshot { name, .. } => ran(sb.save_screenshot(name).await)?,
         C::SaveScreenshotToLogs => ran(sb.save_screenshot_to_logs().await)?,
         C::SavePageSourceToLogs => ran(sb.save_page_source_to_logs().await)?,
         C::ShowFileChoosers => ran(sb.show_file_choosers().await)?,
