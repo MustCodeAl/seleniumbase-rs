@@ -14,6 +14,19 @@
 use std::path::Path;
 use std::process::{Command, Output};
 
+/// What `sbrs plugin <Tab>` offers in the default build, in the order the shells list it: the
+/// commands the declarations hold (`info`, `list`, `run`) and the plugins that have a task, which
+/// the catalog of `plugin_catalog.rs` adds at run time.
+const PLUGIN_COMMANDS: [&str; 7] = [
+    "batcher",
+    "crawler",
+    "extractor",
+    "fetcher",
+    "info",
+    "list",
+    "run",
+];
+
 /// `PATH` with the folder of the `sbrs` under test first.
 fn path_with_sbrs() -> String {
     let sbrs = Path::new(env!("CARGO_BIN_EXE_sbrs"));
@@ -63,14 +76,14 @@ fn lines(output: &Output) -> Vec<String> {
 
 /// Usage's zsh script run for the line in `$SBRS_LINE`, the cursor at its end, with stand-ins
 /// for the completion builtins: `compadd` prints `space WORDS` when zsh would add its space
-/// after the words (no `-S ''`) and `none WORDS` when it would not, and `_files` and
+/// after the words (`-S ' '`) and `none WORDS` when it would not (`-S ''`), and `_files` and
 /// `_path_files` print `files ARGUMENTS` where the script falls back to file names.
 const ZSH_DRIVER: &str = r#"
 compadd() {
     local suffix=space array=
     while (( $# )); do
         case $1 in
-            -S) suffix=none; shift 2 ;;
+            -S) [[ $2 == ' ' ]] && suffix=space || suffix=none; shift 2 ;;
             -a) array=$2; shift 2 ;;
             -d) shift 2 ;;
             *) shift ;;
@@ -113,13 +126,19 @@ fn zsh_reaches_the_second_level_and_offers_no_file_for_a_free_text_value() {
     }
     // A complete word gets zsh's own space, so the next Tab reaches the next level.
     assert_eq!(zsh_answers("sbrs plu"), ["space plugin"]);
-    assert_eq!(zsh_answers("sbrs plugin "), ["space info list"]);
+    assert_eq!(
+        zsh_answers("sbrs plugin "),
+        ["space batcher crawler extractor fetcher info list run"]
+    );
     assert_eq!(zsh_answers("sbrs plugin li"), ["space list"]);
     // A flag gets its space too, and a global flag completes after the command.
-    assert_eq!(zsh_answers("sbrs get-title --headl"), ["space --headless"]);
+    assert_eq!(
+        zsh_answers("sbrs get-title --headl"),
+        ["space --headless --headless1"]
+    );
     assert_eq!(
         zsh_answers("sbrs get-title --hea"),
-        ["space --headed --headless"]
+        ["space --headed --headless --headless1"]
     );
     // The driver of `install`, then its version.
     assert_eq!(zsh_answers("sbrs install ge"), ["space geckodriver"]);
@@ -174,14 +193,14 @@ fn fish_completes_every_level_and_offers_no_file_for_a_free_text_value() {
     }
     let mut plugin = fish_candidates("sbrs plugin ");
     plugin.sort();
-    assert_eq!(plugin, ["info", "list"]);
+    assert_eq!(plugin, PLUGIN_COMMANDS);
     let mut grid = fish_candidates("sbrs grid-hub ");
     grid.sort();
     assert_eq!(grid, ["restart", "start", "status", "stop"]);
     // A global flag completes after the command.
     let mut flags = fish_candidates("sbrs get-title --hea");
     flags.sort();
-    assert_eq!(flags, ["--headed", "--headless"]);
+    assert_eq!(flags, ["--headed", "--headless", "--headless1"]);
     let mut drivers = fish_candidates("sbrs install ");
     drivers.sort();
     assert_eq!(
@@ -250,14 +269,14 @@ fn bash_completes_every_level_and_offers_no_file_for_a_free_text_value() {
         eprintln!("skipped: bash is not installed");
         return;
     }
-    assert_eq!(bash_candidates("sbrs plugin "), ["info", "list"]);
+    assert_eq!(bash_candidates("sbrs plugin "), PLUGIN_COMMANDS);
     assert_eq!(
         bash_candidates("sbrs grid-hub "),
         ["restart", "start", "status", "stop"]
     );
     assert_eq!(
         bash_candidates("sbrs get-title --hea"),
-        ["--headed", "--headless"]
+        ["--headed", "--headless", "--headless1"]
     );
     assert_eq!(
         bash_candidates("sbrs install "),
@@ -320,13 +339,13 @@ fn powershell_completes_every_level_after_a_space() {
     }
     let mut plugin = pwsh_candidates("sbrs plugin ");
     plugin.sort();
-    assert_eq!(plugin, ["info", "list"]);
+    assert_eq!(plugin, PLUGIN_COMMANDS);
     let mut grid = pwsh_candidates("sbrs grid-hub ");
     grid.sort();
     assert_eq!(grid, ["restart", "start", "status", "stop"]);
     let mut flags = pwsh_candidates("sbrs get-title --hea");
     flags.sort();
-    assert_eq!(flags, ["--headed", "--headless"]);
+    assert_eq!(flags, ["--headed", "--headless", "--headless1"]);
     let mut drivers = pwsh_candidates("sbrs install ");
     drivers.sort();
     assert_eq!(

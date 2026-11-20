@@ -1442,7 +1442,7 @@ fn a_plugin_task_is_plugin_run_of_that_plugin() {
 #[test]
 fn the_global_options_of_a_plugin_task_go_before_plugin() {
     // The task has its own options only; a global option written before `plugin` is read as it
-    // is for `plugin run` (here a settings file that does not exist is refused by name).
+    // is for `plugin run` (here a settings file that does not exist is refused when it is read).
     let output = in_a_new_folder(
         &[],
         &["--config", "no-such-settings.toml", "plugin", "crawler"],
@@ -1450,5 +1450,5 @@ fn the_global_options_of_a_plugin_task_go_before_plugin() {
 
     let text = stderr(&output);
     assert_ne!(output.status.code(), Some(0), "{text}");
-    assert!(text.contains("no-such-settings.toml"), "{text}");
+    assert!(text.contains("failed to read settings"), "{text}");
 }

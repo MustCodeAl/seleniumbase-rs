@@ -207,7 +207,7 @@ fn plugin_run_offers_the_plugins_that_have_a_task() {
 fn a_fingerprint_preset_is_offered_from_the_library_list() {
     assert_eq!(
         complete("sbrs fingerprint export --preset "),
-        ["windows", "edge", "macos", "linux", "android", "ios"]
+        ["android", "edge", "ios", "linux", "macos", "windows"]
     );
 }
 
