@@ -135,28 +135,15 @@ async fn last_root<'a>(
 ///
 /// A CSS selector that crosses a shadow root stays whole, for [`find`] and
 /// [`find_all`] to cut; one that cannot be cut is refused here, before anything
-/// waits. The kind was decided when the string became a [`SelectorBuf`], so a
-/// CSS selector is taken as CSS here, and `:contains(..)` is not read again.
+/// waits. The rule is [`SelectorBuf::check`] and the one rewrite is
+/// [`SelectorBuf::lookup_form`] (`:contains(..)` becomes XPath), written once there.
 ///
 /// # Errors
 ///
 /// [`SeleniumBaseError::InvalidSelector`] if the text is empty or blank, or if
 /// a CSS selector crosses a shadow root but cannot be cut.
 pub(crate) fn by_of(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
-    let filled = |text: &str| !text.trim().is_empty();
-    match selector {
-        SelectorBuf::Css(css) if is_shadow_selector(css) => {
-            shadow_chain(css)?;
-            Ok(By::Css(css.clone()))
-        }
-        SelectorBuf::Css(css) if filled(css) => Ok(By::Css(css.clone())),
-        SelectorBuf::XPath(xpath) if filled(xpath) => Ok(By::XPath(xpath.clone())),
-        SelectorBuf::LinkText(text) if filled(text) => Ok(By::LinkText(text.clone())),
-        SelectorBuf::PartialLinkText(text) if filled(text) => Ok(By::PartialLinkText(text.clone())),
-        _ => Err(SeleniumBaseError::InvalidSelector(
-            "selector value cannot be empty".to_owned(),
-        )),
-    }
+    selector.to_by()
 }
 
 /// `selector` as a [`SelectorBuf`], once it is known that [`by_of`] accepts
@@ -260,11 +247,11 @@ mod tests {
             locator(SelectorBuf::partial_link_text("G")),
             format!("{:?}", By::PartialLinkText("G"))
         );
-        // The kind was decided when the string became a selector: a CSS
-        // selector is looked up as CSS, and `:contains(..)` is not read again.
+        // The kind was decided when the string became a selector; the one
+        // rewrite is the lookup form, so `:contains(..)` is XPath here.
         assert_eq!(
             locator(SelectorBuf::css("a:contains('x')")),
-            format!("{:?}", By::Css("a:contains('x')"))
+            format!("{:?}", By::XPath(".//a[contains(., 'x')]"))
         );
         assert_eq!(
             locator(SelectorBuf::from("app::shadow a")),
