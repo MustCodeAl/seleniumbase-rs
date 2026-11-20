@@ -220,17 +220,18 @@ impl RelativeName {
     /// assert_eq!(name.to_string(), "MyTest.rs");
     /// assert!(RelativeName::try_new("MyTest.py").unwrap().with_extension_or_default("rs").is_err());
     /// ```
-    pub fn with_extension_or_default(mut self, extension: &str) -> Result<Self, ScaffoldError> {
+    pub fn with_extension_or_default(&self, extension: &str) -> Result<Self, ScaffoldError> {
         match self.extension() {
-            Some(existing) if existing.eq_ignore_ascii_case(extension) => Ok(self),
+            Some(existing) if existing.eq_ignore_ascii_case(extension) => Ok(self.clone()),
             Some(existing) => Err(ScaffoldError::invalid_name(
                 &self.to_string(),
                 format!("expected a .{extension} file, not .{existing}"),
             )),
             None => {
-                let name = format!("{}.{extension}", self.file_name());
-                self.path.set_file_name(name);
-                Ok(self)
+                let mut name = self.clone();
+                name.path
+                    .set_file_name(format!("{}.{extension}", self.file_name()));
+                Ok(name)
             }
         }
     }

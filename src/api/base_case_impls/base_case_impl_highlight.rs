@@ -112,14 +112,14 @@ impl BaseCase {
 
     /// Turns demo mode on: from now on every action highlights its element,
     /// pauses afterwards, and the assertions announce themselves. Corresponds to
-    /// Python's `activate_demo_mode()`, and is `RunSettings::with_demo_mode(true)`
+    /// Python's `activate_demo_mode()`, and is `RunSettingsBuilder::demo_mode(true)`
     /// for a case that is running.
     ///
     /// # Errors
     ///
     /// This does not fail; it returns a `Result` as Python's method may.
     pub async fn activate_demo_mode(&mut self) -> Result<(), SeleniumBaseError> {
-        self.run_settings = self.run_settings.clone().with_demo_mode(true);
+        self.run_settings = self.run_settings.clone().into_builder().demo_mode(true).build();
         Ok(())
     }
 
@@ -129,7 +129,7 @@ impl BaseCase {
     ///
     /// This does not fail; it returns a `Result` as Python's method may.
     pub async fn deactivate_demo_mode(&mut self) -> Result<(), SeleniumBaseError> {
-        self.run_settings = self.run_settings.clone().with_demo_mode(false);
+        self.run_settings = self.run_settings.clone().into_builder().demo_mode(false).build();
         Ok(())
     }
 

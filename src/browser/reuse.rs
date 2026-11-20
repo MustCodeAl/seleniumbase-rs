@@ -950,7 +950,11 @@ mod tests {
         let demo = base
             .clone()
             .into_builder()
-            .run_settings(crate::api::run_settings::RunSettings::default().with_demo_mode(true))
+            .run_settings(
+                crate::api::run_settings::RunSettings::builder()
+                    .demo_mode(true)
+                    .build(),
+            )
             .build()
             .expect("a valid config");
         assert_eq!(key(&base), key(&demo));

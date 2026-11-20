@@ -48,7 +48,7 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     let actions = sb.stop_recording()?;
     println!("recorded {} actions:", actions.len());
     for action in &actions {
-        println!("  {} {:?} {:?}", action.name, action.target, action.value);
+        println!("  {}", action.command);
     }
 
     let recorder = ActionRecorder { actions };

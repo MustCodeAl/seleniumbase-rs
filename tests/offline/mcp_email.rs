@@ -83,13 +83,18 @@ fn options(port: u16) -> Value {
 fn enabled(options: Value) -> PluginSelection {
     PluginSelection::new()
         .enable("imap")
-        .with_options("imap", options)
+        .options("imap", options)
 }
 
 /// The Pure CDP server for `selection`, and the folder it writes to.
 fn server(selection: PluginSelection) -> (Host<Cdp>, tempfile::TempDir) {
     let dir = tempfile::tempdir().expect("a temporary folder");
-    let host = cdp::host(Settings::new(dir.path()).with_plugin_selection(selection));
+    let host = cdp::host(
+        Settings::builder()
+            .output_dir(dir.path())
+            .plugin_selection(selection)
+            .build(),
+    );
     (host, dir)
 }
 
@@ -123,7 +128,7 @@ async fn the_tool_is_offered_only_when_the_operator_turned_the_plugin_on_with_op
     assert!(!nothing.tool_names().contains(&TOOL));
 
     // Options with no `enable`: the plugin is not on.
-    let (not_enabled, _dir) = server(PluginSelection::new().with_options("imap", options(port)));
+    let (not_enabled, _dir) = server(PluginSelection::new().options("imap", options(port)));
     assert!(!not_enabled.tool_names().contains(&TOOL));
 
     // `enable` with no options: there is no mailbox to read.
@@ -142,7 +147,12 @@ async fn the_tool_is_offered_only_when_the_operator_turned_the_plugin_on_with_op
 async fn no_other_server_offers_it_not_even_the_dev_server() {
     let dir = tempfile::tempdir().expect("a temporary folder");
     let selection = enabled(options(closed_port()));
-    let settings = || Settings::new(dir.path()).with_plugin_selection(selection.clone());
+    let settings = || {
+        Settings::builder()
+            .output_dir(dir.path())
+            .plugin_selection(selection.clone())
+            .build()
+    };
 
     assert!(!dev::host(settings()).tool_names().contains(&TOOL));
     assert!(!sb::host(settings()).tool_names().contains(&TOOL));

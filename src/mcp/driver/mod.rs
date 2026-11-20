@@ -55,10 +55,10 @@ pub fn host(settings: Settings) -> Host<BaseCase> {
     tools.extend(super::pagetools::tools());
     tools.extend(super::fingerprint::tools());
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
-        .with_probe(devtools::probe::<BaseCase>)
-        .with_refs(super::pagetools::verify::<BaseCase>)
-        .with_resources(super::resources::standard())
-        .with_prompts(super::prompts::browser())
+        .probe(devtools::probe::<BaseCase>)
+        .refs(super::pagetools::verify::<BaseCase>)
+        .resources(super::resources::standard())
+        .prompts(super::prompts::browser())
 }
 
 fn tools() -> Vec<ToolDef<BaseCase>> {

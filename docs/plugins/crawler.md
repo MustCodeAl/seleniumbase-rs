@@ -109,7 +109,7 @@ use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::json::json;
 use seleniumbase_rs::sb_cdp::LaunchOptions;
 
-let selection = PluginSelection::new().enable("crawler").with_options(
+let selection = PluginSelection::new().enable("crawler").options(
     "crawler",
     json!({ "start": ["https://staging.example.com/"], "max_pages": 20 }),
 );

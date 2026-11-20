@@ -61,9 +61,7 @@ mod tests_demo_pauses {
     async fn demo_case(driver: &MockWebDriver) -> BaseCase {
         let mut sb = driver.base_case().await;
         sb.set_run_settings(
-            RunSettings::default()
-                .with_demo_mode(true)
-                .with_demo_sleep(PAUSE),
+            RunSettings::builder().demo_mode(true).demo_sleep(PAUSE).build(),
         );
         sb
     }
@@ -71,9 +69,7 @@ mod tests_demo_pauses {
     async fn slow_case(driver: &MockWebDriver) -> BaseCase {
         let mut sb = driver.base_case().await;
         sb.set_run_settings(
-            RunSettings::default()
-                .with_slow_mode(true)
-                .with_demo_sleep(PAUSE),
+            RunSettings::builder().slow_mode(true).demo_sleep(PAUSE).build(),
         );
         sb
     }
@@ -227,9 +223,7 @@ mod tests_demo_pauses {
         let driver = page(false);
         let mut sb = driver.base_case().await;
         sb.set_run_settings(
-            RunSettings::default()
-                .with_demo_mode(true)
-                .with_demo_sleep(Duration::from_millis(340)),
+            RunSettings::builder().demo_mode(true).demo_sleep(Duration::from_millis(340)).build(),
         );
         let started = std::time::Instant::now();
         sb.click("#a").await.unwrap();
@@ -274,7 +268,7 @@ mod tests_messages {
             Duration::from_secs(5)
         );
 
-        let sb = BaseCase::without_session(headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_millis(1500)),).build().expect("a valid config"));
+        let sb = BaseCase::without_session(headed().into_builder().run_settings(RunSettings::builder().message_duration(Duration::from_millis(1500)).build(),).build().expect("a valid config"));
         assert_eq!(sb.message_time(None), Duration::from_millis(1500));
     }
 
@@ -348,7 +342,7 @@ mod tests_messages {
 
     #[tokio::test]
     async fn post_message_posts_with_messenger_for_the_duration_and_waits_for_it() {
-        let (driver, sb) = messenger_case(headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_millis(120)),).build().expect("a valid config"))
+        let (driver, sb) = messenger_case(headed().into_builder().run_settings(RunSettings::builder().message_duration(Duration::from_millis(120)).build(),).build().expect("a valid config"))
         .await;
 
         let started = std::time::Instant::now();
@@ -388,7 +382,7 @@ mod tests_messages {
 
     #[tokio::test]
     async fn without_a_pause_the_call_returns_at_once() {
-        let (_driver, sb) = messenger_case(headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_secs(30)),).build().expect("a valid config"))
+        let (_driver, sb) = messenger_case(headed().into_builder().run_settings(RunSettings::builder().message_duration(Duration::from_secs(30)).build(),).build().expect("a valid config"))
         .await;
         let started = std::time::Instant::now();
         sb.post_message("x").pause(false).await.unwrap();
@@ -530,7 +524,7 @@ mod tests_messages {
         });
         let sb = case_on(
             &driver,
-            headed().into_builder().run_settings(RunSettings::default().with_message_duration(Duration::from_millis(120)),).build().expect("a valid config"),
+            headed().into_builder().run_settings(RunSettings::builder().message_duration(Duration::from_millis(120)).build(),).build().expect("a valid config"),
         )
         .await;
 

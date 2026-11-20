@@ -52,8 +52,10 @@ mod parity_basecase_main {
 // 2. The goldens are what `ActionRecorder` writes.
 
 mod e2e_tests {
-    // e2e/tests/e2e.rs, lines 22-24, verbatim.
-    use seleniumbase_rs::api::recorder::ActionRecorder;
+    // e2e/tests/e2e.rs, lines 22-24, plus `RecordedCommand`: `ActionRecorder::record` takes a
+    // typed command, so the extension's parity test reads the name, target and value with
+    // `RecordedCommand::from_parts` and has to follow.
+    use seleniumbase_rs::api::recorder::{ActionRecorder, RecordedCommand};
     use seleniumbase_rs::sb_cdp::Key;
     use seleniumbase_rs::Fingerprint;
     use seleniumbase_rs::OsType;
@@ -71,11 +73,11 @@ mod e2e_tests {
                 .expect("valid JSON");
         let mut recorder = ActionRecorder::default();
         for action in &actions {
-            recorder.record(
+            recorder.record(RecordedCommand::from_parts(
                 action["name"].as_str().expect("a name"),
                 action["target"].as_str(),
                 action["value"].as_str(),
-            );
+            ));
         }
         let cases = [
             (

@@ -485,7 +485,10 @@ impl Lifecycle<'_> {
     ) -> Result<PromptOutcome> {
         let mut scene = self.plan.spot.clone().map(Scene::at).unwrap_or_default();
         if let Some(error) = failure {
-            scene = scene.with_failure(Failure::from_error(error));
+            scene = scene
+                .into_builder()
+                .failure(Failure::from_error(error))
+                .build();
         }
         self.prompter
             .pause(kind, &self.plan.test_id, message, page, &scene)

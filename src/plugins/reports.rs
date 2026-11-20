@@ -34,7 +34,7 @@ enum Format {
 ///
 /// A failed test is reported with its [`FailureDetails`]: the kind of error,
 /// the hint, and the page's URL and title when it failed. With
-/// [`with_evidence`](Self::with_evidence) the plugin also saves a screenshot
+/// [`evidence`](Self::evidence) the plugin also saves a screenshot
 /// and the page source next to the report and links them from it.
 #[derive(Debug, Clone)]
 pub struct ReportPlugin {
@@ -72,7 +72,7 @@ impl ReportPlugin {
     /// Also saves a screenshot and the page source of each failing test in
     /// the report's folder, and links them from the report.
     #[must_use]
-    pub fn with_evidence(mut self) -> Self {
+    pub fn evidence(mut self) -> Self {
         self.evidence = true;
         self
     }

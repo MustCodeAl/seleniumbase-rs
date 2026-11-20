@@ -40,7 +40,7 @@ pub const PLUGINS_ENV: &str = "SB_PLUGINS";
 /// It is the `[plugins]` table of the settings file: `enable` lists the names
 /// in the order their plugins are added, and a table named like a plugin holds
 /// that plugin's options. The same value is built from `SB_PLUGINS`, or in
-/// code with [`enable`](Self::enable) and [`with_options`](Self::with_options).
+/// code with [`enable`](Self::enable) and [`options`](Self::options).
 ///
 /// # Examples
 ///
@@ -103,7 +103,7 @@ impl PluginSelection {
     /// `options` is what the plugin's own option table holds, usually a JSON
     /// object.
     #[must_use]
-    pub fn with_options(mut self, name: impl Into<String>, options: Value) -> Self {
+    pub fn options(mut self, name: impl Into<String>, options: Value) -> Self {
         self.options.insert(name.into(), options);
         self
     }
@@ -450,7 +450,7 @@ mod tests {
     fn the_list_replaces_the_names_and_keeps_the_options() {
         let mut selection = PluginSelection::new()
             .enable("crx")
-            .with_options("shield", json!({ "level": "strict" }));
+            .options("shield", json!({ "level": "strict" }));
 
         selection.set_enabled_from_list("shield");
 
@@ -467,8 +467,8 @@ mod tests {
     fn the_list_drops_the_options_of_plugins_it_no_longer_names() {
         let mut selection = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "level": "strict" }))
-            .with_options("crx", json!({}));
+            .options("shield", json!({ "level": "strict" }))
+            .options("crx", json!({}));
 
         selection.set_enabled_from_list("crx");
         assert_eq!(selection.enabled(), ["crx"]);
@@ -512,8 +512,8 @@ mod tests {
     fn pruning_drops_the_options_of_plugins_nothing_turned_on() {
         let mut selection = PluginSelection::new()
             .enable("crx")
-            .with_options("shield", json!({ "level": "strict" }))
-            .with_options("crx", json!({}));
+            .options("shield", json!({ "level": "strict" }))
+            .options("crx", json!({}));
 
         selection.prune_unused();
 
@@ -525,10 +525,10 @@ mod tests {
     fn extending_appends_names_and_replaces_options_of_the_same_name() {
         let mut selection = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "level": "basic" }));
+            .options("shield", json!({ "level": "basic" }));
         let other = PluginSelection::new()
             .enable("crx")
-            .with_options("shield", json!({ "level": "strict" }));
+            .options("shield", json!({ "level": "strict" }));
 
         selection.extend(&other);
 
@@ -738,7 +738,7 @@ mod tests {
     #[test]
     fn options_that_are_not_a_table_cannot_take_a_flag() {
         let mut selection =
-            PluginSelection::from_list("shield").with_options("shield", json!("not a table"));
+            PluginSelection::from_list("shield").options("shield", json!("not a table"));
         let message = flag_error(&mut selection, &[], &["shield.level=1"]);
         assert!(message.contains("not a table"), "{message}");
     }
@@ -767,7 +767,7 @@ mod tests {
 
         for selection in [
             PluginSelection::new().enable("shield"),
-            PluginSelection::new().with_options("shield", json!({})),
+            PluginSelection::new().options("shield", json!({})),
         ] {
             let error = selection.ensure_supported().unwrap_err();
             assert!(

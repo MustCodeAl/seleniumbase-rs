@@ -463,7 +463,9 @@ mod calls {
         let storage: std::collections::BTreeMap<String, String> =
             [("theme".to_owned(), "dark".to_owned())].into();
         let session: Session = Session::new(vec![a_cdp_cookie(None)])
-            .with_local_storage("https://shop.example", storage.clone());
+            .into_builder()
+            .local_storage("https://shop.example", storage.clone())
+            .build();
         let _: &[Cookie] = session.cookies();
         let _: Option<&str> = session.origin();
         let _: &std::collections::BTreeMap<String, String> = session.local_storage();
@@ -484,8 +486,8 @@ mod calls {
         list.insert(Some("fr"), "http://fr.example:8080")
             .expect("a proxy");
         let list = list
-            .with_rotation(RotationStrategy::Random { seed: Some(7) })
-            .with_quarantine(3, Duration::from_secs(600));
+            .rotation(RotationStrategy::Random { seed: Some(7) })
+            .quarantine(3, Duration::from_secs(600));
         let now: SystemTime = UNIX_EPOCH + Duration::from_secs(1_000);
 
         let picked: Option<&ProxyEntry> = list.pick_at(Some("shop.example"), now);
@@ -541,12 +543,16 @@ mod calls {
         fingerprint: &Fingerprint,
     ) -> Result<LaunchOptions, SeleniumBaseError> {
         let prime = options.url().is_none().then_some(start_page);
-        let options = options.with_proxy(proxy)?.with_args(args)?;
-        let options = match prime {
-            Some(url) => options.with_url(url)?,
-            None => options,
+        let builder = args
+            .into_iter()
+            .fold(options.into_builder().proxy(proxy), |builder, arg| {
+                builder.arg(arg)
+            });
+        let builder = match prime {
+            Some(url) => builder.url(url),
+            None => builder,
         };
-        options.with_fingerprint(fingerprint)
+        builder.fingerprint(fingerprint).build()
     }
 
     /// crates/scrape/src/runtime/browser_scraper/builder.rs and rotate.rs: the launch options
@@ -555,8 +561,12 @@ mod calls {
         held: &LaunchOptions,
         fingerprint: &Fingerprint,
     ) -> Result<(LaunchOptions, LaunchOptions, Option<Fingerprint>), SeleniumBaseError> {
-        let probe: LaunchOptions = held.clone().with_headless(true)?;
-        let started: LaunchOptions = held.clone().with_fingerprint(fingerprint)?;
+        let probe: LaunchOptions = held.clone().into_builder().headless(true).build()?;
+        let started: LaunchOptions = held
+            .clone()
+            .into_builder()
+            .fingerprint(fingerprint)
+            .build()?;
         let first: Option<Fingerprint> = held.fingerprint().cloned();
         Ok((probe, started, first))
     }
@@ -624,7 +634,10 @@ mod calls {
         let entries = page.local_storage().entries().await?;
         let mut session = Session::new(cookies);
         if !entries.is_empty() {
-            session = session.with_local_storage(origin, entries);
+            session = session
+                .into_builder()
+                .local_storage(origin, entries)
+                .build();
         }
         let session = session.without_expired(now as f64);
         page.cookies().set(session.cookies()).await?;

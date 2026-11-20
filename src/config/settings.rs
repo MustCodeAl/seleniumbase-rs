@@ -663,10 +663,10 @@ impl Settings {
             ..BrowserConfig::default()
         };
 
-        // A multiplier below the minimum is raised to it, as `with_timeout_multiplier` does.
+        // A multiplier below the minimum is raised to it, as `RunSettingsBuilder::timeout_multiplier` does.
         let mut run = self.run.clone();
         if let Some(multiplier) = run.timeout_multiplier {
-            run = run.with_timeout_multiplier(multiplier);
+            run = run.into_builder().timeout_multiplier(multiplier).build();
         }
         config.run = run;
 

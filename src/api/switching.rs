@@ -43,7 +43,7 @@ use thirtyfour::WebDriver;
 
 use crate::api::base_case::BaseCase;
 use crate::api::call::CallFuture;
-use crate::api::recorder::ActionRecorder;
+use crate::api::recorder::{ActionRecorder, RecordedCommand};
 use crate::browser::session::PureDialogs;
 use crate::error::SeleniumBaseError;
 
@@ -417,7 +417,7 @@ impl Alert {
     /// `accept_alert` and `dismiss_alert` do.
     fn record(&self, name: &str, value: Option<&str>) {
         if let Ok(mut recorder) = self.recorder.lock() {
-            recorder.record(name, value, None);
+            recorder.record(RecordedCommand::from_parts(name, value, None));
         }
     }
 

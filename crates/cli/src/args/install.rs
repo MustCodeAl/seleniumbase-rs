@@ -22,7 +22,7 @@ pub(crate) fn request(
     path: bool,
     revision: Option<u64>,
 ) -> Result<InstallRequest, ArgumentError> {
-    let mut request = InstallRequest::new(DriverName::from(driver)).with_copy_to_path(path);
+    let mut request = InstallRequest::new(DriverName::from(driver)).copy_to_path(path);
     request.version = version;
     request.revision = revision;
     request

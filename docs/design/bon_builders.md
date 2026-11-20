@@ -310,7 +310,7 @@ otherwise headless on Linux only, as `is_headless` does today (`:269-271`).
 | `browser_config(&BrowserConfig)` | it would set about 20 members; it stores the config in a builder field instead, and `resolve` reads it under the precedence rule |
 | `build` | it can fail, and it resolves (fallible-builders pattern) |
 | `Default for LaunchOptions` | it must not fail and today skips the checks (`:240-244`); it becomes `builder().build_internal()` plus the default resolution |
-| `LaunchOptions::fingerprint()` and `LaunchOptions::with_fingerprint(self, &Fingerprint)` (new) | for stealth, which holds built options (below); `with_*` because `LaunchOptions` is an owned value |
+| `LaunchOptions::fingerprint()` and `LaunchOptions::into_builder()` (new; the first plan had `with_fingerprint(self, &Fingerprint)`, dropped for the builders rule of 2026-11) | for stealth, which holds built options (below): `options.into_builder().fingerprint(&fp).build()?` |
 
 Of the 42 setters, 23 are generated (each with a `maybe_` form) and 19 stay hand-written
 (`maybe_fingerprint` is new); `build` and `Default` stay. From the line ranges above, about 240 lines of hand-written code go (the
@@ -401,7 +401,7 @@ Stealth's rotation (`crates/scrape/src/runtime/browser_scraper/builder.rs:295`, 
 let options = wiring.launch.clone().fingerprint(&persona.fingerprint);
 
 // After: `launch` is the LaunchOptions the caller built
-let options = wiring.launch.clone().with_fingerprint(&persona.fingerprint)?;
+let options = wiring.launch.clone().into_builder().fingerprint(&persona.fingerprint).build()?;
 let explicit = wiring.launch.fingerprint().cloned(); // Decision 2
 ```
 

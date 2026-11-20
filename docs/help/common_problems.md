@@ -403,7 +403,7 @@ ran.
 
 In the HTML report of `ReportPlugin`, a failed test shows its error, the hint,
 the page's URL and title when it failed, and, with
-`ReportPlugin::html(path).with_evidence()`, links to the screenshot and page
+`ReportPlugin::html(path).evidence()`, links to the screenshot and page
 source saved next to the report. The MCP servers answer a failed call with a
 report that includes the page's state and the next tools to try; see the
 [MCP tutorial](/tutorials/mcp_server#when-a-call-fails).

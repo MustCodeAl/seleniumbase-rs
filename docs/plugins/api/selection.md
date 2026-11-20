@@ -38,7 +38,7 @@ use serde_json::json;
 let selection = PluginSelection::new()
     .enable("shield")
     .enable("block-resources")
-    .with_options("block-resources", json!({ "preset": "media" }));
+    .options("block-resources", json!({ "preset": "media" }));
 assert_eq!(selection.to_list(), "shield,block-resources");
 ```
 
@@ -138,7 +138,7 @@ level = "strict"
 ```
 
 The same value comes from `SB_PLUGINS`, from the flags through `apply_flags`,
-or from code with `enable` and `with_options`. Options are kept as JSON values.
+or from code with `enable` and `options`. Options are kept as JSON values.
 
 ## PluginSelection::new
 
@@ -201,13 +201,13 @@ twice is kept twice, and the build then refuses it (`already in the set`).
 
 </ResponseField>
 
-## PluginSelection::with_options
+## PluginSelection::options
 
 <Badge color="green">fn</Badge>
 
 ```rust
 #[must_use]
-pub fn with_options(mut self, name: impl Into<String>, options: Value) -> Self
+pub fn options(mut self, name: impl Into<String>, options: Value) -> Self
 ```
 
 <ParamField body="name" type="impl Into<String>" required>

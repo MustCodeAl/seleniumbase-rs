@@ -164,7 +164,7 @@ mod tests {
         script: &'static str,
         logs: &std::path::Path,
     ) -> DebugPrompt<crate::common::debug_prompt::ReaderInput<&'static [u8]>, Vec<u8>> {
-        DebugPrompt::from_reader(script.as_bytes(), Vec::new()).with_logs_dir(logs)
+        DebugPrompt::from_reader(script.as_bytes(), Vec::new()).logs_dir(logs)
     }
 
     #[tokio::test]

@@ -15,7 +15,7 @@
 use std::fs;
 use std::path::Path;
 
-use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RecordedAction};
+use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RecordedAction, RecordedCommand};
 
 fn recording() -> ActionRecorder {
     let mut actions: Vec<RecordedAction> = Vec::new();
@@ -36,11 +36,11 @@ fn recording() -> ActionRecorder {
         let start = case["start_ms"].as_i64().expect("start_ms");
         actions.extend(ActionRecorder::from_raw_actions(raw, start, &[], false).actions);
     }
-    actions.push(RecordedAction::new(
+    actions.push(RecordedAction::new(RecordedCommand::from_parts(
         "type_text",
         Some("#password"),
         Some("{{SB_RECORDED_SECRET}}\n"),
-    ));
+    )));
     ActionRecorder { actions }
 }
 

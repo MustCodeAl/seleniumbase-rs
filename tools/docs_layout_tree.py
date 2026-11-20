@@ -152,8 +152,8 @@ def api_detail():
     recorder = _folder(
         "recorder", "the page recorder: state, generated output and its page script",
         _file("breakpoint.rs", "the pause while a person records"),
-        _file("calls.rs", "the recorded calls"),
         _file("cdp.rs", "recording over CDP"),
+        _file("command.rs", "the typed recorded commands (RecordedCommand)"),
         _file("extras.rs", "extra recorded actions"),
         _file("generate.rs", "turns a recording into a test"),
         _folder("js", "scripts the recorder runs in the page",
@@ -162,6 +162,7 @@ def api_detail():
         _file("output.rs", "where a recording is written"),
         _file("process.rs", "processes the recorded actions"),
         _file("raw.rs", "the raw recording"),
+        _file("rust_call.rs", "the Rust call each recorded command becomes"),
         _file("state.rs", "the recorder state"),
     )
     return [

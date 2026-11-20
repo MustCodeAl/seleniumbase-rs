@@ -504,7 +504,7 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
                 .optional("save_to", save_to_prop()),
             capture_fingerprint::<S>,
         )
-        .with_output_schema(object_schema(
+        .declare_output_schema(object_schema(
             &json!({
                 "fingerprint": { "type": "object", "description": "The v2 fingerprint file" },
                 "unmapped": { "type": "object", "description": "Readings no setting holds" },
@@ -536,7 +536,7 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
             source_schema(),
             compare_fingerprint::<S>,
         )
-        .with_output_schema(object_schema(
+        .declare_output_schema(object_schema(
             &json!({
                 "presents": { "type": "boolean" },
                 "verified": { "type": "boolean" },
@@ -592,7 +592,7 @@ pub(super) fn tools<S: CaptureSession>() -> Vec<ToolDef<S>> {
             Schema::new().optional("url", Prop::string("Page to open before reading")),
             explain_fingerprint::<S>,
         )
-        .with_output_schema(object_schema(
+        .declare_output_schema(object_schema(
             &json!({
                 "risk": { "type": "string", "enum": ["none", "low", "medium", "high"] },
                 "leaks": { "type": "array", "items": { "type": "object" } },
@@ -914,7 +914,7 @@ pub(super) fn offline_tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
                 .required("b", reference_prop("The fingerprint found")),
             diff_fingerprints::<S>,
         )
-        .with_output_schema(object_schema(
+        .declare_output_schema(object_schema(
             &json!({
                 "identical": { "type": "boolean" },
                 "compared": { "type": "integer" },
@@ -939,7 +939,7 @@ pub(super) fn offline_tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
                 .optional("save_to", save_to_prop()),
             patch_fingerprint::<S>,
         )
-        .with_output_schema(object_schema(
+        .declare_output_schema(object_schema(
             &json!({
                 "fingerprint": { "type": "object" },
                 "valid": { "type": "boolean" },

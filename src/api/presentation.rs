@@ -29,8 +29,8 @@
 //! use std::time::Duration;
 //!
 //! let mut deck = Presentation::new(PresentationTheme::Sky, Transition::Slide);
-//! deck.add_slide(Slide::new("<h1>What's new</h1>").with_notes("Mention the new waits"));
-//! deck.add_slide(Slide::new("<h2>Thanks</h2>").with_transition(Transition::Fade));
+//! deck.add_slide(Slide::new("<h1>What's new</h1>").notes("Mention the new waits"));
+//! deck.add_slide(Slide::new("<h2>Thanks</h2>").transition(Transition::Fade));
 //!
 //! // Notes shown, a new slide every five seconds.
 //! let html = deck.to_html(true, Duration::from_secs(5), false);
@@ -299,42 +299,42 @@ impl Slide {
 
     /// Shows the image at `url` below the content.
     #[must_use]
-    pub fn with_image(mut self, url: &str) -> Self {
+    pub fn image(mut self, url: &str) -> Self {
         self.image = Some(url.to_owned());
         self
     }
 
     /// Shows `code` below the content, with syntax highlighting.
     #[must_use]
-    pub fn with_code(mut self, code: &str) -> Self {
+    pub fn code(mut self, code: &str) -> Self {
         self.code = Some(code.to_owned());
         self
     }
 
     /// Shows the page at `url` in a frame below the content.
     #[must_use]
-    pub fn with_iframe(mut self, url: &str) -> Self {
+    pub fn iframe(mut self, url: &str) -> Self {
         self.iframe = Some(url.to_owned());
         self
     }
 
     /// Shows the HTML `content2` after the image, the code and the frame.
     #[must_use]
-    pub fn with_content2(mut self, content2: &str) -> Self {
+    pub fn content2(mut self, content2: &str) -> Self {
         self.content2 = Some(content2.to_owned());
         self
     }
 
     /// Adds the speaker notes `notes` (HTML).
     #[must_use]
-    pub fn with_notes(mut self, notes: &str) -> Self {
+    pub fn notes(mut self, notes: &str) -> Self {
         self.notes = Some(notes.to_owned());
         self
     }
 
     /// Gives this slide a transition of its own.
     #[must_use]
-    pub fn with_transition(mut self, transition: Transition) -> Self {
+    pub fn transition(mut self, transition: Transition) -> Self {
         self.transition = Some(transition);
         self
     }
@@ -649,7 +649,7 @@ mod tests {
     fn a_slide_transition_overrides_the_presentation_s() {
         let mut deck = Presentation::new(PresentationTheme::Serif, Transition::Zoom);
         deck.add_slide(Slide::new("a"));
-        deck.add_slide(Slide::new("b").with_transition(Transition::Fade));
+        deck.add_slide(Slide::new("b").transition(Transition::Fade));
         let html = deck.to_html(false, Duration::ZERO, false);
         assert_eq!(html.matches("data-transition=\"zoom\"").count(), 1);
         assert_eq!(html.matches("data-transition=\"fade\"").count(), 1);
@@ -660,11 +660,11 @@ mod tests {
         let mut deck = deck();
         deck.add_slide(
             Slide::new("<h2>Title</h2>")
-                .with_image("https://example.test/a.png?x=1&y=2")
-                .with_code("let a = 1 < 2;")
-                .with_iframe("https://example.test/frame")
-                .with_content2("<p>after</p>")
-                .with_notes("say hello"),
+                .image("https://example.test/a.png?x=1&y=2")
+                .code("let a = 1 < 2;")
+                .iframe("https://example.test/frame")
+                .content2("<p>after</p>")
+                .notes("say hello"),
         );
         let html = deck.to_html(true, Duration::ZERO, false);
         let positions: Vec<usize> = [
@@ -691,7 +691,7 @@ mod tests {
     #[test]
     fn plain_text_content_stays_on_the_section_line_and_html_starts_a_new_one() {
         let mut deck = deck();
-        deck.add_slide(Slide::new("plain text").with_content2("more"));
+        deck.add_slide(Slide::new("plain text").content2("more"));
         let html = deck.to_html(false, Duration::ZERO, false);
         assert!(
             html.contains("<section data-transition=\"none\">plain text"),
@@ -706,7 +706,7 @@ mod tests {
     #[test]
     fn the_html_of_a_slide_is_not_escaped_but_a_frame_address_is() {
         let mut deck = deck();
-        deck.add_slide(Slide::new("<b>bold</b>").with_iframe("x\" onload=\"alert(1)"));
+        deck.add_slide(Slide::new("<b>bold</b>").iframe("x\" onload=\"alert(1)"));
         let html = deck.to_html(false, Duration::ZERO, false);
         assert!(html.contains("<b>bold</b>"));
         assert!(!html.contains("\" onload=\"alert(1)"), "{html}");
@@ -716,7 +716,7 @@ mod tests {
     #[test]
     fn empty_optional_parts_are_left_out_like_python_does() {
         let mut deck = deck();
-        deck.add_slide(Slide::new("x").with_image("").with_code("").with_iframe(""));
+        deck.add_slide(Slide::new("x").image("").code("").iframe(""));
         let html = deck.to_html(false, Duration::ZERO, false);
         assert!(!html.contains("<img"));
         assert!(!html.contains("<pre class"));

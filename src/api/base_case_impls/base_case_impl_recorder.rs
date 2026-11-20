@@ -476,7 +476,7 @@ impl BaseCase {
 
     /// Python's tear-down processing: reads the recording of every tab,
     /// merges the actions that the page cannot see (the entries of the call
-    /// log in [`EXTRA_ACTIONS`](crate::api::recorder)), processes them as
+    /// log: hovers, assertions, script clicks and the like), processes them as
     /// Python does, and writes the test (and, by the configuration, the
     /// Gherkin feature, a script or pure CDP code) under `recordings/`.
     ///
@@ -716,11 +716,11 @@ mod tests_recorder_mode {
         let mut sb = BaseCase::new(config(&driver)).await.unwrap();
         // A call the page cannot see, between the two tabs' actions.
         sb.recorder.lock().unwrap().actions.push(RecordedAction {
-            name: "hover".to_owned(),
-            target: Some("#h".to_owned()),
-            value: None,
-            timestamp_ms: u128::try_from(base + 100_700).unwrap(),
-        });
+                    command: crate::api::recorder::RecordedCommand::Hover {
+                        selector: "#h".to_owned(),
+                    },
+                    timestamp_ms: u128::try_from(base + 100_700).unwrap(),
+                });
         let folder = temp("harvest");
         sb.set_recording_output(
             RecordingTarget::new("shop", "Shop", "test_checkout").in_folder(&folder),

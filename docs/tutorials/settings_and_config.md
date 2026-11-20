@@ -502,13 +502,13 @@ let config = BrowserConfig::builder().proxy(entry.spec()).build()?;
 
 `ProxyEntry`'s `Debug` and `Display` never show a password; only `spec()` does.
 
-`pick(site)` chooses by the list's `RotationStrategy`, set with `with_rotation`: in
+`pick(site)` chooses by the list's `RotationStrategy`, set with `rotation`: in
 turn (`RoundRobin`, the default), at random (`Random { seed }`, where a seed
 repeats the same order and `None` is `random`'s pick), the proxy with the fewest
 reported failures (`LeastFailures`), or the same proxy for the same site
 (`StickyPerSite`). `report(entry, outcome)` records what a request through a
 proxy met (`ProxyOutcome::Success`, `ConnectFailed`, `Challenged`, `Blocked`), and
-`with_quarantine(after_failures, rest)` rests a proxy that failed that many times in
+`quarantine(after_failures, rest)` rests a proxy that failed that many times in
 a row. `pick_other(current, site)` never returns `current`, so a rotation really
 moves:
 
@@ -517,8 +517,8 @@ use std::time::Duration;
 use seleniumbase_rs::config::proxy_list::{ProxyList, ProxyOutcome, RotationStrategy};
 
 let proxies = ProxyList::from_file("proxies.txt")?
-    .with_rotation(RotationStrategy::LeastFailures)
-    .with_quarantine(3, Duration::from_secs(600));
+    .rotation(RotationStrategy::LeastFailures)
+    .quarantine(3, Duration::from_secs(600));
 let entry = proxies.pick(Some("shop.example")).expect("a proxy that is not resting");
 proxies.report(entry, ProxyOutcome::ConnectFailed);
 ```
@@ -539,7 +539,7 @@ use std::time::{Duration, UNIX_EPOCH};
 use seleniumbase_rs::config::proxy_list::{ProxyList, ProxyOutcome};
 
 let proxies = ProxyList::parse("de = de.proxy.example:8080\nfr = fr.proxy.example:8080\n")?
-    .with_quarantine(1, Duration::from_secs(600));
+    .quarantine(1, Duration::from_secs(600));
 let at = |seconds| UNIX_EPOCH + Duration::from_secs(seconds);
 
 let german = proxies

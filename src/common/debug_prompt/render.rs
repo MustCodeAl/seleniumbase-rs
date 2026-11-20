@@ -233,13 +233,31 @@ impl Scene {
         }
     }
 
-    /// This scene, reached because of `failure`.
-    #[must_use]
-    pub fn with_failure(mut self, failure: Failure) -> Self {
-        self.failure = Some(failure);
-        self
+    /// Starts building a scene: no spot and no failure.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::common::debug_prompt::{Scene, SourceSpot};
+    ///
+    /// let scene = Scene::builder()
+    ///     .spot(SourceSpot::new("tests/login.rs", 11, 9))
+    ///     .build();
+    /// assert_eq!(scene.spot().map(SourceSpot::line), Some(11));
+    /// assert!(scene.failure().is_none());
+    /// ```
+    pub fn builder() -> SceneBuilder {
+        SceneBuilder::default()
     }
 
+    /// Starts building from this scene, to change some of it: a failure is
+    /// added with `scene.into_builder().failure(failure).build()`.
+    pub fn into_builder(self) -> SceneBuilder {
+        SceneBuilder { scene: self }
+    }
+}
+
+impl Scene {
     /// The place in the test's source, when known.
     #[must_use]
     pub fn spot(&self) -> Option<&SourceSpot> {
@@ -250,6 +268,46 @@ impl Scene {
     #[must_use]
     pub fn failure(&self) -> Option<&Failure> {
         self.failure.as_ref()
+    }
+}
+
+/// Builds a [`Scene`]: [`Scene::builder`] starts empty, [`Scene::into_builder`]
+/// from a scene you hold. A setter takes the builder and gives it back;
+/// [`build`](Self::build) returns the scene.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::common::debug_prompt::{Scene, SourceSpot};
+///
+/// let scene = Scene::at(SourceSpot::new("tests/login.rs", 11, 9))
+///     .into_builder()
+///     .build();
+/// assert_eq!(scene.spot().map(SourceSpot::line), Some(11));
+/// ```
+#[derive(Clone, Debug, Default)]
+#[must_use = "a builder does nothing until `build` is called"]
+pub struct SceneBuilder {
+    scene: Scene,
+}
+
+impl SceneBuilder {
+    /// The place in the test's source where the pause happened.
+    pub fn spot(mut self, spot: SourceSpot) -> Self {
+        self.scene.spot = Some(spot);
+        self
+    }
+
+    /// The failure that led to the pause.
+    pub fn failure(mut self, failure: Failure) -> Self {
+        self.scene.failure = Some(failure);
+        self
+    }
+
+    /// The scene.
+    #[must_use]
+    pub fn build(self) -> Scene {
+        self.scene
     }
 }
 

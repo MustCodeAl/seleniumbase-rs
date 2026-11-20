@@ -11,9 +11,10 @@
 //! use std::time::Duration;
 //! use seleniumbase_rs::api::run_settings::{PauseKind, RunSettings};
 //!
-//! let settings = RunSettings::default()
-//!     .with_slow_mode(true)
-//!     .with_demo_sleep(Duration::from_millis(500));
+//! let settings = RunSettings::builder()
+//!     .slow_mode(true)
+//!     .demo_sleep(Duration::from_millis(500))
+//!     .build();
 //! assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_millis(500));
 //! ```
 
@@ -28,22 +29,22 @@ use crate::artifacts::{confined_path, safe_stem};
 use crate::error::SeleniumBaseError;
 
 /// How long demo mode and slow mode pause after an action unless
-/// [`RunSettings::with_demo_sleep`] says otherwise (Python's
+/// [`RunSettingsBuilder::demo_sleep`] says otherwise (Python's
 /// `DEFAULT_DEMO_MODE_TIMEOUT`, 0.5 s in 4.55.2).
 pub const DEFAULT_DEMO_PAUSE: Duration = Duration::from_millis(500);
 
 /// How long a message stays on the page unless
-/// [`RunSettings::with_message_duration`] says otherwise (Python's
+/// [`RunSettingsBuilder::message_duration`] says otherwise (Python's
 /// `DEFAULT_MESSAGE_DURATION`, 2.55 s in 4.55.2).
 pub const DEFAULT_MESSAGE_DURATION: Duration = Duration::from_millis(2550);
 
 /// How many times the highlight calls outline an element unless
-/// [`RunSettings::with_highlights`] says otherwise (Python's
+/// [`RunSettingsBuilder::highlights`] says otherwise (Python's
 /// `settings.HIGHLIGHTS`, 4 in 4.55.2).
 pub const DEFAULT_HIGHLIGHT_LOOPS: u32 = 4;
 
 /// How long MasterQA waits before it asks for a verdict unless
-/// [`RunSettings::with_verify_delay`] says otherwise (Python's
+/// [`RunSettingsBuilder::verify_delay`] says otherwise (Python's
 /// `MASTERQA_WAIT_TIME_BEFORE_VERIFY`, 0.5 s in 4.55.2).
 pub const DEFAULT_VERIFY_DELAY: Duration = Duration::from_millis(500);
 
@@ -148,6 +149,62 @@ mod seconds {
 }
 
 impl RunSettings {
+    /// Starts building settings that change nothing, as
+    /// [`RunSettings::default`] does.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::time::Duration;
+    /// use seleniumbase_rs::api::run_settings::{PauseKind, RunSettings};
+    ///
+    /// let settings = RunSettings::builder()
+    ///     .slow_mode(true)
+    ///     .demo_sleep(Duration::from_millis(500))
+    ///     .build();
+    /// assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_millis(500));
+    /// ```
+    #[must_use]
+    pub fn builder() -> RunSettingsBuilder {
+        RunSettingsBuilder::default()
+    }
+
+    /// Starts building from these settings, to change some of them.
+    #[must_use]
+    pub fn into_builder(self) -> RunSettingsBuilder {
+        RunSettingsBuilder { settings: self }
+    }
+}
+
+/// Builds [`RunSettings`]: [`RunSettings::builder`] starts from the default,
+/// which changes nothing, [`RunSettings::into_builder`] from settings you hold.
+/// A setter takes the builder and gives it back; [`build`](Self::build) returns
+/// the settings. The settings are read back with the getters of
+/// [`RunSettings`].
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::api::run_settings::RunSettings;
+///
+/// let settings = RunSettings::builder().timeout_multiplier(1.5).build();
+/// assert_eq!(settings.scale_timeout(10), 15);
+///
+/// let slower = settings.into_builder().timeout_multiplier(2.0).build();
+/// assert_eq!(slower.scale_timeout(10), 20);
+/// ```
+#[derive(Clone, Debug, Default)]
+pub struct RunSettingsBuilder {
+    settings: RunSettings,
+}
+
+impl RunSettingsBuilder {
+    /// The settings.
+    #[must_use]
+    pub fn build(self) -> RunSettings {
+        self.settings
+    }
+
     /// Highlight each element and pause after an action, so a person can
     /// follow the run (`--demo`).
     ///
@@ -161,24 +218,24 @@ impl RunSettings {
     /// [`PauseKind::Short`] after one that did not; the actions that always
     /// pause in full or short in Python do the same here.
     #[must_use]
-    pub fn with_demo_mode(mut self, on: bool) -> Self {
-        self.demo_mode = on;
+    pub fn demo_mode(mut self, on: bool) -> Self {
+        self.settings.demo_mode = on;
         self
     }
 
     /// Pause after those same actions without highlighting (`--slow`). Every
     /// pause is [`PauseKind::Full`].
     #[must_use]
-    pub fn with_slow_mode(mut self, on: bool) -> Self {
-        self.slow_mode = on;
+    pub fn slow_mode(mut self, on: bool) -> Self {
+        self.settings.slow_mode = on;
         self
     }
 
     /// The pause demo mode and slow mode make after an action, instead of
     /// [`DEFAULT_DEMO_PAUSE`] (`--demo-sleep`).
     #[must_use]
-    pub fn with_demo_sleep(mut self, pause: Duration) -> Self {
-        self.demo_sleep = Some(pause);
+    pub fn demo_sleep(mut self, pause: Duration) -> Self {
+        self.settings.demo_sleep = Some(pause);
         self
     }
 
@@ -186,8 +243,8 @@ impl RunSettings {
     /// (`--message-duration`), to the millisecond. See
     /// [`RunSettings::message_duration`].
     #[must_use]
-    pub fn with_message_duration(mut self, duration: Duration) -> Self {
-        self.message_duration = Some(duration);
+    pub fn message_duration(mut self, duration: Duration) -> Self {
+        self.settings.message_duration = Some(duration);
         self
     }
 
@@ -196,31 +253,31 @@ impl RunSettings {
     /// seconds, so a part of a second rounds up. Python has no such option;
     /// its constants (`SMALL_TIMEOUT`, `LARGE_TIMEOUT`) are per call.
     #[must_use]
-    pub fn with_default_timeout(mut self, timeout: Duration) -> Self {
-        self.default_timeout = Some(timeout);
+    pub fn default_timeout(mut self, timeout: Duration) -> Self {
+        self.settings.default_timeout = Some(timeout);
         self
     }
 
     /// Make `wait_for_ready_state_complete` return at once (`--skip-js-waits`).
     /// A direct call to `wait_for_angularjs` still waits.
     #[must_use]
-    pub fn with_skip_js_waits(mut self, on: bool) -> Self {
-        self.skip_js_waits = on;
+    pub fn skip_js_waits(mut self, on: bool) -> Self {
+        self.settings.skip_js_waits = on;
         self
     }
 
     /// Put `BaseCase::sleep` calls into the recording (`--record-sleep`).
     #[must_use]
-    pub fn with_record_sleep(mut self, on: bool) -> Self {
-        self.record_sleep = on;
+    pub fn record_sleep(mut self, on: bool) -> Self {
+        self.settings.record_sleep = on;
         self
     }
 
     /// Make `check_window` replace its stored baseline screenshot instead of
     /// comparing with it (`--visual-baseline`).
     #[must_use]
-    pub fn with_visual_baseline_reset(mut self, on: bool) -> Self {
-        self.reset_visual_baseline = on;
+    pub fn reset_visual_baseline(mut self, on: bool) -> Self {
+        self.settings.reset_visual_baseline = on;
         self
     }
 
@@ -229,8 +286,8 @@ impl RunSettings {
     /// [`DEFAULT_HIGHLIGHT_LOOPS`]. Python lets this setting win over a count
     /// a call names itself.
     #[must_use]
-    pub fn with_highlights(mut self, loops: u32) -> Self {
-        self.highlights = (loops > 0).then_some(loops);
+    pub fn highlights(mut self, loops: u32) -> Self {
+        self.settings.highlights = (loops > 0).then_some(loops);
         self
     }
 
@@ -238,8 +295,8 @@ impl RunSettings {
     /// presentation plays by itself (`--interval`). Zero turns the autoplay
     /// off, which is the default.
     #[must_use]
-    pub fn with_interval(mut self, interval: Duration) -> Self {
-        self.interval = (!interval.is_zero()).then_some(interval);
+    pub fn interval(mut self, interval: Duration) -> Self {
+        self.settings.interval = (!interval.is_zero()).then_some(interval);
         self
     }
 
@@ -247,8 +304,8 @@ impl RunSettings {
     /// (`--verify-delay`), instead of [`DEFAULT_VERIFY_DELAY`]. Zero asks at
     /// once.
     #[must_use]
-    pub fn with_verify_delay(mut self, delay: Duration) -> Self {
-        self.verify_delay = Some(delay);
+    pub fn verify_delay(mut self, delay: Duration) -> Self {
+        self.settings.verify_delay = Some(delay);
         self
     }
 
@@ -257,8 +314,8 @@ impl RunSettings {
     /// does. Only Chromium-based browsers have such a log; for the others
     /// this does nothing.
     #[must_use]
-    pub fn with_check_js(mut self, on: bool) -> Self {
-        self.check_js = on;
+    pub fn check_js(mut self, on: bool) -> Self {
+        self.settings.check_js = on;
         self
     }
 
@@ -267,8 +324,8 @@ impl RunSettings {
     /// [`BaseCase::wait_for_angularjs`](crate::BaseCase::wait_for_angularjs)
     /// does. A page without AngularJS does not wait.
     #[must_use]
-    pub fn with_wait_for_angularjs(mut self, on: bool) -> Self {
-        self.wait_for_angularjs = on;
+    pub fn wait_for_angularjs(mut self, on: bool) -> Self {
+        self.settings.wait_for_angularjs = on;
         self
     }
 
@@ -278,8 +335,8 @@ impl RunSettings {
     /// does. Only Chromium-based browsers show that dialog; for the others
     /// this does nothing.
     #[must_use]
-    pub fn with_disable_beforeunload(mut self, on: bool) -> Self {
-        self.disable_beforeunload = on;
+    pub fn disable_beforeunload(mut self, on: bool) -> Self {
+        self.settings.disable_beforeunload = on;
         self
     }
 
@@ -290,13 +347,15 @@ impl RunSettings {
     /// raised to it, as in Python; one that is not a finite number is
     /// ignored, and any earlier multiplier is cleared.
     #[must_use]
-    pub fn with_timeout_multiplier(mut self, multiplier: f64) -> Self {
-        self.timeout_multiplier = multiplier
+    pub fn timeout_multiplier(mut self, multiplier: f64) -> Self {
+        self.settings.timeout_multiplier = multiplier
             .is_finite()
             .then(|| multiplier.max(MIN_TIMEOUT_MULTIPLIER));
         self
     }
+}
 
+impl RunSettings {
     /// Whether demo mode is on.
     #[must_use]
     pub fn demo_mode(&self) -> bool {
@@ -309,14 +368,14 @@ impl RunSettings {
         self.slow_mode
     }
 
-    /// The wait [`with_default_timeout`](Self::with_default_timeout) set, if
+    /// The wait [`default_timeout`](RunSettingsBuilder::default_timeout) set, if
     /// any.
     #[must_use]
     pub fn default_timeout(&self) -> Option<Duration> {
         self.default_timeout
     }
 
-    /// The pause [`with_demo_sleep`](Self::with_demo_sleep) set, if any.
+    /// The pause [`demo_sleep`](RunSettingsBuilder::demo_sleep) set, if any.
     #[must_use]
     pub fn demo_sleep(&self) -> Option<Duration> {
         self.demo_sleep
@@ -340,7 +399,7 @@ impl RunSettings {
         self.reset_visual_baseline
     }
 
-    /// The count [`with_highlights`](Self::with_highlights) set, if any. A
+    /// The count [`highlights`](RunSettingsBuilder::highlights) set, if any. A
     /// highlight call without a count of its own uses
     /// [`DEFAULT_HIGHLIGHT_LOOPS`] when this is `None`.
     #[must_use]
@@ -348,14 +407,14 @@ impl RunSettings {
         self.highlights
     }
 
-    /// The autoplay time [`with_interval`](Self::with_interval) set, if any.
+    /// The autoplay time [`interval`](RunSettingsBuilder::interval) set, if any.
     #[must_use]
     pub fn interval(&self) -> Option<Duration> {
         self.interval
     }
 
     /// How long MasterQA waits before it asks for a verdict: what
-    /// [`with_verify_delay`](Self::with_verify_delay) set, else
+    /// [`verify_delay`](RunSettingsBuilder::verify_delay) set, else
     /// [`DEFAULT_VERIFY_DELAY`].
     #[must_use]
     pub fn verify_delay(&self) -> Duration {
@@ -383,7 +442,7 @@ impl RunSettings {
         self.disable_beforeunload
     }
 
-    /// The multiplier [`with_timeout_multiplier`](Self::with_timeout_multiplier)
+    /// The multiplier [`timeout_multiplier`](RunSettingsBuilder::timeout_multiplier)
     /// set, if any, after it was raised to [`MIN_TIMEOUT_MULTIPLIER`].
     #[must_use]
     pub fn timeout_multiplier(&self) -> Option<f64> {
@@ -397,7 +456,7 @@ impl RunSettings {
     /// ```
     /// use seleniumbase_rs::api::run_settings::RunSettings;
     ///
-    /// let settings = RunSettings::default().with_timeout_multiplier(1.5);
+    /// let settings = RunSettings::builder().timeout_multiplier(1.5).build();
     /// assert_eq!(settings.scale_timeout(10), 15);
     /// assert_eq!(settings.scale_timeout(3), 5);
     /// ```
@@ -431,7 +490,7 @@ impl RunSettings {
     }
 
     /// How long `post_message` keeps a message on the page: what
-    /// [`with_message_duration`](Self::with_message_duration) set, else
+    /// [`message_duration`](RunSettingsBuilder::message_duration) set, else
     /// [`DEFAULT_MESSAGE_DURATION`].
     #[must_use]
     pub fn message_duration(&self) -> Duration {
@@ -625,7 +684,7 @@ pub(crate) fn check_page_structure(
         return Err(SeleniumBaseError::AssertionFailed(
             "Page Domain Mismatch Failure: Current Page Domain doesn't match the Page Domain \
              of the Baseline! Can't compare two completely different sites! Reset the \
-             baseline with RunSettings::with_visual_baseline_reset."
+             baseline with RunSettingsBuilder::reset_visual_baseline."
                 .to_owned(),
         ));
     }
@@ -718,7 +777,7 @@ mod tests {
 
     #[test]
     fn the_default_demo_pause_is_python_half_a_second() {
-        let settings = RunSettings::default().with_demo_mode(true);
+        let settings = RunSettings::builder().demo_mode(true).build();
         assert_eq!(
             settings.pause_for(PauseKind::Full),
             Duration::from_millis(500)
@@ -728,14 +787,16 @@ mod tests {
 
     #[test]
     fn a_full_pause_is_the_whole_time_and_a_short_one_a_third_of_it_in_demo_mode() {
-        let demo = RunSettings::default()
-            .with_demo_mode(true)
-            .with_demo_sleep(Duration::from_secs(34));
+        let demo = RunSettings::builder()
+            .demo_mode(true)
+            .demo_sleep(Duration::from_secs(34))
+            .build();
         assert_eq!(demo.pause_for(PauseKind::Full), Duration::from_secs(34));
         assert_eq!(demo.pause_for(PauseKind::Short), Duration::from_secs(10));
-        let slow = RunSettings::default()
-            .with_slow_mode(true)
-            .with_demo_sleep(Duration::from_secs(34));
+        let slow = RunSettings::builder()
+            .slow_mode(true)
+            .demo_sleep(Duration::from_secs(34))
+            .build();
         assert_eq!(slow.pause_for(PauseKind::Short), Duration::from_secs(34));
         assert_eq!(
             RunSettings::default().pause_for(PauseKind::Full),
@@ -752,7 +813,9 @@ mod tests {
 
     #[test]
     fn a_message_keeps_its_milliseconds() {
-        let settings = RunSettings::default().with_message_duration(Duration::from_millis(1500));
+        let settings = RunSettings::builder()
+            .message_duration(Duration::from_millis(1500))
+            .build();
         assert_eq!(settings.message_duration(), Duration::from_millis(1500));
     }
 
@@ -763,7 +826,10 @@ mod tests {
             settings.message_duration_headless(),
             Duration::from_millis(750)
         );
-        let short = settings.with_message_duration(Duration::from_millis(300));
+        let short = settings
+            .into_builder()
+            .message_duration(Duration::from_millis(300))
+            .build();
         assert_eq!(
             short.message_duration_headless(),
             Duration::from_millis(300)
@@ -773,15 +839,18 @@ mod tests {
     #[test]
     fn the_default_timeout_is_unset_until_asked_for() {
         assert_eq!(RunSettings::default().default_timeout(), None);
-        let settings = RunSettings::default().with_default_timeout(Duration::from_secs(5));
+        let settings = RunSettings::builder()
+            .default_timeout(Duration::from_secs(5))
+            .build();
         assert_eq!(settings.default_timeout(), Some(Duration::from_secs(5)));
     }
 
     #[test]
     fn the_getters_give_back_what_was_set() {
-        let settings = RunSettings::default()
-            .with_slow_mode(true)
-            .with_demo_sleep(Duration::from_millis(250));
+        let settings = RunSettings::builder()
+            .slow_mode(true)
+            .demo_sleep(Duration::from_millis(250))
+            .build();
         assert!(settings.slow_mode() && !settings.demo_mode());
         assert_eq!(settings.demo_sleep(), Some(Duration::from_millis(250)));
         assert_eq!(RunSettings::default().demo_sleep(), None);
@@ -797,16 +866,17 @@ mod tests {
 
     #[test]
     fn slow_mode_pauses_for_the_full_time_even_for_typing() {
-        let settings = RunSettings::default().with_slow_mode(true);
+        let settings = RunSettings::builder().slow_mode(true).build();
         assert_eq!(settings.pause_for(PauseKind::Full), DEFAULT_DEMO_PAUSE);
         assert_eq!(settings.pause_for(PauseKind::Short), DEFAULT_DEMO_PAUSE);
     }
 
     #[test]
     fn demo_mode_pauses_a_shorter_time_for_typing() {
-        let settings = RunSettings::default()
-            .with_demo_mode(true)
-            .with_demo_sleep(Duration::from_secs(34));
+        let settings = RunSettings::builder()
+            .demo_mode(true)
+            .demo_sleep(Duration::from_secs(34))
+            .build();
         assert_eq!(settings.pause_for(PauseKind::Full), Duration::from_secs(34));
         assert_eq!(
             settings.pause_for(PauseKind::Short),
@@ -831,14 +901,15 @@ mod tests {
 
     #[test]
     fn the_page_and_wait_getters_give_back_what_was_set() {
-        let settings = RunSettings::default()
-            .with_highlights(7)
-            .with_interval(Duration::from_millis(1500))
-            .with_verify_delay(Duration::from_secs(2))
-            .with_check_js(true)
-            .with_wait_for_angularjs(true)
-            .with_disable_beforeunload(true)
-            .with_timeout_multiplier(2.0);
+        let settings = RunSettings::builder()
+            .highlights(7)
+            .interval(Duration::from_millis(1500))
+            .verify_delay(Duration::from_secs(2))
+            .check_js(true)
+            .wait_for_angularjs(true)
+            .disable_beforeunload(true)
+            .timeout_multiplier(2.0)
+            .build();
         assert_eq!(settings.highlights(), Some(7));
         assert_eq!(settings.interval(), Some(Duration::from_millis(1500)));
         assert_eq!(settings.verify_delay(), Duration::from_secs(2));
@@ -850,25 +921,26 @@ mod tests {
 
     #[test]
     fn zero_highlights_and_a_zero_interval_put_the_defaults_back() {
-        let settings = RunSettings::default()
-            .with_highlights(7)
-            .with_interval(Duration::from_secs(3))
-            .with_highlights(0)
-            .with_interval(Duration::ZERO);
+        let settings = RunSettings::builder()
+            .highlights(7)
+            .interval(Duration::from_secs(3))
+            .highlights(0)
+            .interval(Duration::ZERO)
+            .build();
         assert_eq!(settings.highlights(), None);
         assert_eq!(settings.interval(), None);
     }
 
     #[test]
     fn a_zero_verify_delay_asks_at_once_and_is_not_the_default() {
-        let settings = RunSettings::default().with_verify_delay(Duration::ZERO);
+        let settings = RunSettings::builder().verify_delay(Duration::ZERO).build();
         assert_eq!(settings.verify_delay(), Duration::ZERO);
     }
 
     #[test]
     fn a_multiplier_below_half_is_raised_to_half() {
         for small in [0.3, 0.0, -2.0, 0.5] {
-            let settings = RunSettings::default().with_timeout_multiplier(small);
+            let settings = RunSettings::builder().timeout_multiplier(small).build();
             assert_eq!(settings.timeout_multiplier(), Some(0.5), "{small}");
             assert_eq!(settings.scale_timeout(10), 5, "{small}");
         }
@@ -876,20 +948,21 @@ mod tests {
 
     #[test]
     fn the_multiplier_scales_the_default_wait_and_rounds_up() {
-        let settings = RunSettings::default().with_timeout_multiplier(1.5);
+        let settings = RunSettings::builder().timeout_multiplier(1.5).build();
         assert_eq!(settings.scale_timeout(10), 15);
         assert_eq!(settings.scale_timeout(3), 5);
         assert_eq!(settings.scale_timeout(0), 0);
-        let double = RunSettings::default().with_timeout_multiplier(2.0);
+        let double = RunSettings::builder().timeout_multiplier(2.0).build();
         assert_eq!(double.scale_timeout(10), 20);
     }
 
     #[test]
     fn a_multiplier_that_is_not_a_finite_number_clears_the_earlier_one() {
         for odd in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
-            let settings = RunSettings::default()
-                .with_timeout_multiplier(2.0)
-                .with_timeout_multiplier(odd);
+            let settings = RunSettings::builder()
+                .timeout_multiplier(2.0)
+                .timeout_multiplier(odd)
+                .build();
             assert_eq!(settings.timeout_multiplier(), None, "{odd}");
             assert_eq!(settings.scale_timeout(10), 10, "{odd}");
         }
@@ -897,7 +970,7 @@ mod tests {
 
     #[test]
     fn a_huge_multiplier_stops_at_one_day() {
-        let settings = RunSettings::default().with_timeout_multiplier(1e300);
+        let settings = RunSettings::builder().timeout_multiplier(1e300).build();
         assert_eq!(settings.scale_timeout(10), 24 * 60 * 60);
     }
 
@@ -913,12 +986,12 @@ mod tests {
         quiet.sleep(0.0).await;
         assert!(quiet.recorded_actions().unwrap().is_empty());
 
-        let recording = case(RunSettings::default().with_record_sleep(true));
+        let recording = case(RunSettings::builder().record_sleep(true).build());
         recording.sleep(0.0).await;
         let actions = recording.recorded_actions().unwrap();
         assert_eq!(actions.len(), 1);
-        assert_eq!(actions[0].name, "sleep");
-        assert_eq!(actions[0].value.as_deref(), Some("0"));
+        assert_eq!(actions[0].command.name(), "sleep");
+        assert_eq!(actions[0].command.value().as_deref(), Some("0"));
     }
 
     #[tokio::test]
@@ -926,7 +999,7 @@ mod tests {
         // Without a browser the page cannot be asked, so a wait that did ask
         // would run to its timeout and fail.
         let started = std::time::Instant::now();
-        case(RunSettings::default().with_skip_js_waits(true))
+        case(RunSettings::builder().skip_js_waits(true).build())
             .wait_for_ready_state_complete()
             .await
             .expect("skipped");
@@ -935,7 +1008,7 @@ mod tests {
 
     #[test]
     fn a_case_keeps_the_settings_it_is_given() {
-        let settings = RunSettings::default().with_demo_mode(true);
+        let settings = RunSettings::builder().demo_mode(true).build();
         let case = case(settings.clone());
         assert_eq!(case.run_settings(), &settings);
     }

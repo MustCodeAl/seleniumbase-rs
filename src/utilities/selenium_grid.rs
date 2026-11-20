@@ -111,21 +111,26 @@ impl GridUrl {
 
     /// The same Grid over HTTPS (or back to HTTP).
     #[must_use]
-    pub fn with_scheme(mut self, scheme: Scheme) -> Self {
-        self.scheme = scheme;
-        self
+    pub fn with_scheme(&self, scheme: Scheme) -> Self {
+        Self {
+            scheme,
+            ..self.clone()
+        }
     }
 
     /// The same Grid with a different path, such as `/wd/hub` for a Grid 3
     /// server. A missing leading slash is added.
     #[must_use]
-    pub fn with_path(mut self, path: &str) -> Self {
-        self.path = if path.starts_with('/') {
+    pub fn with_path(&self, path: &str) -> Self {
+        let path = if path.starts_with('/') {
             path.to_owned()
         } else {
             format!("/{path}")
         };
-        self
+        Self {
+            path,
+            ..self.clone()
+        }
     }
 
     /// The scheme.

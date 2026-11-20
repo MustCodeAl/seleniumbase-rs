@@ -262,7 +262,7 @@ mod tests {
     fn selection() -> PluginSelection {
         PluginSelection::new()
             .enable(PLUGIN)
-            .with_options(PLUGIN, options())
+            .options(PLUGIN, options())
     }
 
     // ---- which servers get the tool ---------------------------------------------
@@ -272,13 +272,11 @@ mod tests {
         assert!(offered(&selection()));
         assert!(!offered(&PluginSelection::new()));
         assert!(!offered(&PluginSelection::new().enable(PLUGIN)));
-        assert!(!offered(
-            &PluginSelection::new().with_options(PLUGIN, options())
-        ));
+        assert!(!offered(&PluginSelection::new().options(PLUGIN, options())));
         assert!(!offered(
             &PluginSelection::new()
                 .enable("shield")
-                .with_options("shield", options())
+                .options("shield", options())
         ));
     }
 
@@ -405,9 +403,7 @@ mod tests {
     fn what_the_plugin_refuses_is_an_error_in_its_own_words_without_a_prefix() {
         let mut unset = options();
         unset["password_env"] = json!("IMAP_UNIT_TEST_UNSET");
-        let unset = PluginSelection::new()
-            .enable(PLUGIN)
-            .with_options(PLUGIN, unset);
+        let unset = PluginSelection::new().enable(PLUGIN).options(PLUGIN, unset);
         let text = message_of(&build(&unset, None).expect_err("refused"));
         assert!(text.contains("IMAP_UNIT_TEST_UNSET"), "{text}");
         assert!(text.contains("password_env"), "{text}");
@@ -417,15 +413,13 @@ mod tests {
         // plugin at a variable that holds another secret; the variable is not read.
         let mut other = options();
         other["password_env"] = json!("GITHUB_TOKEN");
-        let other = PluginSelection::new()
-            .enable(PLUGIN)
-            .with_options(PLUGIN, other);
+        let other = PluginSelection::new().enable(PLUGIN).options(PLUGIN, other);
         let text = message_of(&build(&other, None).expect_err("refused"));
         assert!(text.contains("starting with IMAP_, MAIL_ or SB_"), "{text}");
 
         let no_host = PluginSelection::new()
             .enable(PLUGIN)
-            .with_options(PLUGIN, json!({}));
+            .options(PLUGIN, json!({}));
         let text = message_of(&build(&no_host, None).expect_err("refused"));
         assert!(text.contains("imap: `host` is required"), "{text}");
     }

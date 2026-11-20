@@ -1071,7 +1071,7 @@ mod tests {
 
     #[test]
     fn run_settings_are_set_by_the_builder_and_stay_out_of_config_files() {
-        let demo = RunSettings::default().with_demo_mode(true);
+        let demo = RunSettings::builder().demo_mode(true).build();
         let config = config_of(BrowserConfig::builder().run_settings(demo.clone()));
         assert_eq!(config.run_settings(), &demo);
         let text = serde_json::to_string(&config).expect("a config is written as JSON");
@@ -1090,7 +1090,7 @@ mod tests {
         .expect("a valid environment");
         assert_eq!(config_of(from_env.clone().into_builder()), from_env);
 
-        let demo = RunSettings::default().with_demo_mode(true);
+        let demo = RunSettings::builder().demo_mode(true).build();
         let rich = config_of(
             BrowserConfig::builder()
                 .headless(false)
@@ -1251,7 +1251,7 @@ mod tests {
         use crate::config::plugins::PluginSelection;
         let selection = PluginSelection::new()
             .enable("tokened")
-            .with_options("tokened", serde_json::json!({ "token": "PLUGINSECRET" }));
+            .options("tokened", serde_json::json!({ "token": "PLUGINSECRET" }));
         let builder = BrowserConfig::builder().plugin_selection(&selection);
         let text = format!("{builder:?}");
         assert!(!text.contains("PLUGINSECRET"), "{text}");

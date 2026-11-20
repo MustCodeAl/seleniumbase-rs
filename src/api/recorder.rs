@@ -25,12 +25,13 @@
 //! [`to_rstest_test`](ActionRecorder::to_rstest_test) writes the default
 //! output: a test that uses the `sb` fixture.
 
-mod calls;
+mod command;
 
 mod cdp;
 mod generate;
 mod process;
 mod raw;
+mod rust_call;
 
 mod breakpoint;
 mod extras;
@@ -46,6 +47,7 @@ pub use output::{
 pub use state::RecorderEnd;
 pub(crate) use state::RecorderState;
 
+pub use command::{CommandError, RecordedCommand};
 pub use generate::to_actions;
 pub use process::{add_parent_frame_switches, process};
 pub use raw::RawAction;
@@ -112,31 +114,65 @@ use std::path::{Path, PathBuf};
 use crate::api::base_case::BaseCase;
 use crate::SeleniumBaseError;
 
-use calls::{gherkin_mark, rust_call, Mark, ALIASES};
+use rust_call::rust_call;
 
 /// A single recorded browser action.
 #[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(from = "WireAction", into = "WireAction")]
 pub struct RecordedAction {
-    /// Method name on [`BaseCase`] that the action maps to.
-    pub name: String,
-    /// Primary argument, typically a selector or URL.
-    #[serde(default)]
-    pub target: Option<String>,
-    /// Secondary argument, such as text to type.
-    #[serde(default)]
-    pub value: Option<String>,
+    /// What the action does.
+    pub command: RecordedCommand,
     /// Unix timestamp in milliseconds when the action was recorded.
-    #[serde(default)]
     pub timestamp_ms: u128,
+}
+
+/// The form of a [`RecordedAction`] in a saved recording and in the page
+/// script's output: `name`, `target`, `value` and `timestamp_ms`. It is the
+/// only form in which an action is told from its name
+/// ([`RecordedCommand::from_parts`]), so a recording written before commands
+/// were typed still loads and a saved one reads the same.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+struct WireAction {
+    name: String,
+    #[serde(default)]
+    target: Option<String>,
+    #[serde(default)]
+    value: Option<String>,
+    #[serde(default)]
+    timestamp_ms: u128,
+}
+
+impl From<WireAction> for RecordedAction {
+    fn from(wire: WireAction) -> Self {
+        Self {
+            command: RecordedCommand::from_parts(
+                &wire.name,
+                wire.target.as_deref(),
+                wire.value.as_deref(),
+            ),
+            timestamp_ms: wire.timestamp_ms,
+        }
+    }
+}
+
+impl From<RecordedAction> for WireAction {
+    fn from(action: RecordedAction) -> Self {
+        let (target, value) = action.command.parts();
+        Self {
+            name: action.command.name().to_owned(),
+            target,
+            value,
+            timestamp_ms: action.timestamp_ms,
+        }
+    }
 }
 
 impl RecordedAction {
     /// Builds an action with the current wall-clock timestamp.
-    pub fn new(name: &str, target: Option<&str>, value: Option<&str>) -> Self {
+    #[must_use]
+    pub fn new(command: RecordedCommand) -> Self {
         Self {
-            name: name.to_owned(),
-            target: target.map(ToOwned::to_owned),
-            value: value.map(ToOwned::to_owned),
+            command,
             timestamp_ms: now_ms(),
         }
     }
@@ -158,8 +194,8 @@ fn now_ms() -> u128 {
 
 impl ActionRecorder {
     /// Records a new action with the current timestamp.
-    pub fn record(&mut self, name: &str, target: Option<&str>, value: Option<&str>) {
-        self.actions.push(RecordedAction::new(name, target, value));
+    pub fn record(&mut self, command: RecordedCommand) {
+        self.actions.push(RecordedAction::new(command));
     }
 
     /// Records an action only if [`to_rust_script`](Self::to_rust_script) can
@@ -173,15 +209,9 @@ impl ActionRecorder {
     /// Returns why the action cannot be generated: an unknown name (with the
     /// closest known one when there is one), or a missing or malformed argument.
     /// The recording is left unchanged.
-    pub fn try_record(
-        &mut self,
-        name: &str,
-        target: Option<&str>,
-        value: Option<&str>,
-    ) -> Result<(), String> {
-        let action = RecordedAction::new(name, target, value);
-        rust_call(&action)?;
-        self.actions.push(action);
+    pub fn try_record(&mut self, command: RecordedCommand) -> Result<(), String> {
+        rust_call(&command)?;
+        self.actions.push(RecordedAction::new(command));
         Ok(())
     }
 
@@ -299,11 +329,11 @@ impl ActionRecorder {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::api::recorder::ActionRecorder;
+    /// use seleniumbase_rs::api::recorder::{ActionRecorder, RecordedCommand};
     ///
     /// let mut recorder = ActionRecorder::default();
-    /// recorder.record("goto", Some("https://example.com"), None);
-    /// recorder.record("assert_text", Some("h1"), Some("Example Domain"));
+    /// recorder.record(RecordedCommand::Goto { url: "https://example.com".to_owned() });
+    /// recorder.record(RecordedCommand::from_parts("assert_text", Some("h1"), Some("Example Domain")));
     ///
     /// let test = recorder.to_rstest_test("test_recording", false);
     /// assert!(test.contains("async fn test_recording(sb: Sb) -> Result<()> {"));
@@ -317,7 +347,7 @@ impl ActionRecorder {
             body.push_str("        sb.activate_cdp_mode().await?;\n");
         }
         for action in &self.actions {
-            let statement = match rust_call(action) {
+            let statement = match rust_call(&action.command) {
                 Ok(call) => {
                     needs_secret |= call.contains(&secret);
                     call.replace(&secret, "recorded_secret()?")
@@ -351,11 +381,11 @@ impl ActionRecorder {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::api::recorder::ActionRecorder;
+    /// use seleniumbase_rs::api::recorder::{ActionRecorder, RecordedCommand};
     ///
     /// let mut recorder = ActionRecorder::default();
-    /// recorder.record("goto", Some("https://example.com"), None);
-    /// recorder.record("click", Some("a"), None);
+    /// recorder.record(RecordedCommand::Goto { url: "https://example.com".to_owned() });
+    /// recorder.record(RecordedCommand::Click { selector: "a".to_owned() });
     ///
     /// let feature = recorder.to_gherkin_scenario("RecorderTest", "test_recording", false);
     /// assert!(feature.starts_with("Feature: RecorderTest\n\n  Scenario: test_recording\n"));
@@ -399,11 +429,11 @@ impl ActionRecorder {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::api::recorder::ActionRecorder;
+    /// use seleniumbase_rs::api::recorder::{ActionRecorder, RecordedCommand};
     ///
     /// let mut recorder = ActionRecorder::default();
-    /// recorder.record("open", Some("https://example.com"), None);
-    /// recorder.record("click", Some("#go"), None);
+    /// recorder.record(RecordedCommand::Open { url: "https://example.com".to_owned() });
+    /// recorder.record(RecordedCommand::Click { selector: "#go".to_owned() });
     ///
     /// let program = recorder.to_cdp_script();
     /// assert!(program.contains("page.goto(\"https://example.com\").await?;"));
@@ -442,7 +472,7 @@ impl ActionRecorder {
 
     fn write_actions(&self, out: &mut String) {
         for action in &self.actions {
-            match rust_call(action) {
+            match rust_call(&action.command) {
                 Ok(call) => line(out, &call),
                 // `{:?}` keeps a hostile name from ending the comment.
                 Err(reason) => line(out, &format!("// skipped: {reason}")),
@@ -469,10 +499,9 @@ fn check_file_name(name: &str) -> Result<(), SeleniumBaseError> {
 /// The Gherkin step (without its keyword) that replays `action`, or why there
 /// is none.
 fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
-    let name = ALIASES
-        .iter()
-        .find(|(alias, _)| *alias == action.name)
-        .map_or(action.name.as_str(), |(_, canonical)| *canonical);
+    use RecordedCommand as C;
+    let command = &action.command;
+    let name = command.name();
     // Python quotes an argument with " and, for one that has a ", with '. An
     // argument with both, or a line break, would end the step early.
     let plain = |text: &str, what: &str| -> Result<String, String> {
@@ -486,38 +515,32 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
             Ok(format!("\"{text}\""))
         }
     };
-    let target = action
-        .target
-        .as_deref()
-        .ok_or_else(|| format!("{name} has no target"));
-    match gherkin_mark(name) {
-        Some(Mark::GherkinOpen) => Ok(format!("Open {}", plain(target?, "URL")?)),
-        Some(Mark::GherkinClick) => Ok(format!("Click {}", plain(target?, "selector")?)),
-        Some(Mark::GherkinType) => {
-            let value = action
-                .value
-                .as_deref()
-                .ok_or_else(|| format!("{name} has no value"))?;
+    match command {
+        C::Open { url } | C::Goto { url } | C::GotoIfNotUrl { url } => {
+            Ok(format!("Open {}", plain(url, "URL")?))
+        }
+        C::Click { selector } => Ok(format!("Click {}", plain(selector, "selector")?)),
+        C::TypeText { selector, text } => {
             // The step's pattern is `Type "(.+?)" into "(.+?)"`: no text, no match.
-            if value.contains(SECRET_PLACEHOLDER) {
+            if text.contains(SECRET_PLACEHOLDER) {
                 return Err(format!(
                     "{name}: the text is a password, which a feature file does not keep"
                 ));
             }
-
-            if value.is_empty() {
+            if text.is_empty() {
                 return Err(format!(
                     "{name}: the text is empty, and the Type step needs at least one character"
                 ));
             }
             Ok(format!(
                 "Type {} into {}",
-                plain(value, "text")?,
-                plain(target?, "selector")?
+                plain(text, "text")?,
+                plain(selector, "selector")?
             ))
         }
-        Some(Mark::GherkinBack) => Ok("Go back".to_owned()),
-        Some(Mark::GherkinForward) => Ok("Go forward".to_owned()),
+        C::GoBack => Ok("Go back".to_owned()),
+        C::GoForward => Ok("Go forward".to_owned()),
+        C::Malformed { error, .. } => Err(error.to_string()),
         // The name is whatever was recorded. Written plainly, a line break in it would end the
         // `# skipped:` comment and start a Scenario or a step, so it is escaped.
         _ => Err(format!(
@@ -704,11 +727,11 @@ fn revealed(text: &str) -> Result<String, SeleniumBaseError> {
 /// run again with [`replay`](RecorderSession::replay).
 ///
 /// ```
-/// use seleniumbase_rs::api::recorder::RecorderSession;
+/// use seleniumbase_rs::api::recorder::{RecordedCommand, RecorderSession};
 ///
 /// let mut session = RecorderSession::new();
-/// session.push("open", Some("https://example.com"), None);
-/// session.push("click", Some("#submit"), None);
+/// session.push(RecordedCommand::Open { url: "https://example.com".to_owned() });
+/// session.push(RecordedCommand::Click { selector: "#submit".to_owned() });
 /// assert_eq!(session.actions().len(), 2);
 /// assert!(session.to_json().unwrap().contains("https://example.com"));
 /// assert!(session.to_yaml().contains("click"));
@@ -750,8 +773,8 @@ impl RecorderSession {
     }
 
     /// Appends an action to the recording without touching the browser.
-    pub fn push(&mut self, name: &str, target: Option<&str>, value: Option<&str>) {
-        self.actions.push(RecordedAction::new(name, target, value));
+    pub fn push(&mut self, command: RecordedCommand) {
+        self.actions.push(RecordedAction::new(command));
     }
 
     /// Converts the recording into an [`ActionRecorder`] so it can be exported
@@ -776,12 +799,13 @@ impl RecorderSession {
         }
         let mut out = String::new();
         for action in &self.actions {
-            out.push_str(&format!("- name: {}\n", yaml_scalar(&action.name)));
-            if let Some(target) = &action.target {
-                out.push_str(&format!("  target: {}\n", yaml_scalar(target)));
+            let (target, value) = action.command.parts();
+            out.push_str(&format!("- name: {}\n", yaml_scalar(action.command.name())));
+            if let Some(target) = target {
+                out.push_str(&format!("  target: {}\n", yaml_scalar(&target)));
             }
-            if let Some(value) = &action.value {
-                out.push_str(&format!("  value: {}\n", yaml_scalar(value)));
+            if let Some(value) = value {
+                out.push_str(&format!("  value: {}\n", yaml_scalar(&value)));
             }
             out.push_str(&format!("  timestamp_ms: {}\n", action.timestamp_ms));
         }
@@ -855,7 +879,7 @@ impl RecorderSession {
         let bad = |number: usize, why: &str| {
             SeleniumBaseError::InvalidConfig(format!("recording line {number}: {why}"))
         };
-        let mut actions: Vec<RecordedAction> = Vec::new();
+        let mut items: Vec<WireAction> = Vec::new();
         for (index, text) in raw.lines().enumerate() {
             let number = index + 1;
             let trimmed = text.trim_end();
@@ -863,7 +887,7 @@ impl RecorderSession {
                 continue;
             }
             let entry = if let Some(rest) = trimmed.strip_prefix("- ") {
-                actions.push(RecordedAction {
+                items.push(WireAction {
                     name: String::new(),
                     target: None,
                     value: None,
@@ -875,7 +899,7 @@ impl RecorderSession {
             } else {
                 return Err(bad(number, "expected `- name: ...` or an indented key"));
             };
-            let Some(action) = actions.last_mut() else {
+            let Some(item) = items.last_mut() else {
                 return Err(bad(number, "a key before the first `- ` item"));
             };
             let (key, scalar) = entry
@@ -886,24 +910,24 @@ impl RecorderSession {
                     .map_err(|_| bad(number, "expected a double-quoted string"))
             };
             match key {
-                "name" => action.name = string()?.unwrap_or_default(),
-                "target" => action.target = string()?,
-                "value" => action.value = string()?,
+                "name" => item.name = string()?.unwrap_or_default(),
+                "target" => item.target = string()?,
+                "value" => item.value = string()?,
                 "timestamp_ms" => {
-                    action.timestamp_ms = scalar
+                    item.timestamp_ms = scalar
                         .parse()
                         .map_err(|_| bad(number, "expected a whole number"))?;
                 }
                 other => return Err(bad(number, &format!("unknown key `{other}`"))),
             }
         }
-        if let Some(position) = actions.iter().position(|action| action.name.is_empty()) {
+        if let Some(position) = items.iter().position(|item| item.name.is_empty()) {
             return Err(SeleniumBaseError::InvalidConfig(format!(
                 "recording item {} has no name",
                 position + 1
             )));
         }
-        Ok(actions)
+        Ok(items.into_iter().map(RecordedAction::from).collect())
     }
 
     /// Parses a recorded action list from JSON text.
@@ -945,7 +969,7 @@ impl RecorderSession {
         sb: &mut BaseCase,
         actions: &[RecordedAction],
     ) -> Result<ReplayReport, SeleniumBaseError> {
-        calls::replay(sb, actions).await
+        rust_call::replay(sb, actions).await
     }
 }
 
@@ -981,7 +1005,7 @@ struct RstestRecordingCompiles;
 
 #[cfg(test)]
 mod tests {
-    use super::calls::{Shape, CALLS, UNEXPORTABLE};
+    use super::command::{ALIASES, CALLABLE_NAMES};
     use super::*;
 
     #[test]
@@ -1009,9 +1033,17 @@ mod tests {
 
     fn a_captcha_is_a_comment_in_every_form_of_the_output() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("goto", Some("https://a.test/"), None);
-        recorder.record("captcha", Some("recaptcha"), None);
-        recorder.record("click", Some("#after"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "goto",
+            Some("https://a.test/"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "captcha",
+            Some("recaptcha"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("#after"), None));
         let note = "skipped: captcha (recaptcha): solve it by hand or use";
 
         let script = recorder.to_rust_script();
@@ -1044,68 +1076,240 @@ mod tests {
 
     fn sample_recorder() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();
-        recorder.record("open", Some("https://example.com"), None);
-        recorder.record("click", Some("#login"), None);
-        recorder.record("type_text", Some("#username"), Some("user"));
-        recorder.record("add_text", Some("#username"), Some("@example.com"));
-        recorder.record("clear", Some("#search"), None);
-        recorder.record("submit", Some("#form"), None);
-        recorder.record("hover", Some("#menu"), None);
-        recorder.record(
+        recorder.record(RecordedCommand::from_parts(
+            "open",
+            Some("https://example.com"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("#login"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "type_text",
+            Some("#username"),
+            Some("user"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "add_text",
+            Some("#username"),
+            Some("@example.com"),
+        ));
+        recorder.record(RecordedCommand::from_parts("clear", Some("#search"), None));
+        recorder.record(RecordedCommand::from_parts("submit", Some("#form"), None));
+        recorder.record(RecordedCommand::from_parts("hover", Some("#menu"), None));
+        recorder.record(RecordedCommand::from_parts(
             "select_option_by_text",
             Some("#country"),
             Some("United States"),
-        );
-        recorder.record("select_option_by_value", Some("#country"), Some("us"));
-        recorder.record("switch_to_frame", Some("#frame"), None);
-        recorder.record("switch_to_default_content", None, None);
-        recorder.record("drag_and_drop", Some("#source"), Some("#target"));
-        recorder.record("cdp_click_element", Some("#shadow-btn"), None);
-        recorder.record("wait_for_element_visible", Some("#result"), None);
-        recorder.record("wait_for_element_absent", Some("#spinner"), None);
-        recorder.record("assert_text", Some("#msg"), Some("Welcome"));
-        recorder.record("assert_text_visible", Some("#msg"), Some("Welcome"));
-        recorder.record("assert_text_not_visible", Some("#error"), Some("Failed"));
-        recorder.record("assert_attribute", Some("#logo"), Some("src=/logo.png"));
-        recorder.record("assert_title", Some("Example"), None);
-        recorder.record("assert_link_text", Some("Home"), None);
-        recorder.record("maximize_window", None, None);
-        recorder.record("switch_to_window", Some("handle-123"), None);
-        recorder.record("switch_to_new_window", None, None);
-        recorder.record("go_back", None, None);
-        recorder.record("go_forward", None, None);
-        recorder.record("refresh", None, None);
-        recorder.record("delete_all_cookies", None, None);
-        recorder.record("double_click", Some("#item"), None);
-        recorder.record("context_click", Some("#item"), None);
-        recorder.record("scroll_to", Some("#footer"), None);
-        recorder.record("scroll_to_bottom", None, None);
-        recorder.record("scroll_to_top", None, None);
-        recorder.record("check_if_unchecked", Some("#agree"), None);
-        recorder.record("uncheck_if_checked", Some("#spam"), None);
-        recorder.record("send_keys", Some("#search"), Some("hello"));
-        recorder.record("js_click", Some("#btn"), None);
-        recorder.record("js_type", Some("#hidden"), Some("value"));
-        recorder.record("set_attribute", Some("#x"), Some("data-id=42"));
-        recorder.record("choose_file", Some("#upload"), Some("/tmp/file.txt"));
-        recorder.record("click_partial_link_text", Some("Terms"), None);
-        recorder.record("wait_for_and_accept_alert", None, None);
-        recorder.record("wait_for_and_dismiss_alert", None, None);
-        recorder.record("click_link_text", Some("Logout"), None);
-        recorder.record("set_window_size", Some("1280,720"), None);
-        recorder.record("add_cookie", Some("session"), Some("abc"));
-        recorder.record("delete_cookie", Some("session"), None);
-        recorder.record("open_new_tab", None, None);
-        recorder.record("click_visible_elements", Some(".btn"), None);
-        recorder.record("find_element", Some("#x"), None);
-        recorder.record("find_elements", Some(".x"), None);
-        recorder.record("slow_click", Some("#y"), None);
-        recorder.record("human_type", Some("#z"), Some("abc"));
-        recorder.record("human_click", Some("#z"), None);
-        recorder.record("update_text", Some("#w"), Some("new"));
-        recorder.record("click_xpath", Some("//button"), None);
-        recorder.record("js_click_all", Some(".check"), None);
-        recorder.record("jquery_click", Some(".jq"), None);
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "select_option_by_value",
+            Some("#country"),
+            Some("us"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "switch_to_frame",
+            Some("#frame"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "switch_to_default_content",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "drag_and_drop",
+            Some("#source"),
+            Some("#target"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "cdp_click_element",
+            Some("#shadow-btn"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "wait_for_element_visible",
+            Some("#result"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "wait_for_element_absent",
+            Some("#spinner"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_text",
+            Some("#msg"),
+            Some("Welcome"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_text_visible",
+            Some("#msg"),
+            Some("Welcome"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_text_not_visible",
+            Some("#error"),
+            Some("Failed"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_attribute",
+            Some("#logo"),
+            Some("src=/logo.png"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_title",
+            Some("Example"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_link_text",
+            Some("Home"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("maximize_window", None, None));
+        recorder.record(RecordedCommand::from_parts(
+            "switch_to_window",
+            Some("handle-123"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "switch_to_new_window",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("go_back", None, None));
+        recorder.record(RecordedCommand::from_parts("go_forward", None, None));
+        recorder.record(RecordedCommand::from_parts("refresh", None, None));
+        recorder.record(RecordedCommand::from_parts(
+            "delete_all_cookies",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "double_click",
+            Some("#item"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "context_click",
+            Some("#item"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "scroll_to",
+            Some("#footer"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("scroll_to_bottom", None, None));
+        recorder.record(RecordedCommand::from_parts("scroll_to_top", None, None));
+        recorder.record(RecordedCommand::from_parts(
+            "check_if_unchecked",
+            Some("#agree"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "uncheck_if_checked",
+            Some("#spam"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "send_keys",
+            Some("#search"),
+            Some("hello"),
+        ));
+        recorder.record(RecordedCommand::from_parts("js_click", Some("#btn"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "js_type",
+            Some("#hidden"),
+            Some("value"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "set_attribute",
+            Some("#x"),
+            Some("data-id=42"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "choose_file",
+            Some("#upload"),
+            Some("/tmp/file.txt"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "click_partial_link_text",
+            Some("Terms"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "wait_for_and_accept_alert",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "wait_for_and_dismiss_alert",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "click_link_text",
+            Some("Logout"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "set_window_size",
+            Some("1280,720"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "add_cookie",
+            Some("session"),
+            Some("abc"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "delete_cookie",
+            Some("session"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("open_new_tab", None, None));
+        recorder.record(RecordedCommand::from_parts(
+            "click_visible_elements",
+            Some(".btn"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "find_element",
+            Some("#x"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "find_elements",
+            Some(".x"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("slow_click", Some("#y"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "human_type",
+            Some("#z"),
+            Some("abc"),
+        ));
+        recorder.record(RecordedCommand::from_parts("human_click", Some("#z"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "update_text",
+            Some("#w"),
+            Some("new"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "click_xpath",
+            Some("//button"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "js_click_all",
+            Some(".check"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "jquery_click",
+            Some(".jq"),
+            None,
+        ));
         recorder
     }
 
@@ -1113,7 +1317,7 @@ mod tests {
     fn a_cdp_click_is_generated_and_the_deprecated_name_is_written_as_cdp_click() {
         for recorded in ["cdp_click", "cdp_click_element"] {
             let mut recorder = ActionRecorder::default();
-            recorder.record(recorded, Some("#go"), None);
+            recorder.record(RecordedCommand::from_parts(recorded, Some("#go"), None));
             let script = recorder.to_rust_script();
             assert!(
                 script.contains(r##"sb.cdp_click("#go").await?;"##),
@@ -1183,10 +1387,22 @@ mod tests {
 
     fn sample_session() -> RecorderSession {
         let mut session = RecorderSession::new();
-        session.push("goto", Some("https://example.com"), None);
-        session.push("click", Some("#submit"), None);
-        session.push("type", Some("#name"), Some("Ada \"A\" Lovelace"));
-        session.push("assert_text", Some("#msg"), Some("Welcome"));
+        session.push(RecordedCommand::from_parts(
+            "goto",
+            Some("https://example.com"),
+            None,
+        ));
+        session.push(RecordedCommand::from_parts("click", Some("#submit"), None));
+        session.push(RecordedCommand::from_parts(
+            "type",
+            Some("#name"),
+            Some("Ada \"A\" Lovelace"),
+        ));
+        session.push(RecordedCommand::from_parts(
+            "assert_text",
+            Some("#msg"),
+            Some("Welcome"),
+        ));
         session
     }
 
@@ -1195,7 +1411,7 @@ mod tests {
         let session = sample_session();
         assert_eq!(session.len(), 4);
         assert!(!session.is_empty());
-        assert_eq!(session.actions()[0].name, "goto");
+        assert_eq!(session.actions()[0].command.name(), "goto");
         assert_eq!(RecorderSession::new().len(), 0);
         assert!(RecorderSession::new().is_empty());
     }
@@ -1206,7 +1422,10 @@ mod tests {
         let json = session.to_json().unwrap();
         let parsed = RecorderSession::parse_json(&json).unwrap();
         assert_eq!(parsed.len(), 4);
-        assert_eq!(parsed[2].value.as_deref(), Some("Ada \"A\" Lovelace"));
+        assert_eq!(
+            parsed[2].command.value().as_deref(),
+            Some("Ada \"A\" Lovelace")
+        );
     }
 
     #[test]
@@ -1214,11 +1433,70 @@ mod tests {
         let raw = r#"{"actions":[{"name":"goto","target":"https://example.com"}]}"#;
         let parsed = RecorderSession::parse_json(raw).unwrap();
         assert_eq!(parsed.len(), 1);
-        assert_eq!(parsed[0].name, "goto");
+        assert_eq!(parsed[0].command.name(), "goto");
         assert_eq!(parsed[0].timestamp_ms, 0);
     }
 
     #[test]
+    fn a_recording_saved_before_commands_were_typed_loads_and_saves_the_same_json() {
+        // The four keys that every earlier version wrote for each action, with `null` for what
+        // an action does not use: known names, a name nobody knows and a known name without
+        // its target.
+        let saved = r##"[
+            {"name":"goto","target":"https://a.test/","value":null,"timestamp_ms":1000},
+            {"name":"type_text","target":"#q","value":"rust \"lang\"\n","timestamp_ms":1001},
+            {"name":"set_window_size","target":"1280,720","value":null,"timestamp_ms":1002},
+            {"name":"levitate","target":"#a","value":"up","timestamp_ms":1003},
+            {"name":"click","target":null,"value":null,"timestamp_ms":1004},
+            {"name":"sleep","target":null,"value":"soon","timestamp_ms":1005}
+        ]"##;
+        let actions = RecorderSession::parse_json(saved).unwrap();
+        assert_eq!(actions.len(), 6);
+        assert!(matches!(actions[0].command, RecordedCommand::Goto { .. }));
+        assert!(matches!(
+            actions[2].command,
+            RecordedCommand::SetWindowSize {
+                width: 1280,
+                height: 720
+            }
+        ));
+        assert!(matches!(
+            actions[3].command,
+            RecordedCommand::Unknown { .. }
+        ));
+        assert!(matches!(
+            actions[4].command,
+            RecordedCommand::Malformed { .. }
+        ));
+        assert!(matches!(
+            actions[5].command,
+            RecordedCommand::Malformed { .. }
+        ));
+
+        let again = RecorderSession::from_actions(actions.clone())
+            .to_json()
+            .unwrap();
+        let wanted: serde_json::Value = serde_json::from_str(saved).unwrap();
+        let written: serde_json::Value = serde_json::from_str(&again).unwrap();
+        assert_eq!(written, wanted, "saving gives back what was loaded");
+        // The same list read from YAML is the same list.
+        let from_yaml =
+            RecorderSession::parse_yaml(&RecorderSession::from_actions(actions.clone()).to_yaml())
+                .unwrap();
+        assert_eq!(
+            from_yaml
+                .iter()
+                .map(|action| &action.command)
+                .collect::<Vec<_>>(),
+            actions
+                .iter()
+                .map(|action| &action.command)
+                .collect::<Vec<_>>()
+        );
+    }
+
+    #[test]
+
     fn recorder_session_rejects_invalid_json() {
         assert!(RecorderSession::parse_json("not json").is_err());
     }
@@ -1272,7 +1550,7 @@ mod tests {
     fn recorder_session_from_actions_preserves_order() {
         let actions = sample_session().into_actions();
         let session = RecorderSession::from_actions(actions);
-        assert_eq!(session.actions()[3].name, "assert_text");
+        assert_eq!(session.actions()[3].command.name(), "assert_text");
     }
 
     #[test]
@@ -1396,17 +1674,21 @@ mod tests {
     }
 
     /// The `target` and `value` that make `shape` generate a call.
-    fn sample_for(shape: Shape) -> (Option<&'static str>, Option<&'static str>) {
-        match shape {
-            Shape::NoArgs | Shape::Seconds | Shape::TabUrl => (None, None),
-            Shape::Target | Shape::TargetDiscarded | Shape::TargetSeconds => (Some("#t"), None),
-            Shape::TargetValue | Shape::ValueTarget | Shape::Cookie => (Some("#t"), Some("v")),
-            Shape::TargetPair => (Some("#t"), Some("name=content")),
-            Shape::Size => (Some("800,600"), None),
-            Shape::TargetOffset => (Some("#t"), Some("5, -7")),
-            Shape::TargetIndex => (Some("#t"), Some("2")),
-            Shape::Sleep => (None, Some("1.5")),
-        }
+    fn sample_for(name: &str) -> (Option<&'static str>, Option<&'static str>) {
+        // The first arguments that the action reads and that make a call.
+        [
+            (None, None),
+            (Some("#t"), None),
+            (Some("#t"), Some("v")),
+            (Some("#t"), Some("name=content")),
+            (Some("#t"), Some("2")),
+            (Some("#t"), Some("5, -7")),
+            (Some("800,600"), None),
+            (None, Some("1.5")),
+        ]
+        .into_iter()
+        .find(|(target, value)| call(name, *target, *value).is_ok())
+        .unwrap_or_else(|| panic!("no sample arguments make {name} a call"))
     }
 
     /// The method and the arguments of the `sb.method(args).await?;` on a line.
@@ -1468,16 +1750,20 @@ mod tests {
         );
 
         let mut recorder = ActionRecorder::default();
-        for (name, _, shape) in CALLS {
-            let (target, value) = sample_for(*shape);
-            recorder.record(name, target, value);
+        for name in CALLABLE_NAMES {
+            let (target, value) = sample_for(name);
+            recorder.record(RecordedCommand::from_parts(name, target, value));
         }
-        recorder.record("open_new_tab", Some("https://example.com"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "open_new_tab",
+            Some("https://example.com"),
+            None,
+        ));
         let script = recorder.to_rust_script();
         assert!(!script.contains("skipped"), "{script}");
 
         let calls = calls_in(&script);
-        assert_eq!(calls.len(), CALLS.len() + 1, "one call per action");
+        assert_eq!(calls.len(), CALLABLE_NAMES.len() + 1, "one call per action");
 
         let mut problems = Vec::new();
         for line in calls {
@@ -1522,29 +1808,39 @@ mod tests {
     }
 
     fn call(name: &str, target: Option<&str>, value: Option<&str>) -> Result<String, String> {
-        rust_call(&RecordedAction::new(name, target, value))
+        rust_call(&RecordedCommand::from_parts(name, target, value))
     }
 
     #[test]
-    fn the_table_has_no_duplicates_and_its_aliases_point_into_it() {
-        for (index, (name, _, _)) in CALLS.iter().enumerate() {
+    fn the_list_of_names_has_no_duplicates_and_its_aliases_point_into_it() {
+        for (index, name) in CALLABLE_NAMES.iter().enumerate() {
             assert!(
-                CALLS[index + 1..].iter().all(|(other, _, _)| other != name),
+                CALLABLE_NAMES[index + 1..]
+                    .iter()
+                    .all(|other| other != name),
                 "{name} is listed twice"
             );
         }
         for (alias, canonical) in ALIASES {
             assert!(
-                CALLS.iter().any(|(name, _, _)| name == canonical),
+                CALLABLE_NAMES.contains(canonical),
                 "{alias} points at {canonical}, which is not generated"
             );
             assert!(
-                CALLS.iter().all(|(name, _, _)| name != alias),
+                !CALLABLE_NAMES.contains(alias),
                 "{alias} is both an alias and an action"
             );
         }
-        for (name, _) in UNEXPORTABLE {
-            assert!(CALLS.iter().all(|(known, _, _)| known != name));
+        // The actions that have no call are not in the list.
+        for name in [
+            "captcha",
+            "drag_and_drop_with_offset",
+            "download_file",
+            "save_as_pdf_to_logs",
+            "save_screenshot_to_folder",
+        ] {
+            assert!(!CALLABLE_NAMES.contains(&name));
+            assert!(call(name, Some("#a"), Some("b")).is_err(), "{name}");
         }
     }
 
@@ -1623,13 +1919,25 @@ mod tests {
     #[test]
     fn an_action_that_cannot_be_generated_becomes_a_comment_that_says_why() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("levitate", Some("#a"), None);
-        recorder.record("click", None, None);
-        recorder.record("type_text", Some("#a"), None);
-        recorder.record("drag_and_drop_with_offset", Some("#a"), Some("#b"));
-        recorder.record("set_window_size", Some("wide,tall"), None);
-        recorder.record("assert_attribute", Some("#a"), Some("no equals sign"));
-        recorder.record("click", Some("#fine"), None);
+        recorder.record(RecordedCommand::from_parts("levitate", Some("#a"), None));
+        recorder.record(RecordedCommand::from_parts("click", None, None));
+        recorder.record(RecordedCommand::from_parts("type_text", Some("#a"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "drag_and_drop_with_offset",
+            Some("#a"),
+            Some("#b"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "set_window_size",
+            Some("wide,tall"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "assert_attribute",
+            Some("#a"),
+            Some("no equals sign"),
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("#fine"), None));
 
         let script = recorder.to_rust_script();
         for expected in [
@@ -1652,12 +1960,14 @@ mod tests {
     #[test]
     fn a_mistyped_action_names_the_closest_known_one() {
         let mut recorder = ActionRecorder::default();
-        let reason = recorder.try_record("clik", Some("#a"), None).unwrap_err();
+        let reason = recorder
+            .try_record(RecordedCommand::from_parts("clik", Some("#a"), None))
+            .unwrap_err();
         assert_eq!(reason, "unknown action \"clik\"; did you mean \"click\"?");
         assert!(recorder.actions.is_empty(), "a refused action is not kept");
 
         let reason = recorder
-            .try_record("levitate", Some("#a"), None)
+            .try_record(RecordedCommand::from_parts("levitate", Some("#a"), None))
             .unwrap_err();
         assert_eq!(
             reason, "unknown action \"levitate\"",
@@ -1668,12 +1978,18 @@ mod tests {
     #[test]
     fn try_record_keeps_only_what_the_generator_can_use() {
         let mut recorder = ActionRecorder::default();
-        recorder.try_record("click", Some("#ok"), None).unwrap();
+        recorder
+            .try_record(RecordedCommand::from_parts("click", Some("#ok"), None))
+            .unwrap();
         assert_eq!(
-            recorder.try_record("click", None, None).unwrap_err(),
+            recorder
+                .try_record(RecordedCommand::from_parts("click", None, None))
+                .unwrap_err(),
             "click has no target"
         );
-        assert!(recorder.try_record("type_text", Some("#a"), None).is_err());
+        assert!(recorder
+            .try_record(RecordedCommand::from_parts("type_text", Some("#a"), None))
+            .is_err());
 
         assert_eq!(recorder.actions.len(), 1);
         let script = recorder.to_rust_script();
@@ -1685,15 +2001,31 @@ mod tests {
     fn nothing_recorded_can_add_code_to_the_generated_program() {
         let mut recorder = ActionRecorder::default();
         // A name with a newline would end a `//` comment and start a statement.
-        recorder.record("levitate\nstd::process::exit(1);", None, None);
-        recorder.record("set_window_size", Some("1;std::process::exit(1),2"), None);
-        recorder.record("click", Some("\"); std::process::exit(1); (\""), None);
-        recorder.record(
+        recorder.record(RecordedCommand::from_parts(
+            "levitate\nstd::process::exit(1);",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "set_window_size",
+            Some("1;std::process::exit(1),2"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "click",
+            Some("\"); std::process::exit(1); (\""),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
             "select_option_by_index",
             Some("#a"),
             Some("1); std::process::exit(1"),
-        );
-        recorder.record("click_with_offset", Some("#a"), Some("1, 2); evil("));
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "click_with_offset",
+            Some("#a"),
+            Some("1, 2); evil("),
+        ));
 
         let script = recorder.to_rust_script();
         assert!(
@@ -1770,20 +2102,24 @@ mod tests {
     #[test]
     fn a_yaml_recording_reads_back_exactly() {
         let mut session = RecorderSession::new();
-        session.push("goto", Some("https://example.com/?q=a: b"), None);
-        session.push(
+        session.push(RecordedCommand::from_parts(
+            "goto",
+            Some("https://example.com/?q=a: b"),
+            None,
+        ));
+        session.push(RecordedCommand::from_parts(
             "type",
             Some("#name"),
             Some("Ada \"A\" Lovelace\nline two \\ \u{2713} #hash: colon"),
-        );
-        session.push("click", None, None);
+        ));
+        session.push(RecordedCommand::from_parts("click", None, None));
 
         let back = RecorderSession::parse_yaml(&session.to_yaml()).unwrap();
         assert_eq!(back.len(), 3);
         for (written, read) in session.actions().iter().zip(&back) {
-            assert_eq!(written.name, read.name);
-            assert_eq!(written.target, read.target);
-            assert_eq!(written.value, read.value);
+            assert_eq!(written.command, read.command);
+            assert_eq!(written.command.parts(), read.command.parts());
+            assert_eq!(written.command.name(), read.command.name());
             assert_eq!(written.timestamp_ms, read.timestamp_ms);
         }
         assert!(RecorderSession::parse_yaml("[]\n").unwrap().is_empty());
@@ -1801,7 +2137,10 @@ mod tests {
                 RecorderSession::load_json(&path).unwrap(),
             ] {
                 assert_eq!(loaded.len(), 4, "{file}");
-                assert_eq!(loaded[2].value.as_deref(), Some("Ada \"A\" Lovelace"));
+                assert_eq!(
+                    loaded[2].command.value().as_deref(),
+                    Some("Ada \"A\" Lovelace")
+                );
             }
         }
     }
@@ -1825,9 +2164,17 @@ mod tests {
     #[test]
     fn goto_if_not_url_is_generated_for_every_output() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("goto", Some("http://x.test/a"), None);
-        recorder.record("click", Some("#next"), None);
-        recorder.record("goto_if_not_url", Some("http://x.test/b"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "goto",
+            Some("http://x.test/a"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("#next"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "goto_if_not_url",
+            Some("http://x.test/b"),
+            None,
+        ));
         let script = recorder.to_rust_script();
         assert!(
             script.contains("sb.goto_if_not_url(\"http://x.test/b\").await?;"),
@@ -1849,8 +2196,16 @@ mod tests {
     #[test]
     fn a_password_placeholder_is_generated_as_the_environment_variable() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("type", Some("#pw"), Some("{{SB_RECORDED_SECRET}}"));
-        recorder.record("type", Some("#pw2"), Some("{{SB_RECORDED_SECRET}}\n"));
+        recorder.record(RecordedCommand::from_parts(
+            "type",
+            Some("#pw"),
+            Some("{{SB_RECORDED_SECRET}}"),
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "type",
+            Some("#pw2"),
+            Some("{{SB_RECORDED_SECRET}}\n"),
+        ));
         let script = recorder.to_rust_script();
         assert!(
             script
@@ -1870,7 +2225,7 @@ mod tests {
         let cdp = recorder.to_cdp_script();
         assert!(!cdp.contains("{{SB"), "{cdp}");
         assert!(
-            cdp.contains(r#"// skipped: "type": the text is a password"#),
+            cdp.contains(r#"// skipped: "type_text": the text is a password"#),
             "{cdp}"
         );
         let feature = recorder.to_gherkin("Login");
@@ -1925,12 +2280,24 @@ mod tests {
 
     fn gherkin_recorder() -> ActionRecorder {
         let mut recorder = ActionRecorder::default();
-        recorder.record("open", Some("https://example.com"), None);
-        recorder.record("type_text", Some("#name"), Some("Ada"));
-        recorder.record("click", Some("#go"), None);
-        recorder.record("go_back", None, None);
-        recorder.record("hover", Some("#menu"), None);
-        recorder.record("type_text", Some("#q"), Some("say \"hi\" and 'bye'"));
+        recorder.record(RecordedCommand::from_parts(
+            "open",
+            Some("https://example.com"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "type_text",
+            Some("#name"),
+            Some("Ada"),
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("#go"), None));
+        recorder.record(RecordedCommand::from_parts("go_back", None, None));
+        recorder.record(RecordedCommand::from_parts("hover", Some("#menu"), None));
+        recorder.record(RecordedCommand::from_parts(
+            "type_text",
+            Some("#q"),
+            Some("say \"hi\" and 'bye'"),
+        ));
         recorder
     }
 
@@ -1952,9 +2319,21 @@ mod tests {
     #[test]
     fn an_argument_with_a_double_quote_is_written_in_single_quotes_as_python_does() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("open", Some("https://example.com/?q=\"x\""), None);
-        recorder.record("click", Some("a[title=\"Go\"]"), None);
-        recorder.record("type_text", Some("#q"), Some("say \"hi\""));
+        recorder.record(RecordedCommand::from_parts(
+            "open",
+            Some("https://example.com/?q=\"x\""),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "click",
+            Some("a[title=\"Go\"]"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "type_text",
+            Some("#q"),
+            Some("say \"hi\""),
+        ));
 
         let feature = recorder.to_gherkin("Quotes");
 
@@ -1970,18 +2349,34 @@ mod tests {
     #[test]
     fn nothing_recorded_can_add_lines_to_the_generated_feature() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("open", Some("https://example.com"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "open",
+            Some("https://example.com"),
+            None,
+        ));
         // A name with a line break would end a `# skipped:` comment and start
         // a Scenario or a step of the attacker's choosing.
-        recorder.record(
+        recorder.record(RecordedCommand::from_parts(
             "x\nScenario: injected\n    Given I open \"https://evil.test\"",
             None,
             None,
-        );
-        recorder.record("y\r    Then I click \"#evil\"", None, None);
-        recorder.record("z\u{2028}Scenario: split", None, None);
-        recorder.record("w\u{85}Scenario: split", None, None);
-        recorder.record("click", Some("#ok"), None);
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "y\r    Then I click \"#evil\"",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "z\u{2028}Scenario: split",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "w\u{85}Scenario: split",
+            None,
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("#ok"), None));
 
         let feature = recorder.to_gherkin("Sign up");
         assert!(
@@ -2011,9 +2406,17 @@ mod tests {
     #[test]
     fn an_empty_text_is_skipped_because_the_type_step_cannot_match_it() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("open", Some("https://example.com"), None);
-        recorder.record("type_text", Some("#q"), Some(""));
-        recorder.record("click", Some("#go"), None);
+        recorder.record(RecordedCommand::from_parts(
+            "open",
+            Some("https://example.com"),
+            None,
+        ));
+        recorder.record(RecordedCommand::from_parts(
+            "type_text",
+            Some("#q"),
+            Some(""),
+        ));
+        recorder.record(RecordedCommand::from_parts("click", Some("#go"), None));
 
         let feature = recorder.to_gherkin("Search");
         let steps: Vec<&str> = feature
@@ -2050,14 +2453,22 @@ mod tests {
         #[cfg(feature = "bdd")]
         {
             let mut recorder = gherkin_recorder();
-            recorder.record("go_forward", None, None);
-            recorder.record(
+            recorder.record(RecordedCommand::from_parts("go_forward", None, None));
+            recorder.record(RecordedCommand::from_parts(
                 "goto_if_not_url",
                 Some("https://example.com/?q=\"x\""),
                 None,
-            );
-            recorder.record("click", Some("a[title=\"Go\"]"), None);
-            recorder.record("type_text", Some("#q"), Some("say \"hi\""));
+            ));
+            recorder.record(RecordedCommand::from_parts(
+                "click",
+                Some("a[title=\"Go\"]"),
+                None,
+            ));
+            recorder.record(RecordedCommand::from_parts(
+                "type_text",
+                Some("#q"),
+                Some("say \"hi\""),
+            ));
             let feature = recorder.to_gherkin("Every command");
             let lines: Vec<String> = feature.lines().map(String::from).collect();
             let parsed = parse_feature(&lines);
@@ -2092,13 +2503,19 @@ mod tests {
     #[test]
     fn a_recorded_sleep_is_generated_without_a_question_mark() {
         let mut recorder = ActionRecorder::default();
-        recorder.record("sleep", None, Some("2"));
-        recorder.record("sleep", None, Some("0.5"));
+        recorder.record(RecordedCommand::from_parts("sleep", None, Some("2")));
+        recorder.record(RecordedCommand::from_parts("sleep", None, Some("0.5")));
         let script = recorder.to_rust_script();
         assert!(script.contains("    sb.sleep(2.0).await;\n"), "{script}");
         assert!(script.contains("    sb.sleep(0.5).await;\n"), "{script}");
-        assert!(recorder.try_record("sleep", None, Some("soon")).is_err());
-        assert!(recorder.try_record("sleep", None, Some("-1")).is_err());
-        assert!(recorder.try_record("sleep", None, None).is_err());
+        assert!(recorder
+            .try_record(RecordedCommand::from_parts("sleep", None, Some("soon")))
+            .is_err());
+        assert!(recorder
+            .try_record(RecordedCommand::from_parts("sleep", None, Some("-1")))
+            .is_err());
+        assert!(recorder
+            .try_record(RecordedCommand::from_parts("sleep", None, None))
+            .is_err());
     }
 }

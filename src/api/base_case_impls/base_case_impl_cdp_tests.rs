@@ -89,8 +89,8 @@ mod tests_cdp_input {
         let recorded = sb.recorded_actions().unwrap();
         let names: Vec<_> = recorded
             .iter()
-            .filter(|action| action.name.starts_with("cdp_click"))
-            .map(|action| action.name.as_str())
+            .filter(|action| action.command.name().starts_with("cdp_click"))
+            .map(|action| action.command.name())
             .collect();
         assert_eq!(names, ["cdp_click"], "{recorded:?}");
     }

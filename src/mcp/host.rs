@@ -81,32 +81,43 @@ impl Settings {
         }
     }
 
-    /// Gives every browser the server starts the plugins `plugins` names
-    /// (the `[plugins]` table, `SB_PLUGINS`, `--plugin` and `--plugin-opt`).
+    /// Starts building settings that write into `./mcp_output` and start
+    /// browsers without plugins or a browser executable of the operator's.
     ///
-    /// A build without the feature `plugins` refuses a browser start when the
-    /// selection is not empty; check it first with
-    /// [`check_selection`](crate::cli::plugin_cmd::check_selection).
-    #[must_use]
-    pub fn with_plugin_selection(mut self, plugins: PluginSelection) -> Self {
-        self.plugins = plugins;
-        self
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::mcp::Settings;
+    ///
+    /// let settings = Settings::builder()
+    ///     .output_dir("out")
+    ///     .browser_binary("/opt/browsers/chrome")
+    ///     .build();
+    /// assert!(settings.output_dir().ends_with("out"));
+    /// assert!(settings.browser_binary().is_some());
+    /// ```
+    pub fn builder() -> SettingsBuilder {
+        SettingsBuilder {
+            settings: Self::new(DEFAULT_OUTPUT_DIR),
+        }
     }
 
+    /// Starts building from these settings, to change some of them (what
+    /// [`from_env`](Self::from_env) read, for one).
+    pub fn into_builder(self) -> SettingsBuilder {
+        SettingsBuilder { settings: self }
+    }
+}
+
+impl Settings {
     /// The plugins every browser the server starts gets.
     #[must_use]
     pub fn plugin_selection(&self) -> &PluginSelection {
         &self.plugins
     }
+}
 
-    /// Makes every browser the Pure CDP server starts the executable at `path`
-    /// (`BROWSER_BINARY_VAR`). The operator's choice: no tool argument sets it.
-    #[must_use]
-    pub fn with_browser_binary(mut self, path: impl Into<PathBuf>) -> Self {
-        self.browser_binary = Some(path.into());
-        self
-    }
-
+impl Settings {
     /// The browser executable the operator chose, if any.
     #[must_use]
     pub fn browser_binary(&self) -> Option<&Path> {
@@ -146,6 +157,63 @@ impl Settings {
         }
         path.push(confined(file, "file name")?);
         Ok(path)
+    }
+}
+
+/// Builds [`Settings`].
+///
+/// [`Settings::builder`] starts from the defaults,
+/// [`Settings::into_builder`] from settings you hold (what
+/// [`Settings::from_env`] read, for one). A setter takes the builder and gives
+/// it back; [`build`](Self::build) returns the settings.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::config::plugins::PluginSelection;
+/// use seleniumbase_rs::mcp::Settings;
+///
+/// let settings = Settings::from_env()
+///     .into_builder()
+///     .plugin_selection(PluginSelection::new().enable("shield"))
+///     .build();
+/// assert_eq!(settings.plugin_selection().enabled(), ["shield"]);
+/// ```
+#[derive(Debug, Clone)]
+#[must_use = "a builder does nothing until `build` is called"]
+pub struct SettingsBuilder {
+    settings: Settings,
+}
+
+impl SettingsBuilder {
+    /// Writes into `dir`.
+    pub fn output_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+        self.settings.output_dir = dir.into();
+        self
+    }
+
+    /// Gives every browser the server starts the plugins `plugins` names
+    /// (the `[plugins]` table, `SB_PLUGINS`, `--plugin` and `--plugin-opt`).
+    ///
+    /// A build without the feature `plugins` refuses a browser start when the
+    /// selection is not empty; check it first with
+    /// [`check_selection`](crate::cli::plugin_cmd::check_selection).
+    pub fn plugin_selection(mut self, plugins: PluginSelection) -> Self {
+        self.settings.plugins = plugins;
+        self
+    }
+
+    /// Makes every browser the Pure CDP server starts the executable at `path`
+    /// (`BROWSER_BINARY_VAR`). The operator's choice: no tool argument sets it.
+    pub fn browser_binary(mut self, path: impl Into<PathBuf>) -> Self {
+        self.settings.browser_binary = Some(path.into());
+        self
+    }
+
+    /// The settings.
+    #[must_use]
+    pub fn build(self) -> Settings {
+        self.settings
     }
 }
 
@@ -380,7 +448,7 @@ impl<S: Send + 'static> Host<S> {
     /// Call it while building the server: a host that has been cloned keeps
     /// the probe it had.
     #[must_use]
-    pub(crate) fn with_probe(mut self, probe: Probe<S>) -> Self {
+    pub(crate) fn probe(mut self, probe: Probe<S>) -> Self {
         if let Some(shared) = Arc::get_mut(&mut self.shared) {
             shared.probe = Some(probe);
         } else {
@@ -395,7 +463,7 @@ impl<S: Send + 'static> Host<S> {
     /// Call it while building the server: a host that has been cloned keeps
     /// the check it had. A server without it leaves `ref=...` alone.
     #[must_use]
-    pub(crate) fn with_refs(mut self, verify: RefVerify<S>) -> Self {
+    pub(crate) fn refs(mut self, verify: RefVerify<S>) -> Self {
         if let Some(shared) = Arc::get_mut(&mut self.shared) {
             shared.refs_verify = Some(verify);
         } else {
@@ -412,7 +480,7 @@ impl<S: Send + 'static> Host<S> {
     /// Call it while building the server: a host that has been cloned keeps
     /// the resources it had.
     #[must_use]
-    pub fn with_resources(mut self, resources: Vec<ResourceDef<S>>) -> Self {
+    pub fn resources(mut self, resources: Vec<ResourceDef<S>>) -> Self {
         if let Some(shared) = Arc::get_mut(&mut self.shared) {
             shared.resources = resources;
         } else {
@@ -430,7 +498,7 @@ impl<S: Send + 'static> Host<S> {
     /// Call it while building the server: a host that has been cloned keeps
     /// the prompts it had.
     #[must_use]
-    pub fn with_prompts(mut self, prompts: Vec<PromptDef>) -> Self {
+    pub fn prompts(mut self, prompts: Vec<PromptDef>) -> Self {
         if let Some(shared) = Arc::get_mut(&mut self.shared) {
             shared.prompts = prompts;
         } else {
@@ -1122,7 +1190,7 @@ mod tests {
             )],
             Settings::new("out"),
         )
-        .with_probe(hangs);
+        .probe(hangs);
         let started = tokio::time::Instant::now();
 
         let report = host

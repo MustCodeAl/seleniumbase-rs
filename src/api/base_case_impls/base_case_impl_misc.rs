@@ -555,15 +555,14 @@ mod tests_check_window {
     fn a_case_keeps_the_name_it_was_given() {
         let sb = BaseCase::without_session(BrowserConfig::default());
         assert_eq!(sb.test_name(), None);
-        let sb = sb.with_test_name("shop::cart::renders");
+        let mut sb = sb;
+                sb.set_test_name("shop::cart::renders");
         assert_eq!(sb.test_name(), Some("shop::cart::renders"));
     }
 
     #[test]
     fn a_case_starts_with_the_run_settings_of_its_configuration() {
-        let demo = RunSettings::default()
-            .with_demo_mode(true)
-            .with_demo_sleep(Duration::from_millis(30));
+        let demo = RunSettings::builder().demo_mode(true).demo_sleep(Duration::from_millis(30)).build();
         let sb =
             BaseCase::without_session(BrowserConfig::builder().run_settings(demo.clone()).build().expect("a valid config"));
         assert_eq!(sb.run_settings(), &demo);
@@ -573,7 +572,7 @@ mod tests_check_window {
 
     #[test]
     fn a_default_timeout_of_the_run_settings_is_the_timeout_of_the_case_rounded_up() {
-        let config = BrowserConfig::builder().run_settings(RunSettings::default().with_default_timeout(Duration::from_millis(7_500)),).build().expect("a valid config");
+        let config = BrowserConfig::builder().run_settings(RunSettings::builder().default_timeout(Duration::from_millis(7_500)).build(),).build().expect("a valid config");
         assert_eq!(BaseCase::without_session(config).timeout_secs(), 8);
         // Without one the case keeps Python's ten seconds.
         let plain = BaseCase::without_session(BrowserConfig::default());
