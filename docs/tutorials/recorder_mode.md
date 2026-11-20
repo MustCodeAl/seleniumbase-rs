@@ -366,8 +366,9 @@ are kept as they were recorded, so a recording never loses one:
 | `Unknown` | A name this crate does not know (`levitate`). | A `// skipped:` comment that names the closest known action; the replay counts it in `skipped_names`. |
 | `Malformed` | A known name whose arguments are missing or unreadable (`click` with no target, `set_window_size` of `wide,tall`). `error` says what is wrong. | A `// skipped:` comment with the same words; the replay reports a failed step. |
 
-The older names `navigate`, `type` and `cdp_click_element` are read as `Open`,
-`TypeText` and `CdpClick`, and are saved under the new names.
+Recordings saved by older versions load too: their `navigate` and `type` steps are read as
+`Open` and `TypeText`, the old CDP click step as `CdpClick`, and all three are saved under the
+new names.
 
 
 ## JSON action files
