@@ -8,8 +8,6 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
-## [0.8.5] - 2026-11-20
-
 ### Added
 
 - **Man pages**: `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1`, written by usage from the same
@@ -29,8 +27,16 @@ work, `docs/parity.md` the per-API status).
   to `sbrs plugin --help`, to the completion and to the parse; `sbrs plugin NAME --help` is the
   page of one. The declarations hold only the catch-all, so the usage spec, the CLI reference and
   the man pages do not list the plugins of a build.
+
+### Changed
+
 - The command line is built on usage 7.4 (`usage-rs` and `usage-lib`) and `usage-dynamic` 7.4
   (the same release train; usage-dynamic 6 is built on usage-rs 6).
+
+## [0.8.5] - 2026-11-20
+
+### Added
+
 - Terminal colour follows `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE`. The `Debug` text of
   `SeleniumBaseError` is styled (message, `hint:` label, hint) only when standard error may
   be coloured; `{:#?}` and `Display` stay plain. `owo-colors` and `anstream` are new
