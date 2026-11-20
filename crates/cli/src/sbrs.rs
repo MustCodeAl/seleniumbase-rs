@@ -669,7 +669,8 @@ struct Cli {
     /// Precedence, highest first: the command line, then SB_PLUGINS (which replaces the names
     /// the file enables), then the settings file. `sbrs plugin list` shows the plugins this
     /// build has. `sbrs test` passes the names on to the tests as SB_PLUGINS.
-    #[allow(rustdoc::broken_intra_doc_links)] // `[plugins]` is a TOML table in help text, not a link
+    #[allow(rustdoc::broken_intra_doc_links)]
+    // `[plugins]` is a TOML table in help text, not a link
     // The flag is declared in `PluginFlags`: a completer needs an `Args` struct of its own.
     #[usage(flatten)]
     plugin_flags: plugin_flags::PluginFlags,
@@ -3026,19 +3027,19 @@ fn parse_command_line() -> Cli {
         std::process::exit(2);
     }
     match Cli::parse_from(&words) {
-            Ok(cli) => match plugin_task_words(&cli) {
-                Some(captured) => plugin_task(&words, captured),
-                None => with_settings_file(cli),
-            },
-            Err(error) if failure::is_request(&error) => {
-                print_catalog_help(&error);
-                Cli::parse()
-            }
-            Err(error) => {
-                eprint!("{}", failure::render(&words, &error));
-                std::process::exit(2);
-            }
+        Ok(cli) => match plugin_task_words(&cli) {
+            Some(captured) => plugin_task(&words, captured),
+            None => with_settings_file(cli),
+        },
+        Err(error) if failure::is_request(&error) => {
+            print_catalog_help(&error);
+            Cli::parse()
         }
+        Err(error) => {
+            eprint!("{}", failure::render(&words, &error));
+            std::process::exit(2);
+        }
+    }
 }
 
 /// The words after `sbrs plugin` that the declarations do not know, when `cli` holds them: a
@@ -3094,7 +3095,6 @@ fn print_catalog_help(error: &usage::Error<'_, '_>) {
         std::process::exit(0);
     }
 }
-
 
 async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     // One bad SB_* variable must not drop the good ones, SB_LOG_LEVEL among
@@ -3419,7 +3419,11 @@ impl CompletionFormat {
 /// `SB_PLUGINS` (nothing else of the settings is read), with `--plugin` and `--plugin-opt`
 /// on top, and where each name came from.
 fn plugin_choice(args: &Cli) -> Result<PluginChoice, seleniumbase_rs::SeleniumBaseError> {
-    PluginChoice::load(args.config.as_deref(), &args.plugin_flags.plugin, &args.plugin_opt)
+    PluginChoice::load(
+        args.config.as_deref(),
+        &args.plugin_flags.plugin,
+        &args.plugin_opt,
+    )
 }
 
 /// `sbrs plugin list` and `sbrs plugin info NAME`. They start no browser and read only the
@@ -3432,7 +3436,9 @@ async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn s
         PluginCommand::Run(run) => return run_plugin_task(run, args).await,
         // `parse_command_line` has turned these words into `plugin run` or refused them.
         PluginCommand::External(words) => {
-            let name = words.first().map(|word| word.to_string_lossy().into_owned());
+            let name = words
+                .first()
+                .map(|word| word.to_string_lossy().into_owned());
             return Err(ArgumentError::new(
                 plugin_catalog::PARENT,
                 format!("unrecognized subcommand '{}'", name.unwrap_or_default()),

@@ -7,17 +7,18 @@
 //! for a subcommand, so there is no `sbrs-open.1`. Built only for the tests that keep the
 //! committed pages current; the binaries carry the committed text (`sbrs completions man`).
 
-use usage_lib::Spec;
 use usage_lib::docs::manpage::ManpageRenderer;
+use usage_lib::Spec;
 
 /// The manual section of both pages: user commands.
-const SECTION: &str = "1";
+const SECTION: u8 = 1;
 
 /// The man page of the program whose usage spec is `spec`, as roff.
 pub(crate) fn render(spec: &Spec) -> String {
     ManpageRenderer::new(spec.clone())
         .with_section(SECTION)
         .render()
+        .expect("usage renders the man page of its own spec")
 }
 
 /// Compares the file `relative` (a path from the repository root) with `generated`, or, when

@@ -53,7 +53,10 @@ fn described(words: Vec<(String, String)>) -> Vec<Candidate<'static>> {
 
 /// The completer of `--plugin NAME` and `sbrs plugin info NAME`: the built-in plugins of this
 /// build, each with its summary.
-pub(crate) fn plugin_candidates<P>(_partial: &P, _ctx: &CompleteCtx<'_>) -> Vec<Candidate<'static>> {
+pub(crate) fn plugin_candidates<P>(
+    _partial: &P,
+    _ctx: &CompleteCtx<'_>,
+) -> Vec<Candidate<'static>> {
     described(plugin_summaries(false))
 }
 
@@ -66,7 +69,10 @@ pub(crate) fn task_plugin_candidates<P>(
 }
 
 /// The completer of `sbrs fingerprint export --preset NAME`: the presets the library ships.
-pub(crate) fn preset_candidates<P>(_partial: &P, _ctx: &CompleteCtx<'_>) -> Vec<Candidate<'static>> {
+pub(crate) fn preset_candidates<P>(
+    _partial: &P,
+    _ctx: &CompleteCtx<'_>,
+) -> Vec<Candidate<'static>> {
     seleniumbase_rs::cli::fingerprint_cmd::PRESET_NAMES
         .iter()
         .map(|name| Candidate::new(*name))

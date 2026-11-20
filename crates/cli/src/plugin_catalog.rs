@@ -17,11 +17,11 @@
 
 use std::ffi::OsString;
 
-use usage::complete::{CompletionRequest, render};
+use usage::complete::{render, CompletionRequest};
 use usage_dynamic::{Catalog, Outcome, Spec, SpecArgBuilder, SpecCommandBuilder, SpecFlagBuilder};
 
-use crate::Cli;
 use crate::runtime_values;
+use crate::Cli;
 
 /// The command the catalog's commands go under: `sbrs plugin`.
 pub(crate) const PARENT: &str = "plugin";
@@ -116,9 +116,7 @@ pub(crate) fn completion(argv: &[OsString]) -> Option<String> {
     let request = CompletionRequest::parse(argv)?;
     let catalog = catalog()?;
     let app = catalog.app().ok()?;
-    let runtime = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .ok()?;
+    let runtime = tokio::runtime::Builder::new_current_thread().build().ok()?;
     let answer = runtime.block_on(app.complete_request(&request));
     Some(render(&answer, request.shell))
 }
@@ -196,9 +194,14 @@ mod tests {
         ]);
         let answer = completion(&argv).expect("a request is answered");
         for name in ["list", "info", "run", "crawler"] {
-            assert!(answer.lines().any(|line| line == name), "{name} in:\n{answer}");
+            assert!(
+                answer.lines().any(|line| line == name),
+                "{name} in:\n{answer}"
+            );
         }
-        assert_eq!(completion(&captured(&["open", "https://example.com"])), None);
+        assert_eq!(
+            completion(&captured(&["open", "https://example.com"])),
+            None
+        );
     }
 }
-

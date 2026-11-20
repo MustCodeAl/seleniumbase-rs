@@ -63,10 +63,10 @@ mod diagnostic;
 #[cfg(feature = "mcp-client")]
 mod mcp_client;
 
-mod mcp_cmd;
-mod mcp_install;
 #[cfg(test)]
 mod man;
+mod mcp_cmd;
+mod mcp_install;
 
 // The derive of `Cli` names the type of the subcommand field by its last path segment.
 use mcp_cmd::Command;

@@ -182,7 +182,10 @@ fn a_plugin_name_is_offered_from_the_plugins_of_the_build() {
     ] {
         let words = complete(line);
         for plugin in ["shield", "crawler"] {
-            assert!(words.iter().any(|word| word == plugin), "{line:?}: {words:?}");
+            assert!(
+                words.iter().any(|word| word == plugin),
+                "{line:?}: {words:?}"
+            );
         }
     }
     assert_eq!(complete("sbrs plugin info sh"), ["shield"]);
@@ -214,7 +217,10 @@ fn a_fingerprint_preset_is_offered_from_the_library_list() {
 fn the_plugins_with_a_task_are_commands_of_the_plugin_command() {
     let words = complete("sbrs plugin ");
     for command in ["list", "info", "run", "crawler"] {
-        assert!(words.iter().any(|word| word == command), "{command}: {words:?}");
+        assert!(
+            words.iter().any(|word| word == command),
+            "{command}: {words:?}"
+        );
     }
     assert!(!words.iter().any(|word| word == "shield"), "{words:?}");
     assert_eq!(complete("sbrs plugin cra"), ["crawler"]);
@@ -223,4 +229,3 @@ fn the_plugins_with_a_task_are_commands_of_the_plugin_command() {
         assert!(flags.iter().any(|word| word == flag), "{flag}: {flags:?}");
     }
 }
-

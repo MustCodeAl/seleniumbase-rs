@@ -1368,10 +1368,7 @@ fn the_help_of_the_plugin_command_lists_the_plugins_with_a_task() {
 
     assert!(output.status.success(), "{}", stderr(&output));
     let text = stdout(&output);
-    let listed = |name: &str| {
-        text.lines()
-            .any(|line| line.trim_start().starts_with(name))
-    };
+    let listed = |name: &str| text.lines().any(|line| line.trim_start().starts_with(name));
     for name in TASK_PLUGINS {
         assert!(listed(name), "{name} in:\n{text}");
     }
@@ -1432,7 +1429,11 @@ fn a_plugin_task_is_plugin_run_of_that_plugin() {
 
     let (said_with, said_without) = (stderr(&with_run), stderr(&without));
     assert_ne!(with_run.status.code(), Some(0), "{said_with}");
-    assert_eq!(without.status.code(), with_run.status.code(), "{said_without}");
+    assert_eq!(
+        without.status.code(),
+        with_run.status.code(),
+        "{said_without}"
+    );
     for text in [&said_with, &said_without] {
         assert!(text.contains("no-such-input.json"), "{text}");
     }
@@ -1451,4 +1452,3 @@ fn the_global_options_of_a_plugin_task_go_before_plugin() {
     assert_ne!(output.status.code(), Some(0), "{text}");
     assert!(text.contains("no-such-settings.toml"), "{text}");
 }
-
