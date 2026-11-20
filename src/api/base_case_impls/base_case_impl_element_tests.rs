@@ -181,8 +181,8 @@ mod tests_selector_forms_by_file {
     the_forms_reach_the_same_calls!(highlight_highlight_if_visible, |sb, selector| sb
         .highlight_if_visible(selector));
     // base_case_impl_cdp_page.rs
-    the_forms_reach_the_same_calls!(cdp_page_cdp_get_text, |sb, selector| sb
-        .cdp_get_text(selector));
+    // Its methods need the pure CDP engine, which a mock WebDriver is not; the
+    // Chrome tests of the `cdp_*` methods cover them.
 
     #[tokio::test]
     async fn a_selector_is_recorded_as_the_user_wrote_it() {

@@ -1,3 +1,9 @@
+---
+title: "Design: typed selectors (F9)"
+sidebarTitle: "Typed selectors"
+---
+
+
 # Typed selectors (F9)
 
 Design for lane `typed-selectors`: the selector half of finding F9 of
