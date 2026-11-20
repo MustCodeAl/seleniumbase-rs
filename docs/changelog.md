@@ -56,7 +56,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.5 s
 ### Changed
 
 - The command line is built on usage 7.4 (`usage-rs` and `usage-lib`) and `usage-dynamic` 7.4
-  (the same release train; usage-dynamic 6 is built on usage-rs 6).
+  (the same release train; usage-dynamic 6 is built on usage-rs 6). `sbrs completions zsh` prints usage's own script: 7.4 gives a complete word zsh's space itself, so the patch is gone (the PowerShell one stays).
 
 </Update>
 
