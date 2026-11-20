@@ -5965,7 +5965,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs"
-version = "0.8.0"
+version = "0.8.6"
 dependencies = [
  "anstream 0.6.21",
  "async-trait",
@@ -6037,7 +6037,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-cli"
-version = "0.8.0"
+version = "0.8.6"
 dependencies = [
  "anstream 0.6.21",
  "dirs",
@@ -6063,7 +6063,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-own-imports"
-version = "0.8.0"
+version = "0.8.6"
 dependencies = [
  "rstest-bdd",
  "seleniumbase-rs",
@@ -6071,7 +6071,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-playwright"
-version = "0.8.0"
+version = "0.8.6"
 dependencies = [
  "rustwright",
  "seleniumbase-rs",

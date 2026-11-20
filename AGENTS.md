@@ -67,7 +67,8 @@ cargo check --features turso --all-targets
   commands as `rtk cargo test` and so on, to get condensed output with the same
   exit codes). When `.tokensave/` exists, search and read code through TokenSave
   rather than `grep` or whole-file reads. For builds, mr-boxington (`mbx`)
-  caches compiled work across checkouts and worktrees.
+  caches compiled work across checkouts and worktrees. [Warp](https://www.warp.dev) is an optional
+  terminal; every command works in any terminal.
 - **Check external APIs against their documentation**, not memory (crates,
   protocols, browser flags).
 - **Match the neighbours:** `thiserror` errors in the library, no `unwrap()`
