@@ -281,6 +281,8 @@ No deprecation shims (breaking changes are fine before 1.0).
 
 ## 7. Open questions for the owner
 
+**Decided 2026-11-19:** the owner accepted the recommended answer to all five questions below.
+
 1. **Move the `:contains()` rewrite from construction to lookup (decision 6)?** It is the only
    non-mechanical change and alters when `SelectorBuf::from` rewrites. Recommended: yes; otherwise the
    recorder and error messages show XPath where the user wrote CSS, or the shell must keep the original
