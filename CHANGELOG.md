@@ -136,6 +136,19 @@ work, `docs/parity.md` the per-API status).
   names, do not change.
 
 
+- **Breaking: a recorded action holds a typed `RecordedCommand`.** `RecordedAction` was a name
+  string with an optional target and value, looked up in tables by every generator, the replay and
+  the exporters. It now holds a `#[non_exhaustive]` `RecordedCommand` with one variant per action
+  and typed fields (`selector`, `url`, `link_text`, `width` and `height`, `x` and `y`, ...), and
+  the Rust writer, the replay, the pure CDP writer, both Gherkin writers and the extra-action
+  layout match on the variant. A name nobody knows is `Unknown`, and a known name with missing or
+  unreadable arguments is `Malformed` (`CommandError`); both are kept as recorded, so generated
+  tests and saved JSON and YAML recordings stay as they were. `ActionRecorder::record`,
+  `try_record`, `RecordedAction::new` and `RecorderSession::push` take a `RecordedCommand`;
+  `RecordedCommand::from_parts` reads a recorded name, target and value.
+- A saved recording loads back whole: a drag and drop keeps its offset, and a saved screenshot
+  keeps its folder.
+
 - **Breaking: a plugin error and a database driver error keep their cause.**
   `SeleniumBaseError::Plugin` has a `source`. `plugin()` still builds one with no
   source, and the message is still `plugin error: {reason}`. Converting a plugin
