@@ -21,11 +21,11 @@ The bridge is a separate crate, not a feature of the library. `seleniumbase-rs` 
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.5" }
-seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.5" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.6" }
+seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.6" }
 ```
 
-`PlaywrightSidecar` is in every release from v0.8.5 on, so both lines name that tag.
+`PlaywrightSidecar` is in every release from v0.8.5 on, so both lines name a release tag.
 
 The crate root has three public items:
 
