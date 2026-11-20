@@ -8,6 +8,8 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-11-20
+
 ### Added
 
 - **Man pages**: `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1`, written by usage from the same

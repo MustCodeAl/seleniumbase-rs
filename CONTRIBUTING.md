@@ -97,6 +97,7 @@ the repository's task runner; there is no `justfile`.
 
 - [mdBook](https://rust-lang.github.io/mdBook/) for documentation:
   `cargo install mdbook`.
+- [Warp](https://www.warp.dev), an optional terminal. Every command in this guide works in any terminal.
 - [mr-boxington](https://mr-boxington.jdx.dev) (`mbx`), a shared cache for Cargo
   builds: `cargo install mbx --locked && mbx setup`, or with mise
   `mise use --global --tool-option mr_boxington=true rust mr-boxington`. Keep
