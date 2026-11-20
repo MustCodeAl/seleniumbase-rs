@@ -134,6 +134,32 @@ work, `docs/parity.md` the per-API status).
   `DISABLE_CSP_BYTES`, `RECORDER_BYTES`, `SBASE_EXT_BYTES` and `FIREFOX_ADDON_BYTES` replace the
   `get_*_js()` and `get_*_bytes()` functions. No alias is kept. The MCP tool names, which are wire
   names, do not change.
+- **Breaking: the last `with_*` setters are builders or plain setters.** `with_*` is now kept only
+  for constructors and for `&self` methods that build a derived value, as `Path::with_extension`
+  does. Every builder is hand-written (no bon), with `X::builder()`, `x.into_builder()` and a
+  `build()`:
+  - `HttpOptionsBuilder` (`listen`, `path`, `token`, `allow_origin`, `allow_host`, `max_sessions`,
+    `idle`, `no_token`; `build()` runs `validate()`) and `SettingsBuilder` (`plugin_selection`,
+    `browser_binary`) in `mcp`. `HttpServer::with_grace` is `grace`,
+    `Host::with_{resources,prompts,probe,refs}` drop the prefix, and `ToolDef::with_output_schema`
+    is `declare_output_schema` (`output_schema()` stays the getter).
+  - `LaunchOptions::with_{fingerprint,headless,proxy,args,url}` are removed: write
+    `options.into_builder().headless(true).build()?`. `Session::with_local_storage` is
+    `SessionBuilder::local_storage`.
+  - `RunSettingsBuilder` takes the fifteen `RunSettings::with_*` setters
+    (`with_visual_baseline_reset` is `reset_visual_baseline`). `BaseCase::with_somebody_watching`
+    is `somebody_watching`, and `BaseCase::with_test_name` is gone (`set_test_name` stays).
+  - `SceneBuilder` replaces `Scene::with_failure`. `VisualBaselineBuilder` takes `dir`, `threshold`
+    and `update_baselines`, and its `build()` refuses a threshold outside 0.0 to 1.0.
+  - The prefix is dropped from these plain setters: `ProxyList::rotation`/`quarantine`,
+    `PluginSelection::options`, `InstallRequest::version`/`revision`/`copy_to_path`,
+    `ChromeBinaryPatcher::cache_dir`, `DebugPrompt::logs_dir`/`color`, `ReportPlugin::evidence`, the
+    `Slide` setters (`image`, `code`, `iframe`, `content2`, `notes`, `transition`) and the `Chart`
+    setters (`subtitle`, `data_name`, `unit`, `zero`, `libs`, `labels`, `legend`; `with_id` is
+    `canvas_id`). `FingerprintBuilder::with_policy` is `change_policy`.
+  - `GridUrl::with_scheme`/`with_path` and `RelativeName::with_extension_or_default` take `&self`.
+  No aliases are kept.
+
 
 
 - **Breaking: a plugin error and a database driver error keep their cause.**
