@@ -158,7 +158,7 @@ pub use page::Page;
 #[doc(inline)]
 pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
 #[doc(inline)]
-pub use session_store::{Session, SessionStore};
+pub use session_store::{Session, SessionBuilder, SessionStore};
 #[doc(inline)]
 pub use state::{
     ColorScheme, Cookies, Emulation, Storage, StorageArea, Window, WindowBounds, WindowState,

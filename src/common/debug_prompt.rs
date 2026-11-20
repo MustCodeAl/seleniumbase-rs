@@ -102,7 +102,7 @@ use crate::error::SeleniumBaseError;
 mod render;
 
 use render::{code_block, where_header};
-pub use render::{Failure, Scene, SourceSpot};
+pub use render::{Failure, Scene, SceneBuilder, SourceSpot};
 
 /// The environment variable that turns `breakpoint()` off: `0`, `false`, `no`
 /// or `off`, as Python's `PYTHONBREAKPOINT=0` does.
@@ -312,9 +312,9 @@ impl DebugPrompt<TerminalInput, io::Stderr> {
     /// a warning and goes on, so a test never hangs.
     #[must_use]
     pub fn from_terminal() -> Option<Self> {
-        io::stdin().is_terminal().then(|| {
-            Self::new(TerminalInput(()), io::stderr()).with_color(use_color(&io::stderr()))
-        })
+        io::stdin()
+            .is_terminal()
+            .then(|| Self::new(TerminalInput(()), io::stderr()).color(use_color(&io::stderr())))
     }
 }
 
@@ -329,7 +329,7 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
     /// A prompt that reads its commands from `input` and writes to `output`.
     ///
     /// Files the commands save go to `latest_logs/<test id>/`; see
-    /// [`with_logs_dir`](Self::with_logs_dir).
+    /// [`logs_dir`](Self::logs_dir).
     pub fn new(input: I, output: W) -> Self {
         Self {
             input,
@@ -341,7 +341,7 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
 
     /// Saves the files of `s` and `src` under `dir` instead of `latest_logs`.
     #[must_use]
-    pub fn with_logs_dir(mut self, dir: impl Into<PathBuf>) -> Self {
+    pub fn logs_dir(mut self, dir: impl Into<PathBuf>) -> Self {
         self.logs_dir = dir.into();
         self
     }
@@ -354,7 +354,7 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
     /// [`use_color`]); a script or a test
     /// that wants to see the escape sequences asks for them here.
     #[must_use]
-    pub fn with_color(mut self, on: bool) -> Self {
+    pub fn color(mut self, on: bool) -> Self {
         self.color = on;
         self
     }
@@ -909,8 +909,7 @@ mod tests {
 
     /// A prompt that reads `script` and keeps its files in `logs`.
     fn prompt(script: &str, logs: &Path) -> DebugPrompt<ReaderInput<Cursor<Vec<u8>>>, Vec<u8>> {
-        DebugPrompt::from_reader(Cursor::new(script.as_bytes().to_vec()), Vec::new())
-            .with_logs_dir(logs)
+        DebugPrompt::from_reader(Cursor::new(script.as_bytes().to_vec()), Vec::new()).logs_dir(logs)
     }
 
     fn written(prompt: &DebugPrompt<ReaderInput<Cursor<Vec<u8>>>, Vec<u8>>) -> String {
@@ -1407,7 +1406,7 @@ mod tests {
         color: bool,
     ) -> (PromptOutcome, String) {
         let logs = tempfile::tempdir().unwrap();
-        let mut prompt = prompt(script, logs.path()).with_color(color);
+        let mut prompt = prompt(script, logs.path()).color(color);
         let outcome = prompt
             .pause_in(
                 kind,
@@ -1487,10 +1486,13 @@ mod tests {
     async fn a_post_mortem_names_the_error_the_step_and_marks_the_failing_line() {
         let dir = tempfile::tempdir().unwrap();
         let (scene, path) = scene_in(dir.path(), &the_test(), 2);
-        let scene = scene.with_failure(Failure::from_error(&SeleniumBaseError::ElementNotFound {
-            selector: "#go".to_owned(),
-            strategy: "css".to_owned(),
-        }));
+        let scene = scene
+            .into_builder()
+            .failure(Failure::from_error(&SeleniumBaseError::ElementNotFound {
+                selector: "#go".to_owned(),
+                strategy: "css".to_owned(),
+            }))
+            .build();
 
         let (_, text) = run_in(
             "c\n",
@@ -1524,11 +1526,12 @@ mod tests {
 
     #[tokio::test]
     async fn the_coloured_post_mortem_highlights_the_error_the_selector_and_the_address() {
-        let scene =
-            Scene::default().with_failure(Failure::from_error(&SeleniumBaseError::Navigation {
+        let scene = Scene::builder()
+            .failure(Failure::from_error(&SeleniumBaseError::Navigation {
                 url: "https://example.com/gone".to_owned(),
                 reason: "net::ERR_NAME_NOT_RESOLVED".to_owned(),
-            }));
+            }))
+            .build();
 
         let (_, text) = run_in(
             "c\n",
@@ -1739,9 +1742,12 @@ mod tests {
     #[tokio::test]
     async fn plain_output_never_holds_an_escape_even_for_hostile_text() {
         let page = StubPage::new("https://x.test/\x1b[2J", "T\x1b]0;pwned\x07");
-        let scene = Scene::at(SourceSpot::new("gone.rs", 1, 1)).with_failure(Failure::from_error(
-            &SeleniumBaseError::AssertionFailed("a\x1b[31mb".to_owned()),
-        ));
+        let scene = Scene::at(SourceSpot::new("gone.rs", 1, 1))
+            .into_builder()
+            .failure(Failure::from_error(&SeleniumBaseError::AssertionFailed(
+                "a\x1b[31mb".to_owned(),
+            )))
+            .build();
 
         let (_, text) = run_in("u\nw\nl\nc\n", PromptKind::PostMortem, &page, &scene, false).await;
 
@@ -1751,9 +1757,12 @@ mod tests {
     #[tokio::test]
     async fn coloured_output_holds_only_the_prompts_own_escapes() {
         let page = StubPage::new("https://x.test/\x1b[2J", "T\x1b]0;pwned\x07");
-        let scene = Scene::at(SourceSpot::new("gone.rs", 1, 1)).with_failure(Failure::from_error(
-            &SeleniumBaseError::AssertionFailed("a\x1b[31mb".to_owned()),
-        ));
+        let scene = Scene::at(SourceSpot::new("gone.rs", 1, 1))
+            .into_builder()
+            .failure(Failure::from_error(&SeleniumBaseError::AssertionFailed(
+                "a\x1b[31mb".to_owned(),
+            )))
+            .build();
 
         let (_, text) = run_in("u\nc\n", PromptKind::PostMortem, &page, &scene, true).await;
 
@@ -1772,7 +1781,7 @@ mod tests {
             .pause_in(PromptKind::Trace, "t", "m", &FakePage::new(), &scene)
             .await
             .unwrap();
-        let mut painted = prompt("c\n", logs.path()).with_color(true);
+        let mut painted = prompt("c\n", logs.path()).color(true);
         painted
             .pause_in(PromptKind::Trace, "t", "m", &FakePage::new(), &scene)
             .await

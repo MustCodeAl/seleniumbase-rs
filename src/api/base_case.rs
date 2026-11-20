@@ -87,7 +87,7 @@ pub struct BaseCase {
     /// `session`: the extra ones [`BaseCase::new_driver`] opened, and the
     /// default one while another is active.
     drivers: DriverTable<BrowserSession>,
-    /// The name of the test this case runs, from [`BaseCase::with_test_name`].
+    /// The name of the test this case runs, from [`BaseCase::set_test_name`].
     test_name: Option<String>,
     /// Run-wide demo, slow, fast and similar settings.
     run_settings: RunSettings,
@@ -195,29 +195,17 @@ impl BaseCase {
             recording: RecorderState::default(),
         }
     }
+}
 
+impl BaseCase {
     /// Names the test this case runs. [`check_window`](Self::check_window)
-    /// keeps its baselines in `visual_baseline/<name>`, so tests of the same
-    /// function name in different modules or files, and tests that do not run
-    /// on a thread named after them (`#[tokio::main]`, `tokio::spawn`), keep
-    /// separate baselines. [`sb_test!`](crate::sb_test) names its test.
-    ///
-    /// Without a name the folder is the function name of the thread that runs
-    /// the test, as in Python.
-    #[must_use]
-    pub fn with_test_name(mut self, name: impl Into<String>) -> Self {
-        self.test_name = Some(name.into());
-        self
-    }
-
-    /// [`with_test_name`](Self::with_test_name) for a case that already exists,
-    /// such as the one a test runner hands to a test. [`sb_test!`](crate::sb_test)
-    /// uses it.
+    /// keeps its baselines in `visual_baseline/<name>`, so tests of the same function name in different modules or files, and tests that do not run on a thread named after them (`#[tokio::main]`, `tokio::spawn`), keep separate baselines. [`sb_test!`](crate::sb_test)
+    /// names its test. Without a name the folder is the function name of the thread that runs the test, as in Python.
     pub fn set_test_name(&mut self, name: impl Into<String>) {
         self.test_name = Some(name.into());
     }
 
-    /// The name given by [`with_test_name`](Self::with_test_name), if any.
+    /// The name given by [`set_test_name`](Self::set_test_name), if any.
     #[must_use]
     pub fn test_name(&self) -> Option<&str> {
         self.test_name.as_deref()
@@ -300,7 +288,7 @@ impl BaseCase {
     /// The pauses that demo mode and slow mode have made so far, oldest first,
     /// so a test can say which actions paused, and how, without timing them.
     /// A pause is listed when the mode is on, whatever its length
-    /// ([`RunSettings::with_demo_sleep`]).
+    /// ([`RunSettingsBuilder::demo_sleep`](crate::RunSettingsBuilder::demo_sleep)).
     #[cfg(any(test, feature = "test-util"))]
     #[must_use]
     pub fn demo_pauses(&self) -> Vec<PauseKind> {
@@ -449,7 +437,7 @@ impl BaseCase {
     /// [time limit](Self::set_time_limit). Returns at once if the run settings
     /// skip the JavaScript waits.
     /// The wait is `ceil(multiplier * seconds)` with the run settings'
-    /// [timeout multiplier](RunSettings::with_timeout_multiplier). Once the
+    /// [timeout multiplier](crate::RunSettingsBuilder::timeout_multiplier). Once the
     /// page is ready, the run settings' page-load hooks run (see
     /// [`open`](Self::open)).
     ///
@@ -938,11 +926,11 @@ impl BaseCase {
     /// `"https://seleniumbase.io"` are equivalent.
     ///
     /// Once the page has loaded, the run settings' page-load hooks run, unless
-    /// they skip the JavaScript waits ([`RunSettings::with_skip_js_waits`]): the
-    /// AngularJS wait ([`RunSettings::with_wait_for_angularjs`]), the check of
-    /// the browser log for JavaScript errors ([`RunSettings::with_check_js`])
+    /// they skip the JavaScript waits ([`RunSettingsBuilder::skip_js_waits`](crate::RunSettingsBuilder::skip_js_waits)): the
+    /// AngularJS wait ([`RunSettingsBuilder::wait_for_angularjs`](crate::RunSettingsBuilder::wait_for_angularjs)), the check of
+    /// the browser log for JavaScript errors ([`RunSettingsBuilder::check_js`](crate::RunSettingsBuilder::check_js))
     /// and the switch-off of the `beforeunload` dialog
-    /// ([`RunSettings::with_disable_beforeunload`]). The last two apply to
+    /// ([`RunSettingsBuilder::disable_beforeunload`](crate::RunSettingsBuilder::disable_beforeunload)). The last two apply to
     /// Chromium-based browsers only. `go_back`, `go_forward`, `refresh` and
     /// [`wait_for_ready_state_complete`](Self::wait_for_ready_state_complete)
     /// run them too.
@@ -1674,7 +1662,7 @@ impl BaseCase {
     /// the person.
     #[cfg(any(test, feature = "test-util"))]
     #[must_use]
-    pub fn with_somebody_watching(mut self) -> Self {
+    pub fn somebody_watching(mut self) -> Self {
         self.somebody_watching = true;
         self
     }
@@ -1884,7 +1872,7 @@ impl BaseCase {
 
     /// Pauses execution for `seconds`.
     ///
-    /// With [`RunSettings::with_record_sleep`] on, the pause goes into the
+    /// With [`RunSettingsBuilder::record_sleep`](crate::RunSettingsBuilder::record_sleep) on, the pause goes into the
     /// recording as a `sleep` action.
     pub async fn sleep(&self, seconds: f64) {
         if self.run_settings.record_sleep() {
@@ -2642,7 +2630,7 @@ impl BaseCase {
     ///
     /// Corresponds to Python's `check_window`. The baseline is the folder
     /// `visual_baseline/<test>/<name>` in the working directory, where the
-    /// test is the name given by [`with_test_name`](Self::with_test_name)
+    /// test is the name given by [`set_test_name`](Self::set_test_name)
     /// (what [`sb_test!`](crate::sb_test) does), or else the name of the
     /// running test (the last part of the thread's name under `cargo test`,
     /// the function), as in Python: two tests of the same function name
@@ -2660,7 +2648,7 @@ impl BaseCase {
     /// baseline's is a difference too. The screenshot is saved for a person to
     /// look at and is not compared, so a repainted pixel is no difference. The
     /// `baseline`, `check_domain` and `full_diff` arguments are not ported;
-    /// [`RunSettings::with_visual_baseline_reset`] sets the baseline again.
+    /// [`RunSettingsBuilder::reset_visual_baseline`](crate::RunSettingsBuilder::reset_visual_baseline) sets the baseline again.
     ///
     /// # Errors
     ///
@@ -2703,7 +2691,7 @@ impl BaseCase {
     /// `cart.checkout.renders`, so tests of the same name in other modules or
     /// files keep separate baselines. (`check_window` names its folder after
     /// the function alone, as Python does.)
-    /// [`RunSettings::with_visual_baseline_reset`] saves new baselines instead
+    /// [`RunSettingsBuilder::reset_visual_baseline`](crate::RunSettingsBuilder::reset_visual_baseline) saves new baselines instead
     /// of comparing. For another folder or threshold, use a
     /// [`VisualBaseline`](crate::visual::VisualBaseline) with
     /// [`check_page`](crate::visual::VisualBaseline::check_page).
@@ -2720,8 +2708,10 @@ impl BaseCase {
         use crate::api::run_settings::visual_match_folder;
         use crate::visual::VisualBaseline;
 
-        let baselines = VisualBaseline::new(visual_match_folder())
-            .update_baselines(self.run_settings.reset_visual_baseline());
+        let baselines = VisualBaseline::builder()
+            .dir(visual_match_folder())
+            .update_baselines(self.run_settings.reset_visual_baseline())
+            .build()?;
         // As check_window does, let the page settle before it is captured.
         let _ = self.wait_for_ready_state_complete().await;
         baselines.check_page(name, &*self).await.map(|_| ())
@@ -3247,7 +3237,7 @@ impl BaseCase {
     /// default [`set_timeout`](Self::set_timeout) and
     /// [`set_default_timeout`](Self::set_default_timeout) set (10 until either
     /// is called), made `ceil(multiplier * seconds)` by the run settings'
-    /// [timeout multiplier](RunSettings::with_timeout_multiplier), then cut
+    /// [timeout multiplier](crate::RunSettingsBuilder::timeout_multiplier), then cut
     /// to the time the test has left if it has a
     /// [time limit](Self::set_time_limit).
     fn default_wait_secs(&self) -> u64 {

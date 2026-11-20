@@ -555,7 +555,7 @@ For a setting:
 
 For a policy field, add the field, its default and its preset values to
 `StealthPolicy`, a method of the same name, and a builder shortcut
-(`with_policy`); a preset never changes a setting.
+(`change_policy`); a preset never changes a setting.
 
 ## Adding a Macro
 

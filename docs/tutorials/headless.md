@@ -69,7 +69,7 @@ Use it when nobody watches the run:
 
 Run headed when someone has to see or use the window:
 
-- **Watching a test.** Demo mode (`RunSettings::with_demo_mode`) outlines each
+- **Watching a test.** Demo mode (`RunSettingsBuilder::demo_mode`) outlines each
   element and pauses after each action so you can follow along (see
   [Run settings](/tutorials/run_settings)). `esc_end(true)` lets the person
   watching press ESC in the browser to end the test.

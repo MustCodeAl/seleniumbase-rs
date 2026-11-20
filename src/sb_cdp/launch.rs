@@ -205,7 +205,7 @@ pub struct LaunchOptions {
     /// What every tab is made to look like, if a fingerprint was given.
     pub(crate) identity: Option<Arc<StealthPlan>>,
     /// The settings these options were made from, kept so that one of them can change and the
-    /// options be made again ([`with_fingerprint`](Self::with_fingerprint)). The fields above are
+    /// options be made again ([`into_builder`](Self::into_builder)). The fields above are
     /// what they came to.
     given: Arc<Layers>,
     pub(crate) extra_args: Vec<String>,
@@ -272,20 +272,20 @@ impl LaunchOptions {
         self.given.fingerprint()
     }
 
-    /// These options made again with `fingerprint`, as
-    /// [`LaunchOptionsBuilder::fingerprint`] does, for a launch that layers its own settings
-    /// over options it was given (a scraper that rotates the fingerprint of every browser it
-    /// starts).
+    /// A builder holding the settings these options were made from, to change
+    /// some of them and [`build`](LaunchOptionsBuilder::build) the options
+    /// again: a launch that layers its own settings over options it was given (a
+    /// scraper that rotates the fingerprint of every browser it starts) uses this.
     ///
-    /// The options keep the settings they were built with, so the fingerprint replaces the
-    /// one they had, if any, and nothing else of it is left. What they were built with still
-    /// wins over the fingerprint's own user agent, language, window size, WebRTC policy and
-    /// proxy.
-    ///
-    /// # Errors
-    ///
-    /// As [`LaunchOptionsBuilder::build`]: a fingerprint is refused with mobile emulation, and
-    /// with the proxy of the fingerprint on a browser that is attached to.
+    /// The builder starts from the settings the options were built with, so a
+    /// setting changed on it replaces the old value (the fingerprint replaces the
+    /// one the options had, and nothing else of it is left), and a setting the
+    /// options were built with still wins over the fingerprint's own user agent,
+    /// language, window size, WebRTC policy and proxy. Whatever a plugin changed
+    /// in the options since is not kept: use this before a launch. The result is
+    /// checked again by [`build`](LaunchOptionsBuilder::build): a fingerprint is
+    /// refused with mobile emulation, and with the proxy of the fingerprint on a
+    /// browser that is attached to.
     ///
     /// # Examples
     ///
@@ -296,73 +296,22 @@ impl LaunchOptions {
     /// let options = LaunchOptions::builder().user_agent("Mine/1").build()?;
     /// let first = Fingerprint::randomized(OsType::Linux, 1);
     /// let second = Fingerprint::randomized(OsType::Linux, 2);
-    /// let options = options.with_fingerprint(&first)?.with_fingerprint(&second)?;
+    /// let options = options.into_builder().fingerprint(&first).build()?;
+    /// let options = options.into_builder().fingerprint(&second).build()?;
     /// assert_eq!(options.fingerprint(), Some(&second));
     /// // What the options were built with still wins over the fingerprint's own.
     /// assert_eq!(options.user_agent(), Some("Mine/1"));
     /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
     /// ```
-    pub fn with_fingerprint(self, fingerprint: &Fingerprint) -> Result<Self, SeleniumBaseError> {
-        self.amended(|builder| builder.fingerprint(fingerprint))
+    #[must_use]
+    pub fn into_builder(self) -> LaunchOptionsBuilder {
+        LaunchOptionsBuilder {
+            given: Box::new(Arc::unwrap_or_clone(self.given)),
+        }
     }
+}
 
-    /// These options made again as a headless (`true`) or headed (`false`) browser, as
-    /// [`LaunchOptionsBuilder::headless`] does.
-    ///
-    /// # Errors
-    ///
-    /// As [`LaunchOptionsBuilder::build`].
-    pub fn with_headless(self, headless: bool) -> Result<Self, SeleniumBaseError> {
-        self.amended(|builder| builder.headless(headless))
-    }
-
-    /// These options made again with `proxy`, as [`LaunchOptionsBuilder::proxy`] does. A proxy
-    /// the options were built with is replaced.
-    ///
-    /// # Errors
-    ///
-    /// As [`LaunchOptionsBuilder::build`]: a proxy that cannot be parsed, and a browser that is
-    /// attached to, are refused.
-    pub fn with_proxy(self, proxy: impl Into<String>) -> Result<Self, SeleniumBaseError> {
-        self.amended(|builder| builder.proxy(proxy))
-    }
-
-    /// These options made again with more Chrome command-line arguments, after the ones they
-    /// have, as [`LaunchOptionsBuilder::arg`] does for each.
-    ///
-    /// # Errors
-    ///
-    /// As [`LaunchOptionsBuilder::build`].
-    pub fn with_args<I, S>(self, args: I) -> Result<Self, SeleniumBaseError>
-    where
-        I: IntoIterator<Item = S>,
-        S: Into<String>,
-    {
-        self.amended(|builder| args.into_iter().fold(builder, LaunchOptionsBuilder::arg))
-    }
-
-    /// These options made again with `url` as the page to open first, as
-    /// [`LaunchOptionsBuilder::url`] does. A start page the options were built with is
-    /// replaced.
-    ///
-    /// # Errors
-    ///
-    /// As [`LaunchOptionsBuilder::build`].
-    pub fn with_url(self, url: impl Into<String>) -> Result<Self, SeleniumBaseError> {
-        self.amended(|builder| builder.url(url))
-    }
-
-    /// The options made again from the settings they were built with, after `edit` changed
-    /// them. Whatever a plugin changed in the options since is not kept: use this before a
-    /// launch.
-    fn amended(
-        self,
-        edit: impl FnOnce(LaunchOptionsBuilder) -> LaunchOptionsBuilder,
-    ) -> Result<Self, SeleniumBaseError> {
-        let given = Box::new(Arc::unwrap_or_clone(self.given));
-        edit(LaunchOptionsBuilder { given }).build()
-    }
-
+impl LaunchOptions {
     /// Starts building launch options.
     #[must_use]
     pub fn builder() -> LaunchOptionsBuilder {
@@ -920,7 +869,7 @@ mod tests {
 
         let selection = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "level": "strict" }));
+            .options("shield", json!({ "level": "strict" }));
         let selected = LaunchOptions::builder()
             .plugin_selection(&selection)
             .build()
@@ -929,7 +878,7 @@ mod tests {
 
         let typo = PluginSelection::new()
             .enable("shield")
-            .with_options("shield", json!({ "lvel": "strict" }));
+            .options("shield", json!({ "lvel": "strict" }));
         let error = LaunchOptions::builder()
             .plugin_selection(&typo)
             .build()

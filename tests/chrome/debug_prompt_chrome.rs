@@ -117,7 +117,7 @@ fn scripted(logs: &Path) -> Scripted {
         "u\nsrc\ns\njs document.title\njs 6 * 7\nc\n".as_bytes(),
         Vec::new(),
     )
-    .with_logs_dir(logs)
+    .logs_dir(logs)
 }
 
 /// Runs the script against `page` and checks what the prompt printed and saved.

@@ -218,7 +218,7 @@ async fn a_tool_that_declares_an_output_schema_lists_it() {
     let declared = tool("declared", |_, _| async {
         Ok(Output::Json(json!({ "title": "Home" })))
     })
-    .with_output_schema(schema.clone());
+    .declare_output_schema(schema.clone());
     let plain = tool("plain", |_, _| async { Ok(Output::from("ok")) });
     let mut client = Client::start(host_with(vec![declared, plain])).await;
 
@@ -431,7 +431,7 @@ async fn call_with_hands_reports_to_the_given_sink() {
 /// A host with a text resource, a binary one and a template that echoes
 /// what follows its prefix.
 fn host_with_resources() -> Host<()> {
-    host_with(vec![]).with_resources(vec![
+    host_with(vec![]).resources(vec![
         ResourceDef::fixed(
             "test://note",
             "note",
@@ -870,7 +870,7 @@ fn a_prompt_that_names_a_missing_tool_is_reported() {
     let host = host_with(vec![tool("real_tool", |_, _| async {
         Ok(Output::from("ok"))
     })])
-    .with_prompts(vec![prompt]);
+    .prompts(vec![prompt]);
 
     assert_eq!(host.missing_prompt_tools(), [("uses_ghost", "ghost_tool")]);
 }

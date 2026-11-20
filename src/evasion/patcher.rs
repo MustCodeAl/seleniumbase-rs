@@ -270,7 +270,7 @@ impl ChromeBinaryPatcher {
 
     /// Use a specific cache directory for the patched copy. If unset, the
     /// platform cache directory is used.
-    pub fn with_cache_dir(mut self, dir: impl AsRef<Path>) -> Self {
+    pub fn cache_dir(mut self, dir: impl AsRef<Path>) -> Self {
         self.cache_dir = Some(dir.as_ref().to_path_buf());
         self
     }

@@ -113,7 +113,7 @@ async fn a_token_file_comes_from_the_environment() {
 
     let without = Mcp::new(&server.url).post(&ping).await;
     assert_eq!(without.status(), StatusCode::UNAUTHORIZED);
-    let mut client = Mcp::new(&server.url).with_token("the-token-of-the-variable");
+    let mut client = Mcp::new(&server.url).token("the-token-of-the-variable");
     client.initialize().await;
 }
 

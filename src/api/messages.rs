@@ -45,7 +45,7 @@ pub fn fallback_line(style: MessageStyle, message: &str) -> String {
 /// - The message is HTML, as in Python: `<b>Saved</b>` shows in bold. Escape
 ///   text that is not yours.
 /// - It stays for [`duration`](Self::duration), else for the run's message
-///   duration (`RunSettings::with_message_duration`, 2.55 s unless set), and at
+///   duration (`RunSettingsBuilder::message_duration`, 2.55 s unless set), and at
 ///   most 0.75 s where nobody watches (a headless browser or a virtual display).
 /// - With [`pause`](Self::pause) on, the call returns 0.15 s after the message
 ///   has gone, so the next step does not start under it.

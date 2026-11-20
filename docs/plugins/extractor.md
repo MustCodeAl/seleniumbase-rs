@@ -104,7 +104,7 @@ use seleniumbase_rs::sb_cdp::LaunchOptions;
 
 let selection = PluginSelection::new()
     .enable("extractor")
-    .with_options("extractor", json!({ "min_repeats": 4 }));
+    .options("extractor", json!({ "min_repeats": 4 }));
 let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)

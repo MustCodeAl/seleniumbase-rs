@@ -806,7 +806,7 @@ use serde_json::json;
 let registry = plugin_host::builtin_registry().with(Descriptor::of::<Hello>());
 let selection = PluginSelection::new()
     .enable("hello")
-    .with_options("hello", json!({ "message": "hi" }));
+    .options("hello", json!({ "message": "hi" }));
 print!("{}", plugin_cmd::info_with(&registry, "hello", &selection)?);
 ```
 
@@ -1292,7 +1292,7 @@ keeps the others. `VALUE` is TOML, so a string is quoted: `'hello.message="hi"'`
 
 </ResponseField>
 
-<ResponseField name="PluginSelection::with_options(name, value)" type="Value">
+<ResponseField name="PluginSelection::options(name, value)" type="Value">
 
 In code: the value you pass, usually `json!(...)`.
 

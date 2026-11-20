@@ -47,7 +47,7 @@ mod tests_highlight {
     }
 
     async fn watched(driver: &MockWebDriver, settings: RunSettings) -> BaseCase {
-        let mut sb = driver.base_case().await.with_somebody_watching();
+        let mut sb = driver.base_case().await.somebody_watching();
         sb.set_run_settings(settings);
         sb
     }
@@ -68,9 +68,7 @@ mod tests_highlight {
     }
 
     fn quick() -> RunSettings {
-        RunSettings::default()
-            .with_demo_sleep(Duration::from_millis(5))
-            .with_message_duration(Duration::from_millis(40))
+        RunSettings::builder().demo_sleep(Duration::from_millis(5)).message_duration(Duration::from_millis(40)).build()
     }
 
     #[tokio::test]
@@ -130,7 +128,7 @@ mod tests_highlight {
     #[tokio::test]
     async fn the_highlights_setting_wins_over_the_loops_a_call_names() {
         let driver = page();
-        let sb = watched(&driver, RunSettings::default().with_highlights(7)).await;
+        let sb = watched(&driver, RunSettings::builder().highlights(7).build()).await;
         sb.highlight("#a").loops(2).await.unwrap();
         sb.highlight_if_visible("#a").await.unwrap();
         let ran = scripts(&driver);
@@ -210,7 +208,7 @@ mod tests_highlight {
         // In demo mode the click highlights (four loops), so the call does not
         // add a second animation.
         let driver = page();
-        let mut sb = watched(&driver, quick().with_demo_mode(true)).await;
+        let mut sb = watched(&driver, quick().into_builder().demo_mode(true).build()).await;
         sb.highlight_click("#a").await.unwrap();
         let ran = animations(&driver);
         assert_eq!(ran.len(), 1, "{ran:?}");
@@ -236,7 +234,7 @@ mod tests_highlight {
     #[tokio::test]
     async fn demo_mode_plays_the_animation_before_the_action() {
         let driver = page();
-        let mut sb = watched(&driver, quick().with_demo_mode(true)).await;
+        let mut sb = watched(&driver, quick().into_builder().demo_mode(true).build()).await;
         sb.click("#a").await.unwrap();
         let ran = animations(&driver);
         assert_eq!(ran.len(), 1);
@@ -248,7 +246,7 @@ mod tests_highlight {
     #[tokio::test]
     async fn slow_mode_only_scrolls() {
         let driver = page();
-        let mut sb = watched(&driver, quick().with_slow_mode(true)).await;
+        let mut sb = watched(&driver, quick().into_builder().slow_mode(true).build()).await;
         let started = std::time::Instant::now();
         sb.click("#a").await.unwrap();
         assert!(started.elapsed() >= Duration::from_millis(200), "0.08 s, scroll, 0.12 s");
@@ -280,7 +278,7 @@ mod tests_highlight {
     #[tokio::test]
     async fn a_passed_assertion_announces_itself_in_demo_mode() {
         let driver = page();
-        let sb = watched(&driver, quick().with_demo_mode(true)).await;
+        let sb = watched(&driver, quick().into_builder().demo_mode(true).build()).await;
         sb.assert_text("Hi", "#m").await.unwrap();
 
         let ran = scripts(&driver);
@@ -308,7 +306,7 @@ mod tests_highlight {
     #[tokio::test]
     async fn the_other_assertions_say_what_python_says() {
         let driver = page();
-        let sb = watched(&driver, quick().with_demo_mode(true)).await;
+        let sb = watched(&driver, quick().into_builder().demo_mode(true).build()).await;
         sb.assert_element("#a").await.unwrap();
         sb.assert_exact_text("Hi there", "#a").await.unwrap();
         sb.assert_url("http://example.test/").await.unwrap();
@@ -341,7 +339,7 @@ mod tests_highlight {
         let driver = page();
         let sb = watched(
             &driver,
-            RunSettings::default().with_message_duration(Duration::from_millis(150)),
+            RunSettings::builder().message_duration(Duration::from_millis(150)).build(),
         )
         .await;
         let started = std::time::Instant::now();

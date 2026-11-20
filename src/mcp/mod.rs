@@ -59,12 +59,12 @@ mod stealth;
 
 pub use failure::FailureReport;
 pub use host::{
-    Closeable, Ctx, Host, Session, Settings, Started, OUTPUT_DIR_VAR, UNTRUSTED_META_KEY,
-    UNTRUSTED_NOTICE,
+    Closeable, Ctx, Host, Session, Settings, SettingsBuilder, Started, OUTPUT_DIR_VAR,
+    UNTRUSTED_META_KEY, UNTRUSTED_NOTICE,
 };
 pub use http::{
-    generate_token, serve_http, HttpOptions, HttpServer, DEFAULT_IDLE, DEFAULT_LISTEN,
-    DEFAULT_MAX_SESSIONS, DEFAULT_PATH, TOKEN_VAR,
+    generate_token, serve_http, HttpOptions, HttpOptionsBuilder, HttpServer, DEFAULT_IDLE,
+    DEFAULT_LISTEN, DEFAULT_MAX_SESSIONS, DEFAULT_PATH, TOKEN_VAR,
 };
 pub use progress::{Progress, ProgressSink, ProgressUpdate};
 pub use prompts::{PromptArg, PromptDef, Render};
@@ -154,7 +154,7 @@ pub async fn serve(profile: Profile) -> Result<(), SeleniumBaseError> {
 
 /// [`serve`] with `settings` instead of the ones the environment gives, such
 /// as the plugins the operator chose
-/// ([`Settings::with_plugin_selection`]).
+/// ([`SettingsBuilder::plugin_selection`]).
 ///
 /// # Errors
 ///

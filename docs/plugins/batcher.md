@@ -106,7 +106,7 @@ use seleniumbase_rs::sb_cdp::LaunchOptions;
 let selection = PluginSelection::new()
     .enable("fetcher")
     .enable("batcher")
-    .with_options("batcher", json!({ "concurrency": 4, "runner": "fetcher" }));
+    .options("batcher", json!({ "concurrency": 4, "runner": "fetcher" }));
 let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)

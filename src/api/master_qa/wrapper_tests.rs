@@ -103,7 +103,7 @@ async fn case(driver: &MockWebDriver, headless: bool) -> BaseCase {
     let mut sb = BaseCase::new(config)
         .await
         .expect("the mock accepts a session");
-    sb.set_run_settings(RunSettings::default().with_verify_delay(Duration::ZERO));
+    sb.set_run_settings(RunSettings::builder().verify_delay(Duration::ZERO).build());
     sb
 }
 
@@ -212,7 +212,11 @@ async fn a_passed_check_waits_the_verify_delay_and_is_recorded() {
     let _root = Root::new().await;
     let driver = page_driver(vec!["Success!"], true, 0, "");
     let mut qa = MasterQA::new(case(&driver, false).await).unwrap();
-    qa.set_run_settings(RunSettings::default().with_verify_delay(Duration::from_millis(150)));
+    qa.set_run_settings(
+        RunSettings::builder()
+            .verify_delay(Duration::from_millis(150))
+            .build(),
+    );
 
     let started = Instant::now();
     let verdict = qa.verify("Is it blue?").await.unwrap();

@@ -157,7 +157,7 @@ mod debug_prompt_tests {
         wait: Duration,
         logs: &std::path::Path,
     ) -> DebugPrompt<SlowInput, Vec<u8>> {
-        DebugPrompt::new(SlowInput { lines, wait }, Vec::new()).with_logs_dir(logs)
+        DebugPrompt::new(SlowInput { lines, wait }, Vec::new()).logs_dir(logs)
     }
 
     /// A WebDriver that answers every command with `null`.
@@ -230,7 +230,8 @@ mod debug_prompt_tests {
                 _ => Reply::Value(Value::Null),
             }
         });
-        let mut sb = driver.base_case().await.with_test_name("login.valid_login");
+        let mut sb = driver.base_case().await;
+                sb.set_test_name("login.valid_login");
         let mut at_prompt = prompt(
             vec!["u", "s", "src", "js 1 + 1", "c"],
             Duration::ZERO,

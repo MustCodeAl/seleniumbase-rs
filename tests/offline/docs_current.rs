@@ -19,7 +19,7 @@ const GONE: &[(&str, &str)] = &[
     ("PopupMode", "the geolocation setting (Value or Off)"),
     ("CanvasNoiseMode", "CanvasNoise"),
     ("fills_defaults", "the Spoof state of each setting"),
-    ("with_flags(", "policy(..) / with_policy(..)"),
+    ("with_flags(", "policy(..) / change_policy(..)"),
     (".flags(", "policy(..)"),
     ("canvas_seed(", "seed(..) and StealthPolicy canvas noise"),
     // Pure CDP pages (0.5.0: new_page() is blank, new_page_at(url) opens one).

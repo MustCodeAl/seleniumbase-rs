@@ -258,7 +258,7 @@ impl BaseCase {
     /// style="info")`: the message is the argument, and `.duration(..)`,
     /// `.pause(..)` and `.style(..)` are the keywords; see [`PostMessage`].
     /// The message is HTML, as in Python. It stays for the run's message
-    /// duration (2.55 s unless `RunSettings::with_message_duration` says
+    /// duration (2.55 s unless `RunSettingsBuilder::message_duration` says
     /// otherwise), at most 0.75 s where nobody watches, and the call returns
     /// 0.15 s after it has gone. Where Messenger cannot be loaded the message
     /// is printed instead, as in Python, so awaiting the builder does not fail

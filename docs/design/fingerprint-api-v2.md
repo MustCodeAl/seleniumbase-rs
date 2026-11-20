@@ -141,7 +141,7 @@ pub struct StealthPolicy { /* webrtc_policy, canvas_noise, audio_noise, native_s
 StealthPolicy::{default(), balanced(), native_only(), max()}
 StealthPolicy::grant_permissions(self, bool) -> Self      // and one setter per field
 FingerprintBuilder::policy(self, p: StealthPolicy) -> Self
-FingerprintBuilder::with_policy(self, f: impl Fn(StealthPolicy) -> StealthPolicy + Send + Sync + 'static) -> Self
+FingerprintBuilder::change_policy(self, f: impl Fn(StealthPolicy) -> StealthPolicy + Send + Sync + 'static) -> Self
 FingerprintBuilder::{webrtc_policy, canvas_noise, audio_noise, native_spoofing, grant_permissions,
                      block_trackers, blocked_trackers, blocked_ports, disable_csp, quic} // shortcuts
 Fingerprint::policy(&self) -> &StealthPolicy

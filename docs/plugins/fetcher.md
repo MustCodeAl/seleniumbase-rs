@@ -109,7 +109,7 @@ use seleniumbase_rs::sb_cdp::LaunchOptions;
 
 let selection = PluginSelection::new()
     .enable("fetcher")
-    .with_options("fetcher", json!({ "strip": ["image", "font"], "capture": ["*/api/*"] }));
+    .options("fetcher", json!({ "strip": ["image", "font"], "capture": ["*/api/*"] }));
 let options = LaunchOptions::builder()
     .headless(true)
     .plugin_selection(&selection)

@@ -206,7 +206,7 @@ impl Chart {
 
     /// Sets the subtitle shown under the title.
     #[must_use]
-    pub fn with_subtitle(mut self, subtitle: &str) -> Self {
+    pub fn subtitle(mut self, subtitle: &str) -> Self {
         self.subtitle = subtitle.to_owned();
         self
     }
@@ -214,7 +214,7 @@ impl Chart {
     /// Names the first series (Python's `data_name`), which the legend and
     /// the tooltip show. An empty name keeps `Series 1`.
     #[must_use]
-    pub fn with_data_name(mut self, data_name: &str) -> Self {
+    pub fn data_name(mut self, data_name: &str) -> Self {
         if !data_name.trim().is_empty() {
             data_name.clone_into(&mut self.series[0].name);
         }
@@ -224,7 +224,7 @@ impl Chart {
     /// Sets the unit of the values: the title of the value axis, and a suffix
     /// in the tooltip.
     #[must_use]
-    pub fn with_unit(mut self, unit: &str) -> Self {
+    pub fn unit(mut self, unit: &str) -> Self {
         self.unit = unit.to_owned();
         self
     }
@@ -232,7 +232,7 @@ impl Chart {
     /// Makes the value axis of a line or an area chart begin at zero (Python's
     /// `zero`). Other charts ignore it.
     #[must_use]
-    pub fn with_zero(mut self, zero: bool) -> Self {
+    pub fn zero(mut self, zero: bool) -> Self {
         self.zero = zero;
         self
     }
@@ -240,7 +240,7 @@ impl Chart {
     /// Chooses whether [`to_html`](Self::to_html) starts with the element that
     /// loads Chart.js (Python's `libs`; the default is that it does).
     #[must_use]
-    pub fn with_libs(mut self, libs: bool) -> Self {
+    pub fn libs(mut self, libs: bool) -> Self {
         self.libs = libs;
         self
     }
@@ -248,7 +248,7 @@ impl Chart {
     /// Chooses whether the value of each point is drawn on the chart (Python's
     /// `labels`; the default is that it is).
     #[must_use]
-    pub fn with_labels(mut self, labels: bool) -> Self {
+    pub fn labels(mut self, labels: bool) -> Self {
         self.labels = labels;
         self
     }
@@ -256,7 +256,7 @@ impl Chart {
     /// Chooses whether the legend is shown (Python's `legend`; the default is
     /// that it is).
     #[must_use]
-    pub fn with_legend(mut self, legend: bool) -> Self {
+    pub fn legend(mut self, legend: bool) -> Self {
         self.legend = legend;
         self
     }
@@ -266,7 +266,7 @@ impl Chart {
     /// replaced by `_` and its code in hexadecimal, so that different names
     /// give different ids, and the id is safe in HTML and in a script.
     #[must_use]
-    pub fn with_id(mut self, id: &str) -> Self {
+    pub fn canvas_id(mut self, id: &str) -> Self {
         let mut safe = String::with_capacity(id.len());
         for character in id.chars() {
             if character.is_ascii_alphanumeric() || character == '-' {
@@ -345,7 +345,7 @@ impl Chart {
 
     /// The chart's labels: the first series' labels in order, then each label
     /// only a later series has, in the order first seen.
-    fn labels(&self) -> Vec<&str> {
+    fn label_names(&self) -> Vec<&str> {
         let mut labels: Vec<&str> = self.series[0]
             .data
             .iter()
@@ -385,7 +385,7 @@ impl Chart {
     /// aligned to `labels` by label name; a point a series lacks is `null`.
     #[must_use]
     pub fn to_json(&self) -> String {
-        let labels = self.labels();
+        let labels = self.label_names();
         let datasets: Vec<Value> = (0..self.series.len())
             .map(|index| {
                 let values: Vec<Value> = self
@@ -407,7 +407,7 @@ impl Chart {
 
     /// The Chart.js configuration object for this chart.
     fn chart_js_config(&self) -> Value {
-        let labels = self.labels();
+        let labels = self.label_names();
         let (kind, horizontal) = match self.chart_type {
             ChartType::Pie => ("pie", false),
             ChartType::Bar => ("bar", true),
@@ -521,7 +521,7 @@ impl Chart {
     ///
     /// The title, the labels and the series' names are placed into the page
     /// as data, so any text is safe in them. A page with several charts needs
-    /// Chart.js once, and each chart needs its own [`id`](Self::with_id).
+    /// Chart.js once, and each chart needs its own [`id`](Self::canvas_id).
     #[must_use]
     pub fn to_html(&self, include_libs: bool) -> String {
         let config = json_for_script(&self.chart_js_config());
@@ -749,11 +749,11 @@ mod tests {
     #[test]
     fn the_options_reach_the_chart_js_configuration() {
         let chart = Chart::new("Sales", ChartType::Line)
-            .with_subtitle("2026")
-            .with_unit("USD")
-            .with_zero(true)
-            .with_legend(false)
-            .with_labels(false);
+            .subtitle("2026")
+            .unit("USD")
+            .zero(true)
+            .legend(false)
+            .labels(false);
         let options = &config_of(&chart)["options"];
         assert_eq!(
             options["plugins"]["title"],
@@ -790,7 +790,7 @@ mod tests {
 
     #[test]
     fn a_bar_chart_puts_its_unit_on_the_horizontal_axis() {
-        let options = &config_of(&Chart::new("t", ChartType::Bar).with_unit("ms"))["options"];
+        let options = &config_of(&Chart::new("t", ChartType::Bar).unit("ms"))["options"];
         assert_eq!(options["scales"]["x"]["title"]["text"], "ms");
         assert!(options["scales"].get("y").is_none());
     }
@@ -802,13 +802,13 @@ mod tests {
         assert!(with.starts_with(CHART_JS_TAG), "{with}");
         assert_eq!(with.matches("<script src").count(), 1);
 
-        let without = Chart::new("t", ChartType::Pie).with_libs(false).extract();
+        let without = Chart::new("t", ChartType::Pie).libs(false).extract();
         assert!(!without.contains("<script src"), "{without}");
         assert!(without.contains("new Chart("));
         // `to_html` takes the choice directly; a saved page always loads it.
         assert!(chart.to_html(false).find(CHART_JS_TAG).is_none());
         assert!(Chart::new("t", ChartType::Pie)
-            .with_libs(false)
+            .libs(false)
             .to_page()
             .contains(CHART_JS_TAG));
     }
@@ -816,8 +816,8 @@ mod tests {
     #[test]
     fn a_title_and_labels_cannot_break_out_of_the_page() {
         let mut chart = Chart::new("</title><script>alert(1)</script>", ChartType::Pie)
-            .with_subtitle("</script><b>")
-            .with_unit("<!-- u");
+            .subtitle("</script><b>")
+            .unit("<!-- u");
         chart.add_data_point("back\\slash", 1.0);
         chart.add_data_point("it's \"quoted\"\nline", 2.0);
         chart.add_data_point("</script><script>alert(2)</script>", 3.0);
@@ -861,7 +861,7 @@ mod tests {
     }
 
     fn two_series_chart() -> Chart {
-        let mut chart = Chart::new("t", ChartType::Line).with_data_name("first");
+        let mut chart = Chart::new("t", ChartType::Line).data_name("first");
         chart.add_data_point("a", 1.0);
         chart.add_data_point("b", 2.0);
         let mut series = ChartSeries::new("s");
@@ -923,9 +923,9 @@ mod tests {
     #[test]
     fn the_first_series_is_named_by_data_name_unless_that_is_empty() {
         assert_eq!(Chart::new("t", ChartType::Pie).series()[0].name, "Series 1");
-        let named = Chart::new("t", ChartType::Pie).with_data_name("Share");
+        let named = Chart::new("t", ChartType::Pie).data_name("Share");
         assert_eq!(named.series()[0].name, "Share");
-        let empty = Chart::new("t", ChartType::Pie).with_data_name("  ");
+        let empty = Chart::new("t", ChartType::Pie).data_name("  ");
         assert_eq!(empty.series()[0].name, "Series 1");
     }
 
@@ -985,7 +985,7 @@ mod tests {
     fn chart_ids_are_safe_and_different_names_give_different_ids() {
         let id = |name: &str| {
             Chart::new("t", ChartType::Pie)
-                .with_id(name)
+                .canvas_id(name)
                 .id()
                 .to_owned()
         };
@@ -995,7 +995,7 @@ mod tests {
         assert_ne!(id("a'b"), id("a\"b"));
         assert_eq!(id(""), "sb-chart");
         let html = Chart::new("t", ChartType::Pie)
-            .with_id("x'); alert(1); ('")
+            .canvas_id("x'); alert(1); ('")
             .to_html(true);
         assert!(!html.contains("alert(1); ("), "{html}");
         for character in id("x'); <b> é").chars() {
@@ -1005,9 +1005,11 @@ mod tests {
 
     #[test]
     fn two_charts_with_two_ids_can_share_a_page() {
-        let first = Chart::new("a", ChartType::Pie).with_id("one").to_html(true);
+        let first = Chart::new("a", ChartType::Pie)
+            .canvas_id("one")
+            .to_html(true);
         let second = Chart::new("b", ChartType::Bar)
-            .with_id("two")
+            .canvas_id("two")
             .to_html(false);
         assert!(first.contains("<canvas id=\"one\">") && first.contains("getElementById('one')"));
         assert!(second.contains("<canvas id=\"two\">") && second.contains("getElementById('two')"));

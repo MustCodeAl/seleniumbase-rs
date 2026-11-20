@@ -339,7 +339,7 @@ async fn patch_chrome_binary_if_needed(
     let patched = tokio::task::spawn_blocking(move || {
         let mut patcher = crate::evasion::patcher::ChromeBinaryPatcher::new(source);
         if let Some(cache) = runtime.patch_cache_dir {
-            patcher = patcher.with_cache_dir(cache);
+            patcher = patcher.cache_dir(cache);
         }
         patcher.patch(crate::evasion::patcher::EnginePatch::chrome_binary())
     })

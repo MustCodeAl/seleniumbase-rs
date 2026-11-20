@@ -263,10 +263,10 @@ pub fn host(settings: Settings) -> Host<Cdp> {
         tools.push(super::email::tool::<Cdp>());
     }
     Host::new(SERVER_NAME, INSTRUCTIONS, tools, settings)
-        .with_probe(devtools::probe::<Cdp>)
-        .with_refs(super::pagetools::verify::<Cdp>)
-        .with_resources(super::resources::standard())
-        .with_prompts(super::prompts::browser())
+        .probe(devtools::probe::<Cdp>)
+        .refs(super::pagetools::verify::<Cdp>)
+        .resources(super::resources::standard())
+        .prompts(super::prompts::browser())
 }
 
 fn selector_prop() -> Prop {
