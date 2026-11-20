@@ -93,7 +93,8 @@ async fn click_element(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     }
 
     if args.bool_or("only_if_visible", false)? {
-        let first = page.locator(&selector)
+        let first = page
+            .locator(&selector)
             .with_timeout(NO_WAIT)
             .visible()
             .first();
@@ -106,14 +107,18 @@ async fn click_element(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     }
 
     if let Some(parent) = nonempty(&args, "parent_selector")? {
-        page.locator(parent).locator(&selector)
+        page.locator(parent)
+            .locator(&selector)
             .with_timeout(timeout)
             .click()
             .await?;
         return Ok(format!("Clicked {selector} inside {parent}").into());
     }
 
-    page.locator(&selector).with_timeout(timeout).click().await?;
+    page.locator(&selector)
+        .with_timeout(timeout)
+        .click()
+        .await?;
     Ok(format!("Clicked {selector}").into())
 }
 

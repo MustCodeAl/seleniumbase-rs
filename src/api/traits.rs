@@ -68,13 +68,21 @@ pub trait ElementApi {
     async fn double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()>;
 
     /// Type `text` into the element matching `selector`.
-    async fn type_text(&mut self, selector: impl Into<SelectorBuf> + Send, text: &str) -> crate::Result<()>;
+    async fn type_text(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+        text: &str,
+    ) -> crate::Result<()>;
 
     /// Return the visible text of the element matching `selector`.
     async fn text(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<String>;
 
     /// Return the value of attribute `attr` on the element matching `selector`, if any.
-    async fn attribute(&mut self, selector: impl Into<SelectorBuf> + Send, attr: &str) -> crate::Result<Option<String>>;
+    async fn attribute(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+        attr: &str,
+    ) -> crate::Result<Option<String>>;
 }
 
 /// Assertion helpers used in tests.
@@ -89,7 +97,11 @@ pub trait AssertionApi {
 
     /// Assert that `expected` text appears inside the element matching `selector`.
     /// The text comes first and the selector second, as in Python.
-    async fn assert_text(&mut self, expected: &str, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()>;
+    async fn assert_text(
+        &mut self,
+        expected: &str,
+        selector: impl Into<SelectorBuf> + Send,
+    ) -> crate::Result<()>;
 
     /// Assert that no JavaScript errors were logged on the current page.
     async fn assert_no_js_errors(&self) -> crate::Result<()>;
@@ -138,15 +150,33 @@ impl BrowserApi for BaseCase {
 
 #[async_trait]
 impl ElementApi for BaseCase {
-    async fn click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { BaseCase::click(self, selector).await }
+    async fn click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
+        BaseCase::click(self, selector).await
+    }
 
-    async fn double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { BaseCase::double_click(self, selector).await }
+    async fn double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
+        BaseCase::double_click(self, selector).await
+    }
 
-    async fn type_text(&mut self, selector: impl Into<SelectorBuf> + Send, text: &str) -> crate::Result<()> { BaseCase::type_text(self, selector, text).await }
+    async fn type_text(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+        text: &str,
+    ) -> crate::Result<()> {
+        BaseCase::type_text(self, selector, text).await
+    }
 
-    async fn text(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<String> { BaseCase::text(self, selector).await }
+    async fn text(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<String> {
+        BaseCase::text(self, selector).await
+    }
 
-    async fn attribute(&mut self, selector: impl Into<SelectorBuf> + Send, attr: &str) -> crate::Result<Option<String>> { BaseCase::attribute(self, selector, attr).await }
+    async fn attribute(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+        attr: &str,
+    ) -> crate::Result<Option<String>> {
+        BaseCase::attribute(self, selector, attr).await
+    }
 }
 
 #[async_trait]
@@ -155,9 +185,17 @@ impl AssertionApi for BaseCase {
         BaseCase::assert_title(self, expected).await
     }
 
-    async fn assert_element(&self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { BaseCase::assert_element(self, selector).await }
+    async fn assert_element(&self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
+        BaseCase::assert_element(self, selector).await
+    }
 
-    async fn assert_text(&mut self, expected: &str, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { BaseCase::assert_text(self, expected, selector).await }
+    async fn assert_text(
+        &mut self,
+        expected: &str,
+        selector: impl Into<SelectorBuf> + Send,
+    ) -> crate::Result<()> {
+        BaseCase::assert_text(self, expected, selector).await
+    }
 
     async fn assert_no_js_errors(&self) -> crate::Result<()> {
         BaseCase::assert_no_js_errors(self).await
@@ -216,18 +254,36 @@ impl BrowserApi for Page {
 
 #[async_trait]
 impl ElementApi for Page {
-    async fn click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { self.locator(selector).click().await }
+    async fn click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
+        self.locator(selector).click().await
+    }
 
-    async fn double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { self.locator(selector).double_click().await }
+    async fn double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
+        self.locator(selector).double_click().await
+    }
 
     /// Replaces what is in the field, typing one key at a time.
-    async fn type_text(&mut self, selector: impl Into<SelectorBuf> + Send, text: &str) -> crate::Result<()> { let field = self.locator(selector);
-    field.clear().await?;
-    field.type_text(text).await }
+    async fn type_text(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+        text: &str,
+    ) -> crate::Result<()> {
+        let field = self.locator(selector);
+        field.clear().await?;
+        field.type_text(text).await
+    }
 
-    async fn text(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<String> { self.locator(selector).text().await }
+    async fn text(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<String> {
+        self.locator(selector).text().await
+    }
 
-    async fn attribute(&mut self, selector: impl Into<SelectorBuf> + Send, attr: &str) -> crate::Result<Option<String>> { self.locator(selector).attribute(attr).await }
+    async fn attribute(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+        attr: &str,
+    ) -> crate::Result<Option<String>> {
+        self.locator(selector).attribute(attr).await
+    }
 }
 
 #[async_trait]
@@ -236,9 +292,20 @@ impl AssertionApi for Page {
         self.expect().to_have_title(expected).await
     }
 
-    async fn assert_element(&self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { self.locator(selector).expect().to_be_visible().await }
+    async fn assert_element(&self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
+        self.locator(selector).expect().to_be_visible().await
+    }
 
-    async fn assert_text(&mut self, expected: &str, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> { self.locator(selector).expect().to_contain_text(expected).await }
+    async fn assert_text(
+        &mut self,
+        expected: &str,
+        selector: impl Into<SelectorBuf> + Send,
+    ) -> crate::Result<()> {
+        self.locator(selector)
+            .expect()
+            .to_contain_text(expected)
+            .await
+    }
 
     async fn assert_no_js_errors(&self) -> crate::Result<()> {
         Page::assert_no_js_errors(self).await

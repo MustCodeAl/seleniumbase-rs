@@ -229,15 +229,17 @@ impl BaseCase {
     /// scrolls to the element `css` picks and plays the highlight animation on
     /// it, or, in slow mode, only scrolls to it (Python's
     /// `__demo_mode_highlight_if_active`).
-    async fn demo_highlight(&self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> { self.skip_if_esc().await?;
-    // A selector the page cannot show is for the action to report, so what
-    // goes wrong here is ignored.
-    if self.run_settings.demo_mode() {
-        let _ = self.demo_outline(css).await;
-    } else if self.run_settings.slow_mode() {
-        let _ = self.slow_mode_scroll(css).await;
+    async fn demo_highlight(&self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> {
+        self.skip_if_esc().await?;
+        // A selector the page cannot show is for the action to report, so what
+        // goes wrong here is ignored.
+        if self.run_settings.demo_mode() {
+            let _ = self.demo_outline(css).await;
+        } else if self.run_settings.slow_mode() {
+            let _ = self.slow_mode_scroll(css).await;
+        }
+        Ok(())
     }
-    Ok(()) }
 
     /// Pauses for the time demo or slow mode asks for after an action, and
     /// does nothing when neither is on.
@@ -321,8 +323,11 @@ impl BaseCase {
     /// Asserts that `text` is visible inside the element selected by `css`.
     /// The same as [`assert_text`](Self::assert_text), as in Python, where
     /// `assert_text_visible` is its alias.
-    pub async fn assert_text_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_text_visible(
+        &self,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.assert_text(text, css).await
     }
@@ -334,8 +339,11 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still
     /// visible when the timeout ends.
-    pub async fn assert_text_not_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_text_not_visible(
+        &self,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.check_time_limit()?;
         poll_until_true(self.default_wait_secs(), String::new(), || async {
@@ -361,8 +369,12 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::AssertionFailed`] when the attribute still
     /// differs at the end of the timeout. The message names the selector, the
     /// attribute, the expected value and the value last seen.
-    pub async fn assert_attribute(&mut self, selector: impl Into<SelectorBuf>, attribute: &str,
-    value: &str,) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_attribute(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        attribute: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         // `get_attribute` takes `&mut self`, which a poll cannot hold across
         // tries. Finding the element and reading the attribute only need a
@@ -413,7 +425,10 @@ impl BaseCase {
                 expected, title
             )));
         }
-        self.demo_assert_success(&demo::braced_message("ASSERT TITLE", expected), Some(&SelectorBuf::css("html")))
+        self.demo_assert_success(
+            &demo::braced_message("ASSERT TITLE", expected),
+            Some(&SelectorBuf::css("html")),
+        )
         .await;
         Ok(())
     }
@@ -487,7 +502,10 @@ impl BaseCase {
     }
 
     /// Returns `true` if `css` is visible on the page.
-    pub async fn is_element_visible(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_element_visible(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         match self.session.find(selector).await {
@@ -497,7 +515,11 @@ impl BaseCase {
     }
 
     /// Returns `true` if `text` is visible inside the element selected by `css`.
-    pub async fn is_text_visible(&self, text: &str, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_text_visible(
+        &self,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         match self.session.find(selector).await {
@@ -513,7 +535,11 @@ impl BaseCase {
     }
 
     /// Waits up to `timeout` seconds for the element `css` to become invisible.
-    pub async fn wait_for_element_not_visible(&mut self, selector: impl Into<SelectorBuf>, timeout: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_element_not_visible(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        timeout: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.check_time_limit()?;
         self.record_selector("wait_for_element_not_visible", css, None);
@@ -655,7 +681,10 @@ impl BaseCase {
     }
 
     /// Executes the `is_checked` action.
-    pub async fn is_checked(&mut self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_checked(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let is_checked = self.property(css, "checked").await?;
         Ok(is_checked.as_deref() == Some("true"))
@@ -673,7 +702,10 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the element is missing or cannot be clicked.
-    pub async fn check_if_unchecked(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn check_if_unchecked(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         if !self.is_checked(css).await? {
             self.click_toggle(css).await?;
@@ -688,7 +720,10 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the element is missing or cannot be clicked.
-    pub async fn uncheck_if_checked(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn uncheck_if_checked(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         if self.is_checked(css).await? {
             self.click_toggle(css).await?;
@@ -703,34 +738,36 @@ impl BaseCase {
     /// which makes a switch that sits at zero opacity clickable, and a box that
     /// is displayed then is clicked and one that is not (`display: none`) is
     /// clicked with a script. The opacity is put back after.
-    async fn click_toggle(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> { if self.is_element_visible(css).await? {
-        return self.click(css).await;
+    async fn click_toggle(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> {
+        if self.is_element_visible(css).await? {
+            return self.click(css).await;
+        }
+        self.await_ready(css, Ready::Present).await?;
+        let selector = shadow_find::checked(css)?;
+        let element = self.session.find(selector).await?;
+        let opacity = element
+            .run_script("return arguments[0].style.opacity;", &[])
+            .await
+            .ok()
+            .and_then(|returned| returned.as_str().map(str::to_owned))
+            .unwrap_or_default();
+        // Change the opacity a bit to let the click succeed.
+        let _ = element
+            .run_script("arguments[0].style.opacity = '0.001';", &[])
+            .await;
+        let clicked = if self.is_element_visible(css).await? {
+            self.click(css).await
+        } else {
+            self.session.js_click_element(&element).await
+        };
+        let _ = element
+            .run_script(
+                "arguments[0].style.opacity = arguments[1];",
+                &[Value::String(opacity)],
+            )
+            .await;
+        clicked
     }
-    self.await_ready(css, Ready::Present).await?;
-    let selector = shadow_find::checked(css)?;
-    let element = self.session.find(selector).await?;
-    let opacity = element
-        .run_script("return arguments[0].style.opacity;", &[])
-        .await
-        .ok()
-        .and_then(|returned| returned.as_str().map(str::to_owned))
-        .unwrap_or_default();
-    // Change the opacity a bit to let the click succeed.
-    let _ = element
-        .run_script("arguments[0].style.opacity = '0.001';", &[])
-        .await;
-    let clicked = if self.is_element_visible(css).await? {
-        self.click(css).await
-    } else {
-        self.session.js_click_element(&element).await
-    };
-    let _ = element
-        .run_script(
-            "arguments[0].style.opacity = arguments[1];",
-            &[Value::String(opacity)],
-        )
-        .await;
-    clicked }
 
     /// Opens a new browser tab and switches to it, as Python's
     /// `open_new_window(switch_to=True)` does; the keyword is
@@ -885,7 +922,11 @@ impl BaseCase {
     ///
     /// The element is looked for at least once, so an element that is already
     /// there is found even with a `timeout` of zero.
-    pub async fn wait_for_element_present(&self, selector: impl Into<SelectorBuf>, timeout: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_element_present(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        timeout: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         let start = std::time::Instant::now();
@@ -964,7 +1005,10 @@ impl BaseCase {
 
     /// Clicks the element selected by `css`.
     #[instrument(skip(self, selector))]
-    pub async fn click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         debug!(%css, "clicking element");
         self.skip_if_esc().await?;
@@ -982,7 +1026,11 @@ impl BaseCase {
 
     /// Executes the `type_text` action.
     #[instrument(skip(self, selector, text))]
-    pub async fn type_text(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn type_text(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         debug!(%css, text_len = text.len(), "typing text");
         let selector = shadow_find::checked(css)?;
@@ -996,7 +1044,10 @@ impl BaseCase {
     }
 
     /// Clears the value of the element selected by `css`.
-    pub async fn clear(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn clear(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Visible).await?;
@@ -1017,7 +1068,10 @@ impl BaseCase {
     }
 
     /// Submits the form containing the element selected by `css`.
-    pub async fn submit(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn submit(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
@@ -1028,7 +1082,10 @@ impl BaseCase {
     }
 
     /// Returns the visible text of the element `css`, or the value of an `<input>` or a `<textarea>`.
-    pub async fn text(&self, selector: impl Into<SelectorBuf>) -> Result<String, SeleniumBaseError> {
+    pub async fn text(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<String, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
@@ -1036,7 +1093,10 @@ impl BaseCase {
     }
 
     /// Hovers over the element selected by `css`.
-    pub async fn hover(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn hover(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Visible).await?;
@@ -1057,7 +1117,11 @@ impl BaseCase {
     }
 
     /// Selects the `<option>` with visible text `text`.
-    pub async fn select_option_by_text(&mut self, selector: impl Into<SelectorBuf>, text: &str,) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_text(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
@@ -1070,7 +1134,11 @@ impl BaseCase {
     }
 
     /// Selects the `<option>` whose `value` matches.
-    pub async fn select_option_by_value(&mut self, selector: impl Into<SelectorBuf>, value: &str,) -> Result<(), SeleniumBaseError> {
+    pub async fn select_option_by_value(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
@@ -1142,7 +1210,10 @@ impl BaseCase {
     }
 
     /// Returns `true` if `css` exists in the DOM.
-    pub async fn is_element_present(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_element_present(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.session.element_present(selector).await
@@ -1158,7 +1229,10 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::AssertionFailed`] if the element is not
     /// displayed when the timeout ends.
-    pub async fn assert_element(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_element(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let timeout = self.default_wait_secs();
         let seen = match self.wait_for_element_visible(css, timeout).await {
@@ -1175,7 +1249,10 @@ impl BaseCase {
     }
 
     /// Executes the `assert_element_absent` action.
-    pub async fn assert_element_absent(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_element_absent(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         if !self.is_element_present(css).await? {
             return Ok(());
@@ -1200,7 +1277,8 @@ impl BaseCase {
         let url = self.current_url().await?;
         if url.contains(expected) {
             let message = demo::braced_message("ASSERT URL CONTAINS", expected);
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html"))).await;
+            self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
+                .await;
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
@@ -1384,8 +1462,14 @@ impl BaseCase {
     }
 
     /// The work of [`wait_for_element`](Self::wait_for_element).
-    pub(crate) async fn run_wait_for_element(&self, css: &SelectorBuf, timeout: Option<Duration>,) -> Result<(), SeleniumBaseError> { self.wait_for_element_visible(css, self.wait_secs(timeout))
-        .await }
+    pub(crate) async fn run_wait_for_element(
+        &self,
+        css: &SelectorBuf,
+        timeout: Option<Duration>,
+    ) -> Result<(), SeleniumBaseError> {
+        self.wait_for_element_visible(css, self.wait_secs(timeout))
+            .await
+    }
 
     /// Returns the value of `attribute_name` on the element `css`, if there is
     /// one: the HTML attribute, and when the element has none the DOM property
@@ -1395,7 +1479,11 @@ impl BaseCase {
     /// `false` (`selected`, `disabled`) gives `None`.
     ///
     /// Python raises when there is no such attribute; this returns `None`.
-    pub async fn attribute(&mut self, selector: impl Into<SelectorBuf>, attribute_name: &str,) -> Result<Option<String>, SeleniumBaseError> {
+    pub async fn attribute(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        attribute_name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
@@ -1403,14 +1491,22 @@ impl BaseCase {
     }
 
     /// Executes the `property` action.
-    pub async fn property(&mut self, selector: impl Into<SelectorBuf>, property_name: &str,) -> Result<Option<String>, SeleniumBaseError> {
+    pub async fn property(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        property_name: &str,
+    ) -> Result<Option<String>, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.session.property(selector, property_name).await
     }
 
     /// Waits up to `timeout` seconds for `css` to become visible.
-    pub async fn wait_for_element_visible(&self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_element_visible(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.skip_if_esc().await?;
         let selector = shadow_find::checked(css)?;
@@ -1425,14 +1521,21 @@ impl BaseCase {
     ///
     /// Use [`set_timeout`](BaseCase::set_timeout) or the [`sb_with_timeout!`](crate::sb_with_timeout)
     /// macro to adjust the default.
-    pub async fn wait_for_element_visible_default(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_element_visible_default(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.wait_for_element_visible(css, self.default_wait_secs())
             .await
     }
 
     /// Waits up to `timeout` seconds for `css` to be removed from the DOM.
-    pub async fn wait_for_element_absent(&self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_element_absent(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.record_selector("wait_for_element_absent", css, None);
@@ -1450,8 +1553,12 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] naming the text and the
     /// selector if the text does not show up in time.
-    pub async fn wait_for_text(&self,
-    text: &str, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_text(
+        &self,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.wait_for_text_visible(text, css, timeout_secs).await
     }
@@ -1461,7 +1568,8 @@ impl BaseCase {
         let title = self.title().await?;
         if title.contains(expected) {
             let message = demo::braced_message("ASSERT TITLE CONTAINS", expected);
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html"))).await;
+            self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
+                .await;
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
@@ -1482,7 +1590,11 @@ impl BaseCase {
     /// there when the timeout ends. If the two arguments look swapped
     /// (`expected` selects an element whose text contains `css`), the message
     /// says so.
-    pub async fn assert_text(&self, expected: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_text(
+        &self,
+        expected: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("assert_text", css, Some(expected));
         self.assert_shown_text(expected, css, TextMatch::Contains, self.default_wait_secs())
@@ -1505,8 +1617,11 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::AssertionFailed`] when the text differs
     /// when the timeout ends; the message says so if the two arguments look
     /// swapped.
-    pub async fn assert_exact_text(&self,
-    expected: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_exact_text(
+        &self,
+        expected: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.assert_shown_text(expected, css, TextMatch::Exact, self.default_wait_secs())
             .await?;
@@ -1518,76 +1633,101 @@ impl BaseCase {
     /// Polls for up to `timeout_secs` until the element `css` is displayed
     /// with text that `kind` finds in `expected`, and fails with the text it
     /// last saw, or says that no displayed element matched.
-    pub(crate) async fn assert_shown_text(&self,
-    expected: &str, css: &SelectorBuf, kind: TextMatch,
-    timeout_secs: u64,) -> Result<(), SeleniumBaseError> { self.check_time_limit()?;
-    let shown = self
-        .poll_shown_text(css, timeout_secs, |text| kind.holds(text, expected))
-        .await?;
-    if shown.held {
-        return Ok(());
-    }
-    let what = if kind == TextMatch::Exact {
-        "exact text"
-    } else {
-        "text"
-    };
-    let message = match shown.seen {
+    pub(crate) async fn assert_shown_text(
+        &self,
+        expected: &str,
+        css: &SelectorBuf,
+        kind: TextMatch,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
+        self.check_time_limit()?;
+        let shown = self
+            .poll_shown_text(css, timeout_secs, |text| kind.holds(text, expected))
+            .await?;
+        if shown.held {
+            return Ok(());
+        }
+        let what = if kind == TextMatch::Exact {
+            "exact text"
+        } else {
+            "text"
+        };
+        let message = match shown.seen {
         Some(text) => format!("expected {what} '{expected}' in element '{css}', got '{text}'"),
         None => format!(
             "expected {what} '{expected}' in element '{css}', but no element matched or it was not displayed"
         ),
     };
-    Err(self
-        .text_assertion_failed(message, expected, css, kind == TextMatch::Exact)
-        .await) }
+        Err(self
+            .text_assertion_failed(message, expected, css, kind == TextMatch::Exact)
+            .await)
+    }
 
     /// Looks at the element `css` until it is displayed and `holds` of its
     /// text, or `timeout_secs` have passed. The check runs at least once.
-    async fn poll_shown_text(&self, css: &SelectorBuf, timeout_secs: u64,
-    holds: impl Fn(&str) -> bool,) -> Result<ShownText, SeleniumBaseError> { let selector = shadow_find::checked(css)?;
-    let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
-    loop {
-        let seen = match self.session.find(selector.clone()).await {
-            Ok(element) if element.is_visible().await.unwrap_or(false) => {
-                element.text().await.ok()
+    async fn poll_shown_text(
+        &self,
+        css: &SelectorBuf,
+        timeout_secs: u64,
+        holds: impl Fn(&str) -> bool,
+    ) -> Result<ShownText, SeleniumBaseError> {
+        let selector = shadow_find::checked(css)?;
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
+        loop {
+            let seen = match self.session.find(selector.clone()).await {
+                Ok(element) if element.is_visible().await.unwrap_or(false) => {
+                    element.text().await.ok()
+                }
+                _ => None,
+            };
+            let held = seen.as_deref().is_some_and(&holds);
+            let now = tokio::time::Instant::now();
+            if held || now >= deadline {
+                return Ok(ShownText { held, seen });
             }
-            _ => None,
-        };
-        let held = seen.as_deref().is_some_and(&holds);
-        let now = tokio::time::Instant::now();
-        if held || now >= deadline {
-            return Ok(ShownText { held, seen });
+            tokio::time::sleep(WAIT_POLL_INTERVAL.min(deadline - now)).await;
         }
-        tokio::time::sleep(WAIT_POLL_INTERVAL.min(deadline - now)).await;
-    } }
+    }
 
     /// A failed text assertion, with the hint about swapped arguments added
     /// when it applies.
-    async fn text_assertion_failed(&self,
-    message: String,
-    expected: &str, css: &SelectorBuf, exact: bool,) -> SeleniumBaseError { match self.swapped_text_hint(expected, css, exact).await {
-        Some(hint) => SeleniumBaseError::AssertionFailed(format!("{message}; {hint}")),
-        None => SeleniumBaseError::AssertionFailed(message),
-    } }
+    async fn text_assertion_failed(
+        &self,
+        message: String,
+        expected: &str,
+        css: &SelectorBuf,
+        exact: bool,
+    ) -> SeleniumBaseError {
+        match self.swapped_text_hint(expected, css, exact).await {
+            Some(hint) => SeleniumBaseError::AssertionFailed(format!("{message}; {hint}")),
+            None => SeleniumBaseError::AssertionFailed(message),
+        }
+    }
 
     /// Says that a text assertion was called with its arguments the wrong way
     /// round, if it was: `expected` selects an element whose text is `css`.
     /// Looked at only after an assertion failed, so a passing one costs
     /// nothing.
-    async fn swapped_text_hint(&self, expected: &str, css: &SelectorBuf, exact: bool) -> Option<String> { let selector = shadow_find::checked(expected).ok()?;
-    let shown = self.session.find(selector).await.ok()?.text().await.ok()?;
-    let fits = if exact {
-        shown.trim() == css.trim()
-    } else {
-        shown.contains(css)
-    };
-    fits.then(|| {
-        format!(
-            "the arguments look swapped: the order is (text, selector), as in Python, \
+    async fn swapped_text_hint(
+        &self,
+        expected: &str,
+        css: &SelectorBuf,
+        exact: bool,
+    ) -> Option<String> {
+        let selector = shadow_find::checked(expected).ok()?;
+        let shown = self.session.find(selector).await.ok()?.text().await.ok()?;
+        let fits = if exact {
+            shown.trim() == css.as_str().trim()
+        } else {
+            shown.contains(css.as_str())
+        };
+        fits.then(|| {
+            format!(
+                "the arguments look swapped: the order is (text, selector), as in Python, \
                  and '{expected}' selects an element whose text is '{css}'"
-        )
-    }) }
+            )
+        })
+    }
 
     /// How long a message stays on the page: `requested`, else the run's
     /// message duration ([`RunSettings::message_duration`]); cut to 0.75 s where
@@ -1890,7 +2030,10 @@ impl BaseCase {
     }
 
     /// Double-clicks the element selected by `css`.
-    pub async fn double_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn double_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Clickable).await?;
@@ -1903,7 +2046,10 @@ impl BaseCase {
     }
 
     /// Right-clicks the element selected by `css`.
-    pub async fn context_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn context_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Clickable).await?;
@@ -1916,7 +2062,10 @@ impl BaseCase {
     }
 
     /// Executes the `is_enabled` action.
-    pub async fn is_enabled(&mut self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_enabled(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.session.is_enabled(selector).await
@@ -1929,14 +2078,20 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the element is missing.
-    pub async fn is_selected(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_selected(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.session.is_selected(selector).await
     }
 
     /// Executes the `is_displayed` action.
-    pub async fn is_displayed(&mut self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_displayed(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.session.is_displayed(selector).await
@@ -2015,23 +2170,35 @@ impl BaseCase {
     }
 
     /// Executes the `scroll_to` action.
-    pub async fn scroll_to(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn scroll_to(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("scroll_to", css, None);
-        let script = format!("document.querySelector({}).scrollIntoView();", quote(css));
+        let script = format!(
+            "document.querySelector({}).scrollIntoView();",
+            quote(css.as_str())
+        );
         self.execute_script(&script).await?;
         Ok(())
     }
 
     /// Asserts that the element `css` is displayed. The same as
     /// [`assert_element`](Self::assert_element), as in Python.
-    pub async fn assert_element_visible(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_element_visible(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.assert_element(css).await
     }
 
     /// Executes the `assert_element_not_visible` action.
-    pub async fn assert_element_not_visible(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_element_not_visible(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let is_visible = self.is_displayed(css).await.unwrap_or_default();
         if !is_visible {
@@ -2047,7 +2214,10 @@ impl BaseCase {
     /// Python's `click_if_visible(selector)` does with its default
     /// `timeout=0`. To give an element time to show up, see
     /// [`click_if_visible_with_timeout`](Self::click_if_visible_with_timeout).
-    pub async fn click_if_visible(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn click_if_visible(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.click_if_visible_with_timeout(css, Duration::ZERO)
             .await
@@ -2062,7 +2232,11 @@ impl BaseCase {
     ///
     /// Returns the error of the click itself. An element that cannot be looked
     /// up (a selector the browser rejects) is one that is not displayed.
-    pub async fn click_if_visible_with_timeout(&mut self, selector: impl Into<SelectorBuf>, timeout: Duration,) -> Result<(), SeleniumBaseError> {
+    pub async fn click_if_visible_with_timeout(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        timeout: Duration,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         if self.is_displayed(css).await.unwrap_or(false) {
             return self.click(css).await;
@@ -2082,7 +2256,11 @@ impl BaseCase {
     }
 
     /// Waits up to `timeout` seconds for `css` to become clickable.
-    pub async fn wait_for_element_clickable(&mut self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_element_clickable(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("wait_for_element_clickable", css, None);
         let selector = shadow_find::checked(css)?;
@@ -2178,7 +2356,10 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if no element matches in time.
-    pub async fn js_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn js_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("js_click", css, None);
         let selector = shadow_find::checked(css)?;
@@ -2191,12 +2372,16 @@ impl BaseCase {
     }
 
     /// Executes the `js_type` action.
-    pub async fn js_type(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn js_type(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("js_type", css, Some(text));
         let script = format!(
             "document.querySelector({}).value = {};",
-            quote(css),
+            quote(css.as_str()),
             quote(text)
         );
         self.execute_script(&script).await?;
@@ -2204,13 +2389,21 @@ impl BaseCase {
     }
 
     /// Executes the `set_attribute` action.
-    pub async fn set_attribute(&mut self, selector: impl Into<SelectorBuf>, attribute: &str,
-    value: &str,) -> Result<(), SeleniumBaseError> {
+    pub async fn set_attribute(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        attribute: &str,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
-        self.record_selector("set_attribute", css, Some(&format!("{}={}", attribute, value)));
+        self.record_selector(
+            "set_attribute",
+            css,
+            Some(&format!("{}={}", attribute, value)),
+        );
         let script = format!(
             "document.querySelector({}).setAttribute({}, {});",
-            quote(css),
+            quote(css.as_str()),
             quote(attribute),
             quote(value)
         );
@@ -2219,12 +2412,16 @@ impl BaseCase {
     }
 
     /// Executes the `remove_attribute` action.
-    pub async fn remove_attribute(&mut self, selector: impl Into<SelectorBuf>, attribute: &str,) -> Result<(), SeleniumBaseError> {
+    pub async fn remove_attribute(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        attribute: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("remove_attribute", css, Some(attribute));
         let script = format!(
             "document.querySelector({}).removeAttribute({});",
-            quote(css),
+            quote(css.as_str()),
             quote(attribute)
         );
         self.execute_script(&script).await?;
@@ -2232,16 +2429,20 @@ impl BaseCase {
     }
 
     /// Executes the `choose_file` action.
-    pub async fn choose_file(&mut self, selector: impl Into<SelectorBuf>, file_path: &str,) -> Result<(), SeleniumBaseError> {
+    pub async fn choose_file(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        file_path: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("choose_file", css, Some(file_path));
         let selector = shadow_find::checked(css)?;
         let element = self.session.wait_for_element(selector, 10).await?;
-    
+
         let path = std::path::Path::new(file_path);
         let abs_path = std::fs::canonicalize(path)
             .map_err(|e| SeleniumBaseError::AssertionFailed(format!("File not found: {}", e)))?;
-    
+
         // For choose_file, we use send_keys with the absolute file path on an <input type="file">
         let before = self.demo_page_before().await;
         element
@@ -2269,21 +2470,30 @@ impl BaseCase {
     /// stale when the page replaces the node (see [`Element`]). A `host::shadow inner` selector
     /// finds the element inside the shadow root. For a `thirtyfour` call that `Element` has no
     /// method for, see [`Element::as_webdriver_element`].
-    pub async fn find_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<Element, SeleniumBaseError> {
+    pub async fn find_element(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Element, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("find_element", css, None);
         self.session.wait_for_element(css, 10).await
     }
 
     /// Returns all elements matching `css`, as [`Element`]s, possibly none.
-    pub async fn find_elements(&mut self, selector: impl Into<SelectorBuf>) -> Result<Vec<Element>, SeleniumBaseError> {
+    pub async fn find_elements(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Vec<Element>, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("find_elements", css, None);
         self.session.find_elements(css).await
     }
 
     /// Executes the `slow_click` action.
-    pub async fn slow_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn slow_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("slow_click", css, None);
         let selector = shadow_find::checked(css)?;
@@ -2330,12 +2540,7 @@ impl BaseCase {
 
     /// Records a command that acts on `selector`, in the text the user wrote
     /// (`Display`), so a `p:contains("x")` selector is recorded as written.
-    pub(crate) fn record_selector(
-        &self,
-        name: &str,
-        selector: &SelectorBuf,
-        value: Option<&str>,
-    ) {
+    pub(crate) fn record_selector(&self, name: &str, selector: &SelectorBuf, value: Option<&str>) {
         self.record(name, Some(&selector.to_string()), value);
     }
 
@@ -2348,7 +2553,11 @@ impl BaseCase {
     /// Appends `text` to the element selected by `css`, waiting for it to be
     /// displayed first, as Python's `add_text` does. Unlike
     /// [`type_text`](Self::type_text) it does not clear the field.
-    pub async fn add_text(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn add_text(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Visible).await?;
@@ -2364,13 +2573,20 @@ impl BaseCase {
     /// Appends `text` to the element selected by `css`. The same as
     /// [`add_text`](Self::add_text), as in Python, where `send_keys` is its
     /// alias.
-    pub async fn send_keys(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn send_keys(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.add_text(css, text).await
     }
 
     /// Executes the `value` action.
-    pub async fn value(&mut self, selector: impl Into<SelectorBuf>) -> Result<String, SeleniumBaseError> {
+    pub async fn value(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<String, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         // The live `value` property reflects typed input; the HTML `value`
         // attribute only reflects the initial markup.
@@ -2381,7 +2597,10 @@ impl BaseCase {
     }
 
     /// Executes the `click_visible_elements` action.
-    pub async fn click_visible_elements(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn click_visible_elements(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         let elems = self.session.find_all(selector).await?;
@@ -2486,15 +2705,19 @@ impl BaseCase {
     /// fingerprint's [`HumanizeConfig`](crate::evasion::HumanizeConfig) when the
     /// configuration has one, and is a typical typist's otherwise. For pointer
     /// paths as well as typing, use [`sb_cdp::Page::human`](crate::sb_cdp::Page::human).
-    pub async fn human_type(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn human_type(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         use crate::evasion::behavior::{Behavior, Humanizer, KeyAction};
-    
+
         let selector = shadow_find::checked(css)?;
         self.record_selector("human_type", css, Some(text));
         let elem = self.session.find(selector).await?;
         elem.click().await?; // Focus the field
-    
+
         let behavior = self
             .config
             .fingerprint
@@ -2511,26 +2734,32 @@ impl BaseCase {
     }
 
     /// Executes the `human_click` action, adding a random pre-click delay.
-    pub async fn human_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn human_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.record_selector("human_click", css, None);
         let elem = self.session.find(selector).await?;
-    
+
         let mut rng = rand::rng();
         let pre_delay = rng.random_range(100..=300);
         tokio::time::sleep(Duration::from_millis(pre_delay)).await;
-    
+
         elem.click().await?;
         Ok(())
     }
 
     /// Executes the `smooth_scroll_to` action.
-    pub async fn smooth_scroll_to(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn smooth_scroll_to(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelector({}).scrollIntoView({{behavior: 'smooth', block: 'center'}});",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         tokio::time::sleep(Duration::from_millis(800)).await;
@@ -2538,13 +2767,20 @@ impl BaseCase {
     }
 
     /// Executes the `uc_click` action (alias for human_click, often used in UC mode stealth).
-    pub async fn uc_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn uc_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.human_click(css).await
     }
 
     /// Executes the `uc_type` action (alias for human_type, often used in UC mode stealth).
-    pub async fn uc_type(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn uc_type(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.human_type(css, text).await
     }
@@ -2697,7 +2933,10 @@ impl BaseCase {
     /// page's URL, for [`process_deferred_asserts`](Self::process_deferred_asserts)
     /// to report. Waits a couple of seconds for the element, as Python does.
     /// Corresponds to Python's `deferred_assert_element`.
-    pub async fn deferred_assert_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn deferred_assert_element(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let mut deferred = std::mem::take(&mut self.deferred);
         deferred.check_element(self, css).await;
@@ -2708,8 +2947,11 @@ impl BaseCase {
     /// Checks now that `css` contains `text`, and records a failure, with the
     /// page's URL, for [`process_deferred_asserts`](Self::process_deferred_asserts)
     /// to report. Corresponds to Python's `deferred_assert_text`.
-    pub async fn deferred_assert_text(&mut self,
-    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn deferred_assert_text(
+        &mut self,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let mut deferred = std::mem::take(&mut self.deferred);
         deferred.check_text(self, text, css).await;
@@ -2732,15 +2974,22 @@ impl BaseCase {
     /// [`type_text`](Self::type_text), as in Python, where `update_text` and
     /// `type` are one method: it waits for the element to be displayed, and a
     /// trailing newline presses Enter.
-    pub async fn update_text(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn update_text(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.type_text(css, text).await
     }
 
     /// Focus the element matching `css`.
-    pub async fn focus(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn focus(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
-        let script = format!("document.querySelector({}).focus();", quote(css));
+        let script = format!("document.querySelector({}).focus();", quote(css.as_str()));
         self.execute_script(&script).await?;
         self.demo_pause(PauseKind::Full).await;
         Ok(())
@@ -2813,7 +3062,10 @@ impl BaseCase {
     }
 
     /// JavaScript-click the element only if it is present in the DOM.
-    pub async fn js_click_if_present(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn js_click_if_present(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         if self.is_element_present(css).await? {
             self.js_click(css).await?;
@@ -2822,23 +3074,29 @@ impl BaseCase {
     }
 
     /// JavaScript-click all elements matching `css`.
-    pub async fn js_click_all(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn js_click_all(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("js_click_all", css, None);
         let script = format!(
             "document.querySelectorAll({}).forEach(e => e.click());",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
     }
 
     /// Click the element using jQuery if available, otherwise fall back to JS click.
-    pub async fn jquery_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn jquery_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.record_selector("jquery_click", css, None);
         self.demo_highlight(css).await?;
-        let literal = quote(css);
+        let literal = quote(css.as_str());
         let script = format!(
             "(function(){{
                 if (window.jQuery && jQuery({literal}).length) {{ jQuery({literal})[0].click(); }}
@@ -2851,33 +3109,42 @@ impl BaseCase {
     }
 
     /// Hide the element matching `css` by setting `display:none`.
-    pub async fn hide_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn hide_element(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelector({}).style.display='none';",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
     }
 
     /// Show the element matching `css` by setting `display:block`.
-    pub async fn show_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn show_element(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelector({}).style.display='block';",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
     }
 
     /// Remove the element matching `css` from the DOM.
-    pub async fn remove_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn remove_element(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "var e=document.querySelector({}); if(e) e.parentNode.removeChild(e);",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -2907,7 +3174,8 @@ impl BaseCase {
         let url = self.current_url().await?;
         if url == expected {
             let message = demo::braced_message("ASSERT URL", expected);
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html"))).await;
+            self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
+                .await;
             return Ok(());
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
@@ -2950,7 +3218,8 @@ impl BaseCase {
         }
         if broken.is_empty() {
             let message = demo::label_message("ASSERT NO 404 ERRORS");
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html"))).await;
+            self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
+                .await;
             Ok(())
         } else {
             Err(SeleniumBaseError::AssertionFailed(format!(
@@ -2985,34 +3254,40 @@ impl BaseCase {
     }
 
     /// The work of [`select_options`](Self::select_options).
-    pub(crate) async fn run_get_select_options(&mut self, css: &SelectorBuf, attribute: &str,
-    timeout: Option<Duration>,) -> Result<Vec<String>, SeleniumBaseError> { if !matches!(attribute, "text" | "index" | "value") {
-        return Err(SeleniumBaseError::InvalidConfig(format!(
-            "The attribute must be \"text\", \"index\" or \"value\", not \"{attribute}\""
-        )));
+    pub(crate) async fn run_get_select_options(
+        &mut self,
+        css: &SelectorBuf,
+        attribute: &str,
+        timeout: Option<Duration>,
+    ) -> Result<Vec<String>, SeleniumBaseError> {
+        if !matches!(attribute, "text" | "index" | "value") {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "The attribute must be \"text\", \"index\" or \"value\", not \"{attribute}\""
+            )));
+        }
+        let selector = shadow_find::checked(css)?;
+        let seconds = self.wait_secs(timeout);
+        let element = self.session.wait_for_element(selector, seconds).await?;
+        let tag = element.tag().await?;
+        if !tag.eq_ignore_ascii_case("select") {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "Element tag_name for get_select_options must be \"select\", not \"{tag}\""
+            )));
+        }
+
+        let mut options = Vec::new();
+        for option in element.find_all("option").await? {
+            options.push(if attribute == "text" {
+                option.text().await.unwrap_or_default()
+            } else {
+                self.session
+                    .attribute_or_property(&option, attribute)
+                    .await?
+                    .unwrap_or_default()
+            });
+        }
+        Ok(options)
     }
-    let selector = shadow_find::checked(css)?;
-    let seconds = self.wait_secs(timeout);
-    let element = self.session.wait_for_element(selector, seconds).await?;
-    let tag = element.tag().await?;
-    if !tag.eq_ignore_ascii_case("select") {
-        return Err(SeleniumBaseError::InvalidConfig(format!(
-            "Element tag_name for get_select_options must be \"select\", not \"{tag}\""
-        )));
-    }
-        
-    let mut options = Vec::new();
-    for option in element.find_all("option").await? {
-        options.push(if attribute == "text" {
-            option.text().await.unwrap_or_default()
-        } else {
-            self.session
-                .attribute_or_property(&option, attribute)
-                .await?
-                .unwrap_or_default()
-        });
-    }
-    Ok(options) }
 
     /// Sets the `value` property of the element `css` with a script, as
     /// Python's `set_value` does: no key events fire, so it is fast and does not
@@ -3027,7 +3302,11 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not appear
     /// in time.
-    pub async fn set_value(&mut self, selector: impl Into<SelectorBuf>, value: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn set_value(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        value: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.await_ready(css, Ready::Present).await?;
@@ -3062,21 +3341,28 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not
     /// appear.
-    pub async fn set_text(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn set_text(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.await_ready(css, Ready::Present).await?;
         let found = self
-            .execute_script(&page_scripts::set_text_script(css, text))
+            .execute_script(&page_scripts::set_text_script(css.as_str(), text))
             .await?;
         if found.as_bool() != Some(true) {
-            return Err(SeleniumBaseError::element_not_found(css));
+            return Err(SeleniumBaseError::element_not_found(css.to_string()));
         }
         self.demo_pause(PauseKind::Full).await;
         Ok(())
     }
 
     /// Get the `src` URL of an image element.
-    pub async fn image_url(&mut self, selector: impl Into<SelectorBuf>) -> Result<String, SeleniumBaseError> {
+    pub async fn image_url(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<String, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.attribute(css, "src").await?.ok_or_else(|| {
             SeleniumBaseError::AssertionFailed(format!("element '{css}' has no src attribute"))
@@ -3170,7 +3456,10 @@ impl BaseCase {
     }
 
     /// Return whether the element is clickable (visible and enabled).
-    pub async fn is_element_clickable(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_element_clickable(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         match self.session.find(selector).await {
@@ -3181,7 +3470,10 @@ impl BaseCase {
     }
 
     /// Return whether the element is enabled.
-    pub async fn is_element_enabled(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_element_enabled(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         self.session.is_enabled(selector).await
@@ -3222,8 +3514,11 @@ impl BaseCase {
     }
 
     /// Return whether `text` exactly matches the visible text of the element.
-    pub async fn is_exact_text_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_exact_text_visible(
+        &self,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         match self.session.find(selector).await {
@@ -3235,7 +3530,10 @@ impl BaseCase {
 
     /// Return whether the element has any non-empty visible text.
     /// The text of an `<input>` or a `<textarea>` is its value, as in Python.
-    pub async fn is_non_empty_text_visible(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
+    pub async fn is_non_empty_text_visible(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         match self.session.find(selector).await {
@@ -3248,7 +3546,10 @@ impl BaseCase {
     }
 
     /// Alias for `assert_element_absent`.
-    pub async fn assert_element_not_present(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn assert_element_not_present(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.assert_element_absent(css).await
     }
@@ -3260,7 +3561,7 @@ impl BaseCase {
         selectors: &[&str],
     ) -> Result<(), SeleniumBaseError> {
         for css in selectors {
-            self.assert_element_present(css).await?;
+            self.assert_element_present(*css).await?;
         }
         Ok(())
     }
@@ -3274,7 +3575,7 @@ impl BaseCase {
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
         loop {
             for css in selectors {
-                if self.is_element_visible(css).await.unwrap_or(false) {
+                if self.is_element_visible(*css).await.unwrap_or(false) {
                     return Ok((*css).to_owned());
                 }
             }
@@ -3293,7 +3594,7 @@ impl BaseCase {
         selectors: &[&str],
     ) -> Result<(), SeleniumBaseError> {
         for css in selectors {
-            if self.is_element_visible(css).await.unwrap_or(false) {
+            if self.is_element_visible(*css).await.unwrap_or(false) {
                 return Ok(());
             }
         }
@@ -3303,7 +3604,10 @@ impl BaseCase {
     }
 
     /// Return the inner text of the element.
-    pub async fn text_content(&mut self, selector: impl Into<SelectorBuf>) -> Result<String, SeleniumBaseError> {
+    pub async fn text_content(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<String, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let selector = shadow_find::checked(css)?;
         let elem = self.session.find(selector).await?;
@@ -3321,7 +3625,11 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element does not
     /// appear.
-    pub async fn press_keys(&self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn press_keys(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.await_ready(css, Ready::Present).await?;
         let selector = shadow_find::checked(css)?;
@@ -3564,43 +3872,69 @@ impl BaseCase {
     // --- Input aliases ---
 
     /// Alias of `type_text` (Python parity).
-    pub async fn input(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn input(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.type_text(css, text).await
     }
 
     /// Alias of `type_text` (Python parity).
-    pub async fn fill(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn fill(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.type_text(css, text).await
     }
 
     /// Alias of `type_text` (Python parity).
-    pub async fn write(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn write(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.type_text(css, text).await
     }
 
     /// Alias of `select_option_by_text` (Python parity).
-    pub async fn select(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn select(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.select_option_by_text(css, text).await
     }
 
     /// Alias of `context_click` (Python parity).
-    pub async fn right_click(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn right_click(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.context_click(css).await
     }
 
     /// Alias to find an element that can be used for further chaining.
-    pub async fn element(&mut self, selector: impl Into<SelectorBuf>) -> Result<Element, SeleniumBaseError> {
+    pub async fn element(
+        &mut self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Element, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.find_element(css).await
     }
 
     /// Alias for `wait_for_element_visible`.
-    pub async fn wait_for_selector(&self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_selector(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.wait_for_element_visible(css, timeout_secs).await
     }
@@ -3608,7 +3942,11 @@ impl BaseCase {
     /// Waits up to `timeout_secs` for `css` to be in the DOM. The same as
     /// [`wait_for_element_present`](Self::wait_for_element_present), as in
     /// Python.
-    pub async fn wait_for_query_selector(&self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+    pub async fn wait_for_query_selector(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        timeout_secs: u64,
+    ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         self.wait_for_element_present(css, timeout_secs).await
     }

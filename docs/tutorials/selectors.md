@@ -62,7 +62,7 @@ The prefixes are matched exactly and everything after one is the text, so
 
 If you need to force a particular strategy, build the `SelectorBuf` yourself
 instead of relying on detection. It goes wherever a method takes a selector as
-`impl Into<SelectorBuf>`: the methods of `Element` and `BrowserSession`, and
+`impl Into<SelectorBuf>`: the methods of `BaseCase`, `CdpDriver`, `Element` and `BrowserSession`, and
 `Page::locator` and `Locator::locator` on the pure CDP engine.
 
 ```rust

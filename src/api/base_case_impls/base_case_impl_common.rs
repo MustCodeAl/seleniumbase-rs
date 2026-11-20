@@ -265,7 +265,7 @@ impl BaseCase {
     /// each up to the default timeout, as Python's `assert_elements` does.
     pub async fn assert_elements(&self, selectors: &[&str]) -> Result<(), SeleniumBaseError> {
         for css in selectors {
-            self.assert_element(css).await?;
+            self.assert_element(*css).await?;
         }
         Ok(())
     }
@@ -276,7 +276,7 @@ impl BaseCase {
         selectors: &[&str],
     ) -> Result<(), SeleniumBaseError> {
         for css in selectors {
-            self.assert_element_visible(css).await?;
+            self.assert_element_visible(*css).await?;
         }
         Ok(())
     }
@@ -293,7 +293,7 @@ impl BaseCase {
         selectors: &[&str],
     ) -> Result<(), SeleniumBaseError> {
         for css in selectors {
-            if self.is_element_present(css).await? {
+            if self.is_element_present(*css).await? {
                 return Ok(());
             }
         }

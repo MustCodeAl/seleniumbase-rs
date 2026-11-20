@@ -148,7 +148,7 @@ async fn wait_for_file(path: &Path, timeout_secs: u64) -> Result<(), SeleniumBas
 ///
 /// Returns [`SeleniumBaseError::AssertionFailed`] naming `css` and `index`
 /// for anything but `"ok"`.
-fn select_index_outcome(status: &Value, css: &str, index: usize) -> Result<(), SeleniumBaseError> {
+fn select_index_outcome(status: &Value, css: &SelectorBuf, index: usize) -> Result<(), SeleniumBaseError> {
     let problem = match status.as_str() {
         Some("ok") => return Ok(()),
         Some("no-option") => format!("'{css}' has no option at index {index}"),
@@ -699,7 +699,7 @@ impl BaseCase {
     /// Returns true if the element `css` has the attribute `attribute`.
     pub async fn is_attribute_present(&self, selector: impl Into<SelectorBuf>, attribute: &str,) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
-        if self.is_shadow_selector(css) {
+        if self.is_shadow_selector(css.as_str()) {
             // A script's querySelector cannot cross a shadow root; the session can.
             let Ok(element) = self.session.find(shadow_find::checked(css)?).await else {
                 return Ok(false);
@@ -711,7 +711,7 @@ impl BaseCase {
         }
         let script = format!(
             "var el = document.querySelector({}); return !!(el && el.hasAttribute({}));",
-            quote(css),
+            quote(css.as_str()),
             quote(attribute)
         );
         match self.execute_script(&script).await? {
@@ -764,7 +764,7 @@ impl BaseCase {
          if (!el || !el.hasAttribute({})) {{ return false; }} \
          var wanted = {wanted}; \
          return wanted === null || el.getAttribute({}) === wanted;",
-        quote(css),
+        quote(css.as_str()),
         quote(attribute),
         quote(attribute)
     );
@@ -801,7 +801,7 @@ impl BaseCase {
         self.record_selector("scroll_into_view", css, None);
         let script = format!(
             "document.querySelector({}).scrollIntoView();",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -819,7 +819,7 @@ impl BaseCase {
         self.record_selector("slow_scroll_to", css, None);
         let script = format!(
             "document.querySelector({}).scrollIntoView({{behavior: 'smooth'}});",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -877,7 +877,7 @@ impl BaseCase {
         self.await_ready(css, Ready::Present).await?;
         self.record_selector("select_option_by_index", css, Some(&index.to_string()));
         let status = self
-            .execute_script(&page_scripts::select_by_index_script(css, index))
+            .execute_script(&page_scripts::select_by_index_script(css.as_str(), index))
             .await?;
         select_index_outcome(&status, css, index)
     }
@@ -897,7 +897,7 @@ impl BaseCase {
         self.record_selector("select_all_options", css, None);
         let script = format!(
             "var s = document.querySelector({}); if (s) {{ for (var i = 0; i < s.options.length; i++) s.options[i].selected = true; s.dispatchEvent(new Event('change')); }}",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -915,7 +915,7 @@ impl BaseCase {
         self.record_selector("unselect_all", css, None);
         let script = format!(
             "var s = document.querySelector({}); if (s) {{ for (var i = 0; i < s.options.length; i++) s.options[i].selected = false; s.dispatchEvent(new Event('change')); }}",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -993,10 +993,10 @@ impl BaseCase {
         let css: &SelectorBuf = &selector.into();
         self.await_ready(css, Ready::Visible).await?;
         let found = self
-            .execute_script(&page_scripts::bring_to_front_script(css))
+            .execute_script(&page_scripts::bring_to_front_script(css.as_str()))
             .await?;
         if found.as_bool() != Some(true) {
-            return Err(SeleniumBaseError::element_not_found(css));
+            return Err(SeleniumBaseError::element_not_found(css.to_string()));
         }
         Ok(())
     }
@@ -1356,7 +1356,7 @@ impl BaseCase {
         self.record_selector("jquery_click_all", css, None);
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.click());",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         self.demo_pause(PauseKind::Full).await;
@@ -1369,7 +1369,7 @@ impl BaseCase {
         self.record_selector("jquery_type", css, Some(text));
         let script = format!(
             "document.querySelectorAll({}).forEach(el => {{ el.value = {}; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }});",
-            quote(css),
+            quote(css.as_str()),
             quote(text)
         );
         self.execute_script(&script).await?;
@@ -1382,7 +1382,7 @@ impl BaseCase {
         self.record_selector("jquery_update_text", css, Some(text));
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.textContent = {});",
-            quote(css),
+            quote(css.as_str()),
             quote(text)
         );
         self.execute_script(&script).await?;
@@ -1396,7 +1396,7 @@ impl BaseCase {
         self.record_selector("js_update_text", css, Some(text));
         let script = format!(
             "document.querySelectorAll({}).forEach(el => {{ if ('value' in el) el.value = {}; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change')); }});",
-            quote(css),
+            quote(css.as_str()),
             quote(text)
         );
         self.execute_script(&script).await?;
@@ -1606,7 +1606,7 @@ impl BaseCase {
              ctx.fillStyle = '#F8F808'; ctx.fillRect({dot_x}, {dot_y}, 7, 7); \
              ctx.fillStyle = '#F80808'; ctx.fillRect({dot_x} + 1, {dot_y} + 1, 5, 5); \
              return true;",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
     }
@@ -1990,19 +1990,19 @@ mod tests_extra {
 
     #[test]
     fn selecting_an_option_that_is_not_there_is_an_error_not_a_silent_success() {
-        assert!(select_index_outcome(&serde_json::json!("ok"), "#size", 1).is_ok());
+        assert!(select_index_outcome(&serde_json::json!("ok"), &"#size".into(), 1).is_ok());
         for (status, expected) in [
             ("no-option", "no option at index 99"),
             ("no-select", "is not a <select>"),
             ("disabled", "is disabled"),
         ] {
-            let error = select_index_outcome(&serde_json::json!(status), "#size", 99)
+            let error = select_index_outcome(&serde_json::json!(status), &"#size".into(), 99)
                 .expect_err(status)
                 .to_string();
             assert!(error.contains("#size") && error.contains(expected), "{status}: {error}");
         }
         // A script that returned nothing at all did not select anything either.
-        assert!(select_index_outcome(&Value::Null, "#size", 1).is_err());
+        assert!(select_index_outcome(&Value::Null, &"#size".into(), 1).is_err());
     }
 
     #[test]

@@ -307,41 +307,53 @@ pub(crate) fn strategy_word(selector: &SelectorBuf) -> &'static str {
 }
 
 /// `<b>ASSERT CSS SELECTOR</b>: h1`
-pub(crate) fn element_message(css: &SelectorBuf) -> String { format!("<b>ASSERT {}</b>: {}", strategy_word(css), html_escape(&css.to_string())) }
+pub(crate) fn element_message(css: &SelectorBuf) -> String {
+    format!(
+        "<b>ASSERT {}</b>: {}",
+        strategy_word(css),
+        html_escape(&css.to_string())
+    )
+}
 
 /// `<b>ASSERT TEXT</b>: {Welcome} in CSS SELECTOR: h1` (or `ASSERT EXACT TEXT`).
-pub(crate) fn text_message(css: &SelectorBuf, text: &str, exact: bool) -> String { let label = if exact {
-    "ASSERT EXACT TEXT"
-} else {
-    "ASSERT TEXT"
-};
-format!(
-    "<b>{label}</b>: {{{}}} in {}: {}",
-    html_escape(text),
-    strategy_word(css),
+pub(crate) fn text_message(css: &SelectorBuf, text: &str, exact: bool) -> String {
+    let label = if exact {
+        "ASSERT EXACT TEXT"
+    } else {
+        "ASSERT TEXT"
+    };
+    format!(
+        "<b>{label}</b>: {{{}}} in {}: {}",
+        html_escape(text),
+        strategy_word(css),
         html_escape(&css.to_string())
-) }
+    )
+}
 
 /// `<b>ASSERT NON-EMPTY TEXT</b> in CSS SELECTOR: h1`
-pub(crate) fn non_empty_text_message(css: &SelectorBuf) -> String { format!(
-    "<b>ASSERT NON-EMPTY TEXT</b> in {}: {}",
-    strategy_word(css),
+pub(crate) fn non_empty_text_message(css: &SelectorBuf) -> String {
+    format!(
+        "<b>ASSERT NON-EMPTY TEXT</b> in {}: {}",
+        strategy_word(css),
         html_escape(&css.to_string())
-) }
+    )
+}
 
 /// `<b>ASSERT ATTRIBUTE</b>: [href="/x"] in CSS SELECTOR: a`; without a value
 /// `[href]`.
-pub(crate) fn attribute_message(css: &SelectorBuf, attribute: &str, value: Option<&str>) -> String { let part = match value {
-    Some(value) if !value.is_empty() => {
-        format!("[{}=\"{}\"]", html_escape(attribute), html_escape(value))
-    }
-    _ => format!("[{}]", html_escape(attribute)),
-};
-format!(
-    "<b>ASSERT ATTRIBUTE</b>: {part} in {}: {}",
-    strategy_word(css),
+pub(crate) fn attribute_message(css: &SelectorBuf, attribute: &str, value: Option<&str>) -> String {
+    let part = match value {
+        Some(value) if !value.is_empty() => {
+            format!("[{}=\"{}\"]", html_escape(attribute), html_escape(value))
+        }
+        _ => format!("[{}]", html_escape(attribute)),
+    };
+    format!(
+        "<b>ASSERT ATTRIBUTE</b>: {part} in {}: {}",
+        strategy_word(css),
         html_escape(&css.to_string())
-) }
+    )
+}
 
 /// `<b>ASSERT TITLE</b>: {Example}`: the label in bold, the text in braces.
 pub(crate) fn braced_message(label: &str, text: &str) -> String {
@@ -383,14 +395,14 @@ pub struct Highlight<'a> {
 
 impl<'a> Highlight<'a> {
     pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
-            Self {
-                sb,
-                selector: selector.into(),
-                loops: None,
-                scroll: true,
-                timeout: DEFAULT_TIMEOUT,
-            }
+        Self {
+            sb,
+            selector: selector.into(),
+            loops: None,
+            scroll: true,
+            timeout: DEFAULT_TIMEOUT,
         }
+    }
 
     /// How many times the animation repeats. Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -417,7 +429,8 @@ impl<'a> IntoFuture for Highlight<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb.run_highlight(&self.selector, self.loops, self.scroll, self.timeout)
+            self.sb
+                .run_highlight(&self.selector, self.loops, self.scroll, self.timeout)
                 .await
         })
     }
@@ -438,14 +451,14 @@ pub struct HighlightClick<'a> {
 
 impl<'a> HighlightClick<'a> {
     pub(crate) fn new(sb: &'a mut BaseCase, selector: impl Into<SelectorBuf>) -> Self {
-            Self {
-                sb,
-                selector: selector.into(),
-                loops: None,
-                scroll: true,
-                timeout: DEFAULT_TIMEOUT,
-            }
+        Self {
+            sb,
+            selector: selector.into(),
+            loops: None,
+            scroll: true,
+            timeout: DEFAULT_TIMEOUT,
         }
+    }
 
     /// How many times the animation repeats (default 3). Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -500,16 +513,20 @@ pub struct HighlightType<'a> {
 }
 
 impl<'a> HighlightType<'a> {
-    pub(crate) fn new(sb: &'a mut BaseCase, selector: impl Into<SelectorBuf>, text: &'a str) -> Self {
-            Self {
-                sb,
-                selector: selector.into(),
-                text,
-                loops: None,
-                scroll: true,
-                timeout: DEFAULT_TIMEOUT,
-            }
+    pub(crate) fn new(
+        sb: &'a mut BaseCase,
+        selector: impl Into<SelectorBuf>,
+        text: &'a str,
+    ) -> Self {
+        Self {
+            sb,
+            selector: selector.into(),
+            text,
+            loops: None,
+            scroll: true,
+            timeout: DEFAULT_TIMEOUT,
         }
+    }
 
     /// How many times the animation repeats (default 3). Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -563,13 +580,13 @@ pub struct HighlightIfVisible<'a> {
 
 impl<'a> HighlightIfVisible<'a> {
     pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
-            Self {
-                sb,
-                selector: selector.into(),
-                loops: None,
-                scroll: true,
-            }
+        Self {
+            sb,
+            selector: selector.into(),
+            loops: None,
+            scroll: true,
         }
+    }
 
     /// How many times the animation repeats. Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -590,7 +607,8 @@ impl<'a> IntoFuture for HighlightIfVisible<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb.run_highlight_if_visible(&self.selector, self.loops, self.scroll)
+            self.sb
+                .run_highlight_if_visible(&self.selector, self.loops, self.scroll)
                 .await
         })
     }
@@ -610,14 +628,14 @@ pub struct HighlightElements<'a> {
 
 impl<'a> HighlightElements<'a> {
     pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
-            Self {
-                sb,
-                selector: selector.into(),
-                loops: None,
-                scroll: true,
-                limit: 0,
-            }
+        Self {
+            sb,
+            selector: selector.into(),
+            loops: None,
+            scroll: true,
+            limit: 0,
         }
+    }
 
     /// How many times the animation repeats. Python's `loops`.
     pub fn loops(mut self, loops: u32) -> Self {
@@ -644,7 +662,8 @@ impl<'a> IntoFuture for HighlightElements<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb.run_highlight_elements(&self.selector, self.loops, self.scroll, self.limit)
+            self.sb
+                .run_highlight_elements(&self.selector, self.loops, self.scroll, self.limit)
                 .await
         })
     }
@@ -669,14 +688,14 @@ pub struct Flash<'a> {
 
 impl<'a> Flash<'a> {
     pub(crate) fn new(sb: &'a BaseCase, selector: impl Into<SelectorBuf>) -> Self {
-            Self {
-                sb,
-                selector: selector.into(),
-                duration: Duration::from_secs(1),
-                color: DEFAULT_FLASH_COLOR,
-                pause: Duration::ZERO,
-            }
+        Self {
+            sb,
+            selector: selector.into(),
+            duration: Duration::from_secs(1),
+            color: DEFAULT_FLASH_COLOR,
+            pause: Duration::ZERO,
         }
+    }
 
     /// How long the dot lasts. Python's `duration`.
     pub fn duration(mut self, duration: Duration) -> Self {
@@ -703,7 +722,8 @@ impl<'a> IntoFuture for Flash<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            self.sb.run_flash(&self.selector, self.duration, self.color, self.pause)
+            self.sb
+                .run_flash(&self.selector, self.duration, self.color, self.pause)
                 .await
         })
     }
@@ -827,8 +847,11 @@ mod tests {
 
     #[test]
     fn html_is_body_and_a_wait_is_rounded_up_to_whole_seconds() {
-        assert_eq!(highlight_target("html"), "body");
-        assert_eq!(highlight_target("html > body"), "html > body");
+        assert_eq!(highlight_target(&"html".into()), SelectorBuf::css("body"));
+        assert_eq!(
+            highlight_target(&"html > body".into()),
+            SelectorBuf::css("html > body")
+        );
         assert_eq!(whole_seconds_up(Duration::from_millis(1)), 1);
         assert_eq!(whole_seconds_up(Duration::from_secs(7)), 7);
         assert_eq!(whole_seconds_up(Duration::from_millis(2500)), 3);
@@ -837,29 +860,32 @@ mod tests {
 
     #[test]
     fn the_assertion_messages_are_pythons_with_the_parts_escaped() {
-        assert_eq!(element_message("#m"), "<b>ASSERT CSS SELECTOR</b>: #m");
         assert_eq!(
-            element_message("//div[@id='a']"),
+            element_message(&"#m".into()),
+            "<b>ASSERT CSS SELECTOR</b>: #m"
+        );
+        assert_eq!(
+            element_message(&"//div[@id='a']".into()),
             "<b>ASSERT XPATH</b>: //div[@id=&#x27;a&#x27;]".replace("&#x27;", &html_escape("'"))
         );
         assert_eq!(
-            text_message("#m", "Hi", false),
+            text_message(&"#m".into(), "Hi", false),
             "<b>ASSERT TEXT</b>: {Hi} in CSS SELECTOR: #m"
         );
         assert_eq!(
-            text_message("#m", "Hi <b>", true),
+            text_message(&"#m".into(), "Hi <b>", true),
             "<b>ASSERT EXACT TEXT</b>: {Hi &lt;b&gt;} in CSS SELECTOR: #m"
         );
         assert_eq!(
-            non_empty_text_message("p"),
+            non_empty_text_message(&"p".into()),
             "<b>ASSERT NON-EMPTY TEXT</b> in CSS SELECTOR: p"
         );
         assert_eq!(
-            attribute_message("a", "href", None),
+            attribute_message(&"a".into(), "href", None),
             "<b>ASSERT ATTRIBUTE</b>: [href] in CSS SELECTOR: a"
         );
         assert_eq!(
-            attribute_message("a", "href", Some("/x")),
+            attribute_message(&"a".into(), "href", Some("/x")),
             format!(
                 "<b>ASSERT ATTRIBUTE</b>: [href=\"{}\"] in CSS SELECTOR: a",
                 html_escape("/x")
@@ -881,10 +907,13 @@ mod tests {
 
     #[test]
     fn the_strategy_word_names_how_the_selector_finds_its_element() {
-        assert_eq!(strategy_word("#a"), "CSS SELECTOR");
-        assert_eq!(strategy_word("//a"), "XPATH");
-        assert_eq!(strategy_word("link=Home"), "LINK TEXT");
-        assert_eq!(strategy_word("partial_link=Ho"), "PARTIAL LINK TEXT");
+        assert_eq!(strategy_word(&"#a".into()), "CSS SELECTOR");
+        assert_eq!(strategy_word(&"//a".into()), "XPATH");
+        assert_eq!(strategy_word(&"link=Home".into()), "LINK TEXT");
+        assert_eq!(
+            strategy_word(&"partial_link=Ho".into()),
+            "PARTIAL LINK TEXT"
+        );
     }
 
     #[test]

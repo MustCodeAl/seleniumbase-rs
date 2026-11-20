@@ -245,7 +245,6 @@ impl Args {
             .map_err(|error| ToolError::invalid(name, error.to_string()))
     }
 
-
     /// A required selector, as written, after the strict check of
     /// [`selector`](Self::selector): for a tool that hands the text on to a
     /// method that reads it as a selector, so an empty selector is refused at
@@ -255,8 +254,8 @@ impl Args {
     ///
     /// As [`selector`](Self::selector).
     pub(crate) fn selector_text(&self, name: &str) -> Result<&str, ToolError> {
-            checked_selector(name, self.str(name)?)
-        }
+        checked_selector(name, self.str(name)?)
+    }
 
     /// [`selector_text`](Self::selector_text), or `default` when omitted.
     ///
@@ -264,13 +263,12 @@ impl Args {
     ///
     /// As [`selector`](Self::selector).
     pub(crate) fn selector_text_or<'a>(
-            &'a self,
-            name: &str,
-            default: &'a str,
-        ) -> Result<&'a str, ToolError> {
-            checked_selector(name, self.str_or(name, default)?)
-        }
-
+        &'a self,
+        name: &str,
+        default: &'a str,
+    ) -> Result<&'a str, ToolError> {
+        checked_selector(name, self.str_or(name, default)?)
+    }
 
     /// An optional string.
     ///

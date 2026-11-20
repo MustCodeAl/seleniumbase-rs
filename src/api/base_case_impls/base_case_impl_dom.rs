@@ -165,7 +165,7 @@ impl BaseCase {
                 return Ok(by_name);
             }
         }
-        self.await_ready(frame, Ready::Present).await?;
+        self.await_ready(&SelectorBuf::from(frame), Ready::Present).await?;
         Ok(frame.to_owned())
     }
 
@@ -284,7 +284,7 @@ impl BaseCase {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.remove());",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -295,7 +295,7 @@ impl BaseCase {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.style.display = 'none');",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -306,7 +306,7 @@ impl BaseCase {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.style.display = '');",
-            quote(css)
+            quote(css.as_str())
         );
         self.execute_script(&script).await?;
         Ok(())
@@ -317,7 +317,7 @@ impl BaseCase {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.removeAttribute({}));",
-            quote(css),
+            quote(css.as_str()),
             quote(attribute)
         );
         self.execute_script(&script).await?;
@@ -330,7 +330,7 @@ impl BaseCase {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.setAttribute({}, {}));",
-            quote(css),
+            quote(css.as_str()),
             quote(attribute),
             quote(value)
         );
@@ -449,7 +449,7 @@ impl BaseCase {
         let css: &SelectorBuf = &selector.into();
         let script = format!(
             "return document.querySelector({})?.parentElement;",
-            quote(css)
+            quote(css.as_str())
         );
         // Named as `Element::parent` names its result.
         let name = format!("{css}{}..", crate::utils::selectors::CHAIN_SEPARATOR);
@@ -485,7 +485,7 @@ impl BaseCase {
     /// Returns an error if `css` is not a valid CSS selector.
     pub async fn is_element_in_an_iframe(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
-        let script = element_in_iframe_script(css);
+        let script = element_in_iframe_script(css.as_str());
         match self.execute_script(&script).await? {
             Value::Bool(v) => Ok(v),
             _ => Ok(false),

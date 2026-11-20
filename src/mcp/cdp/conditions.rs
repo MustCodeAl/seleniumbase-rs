@@ -138,7 +138,7 @@ async fn wait_for_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolErr
         _ => State::Absent,
     };
     let selector = selector.unwrap_or_default();
-    page.locator(&selector)
+    page.locator(selector)
         .with_timeout(timeout)
         .wait_for(wanted)
         .await?;
@@ -165,7 +165,8 @@ async fn assert_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError
         let selector = selector.ok_or_else(|| {
             ToolError::invalid("selector", format!("required for check {check:?}"))
         })?;
-        let expect = page.locator(&selector)
+        let expect = page
+            .locator(selector)
             .with_timeout(timeout)
             .expect()
             .timeout(timeout);
