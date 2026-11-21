@@ -19,14 +19,14 @@
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::cli::scaffold::{RelativeName, Scaffold};
+//! use seleniumbase_rs::cli::scaffold::{GeneratedFile, RelativeName, Scaffold};
 //!
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let dir = tempfile::tempdir()?;
 //! let scaffold = Scaffold::new(dir.path());
 //!
 //! let name = RelativeName::try_new("tests/login.rs")?;
-//! scaffold.write_all(&[(name, "// a test\n".to_owned())])?;
+//! scaffold.write_all(&[GeneratedFile::new(name, "// a test\n")])?;
 //! assert!(dir.path().join("tests").join("login.rs").is_file());
 //!
 //! // A name that climbs out of the directory is rejected before anything is written.
@@ -343,7 +343,34 @@ fn is_windows_device_name(component: &str) -> bool {
 }
 
 /// A file to create: where, and what it contains.
-pub type GeneratedFile = (RelativeName, String);
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GeneratedFile {
+    name: RelativeName,
+    contents: String,
+}
+
+impl GeneratedFile {
+    /// A file `name` (relative to the root the [`Scaffold`] writes in) that holds `contents`.
+    #[must_use]
+    pub fn new(name: RelativeName, contents: impl Into<String>) -> Self {
+        Self {
+            name,
+            contents: contents.into(),
+        }
+    }
+
+    /// Where the file goes, relative to the root.
+    #[must_use]
+    pub fn name(&self) -> &RelativeName {
+        &self.name
+    }
+
+    /// What the file contains.
+    #[must_use]
+    pub fn contents(&self) -> &str {
+        &self.contents
+    }
+}
 
 /// Writes generated files below a root directory without leaving it or
 /// overwriting anything by accident. See the [module documentation](self).
@@ -394,7 +421,7 @@ impl Scaffold {
             fs::canonicalize(&self.root).map_err(|source| ScaffoldError::io(&self.root, source))?;
 
         let mut conflicts = Vec::new();
-        for (name, _) in files {
+        for name in files.iter().map(GeneratedFile::name) {
             let target = root.join(name.as_path());
             check_parent(&root, &target)?;
             match fs::symlink_metadata(&target) {
@@ -412,7 +439,7 @@ impl Scaffold {
         }
 
         let mut created = Vec::with_capacity(files.len());
-        for (name, contents) in files {
+        for (name, contents) in files.iter().map(|file| (file.name(), file.contents())) {
             let target = root.join(name.as_path());
             if let Some(parent) = target.parent() {
                 fs::create_dir_all(parent).map_err(|source| ScaffoldError::io(parent, source))?;
@@ -678,8 +705,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let created = Scaffold::new(dir.path())
             .write_all(&[
-                (name("a/b/one.txt"), "1".to_owned()),
-                (name("two.txt"), "2".to_owned()),
+                GeneratedFile::new(name("a/b/one.txt"), "1"),
+                GeneratedFile::new(name("two.txt"), "2"),
             ])
             .unwrap();
         assert_eq!(
@@ -700,8 +727,8 @@ mod tests {
 
         let error = Scaffold::new(dir.path())
             .write_all(&[
-                (name("new.txt"), "n".to_owned()),
-                (name("keep.txt"), "overwritten".to_owned()),
+                GeneratedFile::new(name("new.txt"), "n"),
+                GeneratedFile::new(name("keep.txt"), "overwritten"),
             ])
             .unwrap_err();
 
@@ -723,7 +750,7 @@ mod tests {
 
         Scaffold::new(dir.path())
             .replacing(true)
-            .write_all(&[(name("f.txt"), "new".to_owned())])
+            .write_all(&[GeneratedFile::new(name("f.txt"), "new")])
             .unwrap();
 
         assert_eq!(fs::read_to_string(dir.path().join("f.txt")).unwrap(), "new");
@@ -736,7 +763,7 @@ mod tests {
 
         let error = Scaffold::new(dir.path())
             .replacing(true)
-            .write_all(&[(name("d"), "x".to_owned())])
+            .write_all(&[GeneratedFile::new(name("d"), "x")])
             .unwrap_err();
 
         assert!(
@@ -749,7 +776,7 @@ mod tests {
     fn a_missing_root_is_an_error_not_a_panic() {
         let dir = tempfile::tempdir().unwrap();
         let error = Scaffold::new(dir.path().join("missing"))
-            .write_all(&[(name("f"), String::new())])
+            .write_all(&[GeneratedFile::new(name("f"), String::new())])
             .unwrap_err();
         assert!(matches!(error, ScaffoldError::Io { .. }), "{error}");
     }
@@ -766,7 +793,7 @@ mod tests {
             symlink(outside.path(), dir.path().join("escape")).unwrap();
 
             let error = Scaffold::new(dir.path())
-                .write_all(&[(name("escape/payload.txt"), "x".to_owned())])
+                .write_all(&[GeneratedFile::new(name("escape/payload.txt"), "x")])
                 .unwrap_err();
 
             assert!(matches!(error, ScaffoldError::EscapesRoot(_)), "{error}");
@@ -780,7 +807,7 @@ mod tests {
             symlink(dir.path().join("real"), dir.path().join("alias")).unwrap();
 
             Scaffold::new(dir.path())
-                .write_all(&[(name("alias/f.txt"), "x".to_owned())])
+                .write_all(&[GeneratedFile::new(name("alias/f.txt"), "x")])
                 .unwrap();
 
             assert!(dir.path().join("real/f.txt").is_file());
@@ -795,7 +822,7 @@ mod tests {
             symlink(&victim, dir.path().join("f.txt")).unwrap();
 
             let refused = Scaffold::new(dir.path())
-                .write_all(&[(name("f.txt"), "x".to_owned())])
+                .write_all(&[GeneratedFile::new(name("f.txt"), "x")])
                 .unwrap_err();
             assert!(
                 matches!(refused, ScaffoldError::AlreadyExists(_)),
@@ -804,7 +831,7 @@ mod tests {
 
             let refused = Scaffold::new(dir.path())
                 .replacing(true)
-                .write_all(&[(name("f.txt"), "x".to_owned())])
+                .write_all(&[GeneratedFile::new(name("f.txt"), "x")])
                 .unwrap_err();
             assert!(
                 matches!(refused, ScaffoldError::NotARegularFile(_)),
@@ -822,7 +849,7 @@ mod tests {
             symlink(&target, dir.path().join("f.txt")).unwrap();
 
             let error = Scaffold::new(dir.path())
-                .write_all(&[(name("f.txt"), "x".to_owned())])
+                .write_all(&[GeneratedFile::new(name("f.txt"), "x")])
                 .unwrap_err();
 
             assert!(matches!(error, ScaffoldError::AlreadyExists(_)), "{error}");

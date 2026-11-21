@@ -8,7 +8,7 @@
 use std::fmt::Write as _;
 
 use super::NoBrowser;
-use crate::cli::scaffold::ScaffoldError;
+use crate::cli::scaffold::{GeneratedFile, ScaffoldError};
 use crate::cli::scripts::sb_mkdir::Suite;
 use crate::cli::scripts::sb_mkfile::TestFile;
 use crate::error::SeleniumBaseError;
@@ -211,7 +211,10 @@ async fn scaffold(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
             "Run it with `cargo test --test {stem}` when the file is in your crate's tests/ \
              folder. It needs Chrome and a matching chromedriver: `sbrs doctor` checks both."
         );
-        (vec![(file.name().clone(), file.render())], next)
+        (
+            vec![GeneratedFile::new(file.name().clone(), file.render())],
+            next,
+        )
     };
 
     let mut text = format!(
@@ -219,7 +222,8 @@ async fn scaffold(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
          yourself.\n",
         files.len()
     );
-    for (path, content) in &files {
+    for file in &files {
+        let (path, content) = (file.name(), file.contents());
         let _ = write!(text, "\n=== {path} ===\n{content}");
         if !content.ends_with('\n') {
             text.push('\n');
@@ -356,9 +360,10 @@ mod tests {
         .unwrap();
 
         let full = full.as_text().unwrap();
-        for (path, content) in Suite::try_new("tests/ui").unwrap().files() {
+        for file in Suite::try_new("tests/ui").unwrap().files() {
+            let (path, content) = (file.name(), file.contents());
             assert!(full.contains(&format!("=== {path} ===")), "{path}");
-            assert!(full.contains(&content), "{path}");
+            assert!(full.contains(content), "{path}");
         }
         assert!(full.contains("my_first_test.rs"), "{full}");
         assert!(!basic

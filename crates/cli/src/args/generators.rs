@@ -387,7 +387,7 @@ mod tests {
             .unwrap()
             .files()
             .iter()
-            .map(|(name, _)| name.to_string())
+            .map(|file| file.name().to_string())
             .collect();
         assert!(
             names.contains(&"tests/ui/bdd_test.rs".to_owned()),

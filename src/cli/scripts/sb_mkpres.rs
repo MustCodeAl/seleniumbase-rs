@@ -15,7 +15,7 @@
 
 use std::path::PathBuf;
 
-use crate::cli::scaffold::{rust_fn_name, RelativeName, Scaffold, ScaffoldError};
+use crate::cli::scaffold::{rust_fn_name, GeneratedFile, RelativeName, Scaffold, ScaffoldError};
 use crate::utils::translate::Language;
 
 /// The GIF of the second slide.
@@ -315,7 +315,8 @@ impl PresentationFile {
     /// Any [`ScaffoldError`] from [`Scaffold::write_all`]; in particular
     /// [`ScaffoldError::AlreadyExists`] unless the scaffold is replacing files.
     pub fn create(&self, scaffold: &Scaffold) -> Result<PathBuf, ScaffoldError> {
-        let mut created = scaffold.write_all(&[(self.name.clone(), self.render())])?;
+        let mut created =
+            scaffold.write_all(&[GeneratedFile::new(self.name.clone(), self.render())])?;
         Ok(created.remove(0))
     }
 }

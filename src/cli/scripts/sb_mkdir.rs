@@ -146,7 +146,7 @@ jobs:
 ///
 /// # fn main() -> Result<(), seleniumbase_rs::cli::scaffold::ScaffoldError> {
 /// let suite = Suite::try_new("tests/ui")?;
-/// let names: Vec<String> = suite.files().iter().map(|(name, _)| name.to_string()).collect();
+/// let names: Vec<String> = suite.files().iter().map(|file| file.name().to_string()).collect();
 /// assert_eq!(names[0], "tests/ui/README.md");
 /// assert!(names.contains(&"tests/ui/main.rs".to_owned()));
 /// assert!(names.contains(&"tests/ui/cdp_test.rs".to_owned()));
@@ -274,20 +274,23 @@ impl Suite {
     #[must_use]
     pub fn files(&self) -> Vec<GeneratedFile> {
         let mut files = vec![
-            (self.name.join("README.md"), self.readme()),
-            (self.name.join("main.rs"), self.main_rs()),
+            GeneratedFile::new(self.name.join("README.md"), self.readme()),
+            GeneratedFile::new(self.name.join("main.rs"), self.main_rs()),
         ];
         for (module, source) in self.examples() {
-            files.push((self.name.join(&format!("{module}.rs")), source));
+            files.push(GeneratedFile::new(
+                self.name.join(&format!("{module}.rs")),
+                source,
+            ));
         }
         if self.bdd {
-            files.push((
+            files.push(GeneratedFile::new(
                 self.name.join("features/example.feature"),
-                FEATURE.to_owned(),
+                FEATURE,
             ));
         }
         if self.gha {
-            files.push((
+            files.push(GeneratedFile::new(
                 RelativeName::trusted(WORKFLOW_PATH),
                 WORKFLOW.replace("<TARGET>", self.target()),
             ));
@@ -416,17 +419,17 @@ mod tests {
         suite
             .files()
             .iter()
-            .map(|(name, _)| name.to_string())
+            .map(|file| file.name().to_string())
             .collect()
     }
 
     fn contents(files: &[GeneratedFile], suffix: &str) -> String {
         files
             .iter()
-            .find(|(name, _)| name.to_string().ends_with(suffix))
+            .find(|file| file.name().to_string().ends_with(suffix))
             .unwrap_or_else(|| panic!("no file ending in {suffix}"))
-            .1
-            .clone()
+            .contents()
+            .to_owned()
     }
 
     #[test]
@@ -516,7 +519,8 @@ mod tests {
         for (basic, bdd) in [(false, false), (true, false), (false, true), (true, true)] {
             let files = Suite::try_new("ui").unwrap().basic(basic).bdd(bdd).files();
             let main = contents(&files, "main.rs");
-            for (name, source) in &files {
+            for file in &files {
+                let (name, source) = (file.name(), file.contents());
                 if name.extension() == Some("rs") {
                     syn::parse_file(source)
                         .unwrap_or_else(|e| panic!("{name} does not parse: {e}\n{source}"));
@@ -557,7 +561,8 @@ mod tests {
     #[test]
     fn the_example_tests_do_not_select_the_h1_example_com_no_longer_serves() {
         for bdd in [false, true] {
-            for (name, source) in Suite::try_new("ui").unwrap().bdd(bdd).files() {
+            for file in Suite::try_new("ui").unwrap().bdd(bdd).files() {
+                let (name, source) = (file.name(), file.contents());
                 if name.extension() == Some("rs") || name.extension() == Some("feature") {
                     assert!(
                         !source.contains("\"h1\""),

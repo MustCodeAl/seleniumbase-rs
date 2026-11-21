@@ -17,7 +17,7 @@
 use std::path::PathBuf;
 
 use super::sb_mkpres::{chain, create_presentation, indented, literal, test_source};
-use crate::cli::scaffold::{RelativeName, Scaffold, ScaffoldError};
+use crate::cli::scaffold::{GeneratedFile, RelativeName, Scaffold, ScaffoldError};
 use crate::utils::translate::Language;
 
 /// The data points of the example chart: the suffix of the label and the value.
@@ -217,7 +217,8 @@ impl ChartFile {
     /// Any [`ScaffoldError`] from [`Scaffold::write_all`]; in particular
     /// [`ScaffoldError::AlreadyExists`] unless the scaffold is replacing files.
     pub fn create(&self, scaffold: &Scaffold) -> Result<PathBuf, ScaffoldError> {
-        let mut created = scaffold.write_all(&[(self.name.clone(), self.render())])?;
+        let mut created =
+            scaffold.write_all(&[GeneratedFile::new(self.name.clone(), self.render())])?;
         Ok(created.remove(0))
     }
 }

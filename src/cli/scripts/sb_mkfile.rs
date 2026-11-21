@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use url::Url;
 
-use crate::cli::scaffold::{rust_fn_name, RelativeName, Scaffold, ScaffoldError};
+use crate::cli::scaffold::{rust_fn_name, GeneratedFile, RelativeName, Scaffold, ScaffoldError};
 use crate::utils::translate::Language;
 
 /// The page the example test opens when no URL is given.
@@ -625,7 +625,8 @@ async fn steps(page: &Page) -> Result<()> {{
     /// Any [`ScaffoldError`] from [`Scaffold::write_all`]; in particular
     /// [`ScaffoldError::AlreadyExists`] unless the scaffold is replacing files.
     pub fn create(&self, scaffold: &Scaffold) -> Result<PathBuf, ScaffoldError> {
-        let mut created = scaffold.write_all(&[(self.name.clone(), self.render())])?;
+        let mut created =
+            scaffold.write_all(&[GeneratedFile::new(self.name.clone(), self.render())])?;
         Ok(created.remove(0))
     }
 }
