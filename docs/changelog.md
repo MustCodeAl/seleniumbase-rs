@@ -88,6 +88,23 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   `artifacts::bare_file_name` and `confined_path`. A string still works, and a name that must be
   plain is still refused when it has a directory part.
 
+- **More `bool` parameters are two-variant enums, and `GeneratedFile` is a struct** (the second
+  batch of finding F9). `TextMatching::{Contains, Exact}` takes the `exact: bool` of
+  `SelectorBuf::text`, `label` and `role` (in `utils::selectors`; a Playwright or Puppeteer
+  import now writes `TextMatching::Exact` and imports it); `OldFiles::{Clear, Archive}` takes
+  the `archive: bool` of `run_logs::reset_logs` and `reset_downloads` and the `archive_logs: bool`
+  of `log_helper::log_folder_setup` and `archive_logs_if_set` (defined in `core::log_helper`,
+  also at `cli::scripts::run_logs::OldFiles`); `virtual_display::wanted` takes a new
+  `BrowserWindow::{Headed, Headless}` and the existing `binaries::Platform` (an
+  `Option<Platform>`, as `Platform::current()` gives it) instead of `headless` and `on_linux`,
+  and `sb_install::path_target_dir` takes that `Option<Platform>` instead of `windows`.
+  `cli::scaffold::GeneratedFile` is a struct (`GeneratedFile::new(name, contents)`, `name()`
+  and `contents()`) instead of the tuple `(RelativeName, String)`, so `Suite::files` and
+  `Scaffold::write_all` take and return it. Switches of builders (`Suite::gha(true)`,
+  `GridProcess::verbose(true)`, `VisualBaseline::update_baselines(true)`,
+  `Scaffold::replacing(true)`) and the command-line flags stay `bool`.
+
+
 - **Where each flag's variable is named**: [the CLI usage page](/tutorials/cli_usage#look-up-methods-and-options)
   says that `sbrs --help`, the CLI reference and the man pages name the `SB_*` variable of every
   flag in its help, and that the flag wins over the variable, which wins over the settings file.

@@ -208,8 +208,18 @@ lane's typed command should hold anyway).
 **Done (2026-11-21, lane `api-bools-paths`):** the nine sites are enums (`AddonLifetime`,
 `ChartLibs`, `SpeakerNotes` with `EndMarker`, `CodeSignature`, `Overwrite`, `OffsetFrom`, and the
 existing `DriverMode` for the four `uc` sites and for `RecordingOptions::uc`, which is now `mode`).
-Only `DriverMode::Uc` writes Python's `--uc` output. The `GeneratedFile` alias and every other `bool`
-parameter stay as they were.
+Only `DriverMode::Uc` writes Python's `--uc` output.
+
+**Done (2026-11-21, lane `bools-2`, second batch):** `TextMatching::{Contains, Exact}` for the `exact`
+of `SelectorBuf::text`, `label` and `role`; `OldFiles::{Clear, Archive}` for the `archive` of
+`reset_logs`, `reset_downloads`, `log_folder_setup` and `archive_logs_if_set`; `BrowserWindow` and the
+existing `Platform` for `virtual_display::wanted` and `Platform` for `sb_install::path_target_dir`;
+and `GeneratedFile` is a struct. Left as `bool` on purpose: the setters of builders (`Suite::basic`,
+`gha`, `bdd`, `TestFile::basic`, the run builder's `release`, `list` and `nocapture`,
+`GridProcess::verbose`, `VisualBaseline::update_baselines`, `sb_install`'s `copy_to_path`,
+`Scaffold::replacing`), which name the option at the call site, and `mcp::Args::bool_or(name,
+default)`, whose bool is the default of a named argument. Internal (private or `pub(crate)`) functions
+such as `swapped_text_hint(.., exact)` and the importer's `Step` fields were not changed.
 
 
 ### Paths to `impl AsRef<Path>` (29 sites; the audit's `file_path`/`path` count needed this review)
