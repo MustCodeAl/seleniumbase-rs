@@ -10,6 +10,12 @@
 //! [`Element`](crate::Element) for code that wants it, and a CDP `Page` offers
 //! `locator(..)`.
 //!
+//! The methods are native `async fn`s, with no boxed future. A trait declares each
+//! one as `fn name(..) -> impl Future<Output = ..> + Send`, so the future is `Send`
+//! in code that is generic over the trait (it can go to `tokio::spawn`), and an
+//! `impl` writes a plain `async fn`. The traits are not dyn compatible: take a
+//! generic or an `impl Trait` parameter, not `&mut dyn BrowserApi`.
+//!
 //! # Examples
 //!
 //! ```no_run
@@ -28,96 +34,104 @@
 
 use std::path::PathBuf;
 
-use async_trait::async_trait;
-
 use crate::api::base_case::BaseCase;
 use crate::utils::selectors::SelectorBuf;
 
 /// Browser-level navigation and lifecycle operations.
-#[async_trait]
 pub trait BrowserApi {
     /// Open `url` in the active browser window/tab.
-    async fn open(&mut self, url: &str) -> crate::Result<()>;
+    fn open(&mut self, url: &str) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Close the browser session.
-    async fn quit(&mut self) -> crate::Result<()>;
+    fn quit(&mut self) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Reload the current page.
-    async fn refresh(&self) -> crate::Result<()>;
+    fn refresh(&self) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Navigate back in browser history.
-    async fn go_back(&self) -> crate::Result<()>;
+    fn go_back(&self) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Navigate forward in browser history.
-    async fn go_forward(&self) -> crate::Result<()>;
+    fn go_forward(&self) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Return the current page title.
-    async fn title(&mut self) -> crate::Result<String>;
+    fn title(&mut self) -> impl Future<Output = crate::Result<String>> + Send;
 
     /// Return the current page URL.
-    async fn url(&mut self) -> crate::Result<String>;
+    fn url(&mut self) -> impl Future<Output = crate::Result<String>> + Send;
 }
 
 /// Element finding and interaction operations.
-#[async_trait]
 pub trait ElementApi {
     /// Click the element matching `selector`.
-    async fn click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()>;
+    fn click(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+    ) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Double-click the element matching `selector`.
-    async fn double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()>;
+    fn double_click(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+    ) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Type `text` into the element matching `selector`.
-    async fn type_text(
+    fn type_text(
         &mut self,
         selector: impl Into<SelectorBuf> + Send,
         text: &str,
-    ) -> crate::Result<()>;
+    ) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Return the visible text of the element matching `selector`.
-    async fn text(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<String>;
+    fn text(
+        &mut self,
+        selector: impl Into<SelectorBuf> + Send,
+    ) -> impl Future<Output = crate::Result<String>> + Send;
 
     /// Return the value of attribute `attr` on the element matching `selector`, if any.
-    async fn attribute(
+    fn attribute(
         &mut self,
         selector: impl Into<SelectorBuf> + Send,
         attr: &str,
-    ) -> crate::Result<Option<String>>;
+    ) -> impl Future<Output = crate::Result<Option<String>>> + Send;
 }
 
 /// Assertion helpers used in tests.
-#[async_trait]
 pub trait AssertionApi {
     /// Assert that the page title equals `expected`.
-    async fn assert_title(&mut self, expected: &str) -> crate::Result<()>;
+    fn assert_title(&mut self, expected: &str) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Assert that the element matching `selector` is visible, waiting for it as
     /// Python's `assert_element` does.
-    async fn assert_element(&self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()>;
+    fn assert_element(
+        &self,
+        selector: impl Into<SelectorBuf> + Send,
+    ) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Assert that `expected` text appears inside the element matching `selector`.
     /// The text comes first and the selector second, as in Python.
-    async fn assert_text(
+    fn assert_text(
         &mut self,
         expected: &str,
         selector: impl Into<SelectorBuf> + Send,
-    ) -> crate::Result<()>;
+    ) -> impl Future<Output = crate::Result<()>> + Send;
 
     /// Assert that no JavaScript errors were logged on the current page.
-    async fn assert_no_js_errors(&self) -> crate::Result<()>;
+    fn assert_no_js_errors(&self) -> impl Future<Output = crate::Result<()>> + Send;
 }
 
 /// Screenshot capture operations.
-#[async_trait]
 pub trait ScreenshotApi {
     /// Save a screenshot to the logs directory with `filename`.
-    async fn save_screenshot(&self, filename: &str) -> crate::Result<PathBuf>;
+    fn save_screenshot(
+        &self,
+        filename: &str,
+    ) -> impl Future<Output = crate::Result<PathBuf>> + Send;
 
     /// Return the current page screenshot as PNG bytes.
-    async fn screenshot_as_png(&self) -> crate::Result<Vec<u8>>;
+    fn screenshot_as_png(&self) -> impl Future<Output = crate::Result<Vec<u8>>> + Send;
 }
 
-#[async_trait]
 impl BrowserApi for BaseCase {
     async fn open(&mut self, url: &str) -> crate::Result<()> {
         BaseCase::open(self, url).await
@@ -148,7 +162,6 @@ impl BrowserApi for BaseCase {
     }
 }
 
-#[async_trait]
 impl ElementApi for BaseCase {
     async fn click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
         BaseCase::click(self, selector).await
@@ -179,7 +192,6 @@ impl ElementApi for BaseCase {
     }
 }
 
-#[async_trait]
 impl AssertionApi for BaseCase {
     async fn assert_title(&mut self, expected: &str) -> crate::Result<()> {
         BaseCase::assert_title(self, expected).await
@@ -202,7 +214,6 @@ impl AssertionApi for BaseCase {
     }
 }
 
-#[async_trait]
 impl ScreenshotApi for BaseCase {
     async fn save_screenshot(&self, filename: &str) -> crate::Result<PathBuf> {
         BaseCase::save_screenshot(self, filename).await
@@ -219,7 +230,6 @@ impl ScreenshotApi for BaseCase {
 
 use crate::sb_cdp::Page;
 
-#[async_trait]
 impl BrowserApi for Page {
     async fn open(&mut self, url: &str) -> crate::Result<()> {
         self.goto(url).await
@@ -252,7 +262,6 @@ impl BrowserApi for Page {
     }
 }
 
-#[async_trait]
 impl ElementApi for Page {
     async fn click(&mut self, selector: impl Into<SelectorBuf> + Send) -> crate::Result<()> {
         self.locator(selector).click().await
@@ -286,7 +295,6 @@ impl ElementApi for Page {
     }
 }
 
-#[async_trait]
 impl AssertionApi for Page {
     async fn assert_title(&mut self, expected: &str) -> crate::Result<()> {
         self.expect().to_have_title(expected).await
@@ -312,7 +320,6 @@ impl AssertionApi for Page {
     }
 }
 
-#[async_trait]
 impl ScreenshotApi for Page {
     /// Saves into the logs directory; `filename` must be a bare file name.
     async fn save_screenshot(&self, filename: &str) -> crate::Result<PathBuf> {

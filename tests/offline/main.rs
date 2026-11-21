@@ -13,6 +13,7 @@ mod base_case_limits;
 mod bdd_builtin_link;
 mod bdd_builtin_steps;
 mod bdd_scenarios;
+mod capability_traits;
 mod confined_file_names;
 mod dockerfile_skeleton;
 mod docs_current;

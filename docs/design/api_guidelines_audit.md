@@ -959,6 +959,16 @@ literal_string_with_formatting_args = "allow"
   BrowserApi` occurs nowhere in the repository (F6); lane 16 searches the other three first and
   keeps `#[async_trait]` only on a trait that is used as `dyn`. Google (rule R11) agrees: a library
   prefers generics to `dyn`.
+* **Done (2026-11-21, lane 16), the traits' shape only:** `dyn BrowserApi`, `dyn ElementApi`, `dyn AssertionApi`
+  and `dyn ScreenshotApi` occur in no checkout of this repository and in neither sibling repository
+  (stealth, plugins); `ElementApi` and `AssertionApi` could not be `dyn` anyway, because their methods
+  take an `impl Into<SelectorBuf>` argument. All four traits are native: each method is declared
+  `fn name(..) -> impl Future<Output = ..> + Send` (the `Send` bound is stated, which `async fn` in a
+  public trait cannot do, and rustc's `async_fn_in_trait` lint asks for) and the `impl` blocks for `BaseCase`
+  and `Page` write `async fn`. `async_trait` stays a dependency: `plugins::observer` re-exports it as public API
+  and 15 other files of `src/` (the debug prompt, the reuse and test-run hooks, the testing fixtures, the
+  reporting plugins) still use it on their own traits. Not done: the receivers (`&self` for reads) and the order
+  of `type_text` and `assert_text`; the finding names no site beyond the two examples and picks no order.
 * Breaking: yes.
 
 ### F17. Printing, statics, global effects (M-LOG-NOT-PRINT, M-AVOID-STATICS; Google: no code before `main`)

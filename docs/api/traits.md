@@ -13,7 +13,10 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 ## Capability traits
 
 `seleniumbase_rs::{BrowserApi, ElementApi, AssertionApi, ScreenshotApi}` are
-four small `async_trait` traits (defined in `src/api/traits.rs`). Both engines
+four small traits (defined in `src/api/traits.rs`) whose methods are native
+`async fn`s, with no `#[async_trait]` and no boxed future. The future every method
+returns is `Send`, so a helper written over the traits can be handed to
+`tokio::spawn`. Both engines
 implement all four: `BaseCase` (WebDriver) and `sb_cdp::Page` (pure CDP). A helper
 written over the traits runs on either engine. None of them names an engine
 type; to keep an element handle, use `BaseCase::find_element` (an
@@ -35,6 +38,38 @@ where
     sb.assert_element("#dashboard").await
 }
 ```
+
+### Implementing the traits, spawning, and `dyn`
+
+A type implements a trait with a plain `async fn` for each method. The trait
+declares each one as `fn name(..) -> impl Future<Output = ..> + Send`, and an
+`async fn` in the `impl` fills that in, so the compiler refuses an
+implementation whose future is not `Send` (one that holds a `std::sync::MutexGuard`
+across an `.await`, say). Code that is generic over a trait can rely on the
+`Send` bound without naming it:
+
+```rust,no_run
+use seleniumbase_rs::tokio::{self, task::JoinHandle};
+use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi, Result};
+
+fn spawn_sign_in<E>(mut sb: E) -> JoinHandle<Result<()>>
+where
+    E: BrowserApi + ElementApi + AssertionApi + Send + 'static,
+{
+    tokio::spawn(async move {
+        sb.open("https://example.com/login").await?;
+        sb.click("#submit").await?;
+        sb.assert_title("Dashboard").await
+    })
+}
+```
+
+The traits are not dyn compatible: a method with an `async fn` or an
+`impl Into<SelectorBuf>` argument cannot be called through a trait object, so
+write `fn run(sb: &mut impl BrowserApi)` or a generic function, not
+`&mut dyn BrowserApi`. To hold either engine in one value, use an `enum` of your
+own over `BaseCase` and `sb_cdp::Page` that implements the traits by matching.
+
 
 ### BrowserApi
 

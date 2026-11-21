@@ -87,7 +87,9 @@ use seleniumbase_rs::{selector, sb_test, sb_open, fingerprint};
 The public API is organized into capability traits in `api::traits`. They are
 implemented by `BaseCase` (WebDriver) and by `sb_cdp::Page` (Pure CDP), and can
 be used to write helpers that run on either engine. None of their signatures
-mentions an engine's own types:
+mentions an engine's own types. Their methods are native `async fn`s whose futures
+are `Send`, so a generic helper can be passed to `tokio::spawn`; the traits are not
+dyn compatible, so take a generic or an `impl Trait`, not a `dyn`:
 
 | Trait | Responsibility |
 |---|---|
