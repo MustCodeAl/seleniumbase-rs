@@ -253,9 +253,7 @@ fn ensure_dir(path: &Path) -> Result<(), SeleniumBaseError> {
 ///     assert!(bare_file_name(bad).is_err(), "{bad}");
 /// }
 /// ```
-pub fn bare_file_name<'a>(
-    name: &'a (impl AsRef<Path> + ?Sized),
-) -> Result<&'a Path, SeleniumBaseError> {
+pub fn bare_file_name(name: &(impl AsRef<Path> + ?Sized)) -> Result<&Path, SeleniumBaseError> {
     let path = name.as_ref();
     let mut parts = path.components();
     let one_plain_part = matches!(

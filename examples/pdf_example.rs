@@ -40,12 +40,12 @@ async fn demo(sb: &mut BaseCase, url: String) -> Result<()> {
     let pdf = sb.save_as_pdf_to_logs("demo_page.pdf").await?;
     println!("PDF saved to {}", pdf.display());
 
-    let path = pdf.to_string_lossy();
-    let text = sb.pdf_text(&path)?;
+    // A path is as good as a string for the file name.
+    let text = sb.pdf_text(&pdf)?;
     println!("Extracted {} characters of text", text.len());
 
     // The heading and the green sentence are both on the printed page.
-    sb.assert_pdf_text(&path, "Demo Page")?;
-    sb.assert_pdf_text(&path, "This Text is Green")?;
+    sb.assert_pdf_text(&pdf, "Demo Page")?;
+    sb.assert_pdf_text(&pdf, "This Text is Green")?;
     Ok(())
 }

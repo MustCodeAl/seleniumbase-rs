@@ -115,7 +115,6 @@ impl BaseCase {
     /// ```no_run
     /// use seleniumbase_rs::api::base_case::AddonLifetime;
     ///
-
     /// # async fn demo(sb: &seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     /// let id = sb.install_addon("addons/dark-mode.xpi", AddonLifetime::Temporary).await?;
     /// // ... drive the page with the add-on in place ...

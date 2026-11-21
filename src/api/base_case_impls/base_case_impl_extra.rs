@@ -1876,7 +1876,7 @@ impl BaseCase {
     /// The folder is the one [`save_screenshot_to_logs`](Self::save_screenshot_to_logs)
     /// writes to.
     pub fn append_data_to_logs(&self, data: &str) -> Result<(), SeleniumBaseError> {
-        Self::append_data_in(&self.test_logs_dir()?, data, &Self::timestamped_log_name())
+        Self::append_data_in(&self.test_logs_dir()?, data, Self::timestamped_log_name())
     }
 
     /// Saves `data` to `filename` in the logs directory (overwrites).
@@ -1895,7 +1895,7 @@ impl BaseCase {
     /// The folder is the one [`save_screenshot_to_logs`](Self::save_screenshot_to_logs)
     /// writes to.
     pub fn save_data_to_logs(&self, data: &str) -> Result<(), SeleniumBaseError> {
-        Self::save_data_in(&self.test_logs_dir()?, data, &Self::timestamped_log_name())
+        Self::save_data_in(&self.test_logs_dir()?, data, Self::timestamped_log_name())
     }
 
     /// Returns the path to the latest logs directory.
