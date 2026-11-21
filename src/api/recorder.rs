@@ -1612,6 +1612,8 @@ mod tests {
                 }
             });
             match argument.as_deref() {
+                // A file name takes a string literal or a path.
+                Some("Path") => "impl AsRef<Path>".to_owned(),
                 Some(name @ ("FrameRef" | "WindowRef" | "SelectorBuf")) => {
                     format!("impl Into<{name}>")
                 }
@@ -1796,7 +1798,7 @@ mod tests {
                         kind == "string" || kind == "integer"
                     }
 
-                    "impl Into<SelectorBuf>" => kind == "string",
+                    "impl Into<SelectorBuf>" | "impl AsRef<Path>" => kind == "string",
 
                     "&Cookie" => matches!(argument, syn::Expr::Reference(_)),
 

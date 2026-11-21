@@ -58,8 +58,8 @@ fn impl_name(implementation: &syn::TypeImplTrait) -> String {
         }
     });
     match argument.as_deref() {
-        // A selector parameter takes a string, as far as a Python call goes.
-        Some("SelectorBuf") => "&str".to_owned(),
+        // A selector or a file name (`impl AsRef<Path>`) takes a string, as far as a Python call goes.
+        Some("SelectorBuf" | "Path") => "&str".to_owned(),
 
         Some(name @ ("FrameRef" | "WindowRef")) => format!("impl Into<{name}>"),
         _ => "impl Into".to_owned(),
