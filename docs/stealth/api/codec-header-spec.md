@@ -13,7 +13,7 @@ Most values are literal. The ones that belong to the caller's identity are
 placeholders, resolved at request time from a `ClientHeaders`: the `User-Agent`,
 `Accept-Language`, the client hints and the cookie. Because the caller supplies
 them, any of them can change without touching the spec, and any header can be
-replaced by name with `ClientHeaders::with_override` or `HeaderSpec::with_header`.
+replaced by name with `ClientHeaders::override_header` or `HeaderSpec::with_header`.
 
 A spec is built from a captured header list (`HeaderSpec::from_captured`), or
 written by hand as plain data and checked with `HeaderSpec::validate`. Names keep
@@ -271,16 +271,16 @@ pub struct ClientHeaders {
 
 impl ClientHeaders {
     pub fn new(user_agent: impl Into<String>) -> Self;
-    pub fn with_accept_language(mut self, value: impl Into<String>) -> Self;
-    pub fn with_client_hints(
+    pub fn accept_language(mut self, value: impl Into<String>) -> Self;
+    pub fn client_hints(
         mut self,
         brands: impl Into<String>,
         mobile: impl Into<String>,
         platform: impl Into<String>,
     ) -> Self;
-    pub fn with_cookie(mut self, value: impl Into<String>) -> Self;
-    pub fn with_override(mut self, name: impl Into<String>, value: impl Into<String>) -> Self;
-    pub fn with_client_hints_from(self, hints: &ClientHints) -> Self;
+    pub fn cookie(mut self, value: impl Into<String>) -> Self;
+    pub fn override_header(mut self, name: impl Into<String>, value: impl Into<String>) -> Self;
+    pub fn client_hints_from(self, hints: &ClientHints) -> Self;
     pub fn from_captured<N: AsRef<str>, V: AsRef<str>>(headers: &[(N, V)]) -> Option<Self>;
     pub fn from_fingerprint(fingerprint: &Fingerprint) -> Option<Self>;
 }
@@ -311,7 +311,7 @@ last one given wins.
 
 </ResponseField>
 
-`new` makes an identity with a user agent and nothing else. `with_client_hints`
+`new` makes an identity with a user agent and nothing else. `client_hints`
 sets the three client-hint headers a browser sends on every request.
 `from_captured` reads the identity a captured header list shows, or `None` when it
 has no `User-Agent`: the values a real browser sent.
@@ -324,7 +324,7 @@ major its user agent claims, as core computes them (`chromium_hints`), on the
 fingerprint's operating system; a fingerprint that turns client hints off, or whose
 user agent names no Chrome, gets none. This is the default way to fill them, so
 that an HTTP client claims what the browser tab claims; `from_captured` is the
-other way. `with_client_hints_from` sets the three client-hint headers from core's
+other way. `client_hints_from` sets the three client-hint headers from core's
 `ClientHints` (the brand list, whether it is mobile, and the platform), and
 `chrome_major` reads the Chrome major a user agent names.
 
