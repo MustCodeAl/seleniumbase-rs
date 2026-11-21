@@ -447,7 +447,7 @@ pub fn get(&self, key: &str) -> Option<&Value>
 pub fn set_identity(&mut self, id: EntryId, version: &BrowserVersion)
 pub fn set_tls(&mut self, tls: &TlsMeasurement) -> Result<(), CaptureError>
 pub fn set_hints(&mut self, hints: &HintsMeasurement) -> Result<(), CaptureError>
-pub fn stamp(&mut self, tool: &str, version: &BrowserVersion, now: DateTime<Utc>)
+pub fn stamp(&mut self, tool: &str, version: &BrowserVersion, now: Timestamp)
 pub fn to_pretty_json(&self) -> Result<String, CaptureError>
 pub fn save(&self) -> Result<(), CaptureError>
 ```
