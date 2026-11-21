@@ -62,6 +62,17 @@ work, `docs/parity.md` the per-API status).
   `sb_print::print_file` take `impl AsRef<Path>` instead of `&str`; so do the file names of
   `artifacts::bare_file_name` and `confined_path`. A string still works, and a name that must be
   plain is still refused when it has a directory part.
+- **`BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi` are native `async fn` traits**
+  (finding F16 of the API guidelines audit). They no longer use `#[async_trait]`, so no call boxes
+  its future, and a type implements them with plain `async fn`s and no attribute: an `impl` of one
+  of them that still carries `#[async_trait]` stops compiling, remove the attribute. Each method is
+  declared `fn name(..) -> impl Future<Output = ..> + Send`, so the future is `Send` for code that
+  is generic over a trait and `tokio::spawn` of a helper written over them compiles, as before.
+  The traits are not dyn compatible; none was used as `dyn` anywhere (the `impl Into<SelectorBuf>`
+  argument of `ElementApi` and `AssertionApi` had already ruled it out for those two), so take a
+  generic or an `impl Trait` parameter instead of `&mut dyn BrowserApi`. `BaseCase` and
+  `sb_cdp::Page` implement all four as before. See [the capability traits](docs/api/traits.md).
+
 
 - **Where each flag's variable is named**: [the CLI usage page](docs/tutorials/cli_usage.md#look-up-methods-and-options)
   says that `sbrs --help`, the CLI reference and the man pages name the `SB_*` variable of every

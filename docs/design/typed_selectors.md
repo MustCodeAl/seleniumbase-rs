@@ -174,10 +174,10 @@ this. The split is per method and needs the inner name, so one `ast-grep` patter
 all; phase 2 measures first (`cargo bloat --release --crates` on a probe test that calls twenty methods
 with three argument types, and an `ast-grep` scan that counts bodies over eight lines) and splits only
 the bodies over the threshold; the rest convert in place with `let selector = selector.into();`.
-`async_trait` supports a generic method with an `impl Into<..> + Send` parameter; if a trait turns out
-to be used as `dyn` (check with `implementations` and a search for `dyn ElementApi` in phase 2), that one
-trait takes `&SelectorBuf` instead, because a generic method is not dyn-compatible. Lane 16 (item 16:
-native `async fn` in the traits) lands first and rewrites the same trait lines: rebase on it.
+A generic method with an `impl Into<..> + Send` parameter is not dyn-compatible, and `dyn ElementApi`
+occurs nowhere (lane 16 searched the repository and the sibling repositories), so the traits keep the
+generic parameter. Lane 16 (item 16: native `async fn` in the traits) has landed: each trait method is
+`fn name(..) -> impl Future<Output = ..> + Send`, and the `impl` blocks write `async fn`.
 
 Call sites that stop compiling: `&&str` (an `&selector` where `selector: &str`), and any code that
 stores `BaseCase::click` as `fn(&mut BaseCase, &str)`. Both are found by `cargo check --all-targets` in

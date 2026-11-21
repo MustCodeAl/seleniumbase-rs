@@ -194,8 +194,8 @@ chain's `move_to_element_center`, `drag_and_drop_element`, `double_click_element
 
 To verify: whether `WebElement` implements `Debug` (the pages did not show it; `Element`
 writes its own, so nothing depends on it). `Send + Sync` follows from code that compiles:
-`#[async_trait] impl ElementApi for BaseCase` (`src/api/traits.rs:138-159`) needs `Send`
-futures, and `get_attribute` reaches `BrowserSession::get_attribute`, which holds a `WebElement`
+`impl ElementApi for BaseCase` (`src/api/traits.rs`), whose trait declares every method as
+`-> impl Future<Output = ..> + Send`, needs `Send` futures, and `get_attribute` reaches `BrowserSession::get_attribute`, which holds a `WebElement`
 and a `&WebElement` across an `.await` (`session/elements.rs:173-174`, `:196-199`).
 
 ## The proposed type
