@@ -18,6 +18,11 @@
 //! - The other clients through their JSON file: only the one key that holds the servers
 //!   changes. A file with comments is not rewritten; the snippet to add by hand is printed.
 //!
+//! `install`, `repair` and `upgrade` all register [`registration_binary`], not the resolved path:
+//! under Homebrew that is the link `PREFIX/bin/NAME`, because `brew upgrade` deletes the Cellar
+//! folder that the resolved path points into.
+//!
+
 //! Before a file is changed it is copied to `FILE.bak-sbrs-mcp`, and the new content replaces
 //! it atomically with the old permissions. Every location derives from an [`Env`], which a
 //! test sets to a temporary folder.
@@ -70,7 +75,7 @@ pub enum Action {
 use apply::{perform, registered, Job, Scope, Task};
 use client::Client;
 use entry::{names, plan, Only, PlanInput};
-use env::{absolute, registration_binary, running_binary, Env};
+use env::{absolute, registration_binary, Env};
 use report::{exit_code, ClientReport};
 
 /// What `install` was asked for.
@@ -146,7 +151,7 @@ pub fn run(action: Action) -> i32 {
     let (mut out, mut err) = (stdout.lock(), stderr.lock());
     match action {
         Action::Install(args) => {
-            let exe = match running_binary() {
+            let exe = match registration_binary() {
                 Ok(exe) => exe,
                 Err(message) => {
                     let _ = writeln!(err, "sbrs-mcp: {message}");

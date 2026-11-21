@@ -60,9 +60,14 @@ impl Machine {
         self.root.join("out")
     }
 
-    /// The command: `sbrs-mcp args...` in the working folder, with this machine's variables.
+    /// The command: `sbrs-mcp args...`, the binary the tests were built with.
     fn command(&self, args: &[&str]) -> Command {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_sbrs-mcp"));
+        self.command_of(Path::new(env!("CARGO_BIN_EXE_sbrs-mcp")), args)
+    }
+
+    /// The command: `program args...` in the working folder, with this machine's variables.
+    fn command_of(&self, program: &Path, args: &[&str]) -> Command {
+        let mut command = Command::new(program);
         command
             .args(args)
             .current_dir(self.work())
@@ -98,6 +103,39 @@ fn registered_exe() -> String {
         .to_str()
         .unwrap()
         .to_owned()
+}
+
+/// Homebrew keeps each version in `PREFIX/Cellar/NAME/VERSION/` and `brew upgrade` deletes the old
+/// one, so a client has to be told to start `PREFIX/bin/NAME`, the link that follows the upgrade.
+/// The binary is copied into a Cellar of the machine's own and run through that link; the
+/// registration (`--print` writes nothing) must name the link, not the Cellar path.
+#[cfg(unix)]
+#[test]
+fn install_registers_the_homebrew_link_and_not_the_cellar_path_an_upgrade_deletes() {
+    let machine = Machine::new();
+    let cellar = machine.root.join("brew/Cellar/sbrs/0.8.5/bin");
+    let bin = machine.root.join("brew/bin");
+    fs::create_dir_all(&cellar).unwrap();
+    fs::create_dir_all(&bin).unwrap();
+    let program = cellar.join("sbrs-mcp");
+    fs::copy(env!("CARGO_BIN_EXE_sbrs-mcp"), &program).unwrap();
+    let link = bin.join("sbrs-mcp");
+    std::os::unix::fs::symlink(&program, &link).unwrap();
+
+    let output = machine
+        .command_of(&link, &["install", "--print", "cursor"])
+        .output()
+        .expect("run the copy through the link");
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let stdout = text(&output.stdout);
+    assert!(
+        stdout.contains(link.to_str().unwrap()),
+        "the link is registered: {stdout}"
+    );
+    assert!(
+        !stdout.contains(program.to_str().unwrap()),
+        "the Cellar path an upgrade deletes is not: {stdout}"
+    );
 }
 
 #[test]
