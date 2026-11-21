@@ -62,6 +62,8 @@ mod e2e_tests {
     // The extension's fingerprint code (API v2) names these two as well.
     use seleniumbase_rs::BrowserType;
     use seleniumbase_rs::ScreenSize;
+// The e2e crate's harness returns `Result<_, SeleniumBaseError>` (companion 7f61998).
+use seleniumbase_rs::SeleniumBaseError;
     use serde_json::{json, Value};
 
     /// `parity_with_the_action_recorder` of the extension's end-to-end crate, against the copies of
