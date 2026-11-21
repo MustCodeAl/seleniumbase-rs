@@ -129,15 +129,52 @@ async fn an_xpath_with_a_branch_at_the_root_is_sent_to_the_page_to_stay_inside_i
 }
 
 #[test]
-fn a_contains_selector_converts_in_a_selector_buf_and_plain_css_stays_css() {
+fn a_contains_selector_is_read_as_xpath_at_lookup_and_plain_css_stays_css() {
+    let written = SelectorBuf::from("span:contains(\"Championship\")");
+    // Construction keeps the text as written; the lookup form is the XPath.
+    assert_eq!(written, SelectorBuf::css("span:contains(\"Championship\")"));
     assert_eq!(
-        SelectorBuf::from("span:contains(\"Championship\")"),
+        written.lookup_form().into_owned(),
         SelectorBuf::xpath(".//span[contains(., 'Championship')]")
     );
     assert_eq!(
         SelectorBuf::from("div.card > a"),
         SelectorBuf::css("div.card > a")
     );
+    assert_eq!(
+        SelectorBuf::from("div.card > a").lookup_form().into_owned(),
+        SelectorBuf::css("div.card > a")
+    );
+}
+
+#[test_log::test(tokio::test)]
+async fn a_locator_shows_the_selector_as_written_and_the_page_gets_xpath() {
+    let (page, mock) = quick_page().await;
+    answer_every_script_with(&mock, json!(1));
+
+    let locator = page.locator("button:contains(\"Go on\")");
+    locator.count().await.unwrap();
+
+    // `Display` is what errors and reports show: the text the user wrote.
+    assert_eq!(locator.to_string(), "button:contains(\"Go on\")");
+    let sent = evaluated(&mock).pop().unwrap();
+    assert!(sent.contains(r#""kind":"xpath""#), "{sent}");
+    assert!(!sent.contains(":contains("), "{sent}");
+}
+
+#[test]
+fn a_selector_buf_may_be_matched_by_another_crate_with_a_catch_all_arm() {
+    // `SelectorBuf` is `#[non_exhaustive]`: from here, outside the crate, a
+    // `match` needs the `_` arm, which is what lets a kind be added later.
+    let kind = |selector: &SelectorBuf| match selector {
+        SelectorBuf::Css(_) => "css",
+        SelectorBuf::XPath(_) => "xpath",
+        SelectorBuf::LinkText(_) | SelectorBuf::PartialLinkText(_) => "link",
+        _ => "other",
+    };
+    assert_eq!(kind(&SelectorBuf::from("#a")), "css");
+    assert_eq!(kind(&SelectorBuf::from("//a")), "xpath");
+    assert_eq!(kind(&SelectorBuf::from("link=a")), "link");
 }
 
 #[test]

@@ -76,12 +76,12 @@ otherwise.
 | `gui_press_keys(keys)` | Press a chord: modifier keys are held while the other keys are clicked, then released. |
 | `gui_drag_and_drop_points(from_x, from_y, to_x, to_y)` | Drag between two screen points. |
 | `gui_click_and_hold(x, y)` / `gui_release()` | Press the left button at a point, and release it later. |
-| `gui_click_element(css)` (async) | Click the center of an element, in screen coordinates. |
-| `gui_click_with_offset(css, x, y)` (async) | Click the element's center plus an offset. |
-| `gui_move_to_element(css)`, `gui_hover_element(css)` (async) | Move the cursor to an element's center. |
-| `gui_hover_and_click(css)` (async) | Move to an element's center and click. |
-| `gui_drag_and_drop(source_css, target_css)` (async) | Drag one element's center onto another's. |
-| `uc_gui_click_x_y`, `uc_gui_write`, `uc_gui_press_key`, `uc_gui_handle_captcha(css)` | Aliases under the Python `uc_gui_*` names; the last clicks an element with native input (it does not solve CAPTCHAs). |
+| `gui_click_element(selector)` (async) | Click the center of an element, in screen coordinates. |
+| `gui_click_with_offset(selector, x, y)` (async) | Click the element's center plus an offset. |
+| `gui_move_to_element(selector)`, `gui_hover_element(selector)` (async) | Move the cursor to an element's center. |
+| `gui_hover_and_click(selector)` (async) | Move to an element's center and click. |
+| `gui_drag_and_drop(source_selector, target_selector)` (async) | Drag one element's center onto another's. |
+| `uc_gui_click_x_y`, `uc_gui_write`, `uc_gui_press_key`, `uc_gui_handle_captcha(selector)` | Aliases under the Python `uc_gui_*` names; the last clicks an element with native input (it does not solve CAPTCHAs). |
 
 Key names are case-insensitive: `enter` or `return`, `tab`, `esc` or `escape`,
 `backspace`, `delete` or `del`, `space`, `ctrl` or `control`, `alt`, `shift`,

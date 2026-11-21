@@ -411,18 +411,19 @@ Example:
 
 ```rust Example helper
 impl BaseCase {
-    /// Asserts that `css` matches exactly `count` elements.
+    /// Asserts that `selector` matches exactly `count` elements.
     pub async fn assert_element_count(
         &self,
-        css: &str,
+        selector: impl Into<SelectorBuf>,
         count: usize,
     ) -> crate::Result<()> {
-        let elements = self.find_elements(css).await?;
+        let selector = selector.into();
+        let elements = self.find_elements(&selector).await?;
         if elements.len() == count {
             Ok(())
         } else {
             Err(SeleniumBaseError::AssertionFailed(format!(
-                "expected {count} elements for '{css}', found {}",
+                "expected {count} elements for '{selector}', found {}",
                 elements.len()
             )))
         }

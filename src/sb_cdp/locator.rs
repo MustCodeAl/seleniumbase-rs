@@ -25,6 +25,7 @@ use crate::utils::selectors::{xpath_root_branch, SelectorBuf};
 /// names match `helper.js`.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct Step {
+    #[serde(serialize_with = "serialize_lookup_form")]
     selector: SelectorBuf,
     visible: bool,
     nth: Option<usize>,
@@ -36,10 +37,20 @@ struct Step {
     confine: bool,
 }
 
+/// Writes the form of `selector` the page looks it up with (see
+/// [`SelectorBuf::lookup_form`]): the step keeps the selector as written, for
+/// `Display` and error messages, and only the page gets the rewrite.
+fn serialize_lookup_form<S: serde::Serializer>(
+    selector: &SelectorBuf,
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    Serialize::serialize(&*selector.lookup_form(), serializer)
+}
+
 impl Step {
     fn new(selector: SelectorBuf) -> Self {
         Self {
-            confine: matches!(&selector, SelectorBuf::XPath(xpath) if xpath_root_branch(xpath).is_some()),
+            confine: matches!(&*selector.lookup_form(), SelectorBuf::XPath(xpath) if xpath_root_branch(xpath).is_some()),
             selector,
             visible: false,
             nth: None,

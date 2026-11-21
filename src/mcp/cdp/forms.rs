@@ -76,7 +76,7 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
 }
 
 async fn type_text(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector("selector")?;
     let text = args.str_or("text", "")?;
     let mode = args.choice(
         "mode",
@@ -92,7 +92,7 @@ async fn type_text(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     let timeout = args.seconds_or("timeout", 5.0)?;
     let session = ctx.session().await?;
     let page = &session.page;
-    let field = page.locator(selector).with_timeout(timeout);
+    let field = page.locator(&selector).with_timeout(timeout);
 
     match mode {
         "fill_input" => field.type_text(text).await?,
@@ -140,7 +140,7 @@ async fn select_option(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
 }
 
 async fn focus_element(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector("selector")?;
     let action = args.choice(
         "action",
         &["scroll_to_element", "focus", "highlight"],
@@ -148,7 +148,7 @@ async fn focus_element(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     )?;
     let timeout = args.seconds_or("timeout", 5.0)?;
     let session = ctx.session().await?;
-    let element = session.page.locator(selector).with_timeout(timeout);
+    let element = session.page.locator(&selector).with_timeout(timeout);
     match action {
         "scroll_to_element" => element.scroll_into_view().await?,
         "focus" => element.focus().await?,

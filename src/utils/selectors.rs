@@ -23,6 +23,18 @@
 //! tagged with its kind. Use the explicit constructors ([`SelectorBuf::css`],
 //! [`SelectorBuf::xpath`]) when a string would be misread: the guess never
 //! applies to them.
+//!
+//! `From` (what a method does with the string it is given) never fails and keeps
+//! the text as written. The strict form for text that crosses an external
+//! boundary is [`FromStr`] (`"#a".parse::<SelectorBuf>()`),
+//! which also runs [`SelectorBuf::check`], the one place the rule of what no
+//! engine accepts is written (empty or blank text, CSS that ends on `::shadow`).
+//! SeleniumBase's `:contains("text")` pseudo-class is not CSS: the selector
+//! keeps it, and [`SelectorBuf::lookup_form`] is the one place it becomes XPath,
+//! when an engine looks the element up.
+
+use std::borrow::Cow;
+use std::str::FromStr;
 
 use thirtyfour::By;
 
@@ -118,6 +130,11 @@ pub(crate) fn is_lookup_selector(name: &str) -> bool {
 /// the browser reports the problem).
 fn contains_to_xpath(css: &str) -> Option<String> {
     css_to_relative_xpath(css).ok()
+}
+
+/// The error for a selector with nothing in it, whatever its kind.
+fn empty_selector() -> SeleniumBaseError {
+    SeleniumBaseError::InvalidSelector("selector value cannot be empty".to_owned())
 }
 
 /// `text` as an XPath string literal, quoted so that any content is safe.
@@ -253,30 +270,11 @@ impl<'a> Selector<'a> {
     /// or contains only whitespace.
     pub(crate) fn to_by(self) -> Result<By, SeleniumBaseError> {
         match self {
-            // A selector that crosses a shadow root stays whole: the session
-            // cuts it into pieces and finds each in its own root. A selector
-            // that cannot be cut is refused here, before anything waits.
-            Self::Css(value) if is_shadow_selector(value) => {
-                shadow_chain(value)?;
-                Ok(By::Css(value.to_owned()))
-            }
-
-            Self::Css(value) if value.contains(CONTAINS_PSEUDO) && !value.trim().is_empty() => {
-                Ok(match contains_to_xpath(value) {
-                    Some(xpath) => By::XPath(xpath),
-                    None => By::Css(value.to_owned()),
-                })
-            }
-            Self::Css(value) if !value.trim().is_empty() => Ok(By::Css(value.to_owned())),
-            Self::XPath(value) if !value.trim().is_empty() => Ok(By::XPath(value.to_owned())),
+            // An id needs no escaping, so it keeps the locator that names it.
             Self::Id(value) if !value.trim().is_empty() => Ok(By::Id(value.to_owned())),
-            Self::LinkText(value) if !value.trim().is_empty() => Ok(By::LinkText(value.to_owned())),
-            Self::PartialLinkText(value) if !value.trim().is_empty() => {
-                Ok(By::PartialLinkText(value.to_owned()))
-            }
-            _ => Err(SeleniumBaseError::InvalidSelector(
-                "selector value cannot be empty".to_owned(),
-            )),
+            Self::Id(_) => Err(empty_selector()),
+            // The rule and the rewrite are `SelectorBuf`'s, once for every engine.
+            other => SelectorBuf::from(other).to_by(),
         }
     }
 }
@@ -305,7 +303,25 @@ impl<'a> Selector<'a> {
 /// // Name the kind to skip the guessing.
 /// assert!(matches!(SelectorBuf::css("//not-really"), SelectorBuf::Css(_)));
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+///
+/// The list of kinds is closed here and open to the future: the enum is
+/// `#[non_exhaustive]`, so a `match` in another crate needs a `_` arm and a
+/// new kind (a test id, an accessibility role) is not a breaking change.
+/// Inside this crate every `match` is exhaustive, so a new kind fails to
+/// compile where it is not handled.
+///
+/// A string is read as a selector by [`From`], which never fails and keeps
+/// the text as written (a `p:contains("x")` selector included: the rewrite
+/// that browsers need happens at [`lookup_form`](Self::lookup_form), when
+/// an engine looks the element up). Text that crosses an external boundary
+/// (an MCP argument, the command line, a saved file) takes the strict form,
+/// [`FromStr`], which is [`From`] followed by [`check`](Self::check).
+///
+/// `Display` is the human form, not a round trip: `SelectorBuf::css("//x")`
+/// displays as `//x`, which the guess reads as XPath. The lossless form is
+/// the serde one, `{"kind": "css", "value": "//x"}`.
+#[non_exhaustive]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum SelectorBuf {
     /// A CSS selector.
@@ -321,23 +337,135 @@ pub enum SelectorBuf {
 
 impl SelectorBuf {
     /// Creates a CSS selector, taken literally with no detection.
+    #[must_use]
     pub fn css(selector: impl Into<String>) -> Self {
         Self::Css(selector.into())
     }
 
     /// Creates an XPath selector, taken literally with no detection.
+    #[must_use]
     pub fn xpath(expression: impl Into<String>) -> Self {
         Self::XPath(expression.into())
     }
 
     /// Creates a selector for a link with exactly this text.
+    #[must_use]
     pub fn link_text(text: impl Into<String>) -> Self {
         Self::LinkText(text.into())
     }
 
     /// Creates a selector for a link whose text contains this.
+    #[must_use]
     pub fn partial_link_text(text: impl Into<String>) -> Self {
         Self::PartialLinkText(text.into())
+    }
+
+    /// The text of the selector, without the prefix that names its kind:
+    /// `Home` for the link text `link=Home`, the expression for an XPath.
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// assert_eq!(SelectorBuf::from("link=Home").as_str(), "Home");
+    /// assert_eq!(SelectorBuf::from("#login").as_str(), "#login");
+    /// ```
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Css(value)
+            | Self::XPath(value)
+            | Self::LinkText(value)
+            | Self::PartialLinkText(value) => value,
+        }
+    }
+
+    /// Checks that no engine will refuse this selector before it can match.
+    ///
+    /// This is the one place the rule is written: a selector is refused when
+    /// its text is empty or only white space, or when it is CSS that crosses a
+    /// shadow root and ends on one (`my-app ::shadow`), which cannot be cut
+    /// into pieces. [`FromStr`] runs it; the engines run it before a wait
+    /// starts, so a selector that can never match fails at once, not after the
+    /// timeout.
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// assert!(SelectorBuf::from("#login").check().is_ok());
+    /// assert!(SelectorBuf::css("  ").check().is_err());
+    /// assert!(SelectorBuf::css("my-app ::shadow").check().is_err());
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidSelector`] when the rule above refuses it.
+    pub fn check(&self) -> Result<(), SeleniumBaseError> {
+        if self.as_str().trim().is_empty() {
+            return Err(empty_selector());
+        }
+        if let Self::Css(css) = self
+            && is_shadow_selector(css)
+        {
+            shadow_chain(css)?;
+        }
+        Ok(())
+    }
+
+    /// The selector as an engine looks it up: the one place a selector is
+    /// rewritten.
+    ///
+    /// SeleniumBase's `:contains("text")` pseudo-class is not CSS, so a
+    /// browser's `querySelector` rejects it: a CSS selector that uses it
+    /// becomes the equivalent XPath, written from the context node
+    /// (`.//p[...]`) so that a search from an element stays inside it. Any
+    /// other selector is returned as it is, borrowed, and so is one that
+    /// crosses a shadow root (it is cut into pieces first) and one the
+    /// converter does not understand (the browser then reports the problem).
+    ///
+    /// A selector keeps the text it was written with: `Display`, the
+    /// recorder and generated test code show `p:contains("x")`, and only
+    /// what is sent to the browser is this form.
+    ///
+    /// ```
+    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    ///
+    /// let selector = SelectorBuf::from("p:contains('x')");
+    /// assert_eq!(selector.to_string(), "p:contains('x')");
+    /// assert_eq!(
+    ///     selector.lookup_form().into_owned(),
+    ///     SelectorBuf::xpath(".//p[contains(., 'x')]"),
+    /// );
+    /// ```
+    #[must_use]
+    pub fn lookup_form(&self) -> Cow<'_, Self> {
+        match self {
+            Self::Css(css) if css.contains(CONTAINS_PSEUDO) && !is_shadow_selector(css) => {
+                contains_to_xpath(css)
+                    .map_or(Cow::Borrowed(self), |xpath| Cow::Owned(Self::XPath(xpath)))
+            }
+            Self::Css(_) | Self::XPath(_) | Self::LinkText(_) | Self::PartialLinkText(_) => {
+                Cow::Borrowed(self)
+            }
+        }
+    }
+
+    /// The WebDriver locator that finds this selector: [`check`](Self::check),
+    /// then [`lookup_form`](Self::lookup_form), then the locator of its kind.
+    ///
+    /// A CSS selector that crosses a shadow root stays whole, for the session to
+    /// cut and follow root by root.
+    ///
+    /// # Errors
+    ///
+    /// As [`check`](Self::check).
+    pub(crate) fn to_by(&self) -> Result<By, SeleniumBaseError> {
+        self.check()?;
+        Ok(match &*self.lookup_form() {
+            Self::Css(value) => By::Css(value.clone()),
+            Self::XPath(value) => By::XPath(value.clone()),
+            Self::LinkText(value) => By::LinkText(value.clone()),
+            Self::PartialLinkText(value) => By::PartialLinkText(value.clone()),
+        })
     }
 
     /// Creates a selector for elements that contain `text`, the way
@@ -631,16 +759,31 @@ impl From<Selector<'_>> for SelectorBuf {
 }
 
 impl From<&str> for SelectorBuf {
-    /// Classifies `selector` like SeleniumBase does. CSS that uses
-    /// `:contains("text")` is converted to XPath, which is how SeleniumBase
-    /// runs it too.
+    /// Classifies `selector` like SeleniumBase does, and never fails: the
+    /// text is kept as written, `:contains("text")` included. That is not CSS,
+    /// so [`lookup_form`](SelectorBuf::lookup_form) rewrites it as XPath, the
+    /// way SeleniumBase runs it, when an engine looks the element up.
+    /// [`FromStr`] is the strict form.
     fn from(selector: &str) -> Self {
-        match Selector::auto(selector) {
-            Selector::Css(css) if css.contains(CONTAINS_PSEUDO) => {
-                contains_to_xpath(css).map_or_else(|| Self::Css(css.to_owned()), Self::XPath)
-            }
-            other => other.into(),
-        }
+        Selector::auto(selector).into()
+    }
+}
+
+impl FromStr for SelectorBuf {
+    type Err = SeleniumBaseError;
+
+    /// The strict form of `From<&str>`: the same
+    /// classification, then [`check`](SelectorBuf::check), for text that crosses an
+    /// external boundary (an MCP argument, the command line, a saved file).
+    ///
+    /// # Errors
+    ///
+    /// [`SeleniumBaseError::InvalidSelector`] if the text is empty or blank, or is
+    /// CSS that ends on a `::shadow` combinator.
+    fn from_str(text: &str) -> Result<Self, Self::Err> {
+        let selector = Self::from(text);
+        selector.check()?;
+        Ok(selector)
     }
 }
 
@@ -653,6 +796,14 @@ impl From<String> for SelectorBuf {
 impl From<&String> for SelectorBuf {
     fn from(selector: &String) -> Self {
         Self::from(selector.as_str())
+    }
+}
+
+impl From<&SelectorBuf> for SelectorBuf {
+    /// A copy, so that a method that takes `impl Into<SelectorBuf>` also takes a
+    /// selector it only borrows, and the kind (explicit or guessed) is kept.
+    fn from(selector: &SelectorBuf) -> Self {
+        selector.clone()
     }
 }
 
@@ -1311,11 +1462,15 @@ mod tests {
         // An absolute `//p[..]` ignores where a search starts: from an element it
         // finds the matches of the whole document. `.//p[..]` stays inside.
         assert_eq!(
-            SelectorBuf::from("p:contains('x')"),
+            SelectorBuf::from("p:contains('x')")
+                .lookup_form()
+                .into_owned(),
             SelectorBuf::xpath(".//p[contains(., 'x')]")
         );
         assert_eq!(
-            SelectorBuf::from("div > a:contains(\"Go\"), td:contains('x')"),
+            SelectorBuf::from("div > a:contains(\"Go\"), td:contains('x')")
+                .lookup_form()
+                .into_owned(),
             SelectorBuf::xpath(".//div/a[contains(., 'Go')] | .//td[contains(., 'x')]"),
             "every path of the union starts at the context node"
         );
@@ -1506,6 +1661,180 @@ mod tests {
         ];
         for (buf, json) in cases {
             assert_eq!(serde_json::to_string(&buf).unwrap(), json);
+        }
+    }
+
+    #[test]
+    fn serde_round_trip_keeps_the_kind() {
+        for buf in [
+            SelectorBuf::css("a"),
+            // The explicit form survives, where the text form would be guessed as XPath.
+            SelectorBuf::css("//not-really"),
+            SelectorBuf::xpath("//a"),
+            SelectorBuf::link_text("Hi"),
+            SelectorBuf::partial_link_text("Hi"),
+            SelectorBuf::css("p:contains('x')"),
+        ] {
+            let json = serde_json::to_string(&buf).unwrap();
+            assert_eq!(serde_json::from_str::<SelectorBuf>(&json).unwrap(), buf);
+        }
+        assert!(serde_json::from_str::<SelectorBuf>(r#"{"kind":"id","value":"a"}"#).is_err());
+        assert!(serde_json::from_str::<SelectorBuf>("\"#a\"").is_err());
+    }
+
+    #[test]
+    fn from_str_refuses_a_blank_selector() {
+        for text in ["", "   ", "\t\n", "link=", "p_text=  "] {
+            let error = text.parse::<SelectorBuf>().unwrap_err();
+            assert!(
+                matches!(error, SeleniumBaseError::InvalidSelector(_)),
+                "{text:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn from_str_refuses_a_selector_that_ends_on_shadow() {
+        for text in [
+            "my-app ::shadow",
+            "my-app::shadow",
+            "a ::shadow b ::shadow  ",
+        ] {
+            let error = text.parse::<SelectorBuf>().unwrap_err();
+            assert!(
+                matches!(&error, SeleniumBaseError::InvalidSelector(m)
+                    if m.contains("cannot end on a shadow root")),
+                "{text:?}: {error}"
+            );
+        }
+    }
+
+    #[test]
+    fn from_str_agrees_with_from_str_slice() {
+        for text in [
+            "#login",
+            "//form/button",
+            "link=Sign in",
+            "p_text=Sign",
+            "app::shadow a",
+            "p:contains('x')",
+        ] {
+            assert_eq!(
+                text.parse::<SelectorBuf>().unwrap(),
+                SelectorBuf::from(text),
+                "{text:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn check_holds_the_one_rule_for_every_kind() {
+        for selector in [
+            SelectorBuf::css(""),
+            SelectorBuf::css(" \t"),
+            SelectorBuf::xpath(" "),
+            SelectorBuf::link_text(""),
+            SelectorBuf::partial_link_text("\n"),
+            SelectorBuf::css("app ::shadow"),
+        ] {
+            assert!(
+                matches!(selector.check(), Err(SeleniumBaseError::InvalidSelector(_))),
+                "{selector:?}"
+            );
+        }
+        for selector in [
+            SelectorBuf::css("#a"),
+            SelectorBuf::xpath("//a"),
+            SelectorBuf::link_text("Go"),
+            SelectorBuf::partial_link_text("G"),
+            SelectorBuf::css("app::shadow a"),
+            // Only CSS is cut at `::shadow`: this is the text of a link.
+            SelectorBuf::link_text("app ::shadow"),
+        ] {
+            assert!(selector.check().is_ok(), "{selector:?}");
+        }
+    }
+
+    #[test]
+    fn as_str_is_the_text_without_a_prefix() {
+        assert_eq!(SelectorBuf::css("a > b").as_str(), "a > b");
+        assert_eq!(SelectorBuf::xpath("//a").as_str(), "//a");
+        assert_eq!(SelectorBuf::link_text("Hi").as_str(), "Hi");
+        assert_eq!(SelectorBuf::partial_link_text("Hi").as_str(), "Hi");
+    }
+
+    #[test]
+    fn a_contains_selector_keeps_its_text_until_lookup() {
+        let written = "p:contains('x')";
+        let selector = SelectorBuf::from(written);
+        // Construction keeps the text, so `Display` and what is recorded stay
+        // on what the user wrote.
+        assert_eq!(selector, SelectorBuf::css(written));
+        assert_eq!(selector.to_string(), written);
+        // The one rewrite is the lookup step, and it is today's XPath.
+        assert_eq!(
+            selector.lookup_form().into_owned(),
+            SelectorBuf::xpath(".//p[contains(., 'x')]")
+        );
+        assert_eq!(
+            SelectorBuf::from("div > a:contains(\"Go\"), td:contains('x')")
+                .lookup_form()
+                .into_owned(),
+            SelectorBuf::xpath(".//div/a[contains(., 'Go')] | .//td[contains(., 'x')]")
+        );
+        // An explicit CSS selector is read the same way: `:contains()` is not CSS.
+        assert_eq!(
+            SelectorBuf::css(written).lookup_form(),
+            selector.lookup_form()
+        );
+    }
+
+    #[test]
+    fn every_other_selector_is_looked_up_as_it_is() {
+        for selector in [
+            SelectorBuf::css("div.card > a"),
+            SelectorBuf::xpath("//p[contains(., 'x')]"),
+            // The converter cannot read an unterminated string: it stays CSS.
+            SelectorBuf::css("a:contains(\"open"),
+            // A selector that crosses a shadow root stays whole.
+            SelectorBuf::css("app::shadow a:contains(\"Go\")"),
+            // The text of a link is not CSS.
+            SelectorBuf::link_text("a:contains('x')"),
+            SelectorBuf::partial_link_text("a:contains('x')"),
+        ] {
+            assert!(
+                matches!(selector.lookup_form(), Cow::Borrowed(form) if *form == selector),
+                "{selector:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_selector_becomes_the_locator_of_its_lookup_form() {
+        let by = |selector: SelectorBuf| format!("{:?}", selector.to_by().unwrap());
+        assert_eq!(by(SelectorBuf::css("#a")), format!("{:?}", By::Css("#a")));
+        assert_eq!(
+            by(SelectorBuf::from("button:contains(\"Go on\")")),
+            format!("{:?}", By::XPath(".//button[contains(., 'Go on')]"))
+        );
+        assert_eq!(
+            by(SelectorBuf::css("button:contains(\"Go on\")")),
+            format!("{:?}", By::XPath(".//button[contains(., 'Go on')]"))
+        );
+        assert!(SelectorBuf::css("").to_by().is_err());
+        assert!(SelectorBuf::css("app ::shadow").to_by().is_err());
+    }
+
+    #[test]
+    fn a_selector_buf_keeps_the_kind_of_a_selector() {
+        // The borrowed and the owned view agree, kind for kind.
+        for selector in [
+            Selector::Css("#a"),
+            Selector::XPath("//a"),
+            Selector::LinkText("Go"),
+            Selector::PartialLinkText("G"),
+        ] {
+            assert_eq!(SelectorBuf::from(selector).as_selector(), selector);
         }
     }
 

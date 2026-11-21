@@ -1610,7 +1610,9 @@ mod tests {
                 }
             });
             match argument.as_deref() {
-                Some(name @ ("FrameRef" | "WindowRef")) => format!("impl Into<{name}>"),
+                Some(name @ ("FrameRef" | "WindowRef" | "SelectorBuf")) => {
+                    format!("impl Into<{name}>")
+                }
                 _ => "impl Into".to_owned(),
             }
         }
@@ -1791,6 +1793,8 @@ mod tests {
                     "impl Into<FrameRef>" | "impl Into<WindowRef>" => {
                         kind == "string" || kind == "integer"
                     }
+
+                    "impl Into<SelectorBuf>" => kind == "string",
 
                     "&Cookie" => matches!(argument, syn::Expr::Reference(_)),
 

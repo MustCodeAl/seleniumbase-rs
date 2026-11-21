@@ -20,6 +20,7 @@ use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
 use crate::sb_cdp::without_final_return;
+use crate::utils::selectors::SelectorBuf;
 
 /// How often [`CdpPage::wait_for_element_present`] re-queries the DOM.
 const POLL_INTERVAL: Duration = Duration::from_millis(100);
@@ -48,7 +49,7 @@ pub struct CdpNode {
 
 impl CdpNode {
     /// Parses a `DOM.querySelector` response into a [`CdpNode`].
-    pub fn from_query_result(value: &Value, selector: &str) -> Option<Self> {
+    pub fn from_query_result(value: &Value, selector: impl Into<SelectorBuf>) -> Option<Self> {
         value
             .get("nodeId")
             .and_then(|v| v.as_i64())
@@ -59,28 +60,28 @@ impl CdpNode {
                     .get("objectId")
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_owned()),
-                selector: Some(selector.to_owned()),
+                selector: Some(Into::<SelectorBuf>::into(selector).to_string()),
             })
     }
 
     /// Parses a single `nodeId` value (for example from `DOM.querySelectorAll`).
-    pub fn from_node_id(node_id: i64, selector: &str) -> Self {
+    pub fn from_node_id(node_id: i64, selector: impl Into<SelectorBuf>) -> Self {
         Self {
             node_id,
             backend_node_id: None,
             object_id: None,
-            selector: Some(selector.to_owned()),
+            selector: Some(Into::<SelectorBuf>::into(selector).to_string()),
         }
     }
 
     /// A node known by its `Runtime` `objectId`, which is how [`CdpPage`] finds
     /// elements. Its [`node_id`](Self::node_id) is 0.
-    pub fn from_object_id(object_id: &str, selector: &str) -> Self {
+    pub fn from_object_id(object_id: &str, selector: impl Into<SelectorBuf>) -> Self {
         Self {
             node_id: 0,
             backend_node_id: None,
             object_id: Some(object_id.to_owned()),
-            selector: Some(selector.to_owned()),
+            selector: Some(Into::<SelectorBuf>::into(selector).to_string()),
         }
     }
 }
@@ -93,6 +94,11 @@ impl CdpNode {
 /// [`SeleniumBaseError::ElementNotFound`]; call
 /// [`wait_for_element_present`](Self::wait_for_element_present) before them
 /// for an element that may not be there yet.
+///
+/// A selector parameter is `impl Into<SelectorBuf>`: a string, or a
+/// [`SelectorBuf`]. The page is queried with `document.querySelector`, so only
+/// a CSS selector finds anything; an XPath expression is handed to the
+/// browser as it is and refused as [`SeleniumBaseError::InvalidSelector`].
 pub struct CdpPage<'a> {
     session: &'a BrowserSession,
 }
@@ -125,7 +131,15 @@ impl<'a> CdpPage<'a> {
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
     /// [`SeleniumBaseError::InvalidSelector`] if the browser rejects the
     /// selector.
-    pub async fn find_element(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
+    pub async fn find_element(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<CdpNode, SeleniumBaseError> {
+        self.find_element_text(selector.into().as_str()).await
+    }
+
+    /// [`find_element`](Self::find_element) for the selector's text.
+    async fn find_element_text(&self, selector: &str) -> Result<CdpNode, SeleniumBaseError> {
         let response = self
             .execute(
                 "Runtime.evaluate",
@@ -142,7 +156,15 @@ impl<'a> CdpPage<'a> {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if the browser rejects
     /// the selector.
-    pub async fn find_all(&self, selector: &str) -> Result<Vec<CdpNode>, SeleniumBaseError> {
+    pub async fn find_all(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<Vec<CdpNode>, SeleniumBaseError> {
+        self.find_all_text(selector.into().as_str()).await
+    }
+
+    /// [`find_all`](Self::find_all) for the selector's text.
+    async fn find_all_text(&self, selector: &str) -> Result<Vec<CdpNode>, SeleniumBaseError> {
         let response = self
             .execute(
                 "Runtime.evaluate",
@@ -174,12 +196,23 @@ impl<'a> CdpPage<'a> {
     /// connection, say) at once too: waiting longer would not change it.
     pub async fn wait_for_element_present(
         &self,
+        selector: impl Into<SelectorBuf>,
+        timeout: Duration,
+    ) -> Result<CdpNode, SeleniumBaseError> {
+        self.wait_for_element_present_text(selector.into().as_str(), timeout)
+            .await
+    }
+
+    /// [`wait_for_element_present`](Self::wait_for_element_present) for the
+    /// selector's text.
+    async fn wait_for_element_present_text(
+        &self,
         selector: &str,
         timeout: Duration,
     ) -> Result<CdpNode, SeleniumBaseError> {
         let deadline = Instant::now() + timeout;
         loop {
-            match self.find_element(selector).await {
+            match self.find_element_text(selector).await {
                 Ok(node) => return Ok(node),
                 // Only an element that is not there yet is worth waiting for.
                 // Waiting longer cannot make a selector valid or bring back a
@@ -207,7 +240,7 @@ impl<'a> CdpPage<'a> {
     /// [`SeleniumBaseError::ElementNotInteractable`] if the element has no
     /// size, as with `display: none`, and the browser's error if it refuses
     /// an input event.
-    pub async fn click(&self, selector: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn click(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
         self.click_with_timeout(selector, CLICK_TIMEOUT).await
     }
 
@@ -218,10 +251,16 @@ impl<'a> CdpPage<'a> {
     /// As [`click`](Self::click).
     pub async fn click_with_timeout(
         &self,
-        selector: &str,
+        selector: impl Into<SelectorBuf>,
         timeout: Duration,
     ) -> Result<(), SeleniumBaseError> {
-        self.wait_for_element_present(selector, timeout).await?;
+        self.click_text(selector.into().as_str(), timeout).await
+    }
+
+    /// [`click_with_timeout`](Self::click_with_timeout) for the selector's text.
+    async fn click_text(&self, selector: &str, timeout: Duration) -> Result<(), SeleniumBaseError> {
+        self.wait_for_element_present_text(selector, timeout)
+            .await?;
         let rectangle = self.evaluate_raw(&center_script(selector)).await?;
         let (center_x, center_y) = parse_center(&rectangle, selector)?;
 
@@ -245,7 +284,16 @@ impl<'a> CdpPage<'a> {
     /// produces the trusted key events that pages listening for real keyboard
     /// input expect. Use [`fast_type`][Self::fast_type] when throughput
     /// matters more than realism.
-    pub async fn type_text(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn type_text(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        self.type_text_in(selector.into().as_str(), text).await
+    }
+
+    /// [`type_text`](Self::type_text) for the selector's text.
+    async fn type_text_in(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.focus_and_clear(selector).await?;
         for ch in text.chars() {
             if ch == '\n' || ch == '\r' {
@@ -268,7 +316,16 @@ impl<'a> CdpPage<'a> {
     /// way to fill a field, but it does not emit per-character key events, so
     /// pages that watch for realistic typing can tell the difference. Prefer
     /// [`type_text`][Self::type_text] when running in a stealth context.
-    pub async fn fast_type(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn fast_type(
+        &self,
+        selector: impl Into<SelectorBuf>,
+        text: &str,
+    ) -> Result<(), SeleniumBaseError> {
+        self.fast_type_in(selector.into().as_str(), text).await
+    }
+
+    /// [`fast_type`](Self::fast_type) for the selector's text.
+    async fn fast_type_in(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
         self.focus_and_clear(selector).await?;
         let (body, trailing_newline) = match text.strip_suffix('\n') {
             Some(stripped) => (stripped, true),
@@ -326,7 +383,12 @@ impl<'a> CdpPage<'a> {
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches and
     /// [`SeleniumBaseError::InvalidSelector`] for a selector the browser
     /// rejects.
-    pub async fn text(&self, selector: &str) -> Result<String, SeleniumBaseError> {
+    pub async fn text(
+        &self,
+        selector: impl Into<SelectorBuf>,
+    ) -> Result<String, SeleniumBaseError> {
+        let selector = selector.into();
+        let selector = selector.as_str();
         let script = single_element_script(selector, TEXT_OF_ELEMENT);
         let result = self.evaluate_raw(&script).await?;
         extract_string_value(&result).ok_or_else(|| SeleniumBaseError::element_not_found(selector))
@@ -340,9 +402,11 @@ impl<'a> CdpPage<'a> {
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
     pub async fn attribute(
         &self,
-        selector: &str,
+        selector: impl Into<SelectorBuf>,
         attribute: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
+        let selector = selector.into();
+        let selector = selector.as_str();
         let result = self
             .evaluate_raw(&attribute_script(selector, attribute))
             .await?;
@@ -357,9 +421,11 @@ impl<'a> CdpPage<'a> {
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches.
     pub async fn property(
         &self,
-        selector: &str,
+        selector: impl Into<SelectorBuf>,
         property: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
+        let selector = selector.into();
+        let selector = selector.as_str();
         let result = self
             .evaluate_raw(&property_script(selector, property))
             .await?;
@@ -446,9 +512,11 @@ impl<'a> CdpPage<'a> {
     /// option.
     pub async fn select_option_by_text(
         &self,
-        selector: &str,
+        selector: impl Into<SelectorBuf>,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
+        let selector = selector.into();
+        let selector = selector.as_str();
         let result = self
             .evaluate_raw(&select_by_text_script(selector, text))
             .await?;
@@ -466,9 +534,11 @@ impl<'a> CdpPage<'a> {
     /// option with that value.
     pub async fn select_option_by_value(
         &self,
-        selector: &str,
+        selector: impl Into<SelectorBuf>,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
+        let selector = selector.into();
+        let selector = selector.as_str();
         let result = self
             .evaluate_raw(&select_by_value_script(selector, value))
             .await?;
@@ -486,9 +556,11 @@ impl<'a> CdpPage<'a> {
     /// option at `index`.
     pub async fn select_option_by_index(
         &self,
-        selector: &str,
+        selector: impl Into<SelectorBuf>,
         index: usize,
     ) -> Result<(), SeleniumBaseError> {
+        let selector = selector.into();
+        let selector = selector.as_str();
         let result = self
             .evaluate_raw(&select_by_index_script(selector, index))
             .await?;

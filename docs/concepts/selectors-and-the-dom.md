@@ -413,7 +413,7 @@ fallback. `is_xpath_selector` and `is_link_text_selector` expose the checks.
 
 </Steps>
 
-For more than a string, the pure CDP engine builds on `SelectorBuf`. It has
+For more than a string, every selector parameter (`BaseCase`, `CdpDriver`, the traits, the pure CDP engine) also takes a `SelectorBuf`. It has
 constructors for each kind (`SelectorBuf::css`, `xpath`, `link_text`,
 `partial_link_text`) and for what people read (`containing_text`, `text`,
 `has_text`, `label` and `role`, which finds an element by its accessible role
@@ -465,7 +465,7 @@ from how it begins (`Selector::auto` in `src/utils/selectors.rs`):
 The prefixes are matched exactly, so `LINK=Home` is CSS. To state the kind
 yourself, use the `Selector` enum (`Css`, `XPath`, `LinkText`, `PartialLinkText`
 and `Id`; an `Id` needs no escaping, which helps with ids such as `:r1:`) or the
-owning type `SelectorBuf`, which the pure CDP engine takes in `Page::locator`.
+owning type `SelectorBuf`, which every selector parameter takes (`sb.click(SelectorBuf::css("//not-xpath"))`, `Page::locator`). A method keeps the kind you state and does not read the text again; `"//x".parse::<SelectorBuf>()` is the strict form for text from outside, which refuses an empty selector.
 
 `SelectorBuf` also has constructors for the stable strategies above. They build
 XPath for you, as approximations of Playwright's `getByText`, `getByLabel` and

@@ -64,7 +64,8 @@ impl BaseCase {
     /// Checks now that `css` is in the page, visible or not, and records a
     /// failure for [`process_deferred_asserts`](Self::process_deferred_asserts)
     /// to report. Corresponds to Python's `deferred_assert_element_present`.
-    pub async fn deferred_assert_element_present(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn deferred_assert_element_present(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let mut deferred = std::mem::take(&mut self.deferred);
         deferred.check_element_present(self, css).await;
         self.deferred = deferred;
@@ -75,11 +76,9 @@ impl BaseCase {
     /// failure for [`process_deferred_asserts`](Self::process_deferred_asserts)
     /// to report. The text comes first and the selector second, as in
     /// Python's `deferred_assert_exact_text(text, selector)`.
-    pub async fn deferred_assert_exact_text(
-        &mut self,
-        text: &str,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn deferred_assert_exact_text(&mut self,
+    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let mut deferred = std::mem::take(&mut self.deferred);
         deferred.check_exact_text(self, text, css).await;
         self.deferred = deferred;
@@ -89,7 +88,8 @@ impl BaseCase {
     /// Checks now that `css` shows some text, and records a failure for
     /// [`process_deferred_asserts`](Self::process_deferred_asserts) to report.
     /// Corresponds to Python's `deferred_assert_non_empty_text`.
-    pub async fn deferred_assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn deferred_assert_non_empty_text(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let mut deferred = std::mem::take(&mut self.deferred);
         deferred.check_non_empty_text(self, css).await;
         self.deferred = deferred;
@@ -97,43 +97,36 @@ impl BaseCase {
     }
 
     /// Alias for `deferred_assert_element`.
-    pub async fn delayed_assert_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn delayed_assert_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.deferred_assert_element(css).await
     }
 
     /// Alias for `deferred_assert_element_present`.
-    pub async fn delayed_assert_element_present(
-        &mut self,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn delayed_assert_element_present(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.deferred_assert_element_present(css).await
     }
 
     /// Alias for `deferred_assert_exact_text`: the text comes first and the
     /// selector second.
-    pub async fn delayed_assert_exact_text(
-        &mut self,
-        text: &str,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn delayed_assert_exact_text(&mut self,
+    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.deferred_assert_exact_text(text, css).await
     }
 
     /// Alias for `deferred_assert_non_empty_text`.
-    pub async fn delayed_assert_non_empty_text(
-        &mut self,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn delayed_assert_non_empty_text(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.deferred_assert_non_empty_text(css).await
     }
 
     /// Alias for `deferred_assert_text`: the text comes first and the
     /// selector second.
-    pub async fn delayed_assert_text(
-        &mut self,
-        text: &str,
-        css: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn delayed_assert_text(&mut self,
+    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         self.deferred_assert_text(text, css).await
     }
 

@@ -572,7 +572,7 @@ impl DriverElement {
     /// with a hint, not left to the driver.
     fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
         let by = shadow_find::by_of(selector)?;
-        if let SelectorBuf::XPath(xpath) = selector
+        if let SelectorBuf::XPath(xpath) = &*selector.lookup_form()
             && let Some(branch) = xpath_root_branch(xpath)
         {
             return Err(SeleniumBaseError::InvalidSelector(format!(

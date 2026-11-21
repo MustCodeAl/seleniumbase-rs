@@ -38,61 +38,39 @@ impl BaseCase {
     /// # Ok(())
     /// # }
     /// ```
-    pub fn highlight<'a>(&'a self, selector: &'a str) -> Highlight<'a> {
-        Highlight::new(self, selector)
-    }
+    pub fn highlight<'a>(&'a self, selector: impl Into<SelectorBuf>) -> Highlight<'a> { Highlight::new(self, selector) }
 
     /// Highlights the element `selector` picks, then clicks it. Corresponds to
     /// Python's `highlight_click(selector, loops=3, scroll=True, timeout=None)`.
     /// In demo mode the click does the highlighting, so the call only waits for
     /// the element and clicks.
-    pub fn highlight_click<'a>(&'a mut self, selector: &'a str) -> HighlightClick<'a> {
-        HighlightClick::new(self, selector)
-    }
+    pub fn highlight_click<'a>(&'a mut self, selector: impl Into<SelectorBuf>) -> HighlightClick<'a> { HighlightClick::new(self, selector) }
 
     /// Highlights the field `selector` picks, then replaces its text with
     /// `text`. Corresponds to Python's `highlight_type(selector, text, loops=3,
     /// scroll=True, timeout=None)`, which is `highlight_update_text`.
-    pub fn highlight_type<'a>(
-        &'a mut self,
-        selector: &'a str,
-        text: &'a str,
-    ) -> HighlightType<'a> {
-        HighlightType::new(self, selector, text)
-    }
+    pub fn highlight_type<'a>(&'a mut self, selector: impl Into<SelectorBuf>, text: &'a str) -> HighlightType<'a> { HighlightType::new(self, selector, text) }
 
     /// Highlights the field `selector` picks, then replaces its text with
     /// `text`. Corresponds to Python's `highlight_update_text(selector, text,
     /// loops=3, scroll=True, timeout=None)`.
-    pub fn highlight_update_text<'a>(
-        &'a mut self,
-        selector: &'a str,
-        text: &'a str,
-    ) -> HighlightType<'a> {
-        HighlightType::new(self, selector, text)
-    }
+    pub fn highlight_update_text<'a>(&'a mut self, selector: impl Into<SelectorBuf>, text: &'a str) -> HighlightType<'a> { HighlightType::new(self, selector, text) }
 
     /// Highlights the element `selector` picks if it is visible, and does
     /// nothing, with no error, if it is not. Corresponds to Python's
     /// `highlight_if_visible(selector, loops=4, scroll=True)`.
-    pub fn highlight_if_visible<'a>(&'a self, selector: &'a str) -> HighlightIfVisible<'a> {
-        HighlightIfVisible::new(self, selector)
-    }
+    pub fn highlight_if_visible<'a>(&'a self, selector: impl Into<SelectorBuf>) -> HighlightIfVisible<'a> { HighlightIfVisible::new(self, selector) }
 
     /// Highlights every visible element `selector` matches, one after the
     /// other. Corresponds to Python's `highlight_elements(selector, loops=None,
     /// scroll=True, limit=0)`; [`limit`](HighlightElements::limit) 0 is all.
-    pub fn highlight_elements<'a>(&'a self, selector: &'a str) -> HighlightElements<'a> {
-        HighlightElements::new(self, selector)
-    }
+    pub fn highlight_elements<'a>(&'a self, selector: impl Into<SelectorBuf>) -> HighlightElements<'a> { HighlightElements::new(self, selector) }
 
     /// Paints a quickly-vanishing dot over the element `selector` picks.
     /// Corresponds to Python's `flash(selector, duration=1, color="44CC88",
     /// pause=0)`: the keywords are [`duration`](Flash::duration),
     /// [`color`](Flash::color) and [`pause`](Flash::pause).
-    pub fn flash<'a>(&'a self, selector: &'a str) -> Flash<'a> {
-        Flash::new(self, selector)
-    }
+    pub fn flash<'a>(&'a self, selector: impl Into<SelectorBuf>) -> Flash<'a> { Flash::new(self, selector) }
 
     /// Scrolls to the element `selector` picks, flashes it green, shows `message`
     /// as a Messenger success message (HTML, as in Python) and waits until it
@@ -102,11 +80,9 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns the wait error if the element is not visible within 7 s.
-    pub async fn post_message_and_highlight(
-        &self,
-        message: &str,
-        selector: &str,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn post_message_and_highlight(&self,
+    message: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let selector: &SelectorBuf = &selector.into();
         self.show_assert_success(message, Some(selector)).await
     }
 
@@ -145,16 +121,10 @@ impl BaseCase {
 
     /// The visible element `css` picks (`html` is `body`), waiting up to
     /// `timeout`.
-    async fn visible_element(
-        &self,
-        css: &str,
-        timeout: Duration,
-    ) -> Result<Element, SeleniumBaseError> {
-        let selector = shadow_find::checked(demo::highlight_target(css))?;
-        self.session
-            .wait_for_element_visible(selector, demo::whole_seconds_up(timeout))
-            .await
-    }
+    async fn visible_element(&self, css: &SelectorBuf, timeout: Duration,) -> Result<Element, SeleniumBaseError> { let selector = shadow_find::checked(demo::highlight_target(css))?;
+    self.session
+        .wait_for_element_visible(selector, demo::whole_seconds_up(timeout))
+        .await }
 
     /// Runs `script` with `element` as `arguments[0]`. A script that returns a
     /// promise is waited for.
@@ -181,173 +151,125 @@ impl BaseCase {
     }
 
     /// The work of [`highlight`](Self::highlight).
-    pub(crate) async fn run_highlight(
-        &self,
-        css: &str,
-        loops: Option<u32>,
-        scroll: bool,
-        timeout: Duration,
-    ) -> Result<(), SeleniumBaseError> {
-        self.skip_if_esc().await?;
-        let element = self.visible_element(css, timeout).await?;
-        let loops = self.highlight_loops(loops, DEFAULT_HIGHLIGHT_LOOPS);
-        self.animate_highlight(&element, loops, scroll).await
-    }
+    pub(crate) async fn run_highlight(&self, css: &SelectorBuf, loops: Option<u32>,
+    scroll: bool,
+    timeout: Duration,) -> Result<(), SeleniumBaseError> { self.skip_if_esc().await?;
+    let element = self.visible_element(css, timeout).await?;
+    let loops = self.highlight_loops(loops, DEFAULT_HIGHLIGHT_LOOPS);
+    self.animate_highlight(&element, loops, scroll).await }
 
     /// The work of [`highlight_click`](Self::highlight_click).
-    pub(crate) async fn run_highlight_click(
-        &mut self,
-        css: &str,
-        loops: Option<u32>,
-        scroll: bool,
-        timeout: Duration,
-    ) -> Result<(), SeleniumBaseError> {
-        let element = self.visible_element(css, timeout).await?;
-        if !self.run_settings.demo_mode() {
-            let loops = self.highlight_loops(loops, demo::CLICK_LOOPS);
-            self.animate_highlight(&element, loops, scroll).await?;
-        }
-        self.click(css).await
+    pub(crate) async fn run_highlight_click(&mut self, css: &SelectorBuf, loops: Option<u32>,
+    scroll: bool,
+    timeout: Duration,) -> Result<(), SeleniumBaseError> { let element = self.visible_element(css, timeout).await?;
+    if !self.run_settings.demo_mode() {
+        let loops = self.highlight_loops(loops, demo::CLICK_LOOPS);
+        self.animate_highlight(&element, loops, scroll).await?;
     }
+    self.click(css).await }
 
     /// The work of [`highlight_type`](Self::highlight_type).
-    pub(crate) async fn run_highlight_type(
-        &mut self,
-        css: &str,
-        text: &str,
-        loops: Option<u32>,
-        scroll: bool,
-        timeout: Duration,
-    ) -> Result<(), SeleniumBaseError> {
-        let element = self.visible_element(css, timeout).await?;
-        if !self.run_settings.demo_mode() {
-            let loops = self.highlight_loops(loops, demo::CLICK_LOOPS);
-            self.animate_highlight(&element, loops, scroll).await?;
-        }
-        self.update_text(css, text).await
+    pub(crate) async fn run_highlight_type(&mut self, css: &SelectorBuf, text: &str,
+    loops: Option<u32>,
+    scroll: bool,
+    timeout: Duration,) -> Result<(), SeleniumBaseError> { let element = self.visible_element(css, timeout).await?;
+    if !self.run_settings.demo_mode() {
+        let loops = self.highlight_loops(loops, demo::CLICK_LOOPS);
+        self.animate_highlight(&element, loops, scroll).await?;
     }
+    self.update_text(css, text).await }
 
     /// The work of [`highlight_if_visible`](Self::highlight_if_visible).
-    pub(crate) async fn run_highlight_if_visible(
-        &self,
-        css: &str,
-        loops: Option<u32>,
-        scroll: bool,
-    ) -> Result<(), SeleniumBaseError> {
-        if !self.is_element_visible(css).await.unwrap_or(false) {
-            return Ok(());
-        }
-        // A page that changes under the highlight is not a failure; only ESC
-        // ends the test.
-        match self
-            .run_highlight(css, loops, scroll, demo::DEFAULT_TIMEOUT)
-            .await
-        {
-            Err(skipped @ SeleniumBaseError::Skipped(_)) => Err(skipped),
-            _ => Ok(()),
-        }
+    pub(crate) async fn run_highlight_if_visible(&self, css: &SelectorBuf, loops: Option<u32>,
+    scroll: bool,) -> Result<(), SeleniumBaseError> { if !self.is_element_visible(css).await.unwrap_or(false) {
+        return Ok(());
     }
+    // A page that changes under the highlight is not a failure; only ESC
+    // ends the test.
+    match self
+        .run_highlight(css, loops, scroll, demo::DEFAULT_TIMEOUT)
+        .await
+    {
+        Err(skipped @ SeleniumBaseError::Skipped(_)) => Err(skipped),
+        _ => Ok(()),
+    } }
 
     /// The work of [`highlight_elements`](Self::highlight_elements).
-    pub(crate) async fn run_highlight_elements(
-        &self,
-        css: &str,
-        loops: Option<u32>,
-        scroll: bool,
-        limit: usize,
-    ) -> Result<(), SeleniumBaseError> {
-        let selector = shadow_find::checked(demo::highlight_target(css))?;
-        let elements = self.session.find_all(selector).await?;
-        let loops = self.highlight_loops(loops, DEFAULT_HIGHLIGHT_LOOPS);
-        let mut count = 0_usize;
-        for element in elements {
-            let shown = element.is_visible().await.unwrap_or(false);
-            if shown && self.animate_highlight(&element, loops, scroll).await.is_ok() {
-                count += 1;
-            }
-            if limit > 0 && count >= limit {
-                break;
-            }
+    pub(crate) async fn run_highlight_elements(&self, css: &SelectorBuf, loops: Option<u32>,
+    scroll: bool,
+    limit: usize,) -> Result<(), SeleniumBaseError> { let selector = shadow_find::checked(demo::highlight_target(css))?;
+    let elements = self.session.find_all(selector).await?;
+    let loops = self.highlight_loops(loops, DEFAULT_HIGHLIGHT_LOOPS);
+    let mut count = 0_usize;
+    for element in elements {
+        let shown = element.is_visible().await.unwrap_or(false);
+        if shown && self.animate_highlight(&element, loops, scroll).await.is_ok() {
+            count += 1;
         }
-        Ok(())
+        if limit > 0 && count >= limit {
+            break;
+        }
     }
+    Ok(()) }
 
     /// The work of [`flash`](Self::flash).
-    pub(crate) async fn run_flash(
-        &self,
-        css: &str,
-        duration: Duration,
-        color: &str,
-        pause: Duration,
-    ) -> Result<(), SeleniumBaseError> {
-        if !demo::is_hex_colour(color) {
-            return Err(SeleniumBaseError::InvalidConfig(format!(
-                "the flash colour {color:?} is not hex digits such as \"44CC88\""
-            )));
-        }
-        let element = self.visible_element(css, demo::DEFAULT_TIMEOUT).await?;
-        let id = format!("flash-{:016x}", rand::rng().random::<u64>());
-        // A page that cannot show the dot is not a failure, as in Python.
-        let _ = self
-            .run_on_element(&demo::flash_script(color, duration, &id), &element)
-            .await;
-        if !pause.is_zero() {
-            tokio::time::sleep(pause).await;
-        }
-        Ok(())
+    pub(crate) async fn run_flash(&self, css: &SelectorBuf, duration: Duration,
+    color: &str,
+    pause: Duration,) -> Result<(), SeleniumBaseError> { if !demo::is_hex_colour(color) {
+        return Err(SeleniumBaseError::InvalidConfig(format!(
+            "the flash colour {color:?} is not hex digits such as \"44CC88\""
+        )));
     }
+    let element = self.visible_element(css, demo::DEFAULT_TIMEOUT).await?;
+    let id = format!("flash-{:016x}", rand::rng().random::<u64>());
+    // A page that cannot show the dot is not a failure, as in Python.
+    let _ = self
+        .run_on_element(&demo::flash_script(color, duration, &id), &element)
+        .await;
+    if !pause.is_zero() {
+        tokio::time::sleep(pause).await;
+    }
+    Ok(()) }
 
     /// What demo mode does to the element of an action before the action: the
     /// highlight animation, with its slow scroll. A selector the page cannot
     /// show is the action's business, not this one's.
-    pub(crate) async fn demo_outline(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        let element = self.visible_element(css, demo::DEMO_OUTLINE_TIMEOUT).await?;
-        let loops = self.highlight_loops(None, DEFAULT_HIGHLIGHT_LOOPS);
-        self.animate_highlight(&element, loops, true).await
-    }
+    pub(crate) async fn demo_outline(&self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> { let element = self.visible_element(css, demo::DEMO_OUTLINE_TIMEOUT).await?;
+    let loops = self.highlight_loops(None, DEFAULT_HIGHLIGHT_LOOPS);
+    self.animate_highlight(&element, loops, true).await }
 
     /// What slow mode does to the element of an action: wait 0.08 s, scroll
     /// to it slowly, wait 0.12 s.
-    pub(crate) async fn slow_mode_scroll(&self, css: &str) -> Result<(), SeleniumBaseError> {
-        tokio::time::sleep(demo::SLOW_BEFORE).await;
-        let element = self.visible_element(css, demo::DEMO_OUTLINE_TIMEOUT).await?;
-        self.run_on_element(&demo::slow_scroll_script(), &element)
-            .await?;
-        tokio::time::sleep(demo::SLOW_AFTER).await;
-        Ok(())
-    }
+    pub(crate) async fn slow_mode_scroll(&self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> { tokio::time::sleep(demo::SLOW_BEFORE).await;
+    let element = self.visible_element(css, demo::DEMO_OUTLINE_TIMEOUT).await?;
+    self.run_on_element(&demo::slow_scroll_script(), &element)
+        .await?;
+    tokio::time::sleep(demo::SLOW_AFTER).await;
+    Ok(()) }
 
     /// In demo mode, announces an assertion that passed: flashes the element
     /// `css` picks green (none for a message only) and shows `markup` as a
     /// Messenger success message, as Python's `__highlight_with_assert_success`
     /// does. Does nothing outside demo mode, and never fails the assertion.
-    pub(crate) async fn demo_assert_success(&self, markup: &str, css: Option<&str>) {
-        if self.run_settings.demo_mode() {
-            let _ = self.show_assert_success(markup, css).await;
-        }
-    }
+    pub(crate) async fn demo_assert_success(&self, markup: &str, css: Option<&SelectorBuf>) { if self.run_settings.demo_mode() {
+        let _ = self.show_assert_success(markup, css).await;
+    } }
 
     /// The effect of a passed assertion: scroll, five-colour flash, the
     /// message (and its wait), then the element's shadow put back.
-    async fn show_assert_success(
-        &self,
-        markup: &str,
-        css: Option<&str>,
-    ) -> Result<(), SeleniumBaseError> {
-        let Some(css) = css else {
-            self.post_demo_success_message(markup).await;
-            return Ok(());
-        };
-        let element = self.visible_element(css, demo::DEFAULT_TIMEOUT).await?;
-        let script = demo::success_flash_script(demo::STEP_MS, true);
-        self.run_on_element(&script, &element).await?;
+    async fn show_assert_success(&self, markup: &str, css: Option<&SelectorBuf>) -> Result<(), SeleniumBaseError> { let Some(css) = css else {
         self.post_demo_success_message(markup).await;
-        let restored = self
-            .run_on_element(demo::RESTORE_SHADOW_SCRIPT, &element)
-            .await;
-        tokio::time::sleep(demo::SETTLE).await;
-        restored.map(drop)
-    }
+        return Ok(());
+    };
+    let element = self.visible_element(css, demo::DEFAULT_TIMEOUT).await?;
+    let script = demo::success_flash_script(demo::STEP_MS, true);
+    self.run_on_element(&script, &element).await?;
+    self.post_demo_success_message(markup).await;
+    let restored = self
+        .run_on_element(demo::RESTORE_SHADOW_SCRIPT, &element)
+        .await;
+    tokio::time::sleep(demo::SETTLE).await;
+    restored.map(drop) }
 
     /// Shows `markup` as a success message in the future theme at the bottom
     /// right (the top right in a mobile emulator) and waits until it has gone,

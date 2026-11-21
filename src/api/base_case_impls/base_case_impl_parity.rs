@@ -143,33 +143,25 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] naming the selector and the
     /// state it never reached.
-    async fn await_ready(&self, css: &str, ready: Ready) -> Result<(), SeleniumBaseError> {
-        self.await_ready_within(css, ready, self.default_wait_secs())
-            .await
-    }
+    async fn await_ready(&self, css: &SelectorBuf, ready: Ready) -> Result<(), SeleniumBaseError> { self.await_ready_within(css, ready, self.default_wait_secs())
+        .await }
     
     /// [`await_ready`](Self::await_ready) for up to `timeout` seconds, for the
     /// calls that take a timeout of their own.
-    async fn await_ready_within(
-        &self,
-        css: &str,
-        ready: Ready,
-        timeout: u64,
-    ) -> Result<(), SeleniumBaseError> {
-        self.check_time_limit()?;
-        let selector = shadow_find::checked(css)?;
-        let reached = match ready {
-            Ready::Present => self.session.wait_for_element(selector, timeout).await.map(drop),
-            Ready::Visible => self.session.wait_for_element_visible(selector, timeout).await.map(drop),
-            Ready::Clickable => self.session.wait_for_element_clickable(selector, timeout).await.map(drop),
-        };
-        reached.map_err(|_| {
-            SeleniumBaseError::wait_timeout(
-                format!("'{css}' to be {ready}"),
-                Some(Duration::from_secs(timeout)),
-            )
-        })
-    }
+    async fn await_ready_within(&self, css: &SelectorBuf, ready: Ready,
+    timeout: u64,) -> Result<(), SeleniumBaseError> { self.check_time_limit()?;
+    let selector = shadow_find::checked(css)?;
+    let reached = match ready {
+        Ready::Present => self.session.wait_for_element(selector, timeout).await.map(drop),
+        Ready::Visible => self.session.wait_for_element_visible(selector, timeout).await.map(drop),
+        Ready::Clickable => self.session.wait_for_element_clickable(selector, timeout).await.map(drop),
+    };
+    reached.map_err(|_| {
+        SeleniumBaseError::wait_timeout(
+            format!("'{css}' to be {ready}"),
+            Some(Duration::from_secs(timeout)),
+        )
+    }) }
 
     /// Replaces an input's content with `text` in one step, with no per-key
     /// events. A trailing newline presses Enter. Corresponds to Python's
@@ -179,7 +171,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if the element is missing.
-    pub async fn fast_type(&mut self, css: &str, text: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn fast_type(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let (body, enter) = match text.strip_suffix('\n') {
             Some(body) => (body, true),
             None => (text, false),
@@ -197,7 +190,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the page script fails.
-    pub async fn js_click_if_visible(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn js_click_if_visible(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         if self.is_element_visible(css).await? {
             self.js_click(css).await?;
         }
@@ -215,10 +209,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the element is missing or the page script fails.
-    pub async fn gui_element_rect(
-        &mut self,
-        css: &str,
-    ) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
+    pub async fn gui_element_rect(&mut self, selector: impl Into<SelectorBuf>) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let element = self.find_element(css).await?;
         let rect = element.bounding_box().await?;
         let metrics = self
@@ -235,10 +227,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// See [`gui_element_rect`](Self::gui_element_rect).
-    pub async fn gui_element_center(
-        &mut self,
-        css: &str,
-    ) -> Result<crate::sb_cdp::Point, SeleniumBaseError> {
+    pub async fn gui_element_center(&mut self, selector: impl Into<SelectorBuf>) -> Result<crate::sb_cdp::Point, SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let rect = self.gui_element_rect(css).await?;
         Ok(crate::sb_cdp::Point {
             x: rect.x + rect.width / 2.0,

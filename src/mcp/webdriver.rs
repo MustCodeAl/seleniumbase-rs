@@ -92,7 +92,7 @@ async fn on_element<F>(ctx: Ctx<BaseCase>, args: Args, act: F) -> Result<Output,
 where
     F: AsyncFnOnce(&mut BaseCase, &str, &Args) -> Result<String, SeleniumBaseError>,
 {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = args.seconds_or("timeout", 5.0)?;
     let mut case = ctx.session().await?;
     ready(&case, selector, timeout).await?;
@@ -293,20 +293,20 @@ pub(super) async fn get_page_source(ctx: Ctx<BaseCase>, _args: Args) -> Result<O
 // ----------------------------------------------------------------------
 
 pub(super) async fn get_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str_or("selector", "body")?;
+    let selector = args.selector_text_or("selector", "body")?;
     let case = ctx.session().await?;
     Ok(case.text(selector).await?.into())
 }
 
 pub(super) async fn get_element_html(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let mut case = ctx.session().await?;
     let element = case.find_element(selector).await?;
     Ok(element.html().await?.into())
 }
 
 pub(super) async fn get_attribute(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let attribute = args.str("attribute")?;
     let mut case = ctx.session().await?;
     Ok(Output::Json(
@@ -320,7 +320,7 @@ pub(super) async fn find_elements_count(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let mut case = ctx.session().await?;
     Ok(Output::Json(json!(case
         .find_elements(selector)
@@ -332,7 +332,7 @@ pub(super) async fn is_element_present(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let case = ctx.session().await?;
     Ok(Output::Json(Value::Bool(
         case.is_element_present(selector).await?,
@@ -343,7 +343,7 @@ pub(super) async fn is_element_visible(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let case = ctx.session().await?;
     Ok(Output::Json(Value::Bool(
         case.is_element_visible(selector).await?,
@@ -354,7 +354,7 @@ pub(super) async fn is_element_clickable(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let case = ctx.session().await?;
     Ok(Output::Json(Value::Bool(
         case.is_element_clickable(selector).await?,
@@ -363,7 +363,7 @@ pub(super) async fn is_element_clickable(
 
 pub(super) async fn is_text_visible(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let text = args.str("text")?;
-    let selector = args.str_or("selector", "html")?;
+    let selector = args.selector_text_or("selector", "html")?;
     let case = ctx.session().await?;
     Ok(Output::Json(Value::Bool(
         case.is_text_visible(text, selector).await?,
@@ -371,7 +371,7 @@ pub(super) async fn is_text_visible(ctx: Ctx<BaseCase>, args: Args) -> Result<Ou
 }
 
 pub(super) async fn is_selected(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let case = ctx.session().await?;
     Ok(Output::Json(Value::Bool(case.is_selected(selector).await?)))
 }
@@ -389,7 +389,7 @@ pub(super) async fn click_element(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
 }
 
 pub(super) async fn click_if_visible(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     ctx.session().await?.click_if_visible(selector).await?;
     Ok(format!("click_if_visible ran for {selector}").into())
 }
@@ -398,7 +398,7 @@ pub(super) async fn click_visible_elements(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let limit = args.opt_usize("limit")?.unwrap_or(0);
     let mut case = ctx.session().await?;
     if limit == 0 {
@@ -422,7 +422,7 @@ pub(super) async fn click_nth_visible_element(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let number = args
         .opt_usize("number")?
         .filter(|number| *number >= 1)
@@ -449,7 +449,7 @@ pub(super) async fn double_click(ctx: Ctx<BaseCase>, args: Args) -> Result<Outpu
 }
 
 pub(super) async fn context_click(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     ctx.session().await?.context_click(selector).await?;
     Ok(format!("Right-clicked {selector}").into())
 }
@@ -563,7 +563,7 @@ pub(super) async fn drag_and_drop(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
 
 pub(super) async fn nested_click(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let parent = args.str("parent_selector")?;
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     ctx.session().await?.nested_click(parent, selector).await?;
     Ok(format!("Clicked {selector} inside {parent}").into())
 }
@@ -594,7 +594,7 @@ pub(super) async fn wait_for_element(
     args: Args,
     default_timeout: f64,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = args.seconds_or("timeout", default_timeout)?;
     ready(&*ctx.session().await?, selector, timeout).await?;
     Ok(format!("Element {selector} appeared.").into())
@@ -604,7 +604,7 @@ pub(super) async fn wait_for_element_present(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     ctx.session()
         .await?
@@ -617,7 +617,7 @@ pub(super) async fn wait_for_element_not_visible(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     ctx.session()
         .await?
@@ -630,7 +630,7 @@ pub(super) async fn wait_for_element_absent(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     ctx.session()
         .await?
@@ -641,7 +641,7 @@ pub(super) async fn wait_for_element_absent(
 
 pub(super) async fn wait_for_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let text = args.str("text")?;
-    let selector = args.str_or("selector", "html")?;
+    let selector = args.selector_text_or("selector", "html")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     ctx.session()
         .await?
@@ -651,7 +651,7 @@ pub(super) async fn wait_for_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
 }
 
 pub(super) async fn assert_element(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = args.seconds_or("timeout", 5.0)?;
     let case = ctx.session().await?;
     ready(&case, selector, timeout).await?;
@@ -663,7 +663,7 @@ pub(super) async fn assert_element_present(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     let case = ctx.session().await?;
     case.wait_for_element_present(selector, timeout).await?;
@@ -675,7 +675,7 @@ pub(super) async fn assert_element_not_visible(
     ctx: Ctx<BaseCase>,
     args: Args,
 ) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     let mut case = ctx.session().await?;
     case.wait_for_element_not_visible(selector, timeout).await?;
@@ -695,7 +695,7 @@ pub(super) async fn assert_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output
 
 pub(super) async fn assert_exact_text(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
     let text = args.str("text")?;
-    let selector = args.str_or("selector", "html")?;
+    let selector = args.selector_text_or("selector", "html")?;
     let timeout = whole_seconds(args.seconds_or("timeout", 5.0)?);
     let case = ctx.session().await?;
     case.wait_for_exact_text_visible(text, selector, timeout)
@@ -831,7 +831,7 @@ pub(super) async fn set_session_storage_item(
 // ----------------------------------------------------------------------
 
 pub(super) async fn scroll_into_view(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     ctx.session().await?.scroll_into_view(selector).await?;
     Ok(format!("Scrolled {selector} into view.").into())
 }
@@ -916,7 +916,7 @@ pub(super) async fn switch_to_default_window(
 }
 
 pub(super) async fn switch_to_frame(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str_or("selector", "iframe")?;
+    let selector = args.selector_text_or("selector", "iframe")?;
     ctx.session().await?.switch_to_frame(selector).await?;
     Ok(format!("Switched into frame {selector}").into())
 }
@@ -962,7 +962,7 @@ pub(super) async fn get_mfa_code(ctx: Ctx<BaseCase>, args: Args) -> Result<Outpu
 }
 
 pub(super) async fn enter_mfa_code(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let (selector, key) = (args.str("selector")?, args.str("totp_key")?);
+    let (selector, key) = (args.selector_text("selector")?, args.str("totp_key")?);
     ctx.session().await?.enter_mfa_code(selector, key).await?;
     Ok(format!("Entered MFA code into {selector}").into())
 }
@@ -1109,7 +1109,7 @@ pub(super) async fn highlight(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, 
 }
 
 pub(super) async fn flash(ctx: Ctx<BaseCase>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector_text("selector")?;
     let duration = args.seconds_or("duration", 1.0)?;
     ctx.session()
         .await?

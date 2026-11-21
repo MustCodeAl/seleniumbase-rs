@@ -507,7 +507,7 @@ profile folder that is removed when it closes.
   `mfa_code` and `google_auth_code` are aliases of it. The code
   generator is checked against the RFC 6238 test vectors, ignores spaces, dashes and
   letter case in the secret, and refuses text that is not Base32.
-- `enter_totp_code(css, secret)` generates the code, types it into the element
+- `enter_totp_code(selector, secret)` generates the code, types it into the element
   that `css` selects and presses Enter. `enter_mfa_code` is an alias. This matches
   Python's `enter_mfa_code(selector, totp_key)`.
 

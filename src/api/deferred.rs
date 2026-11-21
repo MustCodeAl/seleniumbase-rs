@@ -52,20 +52,21 @@
 use crate::api::base_case::BaseCase;
 use crate::api::page_scripts::TextMatch;
 use crate::error::SeleniumBaseError;
+use crate::utils::selectors::SelectorBuf;
 
 /// A single deferred assertion.
 #[derive(Clone, Debug)]
 pub enum DeferredAssert {
     /// Assert that the selected element exists and is visible.
-    Element(String),
+    Element(SelectorBuf),
     /// Assert that the selected element exists in the page, visible or not.
-    ElementPresent(String),
+    ElementPresent(SelectorBuf),
     /// Assert that the selected element contains the expected text.
-    Text(String, String),
+    Text(String, SelectorBuf),
     /// Assert that the text of the selected element is exactly the expected text.
-    ExactText(String, String),
+    ExactText(String, SelectorBuf),
     /// Assert that the selected element has visible text that is not blank.
-    NonEmptyText(String),
+    NonEmptyText(SelectorBuf),
 }
 
 /// A deferred assertion that did not hold.
@@ -90,11 +91,16 @@ impl std::fmt::Display for DeferredFailure {
 /// the browser is. [`BaseCase`] is the implementation; the seam lets the
 /// bookkeeping be tested without a browser.
 trait AssertTarget {
-    async fn assert_element(&mut self, css: &str) -> Result<(), SeleniumBaseError>;
-    async fn assert_element_present(&mut self, css: &str) -> Result<(), SeleniumBaseError>;
-    async fn assert_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError>;
-    async fn assert_exact_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError>;
-    async fn assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError>;
+    async fn assert_element(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError>;
+    async fn assert_element_present(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError>;
+    async fn assert_text(&mut self, text: &str, css: &SelectorBuf)
+        -> Result<(), SeleniumBaseError>;
+    async fn assert_exact_text(
+        &mut self,
+        text: &str,
+        css: &SelectorBuf,
+    ) -> Result<(), SeleniumBaseError>;
+    async fn assert_non_empty_text(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError>;
     async fn current_url(&mut self) -> Option<String>;
 }
 
@@ -102,7 +108,7 @@ trait AssertTarget {
 const DEFERRED_WAIT_SECS: u64 = 2;
 
 impl AssertTarget for BaseCase {
-    async fn assert_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    async fn assert_element(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> {
         BaseCase::wait_for_element_visible(self, css, DEFERRED_WAIT_SECS)
             .await
             .map_err(|error| match error {
@@ -113,7 +119,7 @@ impl AssertTarget for BaseCase {
             })
     }
 
-    async fn assert_element_present(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    async fn assert_element_present(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> {
         BaseCase::wait_for_element_present(self, css, DEFERRED_WAIT_SECS)
             .await
             .map_err(|error| match error {
@@ -124,17 +130,25 @@ impl AssertTarget for BaseCase {
             })
     }
 
-    async fn assert_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+    async fn assert_text(
+        &mut self,
+        text: &str,
+        css: &SelectorBuf,
+    ) -> Result<(), SeleniumBaseError> {
         self.assert_shown_text(text, css, TextMatch::Contains, DEFERRED_WAIT_SECS)
             .await
     }
 
-    async fn assert_exact_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+    async fn assert_exact_text(
+        &mut self,
+        text: &str,
+        css: &SelectorBuf,
+    ) -> Result<(), SeleniumBaseError> {
         self.assert_shown_text(text, css, TextMatch::Exact, DEFERRED_WAIT_SECS)
             .await
     }
 
-    async fn assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+    async fn assert_non_empty_text(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> {
         BaseCase::wait_for_non_empty_text(self, css, DEFERRED_WAIT_SECS)
             .await
             .map_err(|error| match error {
@@ -163,7 +177,8 @@ impl DeferredAsserts {
     ///
     /// It runs in [`process`](Self::process), on the page that is open then.
     /// See [`check_element`](Self::check_element) to check the current page.
-    pub fn add_element(&mut self, css: &str) {
+    pub fn add_element(&mut self, selector: impl Into<SelectorBuf>) {
+        let css: &SelectorBuf = &selector.into();
         self.items.push(DeferredAssert::Element(css.to_owned()));
     }
 
@@ -171,7 +186,8 @@ impl DeferredAsserts {
     ///
     /// It runs in [`process`](Self::process), on the page that is open then.
     /// See [`check_text`](Self::check_text) to check the current page.
-    pub fn add_text(&mut self, text: &str, css: &str) {
+    pub fn add_text(&mut self, text: &str, selector: impl Into<SelectorBuf>) {
+        let css: &SelectorBuf = &selector.into();
         self.items
             .push(DeferredAssert::Text(text.to_owned(), css.to_owned()));
     }
@@ -180,7 +196,8 @@ impl DeferredAsserts {
     ///
     /// It runs in [`process`](Self::process), on the page that is open then.
     /// See [`check_element_present`](Self::check_element_present).
-    pub fn add_element_present(&mut self, css: &str) {
+    pub fn add_element_present(&mut self, selector: impl Into<SelectorBuf>) {
+        let css: &SelectorBuf = &selector.into();
         self.items
             .push(DeferredAssert::ElementPresent(css.to_owned()));
     }
@@ -189,7 +206,8 @@ impl DeferredAsserts {
     ///
     /// It runs in [`process`](Self::process), on the page that is open then.
     /// See [`check_exact_text`](Self::check_exact_text).
-    pub fn add_exact_text(&mut self, text: &str, css: &str) {
+    pub fn add_exact_text(&mut self, text: &str, selector: impl Into<SelectorBuf>) {
+        let css: &SelectorBuf = &selector.into();
         self.items
             .push(DeferredAssert::ExactText(text.to_owned(), css.to_owned()));
     }
@@ -198,7 +216,8 @@ impl DeferredAsserts {
     ///
     /// It runs in [`process`](Self::process), on the page that is open then.
     /// See [`check_non_empty_text`](Self::check_non_empty_text).
-    pub fn add_non_empty_text(&mut self, css: &str) {
+    pub fn add_non_empty_text(&mut self, selector: impl Into<SelectorBuf>) {
+        let css: &SelectorBuf = &selector.into();
         self.items
             .push(DeferredAssert::NonEmptyText(css.to_owned()));
     }
@@ -207,7 +226,12 @@ impl DeferredAsserts {
     ///
     /// A failure is recorded, with the page's URL, rather than returned.
     /// Returns whether the check held.
-    pub async fn check_element(&mut self, sb: &mut BaseCase, css: &str) -> bool {
+    pub async fn check_element(
+        &mut self,
+        sb: &mut BaseCase,
+        selector: impl Into<SelectorBuf>,
+    ) -> bool {
+        let css: &SelectorBuf = &selector.into();
         self.run_element(sb, css).await
     }
 
@@ -215,7 +239,13 @@ impl DeferredAsserts {
     ///
     /// A failure is recorded, with the page's URL, rather than returned.
     /// Returns whether the check held.
-    pub async fn check_text(&mut self, sb: &mut BaseCase, text: &str, css: &str) -> bool {
+    pub async fn check_text(
+        &mut self,
+        sb: &mut BaseCase,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> bool {
+        let css: &SelectorBuf = &selector.into();
         self.run_text(sb, text, css).await
     }
 
@@ -223,7 +253,12 @@ impl DeferredAsserts {
     ///
     /// A failure is recorded, with the page's URL, rather than returned.
     /// Returns whether the check held.
-    pub async fn check_element_present(&mut self, sb: &mut BaseCase, css: &str) -> bool {
+    pub async fn check_element_present(
+        &mut self,
+        sb: &mut BaseCase,
+        selector: impl Into<SelectorBuf>,
+    ) -> bool {
+        let css: &SelectorBuf = &selector.into();
         self.run_element_present(sb, css).await
     }
 
@@ -231,7 +266,13 @@ impl DeferredAsserts {
     ///
     /// A failure is recorded, with the page's URL, rather than returned.
     /// Returns whether the check held.
-    pub async fn check_exact_text(&mut self, sb: &mut BaseCase, text: &str, css: &str) -> bool {
+    pub async fn check_exact_text(
+        &mut self,
+        sb: &mut BaseCase,
+        text: &str,
+        selector: impl Into<SelectorBuf>,
+    ) -> bool {
+        let css: &SelectorBuf = &selector.into();
         self.run_exact_text(sb, text, css).await
     }
 
@@ -239,7 +280,12 @@ impl DeferredAsserts {
     ///
     /// A failure is recorded, with the page's URL, rather than returned.
     /// Returns whether the check held.
-    pub async fn check_non_empty_text(&mut self, sb: &mut BaseCase, css: &str) -> bool {
+    pub async fn check_non_empty_text(
+        &mut self,
+        sb: &mut BaseCase,
+        selector: impl Into<SelectorBuf>,
+    ) -> bool {
+        let css: &SelectorBuf = &selector.into();
         self.run_non_empty_text(sb, css).await
     }
 
@@ -276,7 +322,7 @@ impl DeferredAsserts {
         self.report()
     }
 
-    async fn run_element(&mut self, page: &mut impl AssertTarget, css: &str) -> bool {
+    async fn run_element(&mut self, page: &mut impl AssertTarget, css: &SelectorBuf) -> bool {
         match page.assert_element(css).await {
             Ok(()) => true,
             Err(error) => {
@@ -286,7 +332,12 @@ impl DeferredAsserts {
         }
     }
 
-    async fn run_text(&mut self, page: &mut impl AssertTarget, text: &str, css: &str) -> bool {
+    async fn run_text(
+        &mut self,
+        page: &mut impl AssertTarget,
+        text: &str,
+        css: &SelectorBuf,
+    ) -> bool {
         match page.assert_text(text, css).await {
             Ok(()) => true,
             Err(error) => {
@@ -296,7 +347,11 @@ impl DeferredAsserts {
         }
     }
 
-    async fn run_element_present(&mut self, page: &mut impl AssertTarget, css: &str) -> bool {
+    async fn run_element_present(
+        &mut self,
+        page: &mut impl AssertTarget,
+        css: &SelectorBuf,
+    ) -> bool {
         match page.assert_element_present(css).await {
             Ok(()) => true,
             Err(error) => {
@@ -310,7 +365,7 @@ impl DeferredAsserts {
         &mut self,
         page: &mut impl AssertTarget,
         text: &str,
-        css: &str,
+        css: &SelectorBuf,
     ) -> bool {
         match page.assert_exact_text(text, css).await {
             Ok(()) => true,
@@ -321,7 +376,11 @@ impl DeferredAsserts {
         }
     }
 
-    async fn run_non_empty_text(&mut self, page: &mut impl AssertTarget, css: &str) -> bool {
+    async fn run_non_empty_text(
+        &mut self,
+        page: &mut impl AssertTarget,
+        css: &SelectorBuf,
+    ) -> bool {
         match page.assert_non_empty_text(css).await {
             Ok(()) => true,
             Err(error) => {
@@ -400,10 +459,10 @@ mod tests {
             }
         }
 
-        fn text_of(&self, css: &str) -> Option<&'static str> {
+        fn text_of(&self, css: &SelectorBuf) -> Option<&'static str> {
             self.elements()
                 .iter()
-                .find(|(selector, _)| *selector == css)
+                .find(|(selector, _)| *selector == css.as_str())
                 .map(|(_, text)| *text)
         }
 
@@ -416,29 +475,32 @@ mod tests {
     }
 
     impl AssertTarget for FakePage {
-        async fn assert_element(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        async fn assert_element(&mut self, css: &SelectorBuf) -> Result<(), SeleniumBaseError> {
             self.log.push(format!("element {css} on {}", self.url));
-            if self.text_of(css).is_some() && !self.hidden.contains(&css) {
+            if self.text_of(css).is_some() && !self.hidden.contains(&css.as_str()) {
                 Ok(())
             } else {
-                Err(SeleniumBaseError::element_not_found(css))
+                Err(SeleniumBaseError::element_not_found(css.to_string()))
             }
         }
 
-        async fn assert_element_present(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        async fn assert_element_present(
+            &mut self,
+            css: &SelectorBuf,
+        ) -> Result<(), SeleniumBaseError> {
             self.log
                 .push(format!("element present {css} on {}", self.url));
             if self.text_of(css).is_some() {
                 Ok(())
             } else {
-                Err(SeleniumBaseError::element_not_found(css))
+                Err(SeleniumBaseError::element_not_found(css.to_string()))
             }
         }
 
         async fn assert_exact_text(
             &mut self,
             text: &str,
-            css: &str,
+            css: &SelectorBuf,
         ) -> Result<(), SeleniumBaseError> {
             self.log
                 .push(format!("exact text {text} in {css} on {}", self.url));
@@ -450,11 +512,16 @@ mod tests {
             }
         }
 
-        async fn assert_non_empty_text(&mut self, css: &str) -> Result<(), SeleniumBaseError> {
+        async fn assert_non_empty_text(
+            &mut self,
+            css: &SelectorBuf,
+        ) -> Result<(), SeleniumBaseError> {
             self.log
                 .push(format!("non-empty text in {css} on {}", self.url));
             match self.text_of(css) {
-                Some(content) if !content.trim().is_empty() && !self.hidden.contains(&css) => {
+                Some(content)
+                    if !content.trim().is_empty() && !self.hidden.contains(&css.as_str()) =>
+                {
                     Ok(())
                 }
                 _ => Err(SeleniumBaseError::AssertionFailed(format!(
@@ -463,13 +530,17 @@ mod tests {
             }
         }
 
-        async fn assert_text(&mut self, text: &str, css: &str) -> Result<(), SeleniumBaseError> {
+        async fn assert_text(
+            &mut self,
+            text: &str,
+            css: &SelectorBuf,
+        ) -> Result<(), SeleniumBaseError> {
             self.log
                 .push(format!("text {text} in {css} on {}", self.url));
             match self
                 .elements()
                 .iter()
-                .find(|(selector, _)| *selector == css)
+                .find(|(selector, _)| *selector == css.as_str())
             {
                 Some((_, content)) if content.contains(text) => Ok(()),
                 _ => Err(SeleniumBaseError::AssertionFailed(format!(
@@ -489,13 +560,13 @@ mod tests {
         let mut deferred = DeferredAsserts::default();
 
         // On page A: #only-a is there, #only-b is not.
-        assert!(deferred.run_element(&mut page, "#only-a").await);
-        assert!(!deferred.run_element(&mut page, "#only-b").await);
+        assert!(deferred.run_element(&mut page, &"#only-a".into()).await);
+        assert!(!deferred.run_element(&mut page, &"#only-b".into()).await);
 
         // Then the test moves to page B, where it is the other way round.
         page.url = "https://b.test/";
-        assert!(deferred.run_element(&mut page, "#only-b").await);
-        assert!(!deferred.run_element(&mut page, "#only-a").await);
+        assert!(deferred.run_element(&mut page, &"#only-b".into()).await);
+        assert!(!deferred.run_element(&mut page, &"#only-a".into()).await);
 
         let failures = deferred.failures().to_vec();
         assert_eq!(failures.len(), 2);
@@ -531,10 +602,10 @@ mod tests {
     async fn the_report_lists_every_failure_with_its_page_and_then_clears() {
         let mut page = FakePage::new();
         let mut deferred = DeferredAsserts::default();
-        assert!(!deferred.run_element(&mut page, "#nope").await);
+        assert!(!deferred.run_element(&mut page, &"#nope".into()).await);
         page.url = "https://b.test/";
-        assert!(!deferred.run_text(&mut page, "Missing", "h1").await);
-        assert!(deferred.run_text(&mut page, "Other", "h1").await);
+        assert!(!deferred.run_text(&mut page, "Missing", &"h1".into()).await);
+        assert!(deferred.run_text(&mut page, "Other", &"h1".into()).await);
 
         let error = deferred.report().unwrap_err().to_string();
         assert!(error.contains("2 deferred assertion(s) failed:"), "{error}");
@@ -557,7 +628,7 @@ mod tests {
         deferred.add_element("h1");
         deferred.add_text("Welcome", "h1");
         deferred.run_queued(&mut page).await;
-        assert!(deferred.run_element(&mut page, "#only-a").await);
+        assert!(deferred.run_element(&mut page, &"#only-a".into()).await);
         assert!(deferred.report().is_ok());
     }
 
@@ -565,11 +636,19 @@ mod tests {
     async fn a_hidden_element_is_present_but_not_visible() {
         let mut page = FakePage::new();
         let mut deferred = DeferredAsserts::default();
-        assert!(deferred.run_element_present(&mut page, "#hidden").await);
+        assert!(
+            deferred
+                .run_element_present(&mut page, &"#hidden".into())
+                .await
+        );
         assert!(deferred.failures().is_empty());
-        assert!(!deferred.run_element(&mut page, "#hidden").await);
+        assert!(!deferred.run_element(&mut page, &"#hidden".into()).await);
         assert_eq!(deferred.failures().len(), 1);
-        assert!(!deferred.run_element_present(&mut page, "#nope").await);
+        assert!(
+            !deferred
+                .run_element_present(&mut page, &"#nope".into())
+                .await
+        );
         assert_eq!(deferred.failures().len(), 2);
     }
 
@@ -578,11 +657,19 @@ mod tests {
         let mut page = FakePage::new();
         let mut deferred = DeferredAsserts::default();
         // "Welcome" is part of "Welcome home", which a contains-check accepts.
-        assert!(!deferred.run_exact_text(&mut page, "Welcome", "#msg").await);
-        assert!(deferred.run_text(&mut page, "Welcome", "#msg").await);
+        assert!(
+            !deferred
+                .run_exact_text(&mut page, "Welcome", &"#msg".into())
+                .await
+        );
         assert!(
             deferred
-                .run_exact_text(&mut page, "Welcome home", "#msg")
+                .run_text(&mut page, "Welcome", &"#msg".into())
+                .await
+        );
+        assert!(
+            deferred
+                .run_exact_text(&mut page, "Welcome home", &"#msg".into())
                 .await
         );
         assert_eq!(deferred.failures().len(), 1, "{:?}", deferred.failures());
@@ -592,9 +679,17 @@ mod tests {
     async fn non_empty_text_fails_for_an_empty_or_hidden_element() {
         let mut page = FakePage::new();
         let mut deferred = DeferredAsserts::default();
-        assert!(deferred.run_non_empty_text(&mut page, "#msg").await);
-        assert!(!deferred.run_non_empty_text(&mut page, "#empty").await);
-        assert!(!deferred.run_non_empty_text(&mut page, "#hidden").await);
+        assert!(deferred.run_non_empty_text(&mut page, &"#msg".into()).await);
+        assert!(
+            !deferred
+                .run_non_empty_text(&mut page, &"#empty".into())
+                .await
+        );
+        assert!(
+            !deferred
+                .run_non_empty_text(&mut page, &"#hidden".into())
+                .await
+        );
         assert_eq!(deferred.failures().len(), 2, "{:?}", deferred.failures());
     }
 
