@@ -902,6 +902,8 @@
               "design/bon_builders",
               "design/settings_v2",
               "design/element_type",
+              "design/typed_selectors",
+
               "design/cookie_type",
               "design/driver_error",
               "design/network_throttle",

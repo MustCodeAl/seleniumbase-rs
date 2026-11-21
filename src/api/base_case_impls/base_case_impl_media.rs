@@ -30,11 +30,8 @@ impl BaseCase {
     /// Saves a screenshot of `css` to the logs directory.
     ///
     /// `filename` must be a plain file name, as for [`Self::save_screenshot`].
-    pub async fn save_element_as_image_file(
-        &mut self,
-        css: &str,
-        filename: &str,
-    ) -> Result<PathBuf, SeleniumBaseError> {
+    pub async fn save_element_as_image_file(&mut self, selector: impl Into<SelectorBuf>, filename: &str,) -> Result<PathBuf, SeleniumBaseError> {
+        let css: &SelectorBuf = &selector.into();
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
         let selector = shadow_find::checked(css)?;

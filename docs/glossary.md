@@ -1171,7 +1171,7 @@ See [Media queries](/concepts/mobile-and-accessibility#media-queries).
 
 <Badge color="green">Testing</Badge>
 
-Multi-factor authentication: a login that asks for a second proof, here usually a [TOTP](#totp) code. `enter_totp_code(css, secret)` types the code into a field and presses Enter.
+Multi-factor authentication: a login that asks for a second proof, here usually a [TOTP](#totp) code. `enter_totp_code(selector, secret)` types the code into a field and presses Enter.
 
 See [MFA / TOTP Guide](/tutorials/mfa_totp).
 
@@ -1653,7 +1653,7 @@ See [Selectors Guide](/tutorials/selectors).
 
 <Badge color="blue">Engine</Badge>
 
-The owned selector type of the pure CDP engine, the twin of the borrowed `Selector` that `BaseCase` uses. `SelectorBuf::css` and `xpath` state the kind outright, and `containing_text` finds elements by their text.
+The owned selector type, the twin of the borrowed `Selector`. Every selector parameter of `BaseCase`, `CdpDriver` and the pure CDP engine takes `impl Into<SelectorBuf>`: a string is read as a selector once, or a `SelectorBuf` states the kind outright (`SelectorBuf::css` and `xpath`), and `containing_text` finds elements by their text. `"#a".parse::<SelectorBuf>()` is the strict form for text from outside, which refuses an empty selector.
 
 See [Pure CDP](/tutorials/pure_cdp#locators).
 

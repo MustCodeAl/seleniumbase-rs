@@ -5,19 +5,19 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-## Latest release: v0.8.5
+## Latest release: v0.8.7
 
 <Columns cols={3}>
 
-<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.5">
-  v0.8.5 on GitHub.
+<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.7">
+  v0.8.7 on GitHub.
 </Card>
 
-<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.5.zip">
+<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.zip">
   The source of this release as a zip archive.
 </Card>
 
-<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.5.tar.gz">
+<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.tar.gz">
   The source of this release as a tarball.
 </Card>
 
@@ -26,12 +26,19 @@ Semantic Versioning.
 The releases publish no prebuilt binaries; install the command line from the tag:
 
 ```bash Terminal
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.5 seleniumbase-rs-cli
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 seleniumbase-rs-cli
 ```
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New"]}>
+<Update label="Unreleased" description="Next release" tags={[]}>
+
+
+</Update>
+
+<Update label="2026-11-20" description="v0.8.7" tags={["New"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.7) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.tar.gz)
 
 ### Added
 
@@ -189,6 +196,29 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.5 s
 
 
 ### Breaking
+
+- **Breaking: every selector parameter of `BaseCase`, `CdpDriver`, `CdpPage`, `BeautifulSoup`, `DeferredAsserts` and the `ElementApi` and
+  `AssertionApi` traits is `impl Into<SelectorBuf>` (it was `css: &str`).** A string still works
+  (`sb.click("#id")`, a `String`, a `&String`), and so does a `SelectorBuf` built with `css`, `xpath`,
+  `link_text` or `partial_link_text` to skip the guess, which a method now keeps instead of reading
+  the text again; `&&str` does not (it was an `&selector` where `selector: &str`). The parameter is
+  called `selector`. The internal helpers take `&SelectorBuf`, so a string is read as a selector
+  once per call. `SelectorBuf` gains `FromStr` (the strict form, which refuses an empty selector or
+  CSS that ends on `::shadow`: for an MCP argument, the command line, a saved file),
+  `Deserialize` (the mirror of `Serialize`: `{"kind": "css", "value": "a"}`), `as_str`, `check` (the one
+  place that rule is written) and `lookup_form`, `From<&SelectorBuf>`, and is `#[non_exhaustive]`, so a
+  kind can be added without a major version. A `:contains()` selector now keeps the text it was
+  written with (`Display`, the recorder and generated test code show it as written); the rewrite as
+  XPath happens in `lookup_form`, when an engine looks the element up, and applies to
+  `SelectorBuf::css("p:contains('x')")` too, which the engines used to send to the browser as CSS.
+  The `link_text`, `partial_link_text` and `text=` prefixes display as `link=` and `partial_link=`.
+  The MCP tools read the `selector` argument with `Args::selector`, so an empty selector is refused
+  at the argument; the wire format of every tool is unchanged.
+  `CdpPage` queries with `querySelector`, so it still finds only CSS; `BeautifulSoup` refuses any
+  other kind with `InvalidSelector`; `BaseCase::drag_and_drop`, `gui_drag_and_drop` and
+  `nested_click` take `source_selector`, `target_selector` and `parent_selector` as selectors too. `Browser::select_page` is unchanged: its argument
+  is a tab (a target id or part of a URL), not an element selector.
+
 
 - **Breaking: `BrowserConfig` is built with `BrowserConfig::builder()` and `into_builder()`.** The
   new hand-written type `BrowserConfigBuilder` (no bon) has one setter for each `with_*` method

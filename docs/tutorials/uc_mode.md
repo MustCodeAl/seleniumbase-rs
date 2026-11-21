@@ -180,7 +180,7 @@ let config = BrowserConfig::builder()
 
 ### Human-like input and fresh sessions
 
-`uc_click(css)` and `uc_type(css, text)` are aliases for `human_click` and
+`uc_click(selector)` and `uc_type(selector, text)` are aliases for `human_click` and
 `human_type`, which move and type with human-like timing. On the command line
 the same calls are `uc-click` and `uc-type`, and the page is the one `--url`
 opened:

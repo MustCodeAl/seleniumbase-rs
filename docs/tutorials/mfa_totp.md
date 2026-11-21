@@ -22,7 +22,7 @@ manual intervention.
 
 `totp_code(secret)` returns the code. Its aliases are `mfa_code` and `google_auth_code`.
 
-`enter_totp_code(css, secret)` types the code into a field and presses Enter. Its alias is `enter_mfa_code`.
+`enter_totp_code(selector, secret)` types the code into a field and presses Enter. Its alias is `enter_mfa_code`.
 
 RFC 6238 with HMAC-SHA1, a 30 second step and 6 digits.
 
@@ -77,7 +77,7 @@ async fn demo(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseErro
 
 <Tab title="One call" icon="bolt">
 
-`enter_totp_code(css, secret).await?` (alias `enter_mfa_code`) generates the code,
+`enter_totp_code(selector, secret).await?` (alias `enter_mfa_code`) generates the code,
 types it into the field and presses Enter, as Python's `enter_mfa_code` does, in
 one call:
 

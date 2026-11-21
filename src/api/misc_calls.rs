@@ -36,6 +36,7 @@ use crate::api::base_case::{BaseCase, CookieExpiry};
 use crate::api::call::CallFuture;
 use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
+use crate::utils::selectors::SelectorBuf;
 
 impl From<bool> for CookieExpiry {
     /// Python's `expiry=False` is [`CookieExpiry::Session`] and `expiry=True` is
@@ -152,8 +153,13 @@ impl<'a> IntoFuture for HoverAndClick<'a> {
                 kind,
                 timeout,
             } = self;
-            sb.run_hover_and_click(hover_selector, click_selector, kind, timeout)
-                .await
+            sb.run_hover_and_click(
+                &SelectorBuf::from(hover_selector),
+                &SelectorBuf::from(click_selector),
+                kind,
+                timeout,
+            )
+            .await
         })
     }
 }
@@ -212,7 +218,8 @@ impl<'a> IntoFuture for ClickNth<'a> {
                 timeout,
                 scroll,
             } = self;
-            sb.run_click_nth(selector, number, timeout, scroll).await
+            sb.run_click_nth(&SelectorBuf::from(selector), number, timeout, scroll)
+                .await
         })
     }
 }
@@ -261,7 +268,7 @@ impl<'a> IntoFuture for PressArrow<'a> {
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
             self.sb
-                .run_press_arrow(self.arrow, self.selector, self.times)
+                .run_press_arrow(self.arrow, &SelectorBuf::from(self.selector), self.times)
                 .await
         })
     }
@@ -350,7 +357,8 @@ impl<'a> IntoFuture for DragByOffset<'a> {
                 y,
                 timeout,
             } = self;
-            sb.run_drag_by_offset(selector, x, y, timeout).await
+            sb.run_drag_by_offset(&SelectorBuf::from(selector), x, y, timeout)
+                .await
         })
     }
 }
@@ -418,8 +426,14 @@ impl<'a> IntoFuture for WaitForAttribute<'a> {
                 timeout,
                 absent,
             } = self;
-            sb.run_wait_for_attribute(selector, attribute, value, timeout, absent)
-                .await
+            sb.run_wait_for_attribute(
+                &SelectorBuf::from(selector),
+                attribute,
+                value,
+                timeout,
+                absent,
+            )
+            .await
         })
     }
 }
@@ -464,7 +478,8 @@ impl<'a> IntoFuture for WaitForElement<'a> {
                 selector,
                 timeout,
             } = self;
-            sb.run_wait_for_element(selector, timeout).await
+            sb.run_wait_for_element(&SelectorBuf::from(selector), timeout)
+                .await
         })
     }
 }
@@ -520,7 +535,7 @@ impl<'a> IntoFuture for GetSelectOptions<'a> {
                 attribute,
                 timeout,
             } = self;
-            sb.run_get_select_options(selector, attribute, timeout)
+            sb.run_get_select_options(&SelectorBuf::from(selector), attribute, timeout)
                 .await
         })
     }
@@ -609,7 +624,7 @@ impl<'a> IntoFuture for ClickWithOffset<'a> {
                 double,
                 options,
             } = self;
-            sb.run_click_with_offset(selector, (x, y), double, options)
+            sb.run_click_with_offset(&SelectorBuf::from(selector), (x, y), double, options)
                 .await
         })
     }

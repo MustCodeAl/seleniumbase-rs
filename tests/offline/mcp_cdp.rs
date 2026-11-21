@@ -486,6 +486,26 @@ async fn an_argument_of_the_wrong_type_is_rejected_not_coerced() {
 }
 
 #[test_log::test(tokio::test)]
+async fn an_empty_selector_argument_is_refused_at_the_argument() {
+    let dir = tempfile::tempdir().unwrap();
+    let (host, mock) = running(dir.path()).await;
+    let asked = mock.calls_to("Runtime.evaluate").len();
+
+    for selector in ["", "   ", "my-app ::shadow"] {
+        let error = call(&host, "click_element", json!({ "selector": selector }))
+            .await
+            .unwrap_err();
+
+        assert!(
+            matches!(&error, ToolError::InvalidArgument { name, .. } if name == "selector"),
+            "{selector:?}: {error}"
+        );
+    }
+    // The page was not asked anything: the argument was refused first.
+    assert_eq!(mock.calls_to("Runtime.evaluate").len(), asked);
+}
+
+#[test_log::test(tokio::test)]
 async fn reload_bypasses_the_cache() {
     let dir = tempfile::tempdir().unwrap();
     let (host, mock) = running(dir.path()).await;

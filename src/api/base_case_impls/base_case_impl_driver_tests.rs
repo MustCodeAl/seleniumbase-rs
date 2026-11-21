@@ -73,7 +73,7 @@ mod tests_page_scripts {
 
     /// Text a test case or a page could hold, each of which breaks a script
     /// that pastes it between quotes or lets it end the literal.
-    const HOSTILE: &[&str] = &[
+    const HOSTILE: [&str; 8] = [
         "a[title='x']",
         "x'); alert(1); ('",
         r#"say "hi" and C:\dir\new"#,

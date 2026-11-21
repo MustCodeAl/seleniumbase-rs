@@ -80,12 +80,12 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
 }
 
 async fn find_elements(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector("selector")?;
     let timeout = args.seconds_or("timeout", 0.5)?;
     let include_html = args.bool_or("include_html", false)?;
     let session = ctx.session().await?;
 
-    let found = session.page.locator(selector).with_timeout(timeout);
+    let found = session.page.locator(&selector).with_timeout(timeout);
     match found.wait_for(State::Present).await {
         Ok(()) => {}
         Err(error) if is_missing(&error) => {
@@ -109,12 +109,12 @@ async fn find_elements(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
 }
 
 async fn get_content(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str_or("selector", "body")?;
+    let selector = args.selector_or("selector", "body")?;
     let format = args.choice("output_format", &["text", "html", "urls"], "text")?;
     let timeout = args.seconds_or("timeout", 5.0)?;
     let session = ctx.session().await?;
 
-    let element = session.page.locator(selector).with_timeout(timeout);
+    let element = session.page.locator(&selector).with_timeout(timeout);
     match format {
         "text" => Ok(element.text().await?.into()),
         "html" => Ok(element.html().await?.into()),
@@ -123,10 +123,10 @@ async fn get_content(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
 }
 
 async fn get_attributes(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
-    let selector = args.str("selector")?;
+    let selector = args.selector("selector")?;
     let timeout = args.seconds_or("timeout", 5.0)?;
     let session = ctx.session().await?;
-    let element = session.page.locator(selector).with_timeout(timeout);
+    let element = session.page.locator(&selector).with_timeout(timeout);
 
     match nonempty(&args, "attribute")? {
         Some(name) => Ok(Output::Json(
@@ -141,10 +141,10 @@ async fn get_attributes(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> 
 
 async fn check_if_condition(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     let check = args.choice("check", &["present", "visible"], "visible")?;
-    let selector = args.str_or("selector", "body")?;
+    let selector = args.selector_or("selector", "body")?;
     let text = nonempty(&args, "text")?;
     let session = ctx.session().await?;
-    let element = session.page.locator(selector).with_timeout(NO_WAIT);
+    let element = session.page.locator(&selector).with_timeout(NO_WAIT);
 
     let answer = if let Some(text) = text {
         match element.text().await {
