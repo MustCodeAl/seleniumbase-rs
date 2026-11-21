@@ -60,6 +60,34 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   The command runs only with `--run`; `--dry-run` writes and runs nothing; `--client NAME`
   limits the clients. See [the MCP server tutorial](/tutorials/mcp_server#upgrade).
 
+### Breaking
+
+- **A `bool` parameter whose meaning is not clear at the call site is a two-variant enum, and a
+  file name is an `impl AsRef<Path>`** (finding F9 of the API guidelines audit). The enums:
+  `AddonLifetime::{Temporary, Permanent}` for the `temporary: bool` of `BaseCase::install_addon`
+  (in `api::base_case`); `ChartLibs::{Include, Omit}` for the `include_libs: bool` of
+  `Chart::to_html`; `SpeakerNotes::{Hidden, Shown}` for the `show_notes: bool` of
+  `Presentation::to_html`, `save` and `save_in`, and `EndMarker::{Omit, Add}` for the
+  `end_marker: bool` of `Presentation::to_html` (in `api::presentation`);
+  `CodeSignature::{Keep, Resign}` for the `resign: bool` of `driver_access::make_runnable`;
+  `Overwrite::{Refuse, Replace}` for the `force: bool` of `sb_convert::convert`;
+  `OffsetFrom::{TopLeft, Center}` for the `center: bool` of `Locator::click_with_offset` (in
+  `sb_cdp`; a generated pure CDP script imports it); and the existing `DriverMode` for the
+  `uc: bool` of `ActionRecorder::from_raw_actions`, `to_rstest_test` and `to_gherkin_scenario`,
+  of `recorder::to_actions` and for `RecordingOptions::uc`, which is now `mode`: `DriverMode::Uc`
+  writes Python's `--uc` output and any other mode the plain one. Switches of builders
+  (`headless(true)`, `.show_notes(true)`) stay `bool`. The paths: `path_of_downloaded_file`,
+  `is_downloaded_file_present`, `data_from_downloaded_file`, `assert_data_in_downloaded_file`,
+  `assert_downloaded_file`, `delete_downloaded_file`, `delete_downloaded_file_if_present`,
+  `download_file_in_browser`, `append_data_to_file`, `save_data_as`, `save_screenshot`,
+  `save_as_pdf_to_logs`, `save_element_as_image_file`, `file_data`, `save_page_source`,
+  `save_as_html`, `save_recording_json`, `print_to_pdf`, `save_as_pdf`, `pdf_text`,
+  `assert_pdf_text`, `load_html_file`, `open_html_file`, `choose_file` and `install_addon` of
+  `BaseCase`, `Presentation::save` and `save_in`, `Chart::save_in` and
+  `sb_print::print_file` take `impl AsRef<Path>` instead of `&str`; so do the file names of
+  `artifacts::bare_file_name` and `confined_path`. A string still works, and a name that must be
+  plain is still refused when it has a directory part.
+
 </Update>
 
 <Update label="2026-11-20" description="v0.8.7" tags={["New"]}>
