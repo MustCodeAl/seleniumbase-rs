@@ -260,6 +260,7 @@ Signature algorithms in wire order; empty when the extension is absent.
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[non_exhaustive]
 pub enum Ja4Order {
     Sorted,
     Original,
@@ -333,6 +334,7 @@ code (2 to 3), the SNI letter (4), the cipher count (5 to 6), the extension coun
 
 ```rust
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum Ja4Section {
     A,
     Ciphers,

@@ -16,7 +16,7 @@ How a clearance stays with the address that earned it is on [Identity and cookie
 use seleniumbase_rs_stealth::scrape::{CountryCode, RedactedUrl, ScrapeError};
 
 fn main() -> Result<(), ScrapeError> {
-    let de = CountryCode::new("DE")?;
+    let de = CountryCode::try_new("DE")?;
     let shown = RedactedUrl::new("https://user:secret@example.com/a?token=1");
     println!("{} {shown}", de.as_str());
     Ok(())
@@ -59,12 +59,12 @@ An ISO 3166-1 alpha-2 country code, upper case. Only a valid one can be built.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn new(code: &str) -> Result<Self, GeoError>
+pub fn try_new(code: &str) -> Result<Self, GeoError>
 pub fn as_str(&self) -> &str
 ```
 
 
-- `new`: Validates a two-letter code and upper-cases it.
+- `try_new`: Validates a two-letter code and upper-cases it.
 - `as_str`: The code as text, such as `DE`.
 
 ### `GeoError`
