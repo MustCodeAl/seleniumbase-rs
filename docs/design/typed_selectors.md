@@ -205,6 +205,13 @@ meaning). In this lane: all of them except the four `uc` sites, which are in the
 `lane/recorder-cmd`; those go in a follow-up commit once it has landed (`DriverMode` is what that
 lane's typed command should hold anyway).
 
+**Done (2026-11-21, lane `api-bools-paths`):** the nine sites are enums (`AddonLifetime`,
+`ChartLibs`, `SpeakerNotes` with `EndMarker`, `CodeSignature`, `Overwrite`, `OffsetFrom`, and the
+existing `DriverMode` for the four `uc` sites and for `RecordingOptions::uc`, which is now `mode`).
+Only `DriverMode::Uc` writes Python's `--uc` output. The `GeneratedFile` alias and every other `bool`
+parameter stay as they were.
+
+
 ### Paths to `impl AsRef<Path>` (29 sites; the audit's `file_path`/`path` count needed this review)
 
 `filename: &str`, `path: &str` or `file_path: &str` parameters, found by the same rule, minus the
@@ -226,6 +233,12 @@ path; the parameter is still `impl AsRef<Path>` (C-GENERIC, M-IMPL-ASREF), and t
 resolves under that folder, as today. Return types stay `PathBuf`. All 29 are in this lane, as a
 separate commit in the pass over each file, because the files are the ones the selector phases visit
 (one visit per file, two commits).
+
+**Done (2026-11-21, lane `api-bools-paths`):** the 29 file-name parameters take `impl AsRef<Path>`;
+`artifacts::bare_file_name` and `confined_path` take a string or a path, so the check for a plain name
+is written once. The `&Path` parameters beside them (`make_runnable`, `convert`, the `folder` of
+`save_in`) stay `&Path`.
+
 
 ## 5. Wire formats stay unchanged
 
