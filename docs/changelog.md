@@ -31,14 +31,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={[]}>
-
-
-</Update>
-
-<Update label="2026-11-20" description="v0.8.7" tags={["New"]}>
-
-**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.7) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.tar.gz)
+<Update label="Unreleased" description="Next release" tags={["New"]}>
 
 ### Added
 
@@ -67,6 +60,14 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   The command runs only with `--run`; `--dry-run` writes and runs nothing; `--client NAME`
   limits the clients. See [the MCP server tutorial](/tutorials/mcp_server#upgrade).
 
+</Update>
+
+<Update label="2026-11-20" description="v0.8.7" tags={["New"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.7) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.tar.gz)
+
+### Added
+
 - **Man pages**: `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1`, written by usage from the same
   specs as the completions and the CLI reference (`crates/cli/src/man.rs`), with one section for
   every command. `sbrs completions man` prints the first, so an installed binary can write its own
@@ -89,6 +90,42 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 - The command line is built on usage 7.4 (`usage-rs` and `usage-lib`) and `usage-dynamic` 7.4
   (the same release train; usage-dynamic 6 is built on usage-rs 6). `sbrs completions zsh` prints usage's own script: 7.4 gives a complete word zsh's space itself, so the patch is gone (the PowerShell one stays).
+
+### Breaking
+
+- **Breaking: every selector parameter of `BaseCase`, `CdpDriver`, `CdpPage`, `BeautifulSoup`, `DeferredAsserts` and the `ElementApi` and
+  `AssertionApi` traits is `impl Into<SelectorBuf>` (it was `css: &str`).** A string still works
+  (`sb.click("#id")`, a `String`, a `&String`), and so does a `SelectorBuf` built with `css`, `xpath`,
+  `link_text` or `partial_link_text` to skip the guess, which a method now keeps instead of reading
+  the text again; `&&str` does not (it was an `&selector` where `selector: &str`). The parameter is
+  called `selector`. The internal helpers take `&SelectorBuf`, so a string is read as a selector
+  once per call. `SelectorBuf` gains `FromStr` (the strict form, which refuses an empty selector or
+  CSS that ends on `::shadow`: for an MCP argument, the command line, a saved file),
+  `Deserialize` (the mirror of `Serialize`: `{"kind": "css", "value": "a"}`), `as_str`, `check` (the one
+  place that rule is written) and `lookup_form`, `From<&SelectorBuf>`, and is `#[non_exhaustive]`, so a
+  kind can be added without a major version. A `:contains()` selector now keeps the text it was
+  written with (`Display`, the recorder and generated test code show it as written); the rewrite as
+  XPath happens in `lookup_form`, when an engine looks the element up, and applies to
+  `SelectorBuf::css("p:contains('x')")` too, which the engines used to send to the browser as CSS.
+  The `link_text`, `partial_link_text` and `text=` prefixes display as `link=` and `partial_link=`.
+  The MCP tools read the `selector` argument with `Args::selector`, so an empty selector is refused
+  at the argument; the wire format of every tool is unchanged.
+  `CdpPage` queries with `querySelector`, so it still finds only CSS; `BeautifulSoup` refuses any
+  other kind with `InvalidSelector`; `BaseCase::drag_and_drop`, `gui_drag_and_drop` and
+  `nested_click` take `source_selector`, `target_selector` and `parent_selector` as selectors too. `Browser::select_page` is unchanged: its argument
+  is a tab (a target id or part of a URL), not an element selector.
+
+</Update>
+
+<Update label="2026-11-20" description="v0.8.6" tags={["Fix"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.6) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.6.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.6.tar.gz)
+
+### Fixed
+
+- The `turso` feature builds again: `ResultStore` and `ProfileVault` read rows with turso's
+  `Row::get_value`, a third-party call that the `get_` drop of 0.8.5 had renamed. The gate now
+  checks `allure`, `tui`, `plugins` and `turso` too.
 
 </Update>
 
@@ -196,29 +233,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 
 ### Breaking
-
-- **Breaking: every selector parameter of `BaseCase`, `CdpDriver`, `CdpPage`, `BeautifulSoup`, `DeferredAsserts` and the `ElementApi` and
-  `AssertionApi` traits is `impl Into<SelectorBuf>` (it was `css: &str`).** A string still works
-  (`sb.click("#id")`, a `String`, a `&String`), and so does a `SelectorBuf` built with `css`, `xpath`,
-  `link_text` or `partial_link_text` to skip the guess, which a method now keeps instead of reading
-  the text again; `&&str` does not (it was an `&selector` where `selector: &str`). The parameter is
-  called `selector`. The internal helpers take `&SelectorBuf`, so a string is read as a selector
-  once per call. `SelectorBuf` gains `FromStr` (the strict form, which refuses an empty selector or
-  CSS that ends on `::shadow`: for an MCP argument, the command line, a saved file),
-  `Deserialize` (the mirror of `Serialize`: `{"kind": "css", "value": "a"}`), `as_str`, `check` (the one
-  place that rule is written) and `lookup_form`, `From<&SelectorBuf>`, and is `#[non_exhaustive]`, so a
-  kind can be added without a major version. A `:contains()` selector now keeps the text it was
-  written with (`Display`, the recorder and generated test code show it as written); the rewrite as
-  XPath happens in `lookup_form`, when an engine looks the element up, and applies to
-  `SelectorBuf::css("p:contains('x')")` too, which the engines used to send to the browser as CSS.
-  The `link_text`, `partial_link_text` and `text=` prefixes display as `link=` and `partial_link=`.
-  The MCP tools read the `selector` argument with `Args::selector`, so an empty selector is refused
-  at the argument; the wire format of every tool is unchanged.
-  `CdpPage` queries with `querySelector`, so it still finds only CSS; `BeautifulSoup` refuses any
-  other kind with `InvalidSelector`; `BaseCase::drag_and_drop`, `gui_drag_and_drop` and
-  `nested_click` take `source_selector`, `target_selector` and `parent_selector` as selectors too. `Browser::select_page` is unchanged: its argument
-  is a tab (a target id or part of a URL), not an element selector.
-
 
 - **Breaking: `BrowserConfig` is built with `BrowserConfig::builder()` and `into_builder()`.** The
   new hand-written type `BrowserConfigBuilder` (no bon) has one setter for each `with_*` method
