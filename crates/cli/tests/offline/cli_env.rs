@@ -520,6 +520,54 @@ fn a_command_with_a_url_of_its_own_refuses_a_start_page_on_the_command_line() {
     assert_eq!(navigations(&run), ["https://example.test/"]);
 }
 
+/// The capabilities of the first new-session request the fake server got, as text.
+fn new_session(run: &Run) -> String {
+    run.driver
+        .requests()
+        .iter()
+        .find(|request| request.method == "POST" && request.path == "/session")
+        .map(|request| request.body.to_string())
+        .unwrap_or_default()
+}
+
+/// A variable is not a typed flag. Where the flags of one command line are checked against each
+/// other only what was typed counts, and a typed flag beats the variable. (This is why no flag
+/// declares usage's `env`, which fills the flag at the parse and so makes a variable look typed:
+/// see `no_flag_declares_env_because_the_settings_layers_read_the_variables` in `browser_flags`.)
+#[test]
+fn a_variable_conflicts_with_no_typed_flag_and_the_flag_beats_it() {
+    // Two flags that choose the browser are refused together ...
+    let twice = against_a_fake_server(&[], &["--browser", "chrome", "--firefox"], &OPEN);
+    assert_eq!(twice.output.status.code(), Some(2), "{}", twice.stderr());
+    assert!(
+        twice.driver.requests().is_empty(),
+        "no session was requested"
+    );
+
+    // ... but `--firefox` beside SB_BROWSER=chrome is a flag over a variable.
+    let flagged = against_a_fake_server(&[("SB_BROWSER", "chrome")], &["--firefox"], &OPEN);
+    assert!(flagged.output.status.success(), "{}", flagged.stderr());
+    let session = new_session(&flagged);
+    assert!(session.contains("moz:firefoxOptions"), "{session}");
+    assert!(!session.contains("goog:chromeOptions"), "{session}");
+
+    // `--webdriver` and `--server` are refused together ...
+    let both = against_a_fake_server(&[], &["--server", "grid.invalid:4444"], &OPEN);
+    assert_eq!(both.output.status.code(), Some(2), "{}", both.stderr());
+    assert!(
+        both.driver.requests().is_empty(),
+        "no session was requested"
+    );
+
+    // ... but SB_SERVER beside `--webdriver` is not: the flag names the server.
+    let variable = against_a_fake_server(&[("SB_SERVER", "grid.invalid:4444")], &[], &OPEN);
+    assert!(variable.output.status.success(), "{}", variable.stderr());
+    assert!(
+        !variable.driver.requests().is_empty(),
+        "--webdriver beats SB_SERVER"
+    );
+}
+
 #[test]
 fn a_command_that_changes_the_profile_needs_a_user_data_dir() {
     let run = against_a_fake_server(&[], &["--url", "https://x.test/"], &["clear-cookies"]);
