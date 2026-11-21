@@ -774,7 +774,7 @@ mod tests_pure_cdp {
 
         let version = sb.chromedriver_version().unwrap_err();
         let events = sb.session.cdp_events().await.unwrap_err();
-        let addon = sb.install_addon("dark-mode.xpi", true).await.unwrap_err();
+        let addon = sb.install_addon("dark-mode.xpi", AddonLifetime::Temporary).await.unwrap_err();
 
         for (error, method, alternative) in [
             (version, "chromedriver_version", "browser_version"),

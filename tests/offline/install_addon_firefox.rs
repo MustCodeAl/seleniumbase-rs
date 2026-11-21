@@ -25,6 +25,7 @@
 
 use std::path::Path;
 
+use seleniumbase_rs::api::base_case::AddonLifetime;
 use seleniumbase_rs::{BaseCase, Browser, BrowserConfig, SeleniumBaseError};
 
 /// The id the add-on below gives itself, and so the id geckodriver answers with.
@@ -71,14 +72,16 @@ async fn a_real_geckodriver_installs_and_removes_an_add_on() {
         .expect("geckodriver starts a Firefox session");
 
     // Refused here, before anything reaches geckodriver.
-    let missing = sb.install_addon("/no/such/addon.xpi", true).await;
+    let missing = sb
+        .install_addon("/no/such/addon.xpi", AddonLifetime::Temporary)
+        .await;
     assert!(
         matches!(missing, Err(SeleniumBaseError::InvalidConfig(_))),
         "{missing:?}"
     );
 
     let id = sb
-        .install_addon(&folder, true)
+        .install_addon(&folder, AddonLifetime::Temporary)
         .await
         .expect("geckodriver installs the add-on");
     assert_eq!(id, ADDON_ID);

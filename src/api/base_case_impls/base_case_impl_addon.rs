@@ -3,6 +3,19 @@
 // `base_case.rs` like the files beside it, so it takes that file's imports and
 // names everything else in full.
 
+/// How long a Firefox add-on stays installed: the choice
+/// [`BaseCase::install_addon`] passes to geckodriver.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum AddonLifetime {
+    /// Until the browser quits; the add-on may be unsigned. Python's
+    /// `install_addon(xpi_file)` installs it this way.
+    #[default]
+    Temporary,
+    /// Kept in the profile; Mozilla has to have signed the add-on.
+    Permanent,
+}
+
+
 /// geckodriver's add-on commands, which the W3C WebDriver standard does not have.
 ///
 /// `thirtyfour` has an install command, but it throws the add-on id away, and it
@@ -37,18 +50,18 @@ impl thirtyfour::common::command::FormatRequestData for GeckoAddonCommand {
 ///
 /// The add-on has to be an `.xpi` file or a directory, it has to exist, and the
 /// argument may not go up through `..`: the add-on is named from where it is.
-fn addon_path(path: &str) -> Result<String, SeleniumBaseError> {
-    use std::path::{Component, Path};
+fn addon_path(path: &Path) -> Result<String, SeleniumBaseError> {
+    use std::path::Component;
 
     let refuse =
         |why: &str| SeleniumBaseError::InvalidConfig(format!("the add-on path {path:?} {why}"));
-    if path.trim().is_empty() {
+    if path.to_string_lossy().trim().is_empty() {
         return Err(refuse("is empty"));
     }
-    if path.contains('\0') {
+    if path.to_string_lossy().contains('\0') {
         return Err(refuse("has a NUL character in it"));
     }
-    let given = Path::new(path);
+    let given = path;
     if given
         .components()
         .any(|part| matches!(part, Component::ParentDir))
@@ -84,8 +97,8 @@ impl BaseCase {
     /// `path` is an `.xpi` file or a directory that holds an unpacked add-on (a
     /// `manifest.json` and what it names). It is sent to geckodriver as an
     /// absolute path, so geckodriver has to run on the machine that holds the
-    /// file. A `temporary` add-on lasts until the browser quits and may be
-    /// unsigned; one that is not temporary has to be signed by Mozilla.
+    /// file. A [`Temporary`](AddonLifetime::Temporary) add-on lasts until the browser quits and may be
+    /// unsigned; a [`Permanent`](AddonLifetime::Permanent) one has to be signed by Mozilla.
     ///
     /// # Errors
     ///
@@ -100,8 +113,11 @@ impl BaseCase {
     /// # Examples
     ///
     /// ```no_run
+    /// use seleniumbase_rs::api::base_case::AddonLifetime;
+    ///
+
     /// # async fn demo(sb: &seleniumbase_rs::BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-    /// let id = sb.install_addon("addons/dark-mode.xpi", true).await?;
+    /// let id = sb.install_addon("addons/dark-mode.xpi", AddonLifetime::Temporary).await?;
     /// // ... drive the page with the add-on in place ...
     /// sb.uninstall_addon(&id).await?;
     /// # Ok(())
@@ -109,13 +125,13 @@ impl BaseCase {
     /// ```
     pub async fn install_addon(
         &self,
-        path: &str,
-        temporary: bool,
+        path: impl AsRef<Path>,
+        lifetime: AddonLifetime,
     ) -> Result<String, SeleniumBaseError> {
         self.require_firefox("install_addon")?;
-        let path = addon_path(path)?;
+        let path = addon_path(path.as_ref())?;
         let reply = self.session.webdriver()?
-            .cmd(GeckoAddonCommand::Install { path, temporary })
+            .cmd(GeckoAddonCommand::Install { path, temporary: lifetime == AddonLifetime::Temporary })
             .await?;
         Ok(reply.value::<String>()?)
     }
@@ -211,7 +227,7 @@ mod tests_addon {
         let dir = tempfile::tempdir().unwrap();
         let file = xpi(&dir, "my-addon.xpi");
 
-        let id = sb.install_addon(&file, true).await.expect("installs");
+        let id = sb.install_addon(&file, AddonLifetime::Temporary).await.expect("installs");
 
         assert_eq!(id, ADDON_ID);
         let sent = driver.requests("/moz/addon/install");
@@ -227,7 +243,7 @@ mod tests_addon {
         let dir = tempfile::tempdir().unwrap();
         let file = xpi(&dir, "signed.XPI");
 
-        sb.install_addon(&file, false).await.expect("installs");
+        sb.install_addon(&file, AddonLifetime::Permanent).await.expect("installs");
 
         let sent = driver.requests("/moz/addon/install");
         assert_eq!(sent[0].body, json!({ "path": file, "temporary": false }));
@@ -241,7 +257,7 @@ mod tests_addon {
         std::fs::write(dir.path().join("manifest.json"), b"{}").unwrap();
         let folder = dir.path().to_str().unwrap().to_owned();
 
-        sb.install_addon(&folder, true).await.expect("installs");
+        sb.install_addon(&folder, AddonLifetime::Temporary).await.expect("installs");
 
         let sent = driver.requests("/moz/addon/install");
         assert_eq!(sent[0].body, json!({ "path": folder, "temporary": true }));
@@ -268,8 +284,7 @@ mod tests_addon {
         let dir = tempfile::tempdir().unwrap();
         let file = xpi(&dir, "my-addon.xpi");
 
-        let install = sb
-            .install_addon(&file, true)
+        let install = sb.install_addon(&file, AddonLifetime::Temporary)
             .await
             .expect_err("not Firefox");
         let uninstall = sb.uninstall_addon(ADDON_ID).await.expect_err("not Firefox");
@@ -306,8 +321,7 @@ mod tests_addon {
             ("my-addon\0.xpi", "NUL"),
         ];
         for (path, why) in refused {
-            let error = sb
-                .install_addon(path, true)
+            let error = sb.install_addon(path, AddonLifetime::Temporary)
                 .await
                 .expect_err(&format!("{path:?} ({why}) is refused"));
             assert!(
@@ -316,7 +330,7 @@ mod tests_addon {
             );
         }
         // The one that is fine is not refused for being near the others.
-        sb.install_addon(&file, true).await.expect("installs");
+        sb.install_addon(&file, AddonLifetime::Temporary).await.expect("installs");
         assert_eq!(addon_requests(&driver), ["POST /moz/addon/install"]);
     }
 
@@ -344,7 +358,7 @@ mod tests_addon {
         let dir = tempfile::tempdir().unwrap();
         let file = xpi(&dir, "broken.xpi");
 
-        let install = sb.install_addon(&file, true).await.expect_err("refused");
+        let install = sb.install_addon(&file, AddonLifetime::Temporary).await.expect_err("refused");
         let uninstall = sb
             .uninstall_addon("gone@example.org")
             .await
@@ -388,7 +402,7 @@ mod tests_addon {
     #[test]
     fn a_relative_path_is_sent_as_an_absolute_one() {
         // A unit test runs in the package root, which has a `src` folder.
-        let path = addon_path("src").expect("a folder is an add-on location");
+        let path = addon_path(std::path::Path::new("src")).expect("a folder is an add-on location");
         assert!(std::path::Path::new(&path).is_absolute(), "{path}");
         assert!(path.ends_with("src"), "{path}");
     }
