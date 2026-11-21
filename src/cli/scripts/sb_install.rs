@@ -9,7 +9,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-use crate::browser::binaries::{downloaded_executable, locate, CHROMIUM_DIR, DOWNLOADS_DIR};
+use crate::browser::binaries::{
+    downloaded_executable, locate, Platform, CHROMIUM_DIR, DOWNLOADS_DIR,
+};
 use crate::browser::chrome_for_testing::{
     install_chrome_for_testing, install_chrome_headless_shell, install_chromedriver,
 };
@@ -235,7 +237,7 @@ pub async fn install(request: &InstallRequest) -> Result<Installed, SeleniumBase
     // The folder is settled before anything is downloaded, so a wrong setting costs no download.
     let target = if request.copy_to_path {
         {
-            let dir = path_target_dir(&|name| std::env::var(name).ok(), cfg!(windows))?;
+            let dir = path_target_dir(&|name| std::env::var(name).ok(), Platform::current())?;
             check_path_folder(&dir)?;
             Some(dir)
         }
@@ -442,21 +444,21 @@ fn check_path_folder(dir: &Path) -> Result<(), SeleniumBaseError> {
 }
 
 /// Where `--path` copies a driver: the folder named by [`PATH_DIR_VARIABLE`], else
-/// `/usr/local/bin`. `env` looks a variable up; `windows` says whether the system is Windows,
-/// where there is no such default.
+/// `/usr/local/bin`. `env` looks a variable up; `platform` is the system the program runs on
+/// ([`Platform::current`]; `None` for one that is none of the three). Only Windows has no default.
 ///
 /// # Errors
 ///
 /// Returns an error on Windows when the variable is not set.
 pub fn path_target_dir(
     env: &dyn Fn(&str) -> Option<String>,
-    windows: bool,
+    platform: Option<Platform>,
 ) -> Result<PathBuf, SeleniumBaseError> {
     match env(PATH_DIR_VARIABLE).filter(|dir| !dir.trim().is_empty()) {
         Some(dir) => Ok(PathBuf::from(dir)),
-        None if windows => Err(SeleniumBaseError::invalid_config(format!(
-            "--path needs {PATH_DIR_VARIABLE} on Windows"
-        ))),
+        None if platform == Some(Platform::Windows) => Err(SeleniumBaseError::invalid_config(
+            format!("--path needs {PATH_DIR_VARIABLE} on Windows"),
+        )),
         None => Ok(PathBuf::from(UNIX_PATH_DIR)),
     }
 }
@@ -807,23 +809,25 @@ mod tests {
         let blank = |name: &str| (name == PATH_DIR_VARIABLE).then(|| "  ".to_owned());
         let unset = |_: &str| None::<String>;
         assert_eq!(
-            path_target_dir(&set, false).unwrap(),
+            path_target_dir(&set, Some(Platform::Linux)).unwrap(),
             PathBuf::from("/opt/drivers")
         );
         assert_eq!(
-            path_target_dir(&set, true).unwrap(),
+            path_target_dir(&set, Some(Platform::Windows)).unwrap(),
             PathBuf::from("/opt/drivers")
         );
         assert_eq!(
-            path_target_dir(&unset, false).unwrap(),
+            path_target_dir(&unset, Some(Platform::MacOs)).unwrap(),
             PathBuf::from("/usr/local/bin")
         );
         assert_eq!(
-            path_target_dir(&blank, false).unwrap(),
+            path_target_dir(&blank, None).unwrap(),
             PathBuf::from("/usr/local/bin")
         );
         for env in [&unset as &dyn Fn(&str) -> Option<String>, &blank] {
-            let error = path_target_dir(env, true).unwrap_err().to_string();
+            let error = path_target_dir(env, Some(Platform::Windows))
+                .unwrap_err()
+                .to_string();
             assert!(
                 error.contains("--path needs SB_DRIVER_PATH_DIR on Windows"),
                 "{error}"

@@ -13,10 +13,11 @@ use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
 use super::identity::StealthPlan;
+use crate::browser::binaries::Platform;
 use crate::browser::options::{
     DeviceMetrics, LaunchSwitch, PacUrl, ProxyBypassList, VirtualDisplay,
 };
-use crate::browser::virtual_display::{self, XvfbProcess};
+use crate::browser::virtual_display::{self, BrowserWindow, XvfbProcess};
 
 use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
@@ -587,8 +588,8 @@ async fn start_virtual_display(
     };
     if !virtual_display::wanted(
         Some(screen),
-        options.is_headless(),
-        cfg!(target_os = "linux"),
+        BrowserWindow::from_headless(options.is_headless()),
+        Platform::current(),
     ) {
         tracing::debug!("no virtual display is started: it needs a headed browser on Linux");
         return Ok(None);

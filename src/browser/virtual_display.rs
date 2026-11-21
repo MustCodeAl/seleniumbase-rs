@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant};
 
+use crate::browser::binaries::Platform;
 use crate::browser::options::VirtualDisplay;
 use crate::error::SeleniumBaseError;
 
@@ -19,14 +20,42 @@ const LAST_DISPLAY: u32 = 199;
 /// How long `Xvfb` may take to open its socket.
 const STARTUP_TIMEOUT: Duration = Duration::from_secs(10);
 
+/// Whether a browser opens a window, which decides if a virtual display is of
+/// use to it (see [`wanted`]).
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum BrowserWindow {
+    /// The browser opens a window on a screen. The default.
+    #[default]
+    Headed,
+    /// The browser draws nothing, so it needs no screen.
+    Headless,
+}
+
+impl BrowserWindow {
+    /// [`Headless`](Self::Headless) when `headless` is set, else
+    /// [`Headed`](Self::Headed): how a session's `headless` setting is read.
+    #[must_use]
+    pub const fn from_headless(headless: bool) -> Self {
+        if headless {
+            Self::Headless
+        } else {
+            Self::Headed
+        }
+    }
+}
+
 /// Whether a session with these settings should start a virtual display:
-/// only on Linux, and only for a browser with a window.
+/// only on Linux (`platform`, as [`Platform::current`] gives it), and only for a browser with a window.
 ///
 /// This is Python SeleniumBase's rule for `--xvfb`: it needs Xvfb, which only
 /// Linux has, and a headless browser draws nothing.
 #[must_use]
-pub fn wanted(display: Option<VirtualDisplay>, headless: bool, on_linux: bool) -> bool {
-    display.is_some() && on_linux && !headless
+pub fn wanted(
+    display: Option<VirtualDisplay>,
+    window: BrowserWindow,
+    platform: Option<Platform>,
+) -> bool {
+    display.is_some() && platform == Some(Platform::Linux) && window == BrowserWindow::Headed
 }
 
 /// The lowest display number in the range that `taken` does not report as used.
@@ -164,10 +193,26 @@ mod tests {
     #[test]
     fn a_display_is_started_only_on_linux_for_a_browser_with_a_window() {
         let screen = Some(VirtualDisplay::default());
-        assert!(wanted(screen, false, true));
-        assert!(!wanted(screen, true, true), "headless draws nothing");
-        assert!(!wanted(screen, false, false), "only Linux has Xvfb");
-        assert!(!wanted(None, false, true), "not asked for");
+        let linux = Some(Platform::Linux);
+        assert!(wanted(screen, BrowserWindow::Headed, linux));
+        assert!(
+            !wanted(screen, BrowserWindow::Headless, linux),
+            "headless draws nothing"
+        );
+        for other in [Some(Platform::MacOs), Some(Platform::Windows), None] {
+            assert!(
+                !wanted(screen, BrowserWindow::Headed, other),
+                "only Linux has Xvfb: {other:?}"
+            );
+        }
+        assert!(!wanted(None, BrowserWindow::Headed, linux), "not asked for");
+    }
+
+    #[test]
+    fn a_headless_setting_is_read_as_a_window_kind() {
+        assert_eq!(BrowserWindow::from_headless(true), BrowserWindow::Headless);
+        assert_eq!(BrowserWindow::from_headless(false), BrowserWindow::Headed);
+        assert_eq!(BrowserWindow::default(), BrowserWindow::Headed);
     }
 
     #[test]

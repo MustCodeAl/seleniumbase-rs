@@ -9,6 +9,7 @@ use thirtyfour::prelude::WebDriver;
 use tracing::info;
 
 use crate::browser::binaries;
+use crate::browser::binaries::Platform;
 use crate::browser::chrome_for_testing::{
     install_chrome_for_testing, install_chrome_headless_shell,
 };
@@ -16,7 +17,7 @@ use crate::browser::chromium_snapshots::install_chromium;
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::launcher::{launch_driver_for, DriverProcess};
 use crate::browser::options::{BrowserSettings, DriverVersion, LaunchSwitch, ReleaseChannel};
-use crate::browser::virtual_display::{self, XvfbProcess};
+use crate::browser::virtual_display::{self, BrowserWindow, XvfbProcess};
 use crate::error::SeleniumBaseError;
 
 use super::capabilities::session_capabilities;
@@ -155,8 +156,8 @@ pub(super) fn start_virtual_display(
     };
     if !virtual_display::wanted(
         Some(screen),
-        config.browser.headless,
-        cfg!(target_os = "linux"),
+        BrowserWindow::from_headless(config.browser.headless),
+        Platform::current(),
     ) {
         tracing::info!("a virtual display was asked for, but this session is headless or not on Linux; none is started");
         return Ok(None);
