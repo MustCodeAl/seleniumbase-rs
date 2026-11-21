@@ -34,6 +34,23 @@ work, `docs/parity.md` the per-API status).
   (the tag comes from `git ls-remote`), the releases page for a release archive or anything else.
   The command runs only with `--run`; `--dry-run` writes and runs nothing; `--client NAME`
   limits the clients. See [the MCP server tutorial](docs/tutorials/mcp_server.md#upgrade).
+- **Where each flag's variable is named**: [the CLI usage page](docs/tutorials/cli_usage.md#look-up-methods-and-options)
+  says that `sbrs --help`, the CLI reference and the man pages name the `SB_*` variable of every
+  flag in its help, and that the flag wins over the variable, which wins over the settings file.
+  The flags do not declare usage's `env`: usage then reads the variable itself while it parses and
+  the parsed struct cannot say whether a value was typed, which `sbrs` has to know (a typed
+  `--firefox` beats `SB_BROWSER`, a start page typed for a command with a URL of its own is
+  refused, `--headed` stands for `SB_HEADLESS=false`). A test fails when a flag declares it, and
+  another pins that a variable is no typed flag where flags are checked against each other.
+
+### Fixed
+
+- **`sbrs-mcp install` under Homebrew** registers the link `PREFIX/bin/sbrs-mcp`, as `repair` and
+  `upgrade` do, and no longer the versioned `Cellar` path that `brew upgrade` deletes (every client
+  was then left with a program that was not there, which is what `repair` mended). A test runs a
+  copy of the binary through a link in a Cellar of its own.
+
+
 ## [0.8.7] - 2026-11-20
 
 ### Added

@@ -198,7 +198,8 @@ assistant the browser and the development tools:
 | `seleniumbase-dev` | `sbrs-mcp --server dev` | Development, library, CLI and diagnostics tools. It starts no browser. |
 
 Both entries start the binary by its **absolute path** (the one you ran, with links
-resolved), because desktop apps do not have your shell `PATH`, and both get the same
+resolved; under Homebrew the link `PREFIX/bin/sbrs-mcp`, which `brew upgrade` keeps, and not the
+versioned `Cellar` folder it deletes), because desktop apps do not have your shell `PATH`, and both get the same
 `SB_MCP_OUTPUT_DIR`. Running `sbrs-mcp` with no command still starts the server, so a
 client that starts it with only flags keeps working.
 
