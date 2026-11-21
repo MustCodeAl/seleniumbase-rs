@@ -103,6 +103,19 @@ config.plugins = [{
   }
 }];";
 
+/// Whether the HTML of a chart starts with the `<script src>` that loads
+/// Chart.js: what [`Chart::to_html`] is asked for, and what the chart's
+/// `libs` option chooses for [`Chart::extract`].
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum ChartLibs {
+    /// Start with the `<script src>` of Chart.js. A page that holds one chart
+    /// needs it.
+    #[default]
+    Include,
+    /// Leave it out, for a page that loads Chart.js once for several charts.
+    Omit,
+}
+
 /// Supported chart types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ChartType {
@@ -515,7 +528,7 @@ impl Chart {
     }
 
     /// The chart as HTML that goes on any page: a `<canvas>` in a box, and the
-    /// script that draws it, and, when `include_libs` is true, the `<script
+    /// script that draws it, and, for [`ChartLibs::Include`], the `<script
     /// src>` that loads Chart.js before them. Python's `extract_chart` is this
     /// with the chart's own `libs` option.
     ///
@@ -523,11 +536,11 @@ impl Chart {
     /// as data, so any text is safe in them. A page with several charts needs
     /// Chart.js once, and each chart needs its own [`id`](Self::canvas_id).
     #[must_use]
-    pub fn to_html(&self, include_libs: bool) -> String {
+    pub fn to_html(&self, libs: ChartLibs) -> String {
         let config = json_for_script(&self.chart_js_config());
         let id = &self.id;
         let mut html = String::new();
-        if include_libs {
+        if libs == ChartLibs::Include {
             html.push_str(CHART_JS_TAG);
             html.push('\n');
         }
@@ -544,7 +557,11 @@ impl Chart {
     /// [`to_html`](Self::to_html) with the chart's own `libs` option.
     #[must_use]
     pub fn extract(&self) -> String {
-        self.to_html(self.libs)
+        self.to_html(if self.libs {
+            ChartLibs::Include
+        } else {
+            ChartLibs::Omit
+        })
     }
 
     /// The chart as a page of its own, which always loads Chart.js.
@@ -560,7 +577,7 @@ impl Chart {
              <meta http-equiv=\"Content-Type\" content=\"text/html\">\n\
              <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n\
              <title>{title}</title>\n{CHART_JS_TAG}\n</head>\n<body>\n{}</body>\n</html>\n",
-            self.to_html(false)
+            self.to_html(ChartLibs::Omit)
         )
     }
 
@@ -587,8 +604,12 @@ impl Chart {
     /// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` does not end
     /// in `.html` (Python's text, `Chart file must end in ".html"!`) or has a
     /// directory part, or if the folder or the file cannot be written.
-    pub fn save_in(&self, folder: &Path, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
-        check_filename(filename)?;
+    pub fn save_in(
+        &self,
+        folder: &Path,
+        filename: impl AsRef<Path>,
+    ) -> Result<PathBuf, SeleniumBaseError> {
+        check_filename(&filename)?;
         let path = crate::artifacts::confined_path(folder, filename)?;
         fs::create_dir_all(folder).map_err(|error| {
             SeleniumBaseError::InvalidConfig(format!(
@@ -608,13 +629,13 @@ impl Chart {
 
 /// Checks the name of a chart file: it must end in `.html` and be one plain
 /// file name, so it cannot leave the folder it is saved to.
-pub(crate) fn check_filename(filename: &str) -> Result<(), SeleniumBaseError> {
-    if !filename.ends_with(".html") {
+pub(crate) fn check_filename(filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
+    if !filename.as_ref().to_string_lossy().ends_with(".html") {
         return Err(SeleniumBaseError::InvalidConfig(
             "Chart file must end in \".html\"!".to_owned(),
         ));
     }
-    bare_file_name(filename).map(|_| ())
+    bare_file_name(&filename).map(|_| ())
 }
 
 /// The error for a chart name that nothing was created under.
@@ -806,7 +827,7 @@ mod tests {
         assert!(!without.contains("<script src"), "{without}");
         assert!(without.contains("new Chart("));
         // `to_html` takes the choice directly; a saved page always loads it.
-        assert!(chart.to_html(false).find(CHART_JS_TAG).is_none());
+        assert!(chart.to_html(ChartLibs::Omit).find(CHART_JS_TAG).is_none());
         assert!(Chart::new("t", ChartType::Pie)
             .libs(false)
             .to_page()
@@ -996,7 +1017,7 @@ mod tests {
         assert_eq!(id(""), "sb-chart");
         let html = Chart::new("t", ChartType::Pie)
             .canvas_id("x'); alert(1); ('")
-            .to_html(true);
+            .to_html(ChartLibs::Include);
         assert!(!html.contains("alert(1); ("), "{html}");
         for character in id("x'); <b> é").chars() {
             assert!(character.is_ascii_alphanumeric() || "-_".contains(character));
@@ -1007,10 +1028,10 @@ mod tests {
     fn two_charts_with_two_ids_can_share_a_page() {
         let first = Chart::new("a", ChartType::Pie)
             .canvas_id("one")
-            .to_html(true);
+            .to_html(ChartLibs::Include);
         let second = Chart::new("b", ChartType::Bar)
             .canvas_id("two")
-            .to_html(false);
+            .to_html(ChartLibs::Omit);
         assert!(first.contains("<canvas id=\"one\">") && first.contains("getElementById('one')"));
         assert!(second.contains("<canvas id=\"two\">") && second.contains("getElementById('two')"));
     }

@@ -25,7 +25,9 @@
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::api::presentation::{Presentation, PresentationTheme, Slide, Transition};
+//! use seleniumbase_rs::api::presentation::{
+//!     EndMarker, Presentation, PresentationTheme, Slide, SpeakerNotes, Transition,
+//! };
 //! use std::time::Duration;
 //!
 //! let mut deck = Presentation::new(PresentationTheme::Sky, Transition::Slide);
@@ -33,7 +35,7 @@
 //! deck.add_slide(Slide::new("<h2>Thanks</h2>").transition(Transition::Fade));
 //!
 //! // Notes shown, a new slide every five seconds.
-//! let html = deck.to_html(true, Duration::from_secs(5), false);
+//! let html = deck.to_html(SpeakerNotes::Shown, Duration::from_secs(5), EndMarker::Omit);
 //! assert!(html.contains("theme/sky.css"));
 //! assert!(html.contains("showNotes: true"));
 //! assert!(html.contains("autoSlide: 5000"));
@@ -85,6 +87,28 @@ pre{background-color:#fbe8ff;border-radius:8px;}\n\
 div[flex_div]{height:68vh;margin:0;align-items:center;justify-content:center;}\n\
 img[rounded]{border-radius:16px;max-width:64%;}\n\
 </style>\n";
+
+/// Whether the page of a presentation shows the speaker notes next to the
+/// slides: Python's `show_notes`.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum SpeakerNotes {
+    /// The notes stay in the page and are not shown, the default.
+    #[default]
+    Hidden,
+    /// The notes are shown next to the slides.
+    Shown,
+}
+
+/// Whether the page of a presentation ends with an empty marker slide, which
+/// `begin_presentation` waits for to know that the deck is over.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum EndMarker {
+    /// No marker slide, the default of a saved file.
+    #[default]
+    Omit,
+    /// An empty last slide that holds the marker.
+    Add,
+}
 
 /// A reveal.js theme: Python's `theme`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
@@ -435,15 +459,21 @@ impl Presentation {
 
     /// The deck as one HTML page.
     ///
-    /// With `show_notes` the speaker notes are shown next to the slides. A
+    /// With [`SpeakerNotes::Shown`] the speaker notes are shown next to the slides. A
     /// non-zero `interval` plays the deck by itself, a new slide every
-    /// `interval`; zero turns that off. With `end_marker` an empty last slide
+    /// `interval`; zero turns that off. With [`EndMarker::Add`] an empty last slide
     /// is added, which `begin_presentation` waits for.
     ///
     /// A chart that was put on a slide brings its own copy of the chart
     /// library; the page keeps the first copy only.
     #[must_use]
-    pub fn to_html(&self, show_notes: bool, interval: Duration, end_marker: bool) -> String {
+    pub fn to_html(
+        &self,
+        notes: SpeakerNotes,
+        interval: Duration,
+        end_marker: EndMarker,
+    ) -> String {
+        let show_notes = notes == SpeakerNotes::Shown;
         let mut html = String::from(
             "<html>\n<head>\n<meta charset=\"utf-8\">\n\
              <meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\">\n\
@@ -464,7 +494,7 @@ impl Presentation {
         for slide in &self.slides {
             html.push_str(&self.section(slide));
         }
-        if end_marker {
+        if end_marker == EndMarker::Add {
             html.push_str(END_MARKER_SLIDE);
         }
         let _ = write!(
@@ -483,7 +513,7 @@ impl Presentation {
 
     /// Writes the deck to `filename` in the `saved_presentations` folder of the
     /// working directory, which is made if it is missing, and returns the path.
-    /// See [`to_html`](Self::to_html) for `show_notes` and `interval`.
+    /// See [`to_html`](Self::to_html) for `notes` and `interval`.
     ///
     /// # Errors
     ///
@@ -492,11 +522,11 @@ impl Presentation {
     /// has a directory part, and an I/O error if the file cannot be written.
     pub fn save(
         &self,
-        filename: &str,
-        show_notes: bool,
+        filename: impl AsRef<Path>,
+        notes: SpeakerNotes,
         interval: Duration,
     ) -> Result<PathBuf, SeleniumBaseError> {
-        self.save_in(Path::new(SAVED_FOLDER), filename, show_notes, interval)
+        self.save_in(Path::new(SAVED_FOLDER), filename, notes, interval)
     }
 
     /// [`save`](Self::save) into `folder` instead of `saved_presentations`.
@@ -507,11 +537,11 @@ impl Presentation {
     pub fn save_in(
         &self,
         folder: &Path,
-        filename: &str,
-        show_notes: bool,
+        filename: impl AsRef<Path>,
+        notes: SpeakerNotes,
         interval: Duration,
     ) -> Result<PathBuf, SeleniumBaseError> {
-        self.write_in(folder, filename, show_notes, interval, false)
+        self.write_in(folder, filename, notes, interval, EndMarker::Omit)
     }
 
     /// Writes the page to `filename` in `folder`, with or without the end
@@ -519,12 +549,12 @@ impl Presentation {
     pub(crate) fn write_in(
         &self,
         folder: &Path,
-        filename: &str,
-        show_notes: bool,
+        filename: impl AsRef<Path>,
+        notes: SpeakerNotes,
         interval: Duration,
-        end_marker: bool,
+        end_marker: EndMarker,
     ) -> Result<PathBuf, SeleniumBaseError> {
-        check_filename(filename)?;
+        check_filename(&filename)?;
         let path = crate::artifacts::confined_path(folder, filename)?;
         fs::create_dir_all(folder).map_err(|error| {
             SeleniumBaseError::InvalidConfig(format!(
@@ -532,7 +562,7 @@ impl Presentation {
                 folder.display()
             ))
         })?;
-        fs::write(&path, self.to_html(show_notes, interval, end_marker)).map_err(|error| {
+        fs::write(&path, self.to_html(notes, interval, end_marker)).map_err(|error| {
             SeleniumBaseError::InvalidConfig(format!(
                 "failed to write presentation '{}': {error}",
                 path.display()
@@ -544,13 +574,13 @@ impl Presentation {
 
 /// Checks the name of a presentation file: it must end in `.html` and be one
 /// plain file name, so it cannot leave the folder it is saved to.
-pub(crate) fn check_filename(filename: &str) -> Result<(), SeleniumBaseError> {
-    if !filename.ends_with(".html") {
+pub(crate) fn check_filename(filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
+    if !filename.as_ref().to_string_lossy().ends_with(".html") {
         return Err(SeleniumBaseError::InvalidConfig(
             "Presentation file must end in \".html\"!".to_owned(),
         ));
     }
-    bare_file_name(filename).map(|_| ())
+    bare_file_name(&filename).map(|_| ())
 }
 
 /// The interval a presentation or a chart waits or plays at: `requested`, or,
@@ -588,7 +618,7 @@ mod tests {
     fn the_defaults_are_the_serif_theme_and_no_transition() {
         let mut deck = deck();
         deck.add_slide(Slide::new("<h1>Hi</h1>"));
-        let html = deck.to_html(false, Duration::ZERO, false);
+        let html = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert!(
             html.contains("reveal.js@4.6.1/dist/theme/serif.css"),
             "{html}"
@@ -622,8 +652,11 @@ mod tests {
             ]
         );
         for theme in PresentationTheme::ALL {
-            let html =
-                Presentation::new(theme, Transition::Slide).to_html(false, Duration::ZERO, false);
+            let html = Presentation::new(theme, Transition::Slide).to_html(
+                SpeakerNotes::Hidden,
+                Duration::ZERO,
+                EndMarker::Omit,
+            );
             assert!(
                 html.contains(&format!("/theme/{}.css", theme.as_str())),
                 "{theme}"
@@ -637,7 +670,7 @@ mod tests {
         for transition in Transition::ALL {
             let mut deck = Presentation::new(PresentationTheme::Serif, transition);
             deck.add_slide(Slide::new("x"));
-            let html = deck.to_html(false, Duration::ZERO, false);
+            let html = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
             assert!(
                 html.contains(&format!("data-transition=\"{transition}\"")),
                 "{transition}"
@@ -650,7 +683,7 @@ mod tests {
         let mut deck = Presentation::new(PresentationTheme::Serif, Transition::Zoom);
         deck.add_slide(Slide::new("a"));
         deck.add_slide(Slide::new("b").transition(Transition::Fade));
-        let html = deck.to_html(false, Duration::ZERO, false);
+        let html = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert_eq!(html.matches("data-transition=\"zoom\"").count(), 1);
         assert_eq!(html.matches("data-transition=\"fade\"").count(), 1);
     }
@@ -666,7 +699,7 @@ mod tests {
                 .content2("<p>after</p>")
                 .notes("say hello"),
         );
-        let html = deck.to_html(true, Duration::ZERO, false);
+        let html = deck.to_html(SpeakerNotes::Shown, Duration::ZERO, EndMarker::Omit);
         let positions: Vec<usize> = [
             "<h2>Title</h2>",
             "<div flex_div><img rounded src=\"https://example.test/a.png?x=1&amp;y=2\" /></div>",
@@ -692,7 +725,7 @@ mod tests {
     fn plain_text_content_stays_on_the_section_line_and_html_starts_a_new_one() {
         let mut deck = deck();
         deck.add_slide(Slide::new("plain text").content2("more"));
-        let html = deck.to_html(false, Duration::ZERO, false);
+        let html = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert!(
             html.contains("<section data-transition=\"none\">plain text"),
             "{html}"
@@ -707,7 +740,7 @@ mod tests {
     fn the_html_of_a_slide_is_not_escaped_but_a_frame_address_is() {
         let mut deck = deck();
         deck.add_slide(Slide::new("<b>bold</b>").iframe("x\" onload=\"alert(1)"));
-        let html = deck.to_html(false, Duration::ZERO, false);
+        let html = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert!(html.contains("<b>bold</b>"));
         assert!(!html.contains("\" onload=\"alert(1)"), "{html}");
         assert!(html.contains("x&quot; onload=&quot;alert(1)"));
@@ -717,7 +750,7 @@ mod tests {
     fn empty_optional_parts_are_left_out_like_python_does() {
         let mut deck = deck();
         deck.add_slide(Slide::new("x").image("").code("").iframe(""));
-        let html = deck.to_html(false, Duration::ZERO, false);
+        let html = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert!(!html.contains("<img"));
         assert!(!html.contains("<pre class"));
         assert!(!html.contains("<iframe"));
@@ -726,7 +759,11 @@ mod tests {
 
     #[test]
     fn the_interval_plays_the_deck_by_itself_in_milliseconds() {
-        let html = deck().to_html(false, Duration::from_millis(2500), false);
+        let html = deck().to_html(
+            SpeakerNotes::Hidden,
+            Duration::from_millis(2500),
+            EndMarker::Omit,
+        );
         assert!(html.contains("autoSlide: 2500,"), "{html}");
     }
 
@@ -734,14 +771,14 @@ mod tests {
     fn the_end_marker_is_the_last_slide_and_only_when_asked() {
         let mut deck = deck();
         deck.add_slide(Slide::new("one"));
-        let with = deck.to_html(false, Duration::ZERO, true);
+        let with = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Add);
         let last_slide = with.rfind("<section").unwrap();
         assert!(
             with[last_slide..].contains("<p class=\"End_Presentation_Now\"> </p>"),
             "{with}"
         );
         assert_eq!(with.matches("<section").count(), 2);
-        let without = deck.to_html(false, Duration::ZERO, false);
+        let without = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert!(!without.contains("End_Presentation_Now"));
         assert!(END_MARKER_SELECTOR.ends_with("p.End_Presentation_Now"));
     }
@@ -752,7 +789,7 @@ mod tests {
         for _ in 0..3 {
             deck.add_slide(Slide::new(&format!("{CHART_JS_TAG}\n<canvas></canvas>")));
         }
-        let html = deck.to_html(false, Duration::ZERO, false);
+        let html = deck.to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert_eq!(html.matches(CHART_JS_TAG).count(), 1, "{html}");
         assert_eq!(html.matches(CHARTS_ADDED).count(), 2);
         // The one copy stays in the first slide, before the others' charts.
@@ -799,7 +836,12 @@ mod tests {
         deck.add_slide(Slide::new("<h1>Saved</h1>"));
 
         let path = deck
-            .save_in(&folder, DEFAULT_FILENAME, false, Duration::ZERO)
+            .save_in(
+                &folder,
+                DEFAULT_FILENAME,
+                SpeakerNotes::Hidden,
+                Duration::ZERO,
+            )
             .unwrap();
         assert_eq!(path, folder.join("my_presentation.html"));
         assert!(fs::read_to_string(&path)
@@ -811,7 +853,7 @@ mod tests {
     fn a_file_name_must_end_in_html_and_stay_in_its_folder() {
         let dir = tempfile::tempdir().unwrap();
         let error = deck()
-            .save_in(dir.path(), "deck.txt", false, Duration::ZERO)
+            .save_in(dir.path(), "deck.txt", SpeakerNotes::Hidden, Duration::ZERO)
             .unwrap_err()
             .to_string();
         assert!(
@@ -821,7 +863,7 @@ mod tests {
         for bad in ["../deck.html", "a/deck.html", "/tmp/deck.html"] {
             assert!(
                 deck()
-                    .save_in(dir.path(), bad, false, Duration::ZERO)
+                    .save_in(dir.path(), bad, SpeakerNotes::Hidden, Duration::ZERO)
                     .is_err(),
                 "{bad}"
             );
@@ -838,7 +880,12 @@ mod tests {
         let file = dir.path().join("a-file");
         fs::write(&file, "x").unwrap();
         let error = deck()
-            .save_in(&file.join("sub"), "d.html", false, Duration::ZERO)
+            .save_in(
+                &file.join("sub"),
+                "d.html",
+                SpeakerNotes::Hidden,
+                Duration::ZERO,
+            )
             .unwrap_err()
             .to_string();
         assert!(error.contains("a-file"), "{error}");
@@ -848,7 +895,13 @@ mod tests {
     fn the_end_marker_is_in_the_file_only_when_it_is_written_with_it() {
         let dir = tempfile::tempdir().unwrap();
         let path = deck()
-            .write_in(dir.path(), "d.html", false, Duration::ZERO, true)
+            .write_in(
+                dir.path(),
+                "d.html",
+                SpeakerNotes::Hidden,
+                Duration::ZERO,
+                EndMarker::Add,
+            )
             .unwrap();
         assert!(fs::read_to_string(path)
             .unwrap()
@@ -856,6 +909,35 @@ mod tests {
     }
 
     #[test]
+    fn the_file_name_may_be_a_str_a_string_or_a_path_and_the_notes_follow_the_enum() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in [
+            Path::new("a.html").to_path_buf(),
+            PathBuf::from(String::from("b.html")),
+        ] {
+            let path = deck()
+                .save_in(dir.path(), &name, SpeakerNotes::Shown, Duration::ZERO)
+                .unwrap();
+            assert_eq!(path, dir.path().join(&name));
+            assert!(fs::read_to_string(path)
+                .unwrap()
+                .contains("showNotes: true"));
+        }
+        let hidden = deck().to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
+        assert!(hidden.contains("showNotes: false"));
+        assert!(!hidden.contains("End_Presentation_Now"));
+        assert!(deck()
+            .save_in(
+                dir.path(),
+                Path::new("sub/c.html"),
+                SpeakerNotes::Hidden,
+                Duration::ZERO
+            )
+            .is_err());
+    }
+
+    #[test]
+
     fn the_interval_is_the_one_given_else_the_run_s_else_zero() {
         let two = Duration::from_secs(2);
         let nine = Duration::from_secs(9);

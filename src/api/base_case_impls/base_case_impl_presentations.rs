@@ -2,7 +2,9 @@
 // Names the presentation modules here, so that the code below and the tests
 // read like the chart ones. Nothing is imported twice: these names are only
 // used by the presentation methods.
-use crate::api::presentation::{self as deck, Presentation, PresentationTheme, Slide, Transition};
+use crate::api::presentation::{
+    self as deck, EndMarker, Presentation, PresentationTheme, Slide, SpeakerNotes, Transition,
+};
 
 /// The error for a presentation name that nothing was created under.
 fn missing_presentation(name: &str) -> SeleniumBaseError {
@@ -139,7 +141,7 @@ impl BaseCase {
         &self,
         options: &PresentationOptions<'_>,
         folder: &Path,
-        end_marker: bool,
+        end_marker: EndMarker,
     ) -> Result<PathBuf, SeleniumBaseError> {
         let name = chart_lib::name_or_default(options.name);
         let presentation = self
@@ -149,7 +151,12 @@ impl BaseCase {
         let filename = options.filename.unwrap_or(deck::DEFAULT_FILENAME);
         deck::check_filename(filename)?;
         let interval = deck::resolve_interval(options.interval, self.run_settings.interval());
-        presentation.write_in(folder, filename, options.show_notes, interval, end_marker)
+        let notes = if options.show_notes {
+            SpeakerNotes::Shown
+        } else {
+            SpeakerNotes::Hidden
+        };
+        presentation.write_in(folder, filename, notes, interval, end_marker)
     }
 
     /// Waits while the browser shows a page in `folder` (a folder of saved
@@ -342,11 +349,7 @@ impl<'a> std::future::IntoFuture for SavePresentation<'a> {
 
     fn into_future(self) -> Self::IntoFuture {
         Box::pin(async move {
-            let path = self.sb.write_presentation(
-                &self.options,
-                Path::new(deck::SAVED_FOLDER),
-                false,
-            )?;
+            let path = self.sb.write_presentation(&self.options, Path::new(deck::SAVED_FOLDER), EndMarker::Omit)?;
             tracing::info!(path = %path.display(), "presentation saved");
             Ok(path)
         })
@@ -398,11 +401,7 @@ impl<'a> std::future::IntoFuture for BeginPresentation<'a> {
             if self.sb.nobody_watches() {
                 return Ok(None);
             }
-            let path = self.sb.write_presentation(
-                &self.options,
-                Path::new(deck::SAVED_FOLDER),
-                true,
-            )?;
+            let path = self.sb.write_presentation(&self.options, Path::new(deck::SAVED_FOLDER), EndMarker::Add)?;
             let file = path.to_str().ok_or_else(|| {
                 SeleniumBaseError::InvalidConfig("the presentation path is not UTF-8".to_owned())
             })?;
@@ -544,7 +543,7 @@ mod tests_presentations {
             .add_slide(Slide::new("<h1>hi</h1>"));
 
         let mut options = PresentationOptions::default();
-        let path = sb.write_presentation(&options, folder.path(), false).unwrap();
+        let path = sb.write_presentation(&options, folder.path(), EndMarker::Omit).unwrap();
         let html = std::fs::read_to_string(&path).unwrap();
         assert!(html.contains("autoSlide: 4000,"), "{html}");
         assert!(html.contains("theme/moon.css"));
@@ -553,7 +552,7 @@ mod tests_presentations {
         options.interval = Duration::from_millis(1500);
         options.show_notes = true;
         options.filename = Some("other.html");
-        let path = sb.write_presentation(&options, folder.path(), true).unwrap();
+        let path = sb.write_presentation(&options, folder.path(), EndMarker::Add).unwrap();
         assert_eq!(path, folder.path().join("other.html"));
         let html = std::fs::read_to_string(&path).unwrap();
         assert!(html.contains("autoSlide: 1500,") && html.contains("showNotes: true"));
