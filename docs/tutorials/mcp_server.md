@@ -185,6 +185,8 @@ sbrs-mcp install claude-code cursor   # register with these clients
 sbrs-mcp install --print vscode       # show what would be written, change nothing
 sbrs-mcp clients                      # where each client keeps its config, what is registered
 sbrs-mcp uninstall cursor             # remove the registrations
+sbrs-mcp repair                       # fix entries whose program moved or is gone
+sbrs-mcp upgrade                      # point the entries at this program, say how to upgrade it
 ```
 
 `install` registers two servers with each client, so that one command gives an
@@ -278,6 +280,102 @@ reminder every time.
   unknown client, a scope the client does not have, a file or program that cannot be
   used, or a different entry left alone; `1` when a write or a client's own program
   fails.
+
+### Repair a registration
+
+An entry that worked stops working when its program moves: `brew upgrade` removes the
+version a client was told to start, a `cargo install` goes to another folder, a
+release archive is deleted. `sbrs-mcp repair` finds those entries and fixes them.
+
+```bash Terminal
+sbrs-mcp repair --dry-run          # report what is wrong, write and run nothing
+sbrs-mcp repair                    # fix it
+sbrs-mcp repair --client cursor    # only this client (repeat the flag for more)
+```
+
+It reads every client that has a config on this machine: the user config, and the
+project config in the current folder. In each it looks at the entries that start
+sbrs-mcp: `seleniumbase` and `seleniumbase-dev` (or `NAME` and `NAME-dev` with
+`--name NAME`), and any entry under another name that starts a program called
+`sbrs-mcp`. An entry that starts some other program is not touched, even under one of
+those names (for example Python SeleniumBase's own server, if it is registered as
+`seleniumbase`), unless its program is gone.
+
+| Found | Fix |
+| --- | --- |
+| The program the entry starts is not there. | The entry starts this program. Its arguments and its environment stay. |
+| The path is a file that cannot be run, or a folder. | The same. |
+| The path is another `sbrs-mcp` than this one (an older install). | The same. |
+| The command is a bare name, such as `sbrs-mcp`, which a desktop app may not find without your shell `PATH`. | The absolute path of this program. |
+| Two entries of one config start the same server (the same program, arguments and environment). | The one named `NAME` or `NAME-dev` stays and the others are removed; else the first by name stays. |
+| An entry under a name other than `NAME` and `NAME-dev` starts `sbrs-mcp`. | Reported and left as it is: it is a note, not a fault. If its program is gone it is fixed where it stands, under its own name. |
+| A config that cannot be read: JSON that does not parse, JSON with comments, TOML that does not parse. | Reported and never rewritten. A file with comments is something `install` does not rewrite either. |
+
+Each client prints its config file, then one line per finding with what was done to
+it, then a summary:
+
+```text
+cursor  /Users/you/.cursor/mcp.json
+  seleniumbase      starts /opt/homebrew/Cellar/sbrs/0.8.4/bin/sbrs-mcp, which is not there: fixed
+  seleniumbase-dev  starts /opt/homebrew/Cellar/sbrs/0.8.4/bin/sbrs-mcp, which is not there: fixed
+checked 1 config: fixed 2
+```
+
+The fix is written the way `install` writes: only the entries concerned change, a
+file that needs no change is not touched, the old file is copied to
+`FILE.bak-sbrs-mcp` first, and the new content replaces it atomically. Claude Code and
+Codex are changed through their own `mcp` commands, as `install` does it. A fix is
+one write for each file, so the backup is always the file as it was before `repair`.
+`--dry-run` shows the text it would write and the commands it would run, and changes
+nothing.
+
+Exit status: `0` when nothing is left broken (nothing was wrong, or everything found
+was fixed); `1` when a write or a client's own program failed, or when `--dry-run`
+found something to fix; `2` when something cannot be fixed by this command (a config
+that cannot be read, a client's program that is not on `PATH`) or a client name is
+unknown.
+
+### Upgrade
+
+```bash Terminal
+sbrs-mcp upgrade --dry-run     # show the entries it would rewrite and the command it would run
+sbrs-mcp upgrade               # rewrite the entries, print the command that upgrades sbrs-mcp
+sbrs-mcp upgrade --run         # the same, and run that command
+```
+
+`upgrade` (also spelled `update`) does two things, in this order.
+
+1. It rewrites every entry `NAME` and `NAME-dev` that a client holds to the entry
+   `install` writes today for this program: the absolute path of this program, and the
+   server (`--server`), the plugins (`--plugin`, `--plugin-opt`) and the output folder
+   it had. An entry whose arguments `install` would not have written (a `--transport
+   http`, say) keeps them and gets only the new program; an entry that does not start a
+   local program (a URL) is left alone. The files are written as by `repair` and
+   `install`, with `--client NAME` to limit the clients and `--dry-run` to write
+   nothing. For a Homebrew install the path is the link `PREFIX/bin/sbrs-mcp`, not the
+   versioned folder under `Cellar` that `brew upgrade` deletes, so the entries survive
+   the upgrade.
+2. It finds out how this program was installed and prints the command that upgrades
+   it:
+
+| Installed with | How it is found | Command |
+| --- | --- | --- |
+| Homebrew | the path is in a Homebrew `Cellar`, or `brew list sbrs` succeeds | `brew upgrade sbrs` |
+| `cargo install` | the path is in the `bin` folder of `CARGO_HOME` (default `~/.cargo`) | `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag TAG seleniumbase-rs-cli --locked`, with the latest release tag found by `git ls-remote --tags` (without `git` or a network the command is printed with `<latest tag>` and the releases page is named) |
+| A release archive, or anything else | none of the above | the [releases page](https://github.com/MustCodeAl/seleniumbase-rs/releases): download the new archive and replace the program |
+
+A path that shows how it was installed wins over `brew list sbrs`, which is asked only
+for a program that is neither in a Cellar nor in the Cargo folder.
+
+The command runs only with `--run`; without it nothing is started. `--run` with
+nothing to run (a release archive, or a `cargo install` whose tag could not be found)
+says so and exits with status `2`. With `--dry-run`, `--run` shows `would run: COMMAND`
+and runs nothing. After a successful run, restart the clients that use sbrs-mcp so they
+start the new version.
+
+Exit status as for `repair`: `0` when it worked, `1` when a write or the command
+failed, `2` when something was refused or there is nothing to run.
+
 
 ### Register by hand
 

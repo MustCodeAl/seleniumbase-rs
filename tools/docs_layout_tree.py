@@ -475,18 +475,27 @@ def cli_install_files():
     """The files of crates/cli/src/mcp_install."""
     return [
         _file("apply.rs", "writes one client's config"),
-        _file("args.rs", "the install, uninstall and clients command line"),
+        _file("args.rs", "the install, uninstall, clients, repair and upgrade command line"),
         _file("client.rs", "the clients and where each keeps its config"),
         _file("entry.rs", "the two server entries"),
-        _file("env.rs", "the machine, faked by tests"),
+        _file("env.rs", "the machine and the Homebrew path to register, faked by tests"),
         _file("external.rs", "the claude and codex programs"),
         _file("fsx.rs", "atomic writes and the backup"),
         _file("jsonedit.rs", "edits JSON as text"),
         _file("jsonfile.rs", "the JSON layouts"),
-        _file("mod.rs", "install, uninstall and clients"),
+        _file("mod.rs", "install, uninstall and clients; dispatches repair and upgrade"),
+        _file("repair.rs", "sbrs-mcp repair: what is broken in an entry, and the fix"),
+
         _file("report.rs", "what one client prints"),
+        _file("runner.rs", "the programs upgrade runs and asks, faked by tests"),
+        _folder("tests", "tests of repair and upgrade",
+                _file("repair.rs", "tests of sbrs-mcp repair"),
+                _file("upgrade.rs", "tests of sbrs-mcp upgrade")),
+
         _file("tests.rs", "tests against a temporary folder"),
         _file("tomlfile.rs", "edits Codex config.toml"),
+        _file("upgrade.rs", "sbrs-mcp upgrade: rewrites the entries, finds the upgrade command"),
+
     ]
 
 
@@ -544,7 +553,7 @@ LAYOUT = D(
           F("reference.rs", "renders docs/help/cli_reference.md from the usage spec"),
           F("strict.rs", "refuses, with status 2, what the parser is too loose about"),
           F("trace.rs", "sbrs trace show: opens a trace folder's viewer"),
-          D("mcp_install", "sbrs-mcp install, uninstall and clients", *cli_install_files(), open=True, check="all"),
+          D("mcp_install", "sbrs-mcp install, uninstall, clients, repair and upgrade", *cli_install_files(), open=True, check="all"),
           *cli_package_detail(),
           open=True, check="all"),
         D("tests", "every test that runs the real sbrs or sbrs-mcp binary"),

@@ -135,6 +135,8 @@ sbrs devtools --headless --port 0
 sbrs-mcp --server cdp             # the MCP server on stdio: cdp, driver, sb (the default) or dev
 sbrs-mcp install claude-code      # register the browser and dev servers with a client
 sbrs-mcp clients                  # the clients it knows and what is registered
+sbrs-mcp repair --dry-run         # what is broken in the registrations (a moved or deleted program)
+sbrs-mcp upgrade                  # rewrite the registrations to this program, print the upgrade command
 ```
 
 See [MCP server](/tutorials/mcp_server) for the client configurations.

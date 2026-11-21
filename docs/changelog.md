@@ -35,6 +35,31 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.5 s
 
 ### Added
 
+- **`sbrs-mcp repair`** finds what is broken in the entries MCP clients hold for sbrs-mcp and
+  fixes it: a program that is not there (after `brew upgrade`, say) or cannot be run, a path
+  that is another `sbrs-mcp` than this one, a bare name a desktop app may not find, the same
+  server registered twice, and entries under a name other than `seleniumbase` and
+  `seleniumbase-dev` that start sbrs-mcp (reported, left as they are). Every finding and every
+  fix is printed for each client. An entry is fixed by pointing it at this program, keeping its
+  arguments and environment; a duplicate is removed. A config that cannot be read (JSON or TOML
+  that does not parse, JSON with comments) is reported and never rewritten. Files are written as
+  `install` writes them: only the entries concerned change, the old file is kept as
+  `FILE.bak-sbrs-mcp` (once, as it was before the repair) and the new one replaces it
+  atomically; Claude Code and Codex go through their own `mcp` commands. `--dry-run` writes and
+  runs nothing, `--client NAME` limits it, `--name NAME` names the entries. Exit status 0 when
+  nothing is left broken, 1 when a fix failed or `--dry-run` found something to fix, 2 when
+  something cannot be fixed here. See
+  [the MCP server tutorial](/tutorials/mcp_server#repair-a-registration).
+- **`sbrs-mcp upgrade`** (alias `update`) rewrites the `seleniumbase` and `seleniumbase-dev`
+  entries of every client to what `install` writes today for this program (its absolute path, and
+  the server, plugins and output folder they had), then finds out how sbrs-mcp was installed and
+  prints the command that upgrades it: `brew upgrade sbrs` for Homebrew (the entries point at
+  the `PREFIX/bin` link, not the versioned `Cellar` folder that the upgrade deletes),
+  `cargo install --git ... --tag <latest tag> seleniumbase-rs-cli --locked` for `cargo install`
+  (the tag comes from `git ls-remote`), the releases page for a release archive or anything else.
+  The command runs only with `--run`; `--dry-run` writes and runs nothing; `--client NAME`
+  limits the clients. See [the MCP server tutorial](/tutorials/mcp_server#upgrade).
+
 - **Man pages**: `man/man1/sbrs.1` and `man/man1/sbrs-mcp.1`, written by usage from the same
   specs as the completions and the CLI reference (`crates/cli/src/man.rs`), with one section for
   every command. `sbrs completions man` prints the first, so an installed binary can write its own

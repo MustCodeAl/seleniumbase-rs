@@ -219,7 +219,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
 <LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
 <LayoutFile name="trace.rs" note="sbrs trace show: opens a trace folder's viewer" />
-<LayoutDir name="mcp_install" note="sbrs-mcp install, uninstall and clients" />
+<LayoutDir name="mcp_install" note="sbrs-mcp install, uninstall, clients, repair and upgrade" />
 </LayoutDir>
 <LayoutDir name="tests" note="every test that runs the real sbrs or sbrs-mcp binary" />
 </LayoutDir>
@@ -882,20 +882,27 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
 <LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
 <LayoutFile name="trace.rs" note="sbrs trace show: opens a trace folder's viewer" />
-<LayoutDir name="mcp_install" open note="sbrs-mcp install, uninstall and clients">
+<LayoutDir name="mcp_install" open note="sbrs-mcp install, uninstall, clients, repair and upgrade">
 <LayoutFile name="apply.rs" note="writes one client's config" />
-<LayoutFile name="args.rs" note="the install, uninstall and clients command line" />
+<LayoutFile name="args.rs" note="the install, uninstall, clients, repair and upgrade command line" />
 <LayoutFile name="client.rs" note="the clients and where each keeps its config" />
 <LayoutFile name="entry.rs" note="the two server entries" />
-<LayoutFile name="env.rs" note="the machine, faked by tests" />
+<LayoutFile name="env.rs" note="the machine and the Homebrew path to register, faked by tests" />
 <LayoutFile name="external.rs" note="the claude and codex programs" />
 <LayoutFile name="fsx.rs" note="atomic writes and the backup" />
 <LayoutFile name="jsonedit.rs" note="edits JSON as text" />
 <LayoutFile name="jsonfile.rs" note="the JSON layouts" />
-<LayoutFile name="mod.rs" note="install, uninstall and clients" />
+<LayoutFile name="mod.rs" note="install, uninstall and clients; dispatches repair and upgrade" />
+<LayoutFile name="repair.rs" note="sbrs-mcp repair: what is broken in an entry, and the fix" />
 <LayoutFile name="report.rs" note="what one client prints" />
+<LayoutFile name="runner.rs" note="the programs upgrade runs and asks, faked by tests" />
+<LayoutDir name="tests" open note="tests of repair and upgrade">
+<LayoutFile name="repair.rs" note="tests of sbrs-mcp repair" />
+<LayoutFile name="upgrade.rs" note="tests of sbrs-mcp upgrade" />
+</LayoutDir>
 <LayoutFile name="tests.rs" note="tests against a temporary folder" />
 <LayoutFile name="tomlfile.rs" note="edits Codex config.toml" />
+<LayoutFile name="upgrade.rs" note="sbrs-mcp upgrade: rewrites the entries, finds the upgrade command" />
 </LayoutDir>
 <LayoutDir name="args" open note="argument structs of the sbrs subcommands">
 <LayoutFile name="content.rs" note="convert and the content commands" />
