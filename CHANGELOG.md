@@ -37,6 +37,10 @@ work, `docs/parity.md` the per-API status).
 
 ### Breaking
 
+- **Breaking: the borrowed selector `Selector<'a>` is `SelectorRef<'a>`** (the crate root, the
+  `selector!` macro and `SelectorBuf::as_selector` follow). The name `Selector` is kept free for the
+  owned type, `SelectorBuf`, which takes it in the next release.
+
 - **A `bool` parameter whose meaning is not clear at the call site is a two-variant enum, and a
   file name is an `impl AsRef<Path>`** (finding F9 of the API guidelines audit). The enums:
   `AddonLifetime::{Temporary, Permanent}` for the `temporary: bool` of `BaseCase::install_addon`
