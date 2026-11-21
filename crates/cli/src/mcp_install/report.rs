@@ -145,6 +145,17 @@ impl ClientReport {
                 status_text(entry.status, dry_run)
             )?;
         }
+        self.print_preview(out)?;
+        self.print_problem(out, err)
+    }
+
+    /// Writes what a dry run shows: the text that would be written and the commands that would
+    /// be run.
+    ///
+    /// # Errors
+    ///
+    /// An error of the writer.
+    pub fn print_preview(&self, out: &mut dyn Write) -> io::Result<()> {
         for preview in &self.preview {
             match preview {
                 Preview::Snippet { heading, text } => {
@@ -156,6 +167,16 @@ impl ClientReport {
                 Preview::Command(command) => writeln!(out, "  would run: {command}")?,
             }
         }
+        Ok(())
+    }
+
+    /// Writes why the client was not changed, wholly or in part: the reason to `err`, and for a
+    /// refusal the text to do it by hand to `out`.
+    ///
+    /// # Errors
+    ///
+    /// An error of the writers.
+    pub fn print_problem(&self, out: &mut dyn Write, err: &mut dyn Write) -> io::Result<()> {
         match &self.problem {
             Some(Problem::Refused { reason, by_hand }) => {
                 writeln!(err, "{}: not changed: {reason}", self.client.id())?;
