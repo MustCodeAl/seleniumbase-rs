@@ -30,7 +30,7 @@ use seleniumbase_rs_stealth::tokio;
 #[tokio::main]
 async fn main() -> Result<(), ScrapeError> {
     let mut scraper = BrowserScraper::builder()
-        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
         .max_challenge_attempts(4)
         .build()
         .await?;
@@ -43,7 +43,7 @@ async fn main() -> Result<(), ScrapeError> {
 </RequestExample>
 
 `BrowserScraper::builder` returns `BrowserScraperBuilder`. `geo_proxies` takes
-`(spec, CountryCode)` pairs and returns `Result`. `CountryCode::new` returns
+`(spec, CountryCode)` pairs and returns `Result`. `CountryCode::try_new` returns
 `Result<CountryCode, egress::geo::GeoError>`, and that error converts into `ScrapeError`.
 `fetch(&mut self, url)` returns `BrowserFetch` (`body: String`, `status: u16`).
 `close(self)` takes the scraper by value. Every signature is on

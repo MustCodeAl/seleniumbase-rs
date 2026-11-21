@@ -129,6 +129,7 @@ Why the HTTP/2 and header capture failed.
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
+#[non_exhaustive]
 pub enum Passes {
     Both,
     H2Only,
@@ -269,6 +270,7 @@ pub fn url(&self, port: u16) -> String
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
+#[non_exhaustive]
 pub enum Protocol {
     H2,
     Http1,
@@ -293,6 +295,7 @@ pub fn alpn(self) -> &'static [u8]
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
+#[non_exhaustive]
 pub enum Seen {
     H2 {
             /// The bytes from the connection preface to the end of the first request's header block.
@@ -379,7 +382,7 @@ pub fn h1_evidence(&self) -> Result<Option<Vec<H1Evidence>>, CaptureH2Error>
 pub fn set_h2_evidence(&mut self, evidence: &[H2Evidence])
 pub fn set_h1_evidence(&mut self, evidence: &[H1Evidence])
 pub fn set_derived(&mut self, derived: &Derived) -> Result<(), CaptureH2Error>
-pub fn stamp(&mut self, tool: &str, version: &BrowserVersion, now: DateTime<Utc>)
+pub fn stamp(&mut self, tool: &str, version: &BrowserVersion, now: Timestamp)
 pub fn to_pretty_json(&self) -> Result<String, CaptureH2Error>
 pub fn save(&self) -> Result<(), CaptureH2Error>
 ```
@@ -419,7 +422,7 @@ pub async fn measure_and_write(
     args: &ToolArgs,
     passes: Passes,
     tool: &str,
-    now: DateTime<Utc>,
+    now: Timestamp,
 ) -> Result<Report, CaptureH2Error>
 ```
 

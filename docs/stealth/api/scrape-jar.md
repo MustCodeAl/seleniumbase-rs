@@ -179,6 +179,7 @@ pub fn same_identity(&self, other: &Self) -> bool
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
+#[non_exhaustive]
 pub enum SiteContext {
     SameSite {
             /// The request is a top-level navigation. It does not change which cookies are sent.
@@ -213,6 +214,7 @@ What [`CookieJar::receive`] did with a `Set-Cookie` header. The enum is `non_exh
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
+#[non_exhaustive]
 pub enum IgnoreReason {
     Malformed,
     DomainMismatch,

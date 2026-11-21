@@ -196,6 +196,7 @@ pub fn after_fetch(
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
+#[non_exhaustive]
 pub enum Escalation {
     Stay,
     Escalate(EscalateReason),

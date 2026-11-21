@@ -176,7 +176,7 @@ use seleniumbase_rs_stealth::scrape::BrowserScraper;
 
 async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::ScrapeError> {
     let mut scraper = BrowserScraper::builder()
-        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
         .max_challenge_attempts(4)
         .build()
         .await?;

@@ -19,7 +19,7 @@ use seleniumbase_rs_stealth::tokio;
 #[tokio::main]
 async fn main() -> Result<(), ScrapeError> {
     let mut scraper = BrowserScraper::builder()
-        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::new("DE")?)])?
+        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
         .max_challenge_attempts(4)
         .build()
         .await?;
