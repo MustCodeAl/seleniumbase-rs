@@ -192,7 +192,12 @@ impl ConvertArgs {
     /// and a statement it could not read at all an error: the file is still written, and the
     /// command then fails (status 1).
     pub(crate) fn run(&self) -> Result<(), Box<dyn Error>> {
-        let report = sb_convert::convert(Path::new(&self.file), self.force)?;
+        let overwrite = if self.force {
+            sb_convert::Overwrite::Replace
+        } else {
+            sb_convert::Overwrite::Refuse
+        };
+        let report = sb_convert::convert(Path::new(&self.file), overwrite)?;
         println!("Created {}", report.output.display());
         for diagnostic in &report.diagnostics {
             eprintln!(

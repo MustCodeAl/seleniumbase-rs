@@ -18,6 +18,16 @@ use crate::utilities::python_importer::{
     import_python, ImportDiagnostic, ImportOptions, PythonSource,
 };
 
+/// What [`convert`] does when the file it writes exists already.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum Overwrite {
+    /// Leave the file as it was and return an error. The default.
+    #[default]
+    Refuse,
+    /// Replace the file (`sbrs convert --force`).
+    Replace,
+}
+
 /// What [`convert`] did.
 #[derive(Clone, Debug)]
 pub struct ConvertReport {
@@ -42,26 +52,26 @@ pub fn output_path(input: &Path) -> PathBuf {
 
 /// Converts the Selenium WebDriver test in `input` and writes [`output_path`].
 ///
-/// The generated test is named after the input file. With `force` an output that
-/// exists is replaced; without it, it is left as it was.
+/// The generated test is named after the input file. With [`Overwrite::Replace`] an output that
+/// exists is replaced; with [`Overwrite::Refuse`] it is left as it was.
 ///
 /// # Errors
 ///
 /// [`SeleniumBaseError::InvalidConfig`] when `input` does not end in `.py` or the
-/// output exists and `force` is not set; [`SeleniumBaseError::Io`] when the input
+/// output exists and `overwrite` is [`Overwrite::Refuse`]; [`SeleniumBaseError::Io`] when the input
 /// cannot be read or the output cannot be written. Nothing is written on an error.
 ///
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::cli::scripts::sb_convert::{convert, output_path};
+/// use seleniumbase_rs::cli::scripts::sb_convert::{convert, output_path, Overwrite};
 ///
 /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
 /// let dir = tempfile::tempdir()?;
 /// let input = dir.path().join("login.py");
 /// std::fs::write(&input, "driver.get(\"https://example.test\")\n")?;
 ///
-/// let report = convert(&input, false)?;
+/// let report = convert(&input, Overwrite::Refuse)?;
 ///
 /// assert_eq!(report.output, output_path(&input));
 /// assert!(std::fs::read_to_string(&report.output)?.contains("example.test"));
@@ -69,7 +79,7 @@ pub fn output_path(input: &Path) -> PathBuf {
 /// # Ok(())
 /// # }
 /// ```
-pub fn convert(input: &Path, force: bool) -> Result<ConvertReport, SeleniumBaseError> {
+pub fn convert(input: &Path, overwrite: Overwrite) -> Result<ConvertReport, SeleniumBaseError> {
     if input.extension().is_none_or(|extension| extension != "py") {
         return Err(SeleniumBaseError::invalid_config(format!(
             "{} is not a Python file: the name must end in .py",
@@ -77,7 +87,7 @@ pub fn convert(input: &Path, force: bool) -> Result<ConvertReport, SeleniumBaseE
         )));
     }
     let output = output_path(input);
-    if !force && output.exists() {
+    if overwrite == Overwrite::Refuse && output.exists() {
         return Err(SeleniumBaseError::invalid_config(format!(
             "{} already exists; remove it or pass --force",
             output.display()
@@ -99,7 +109,7 @@ pub fn convert(input: &Path, force: bool) -> Result<ConvertReport, SeleniumBaseE
             test_name: rust_fn_name(&stem),
         },
     );
-    write_output(&output, &result.rust, force).map_err(|error| {
+    write_output(&output, &result.rust, overwrite).map_err(|error| {
         std::io::Error::new(
             error.kind(),
             format!("failed to write {}: {error}", output.display()),
@@ -112,12 +122,12 @@ pub fn convert(input: &Path, force: bool) -> Result<ConvertReport, SeleniumBaseE
     })
 }
 
-/// Writes `text` to `path`; without `force` the file must not exist (checked again as the
+/// Writes `text` to `path`; with [`Overwrite::Refuse`] the file must not exist (checked again as the
 /// file is created, so a file made since the first look is not replaced either).
-fn write_output(path: &Path, text: &str, force: bool) -> std::io::Result<()> {
+fn write_output(path: &Path, text: &str, overwrite: Overwrite) -> std::io::Result<()> {
     let mut options = fs::OpenOptions::new();
     options.write(true);
-    if force {
+    if overwrite == Overwrite::Replace {
         options.create(true).truncate(true);
     } else {
         options.create_new(true);
@@ -160,7 +170,7 @@ driver.quit()
         let dir = tempfile::tempdir().unwrap();
         let input = export_in(dir.path(), "login.py");
 
-        let report = convert(&input, false).unwrap();
+        let report = convert(&input, Overwrite::Refuse).unwrap();
 
         assert_eq!(report.output, dir.path().join("login_SB.rs"));
         assert!(report.complete, "{:?}", report.diagnostics);
@@ -178,7 +188,7 @@ driver.quit()
         let output = dir.path().join("login_SB.rs");
         fs::write(&output, "mine").unwrap();
 
-        let error = convert(&input, false).unwrap_err().to_string();
+        let error = convert(&input, Overwrite::Refuse).unwrap_err().to_string();
 
         assert!(
             error.contains("login_SB.rs") && error.contains("--force"),
@@ -186,7 +196,7 @@ driver.quit()
         );
         assert_eq!(fs::read_to_string(&output).unwrap(), "mine");
 
-        let report = convert(&input, true).unwrap();
+        let report = convert(&input, Overwrite::Replace).unwrap();
         assert_ne!(fs::read_to_string(&report.output).unwrap(), "mine");
     }
 
@@ -195,14 +205,16 @@ driver.quit()
         let dir = tempfile::tempdir().unwrap();
         let text = dir.path().join("notes.txt");
         fs::write(&text, EXPORT).unwrap();
-        let error = convert(&text, false).unwrap_err().to_string();
+        let error = convert(&text, Overwrite::Refuse).unwrap_err().to_string();
         assert!(
             error.contains("notes.txt") && error.contains(".py"),
             "{error}"
         );
 
         let missing = dir.path().join("none.py");
-        let error = convert(&missing, false).unwrap_err().to_string();
+        let error = convert(&missing, Overwrite::Refuse)
+            .unwrap_err()
+            .to_string();
         assert!(error.contains("none.py"), "{error}");
         assert!(!dir.path().join("none_SB.rs").exists());
     }
@@ -217,7 +229,7 @@ driver.quit()
         )
         .unwrap();
 
-        let report = convert(&input, false).unwrap();
+        let report = convert(&input, Overwrite::Refuse).unwrap();
 
         assert!(!report.diagnostics.is_empty());
         let rust = fs::read_to_string(&report.output).unwrap();
