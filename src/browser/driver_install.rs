@@ -49,7 +49,7 @@ use crate::browser::binaries::{find_executable, DOWNLOADS_DIR};
 use crate::browser::chrome_for_testing::{
     downloaded_for_major, fetch_bytes, http_client, install_archive,
 };
-use crate::browser::driver_access::make_runnable;
+use crate::browser::driver_access::{make_runnable, CodeSignature};
 use crate::browser::options::DriverVersion;
 use crate::error::SeleniumBaseError;
 
@@ -316,7 +316,7 @@ async fn install_driver_archive(
     install_archive(client, url, folder, Some(MAX_ARCHIVE_BYTES)).await?;
     let executable = find_executable(folder, names)
         .ok_or_else(|| SeleniumBaseError::download(url, format!("the archive holds no {what}")))?;
-    make_runnable(&executable, false)?;
+    make_runnable(&executable, CodeSignature::Keep)?;
     tracing::info!(path = %executable.display(), "downloaded {what}");
     Ok(executable)
 }

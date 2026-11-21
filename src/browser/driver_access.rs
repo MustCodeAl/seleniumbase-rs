@@ -17,10 +17,10 @@
 //!
 //! ```no_run
 //! use std::path::Path;
-//! use seleniumbase_rs::browser::driver_access::make_runnable;
+//! use seleniumbase_rs::browser::driver_access::{make_runnable, CodeSignature};
 //!
 //! # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-//! let repairs = make_runnable(Path::new("downloaded_drivers/chromedriver"), false)?;
+//! let repairs = make_runnable(Path::new("downloaded_drivers/chromedriver"), CodeSignature::Keep)?;
 //! if repairs.any() {
 //!     println!("fixed: {repairs:?}");
 //! }
@@ -37,6 +37,18 @@ use crate::error::SeleniumBaseError;
 /// The flag macOS puts on files that came from the internet.
 #[cfg(target_os = "macos")]
 const QUARANTINE: &str = "com.apple.quarantine";
+
+/// What [`make_runnable`] does about the code signature of a binary.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum CodeSignature {
+    /// Leave the signature as it is: the right choice for a file that was only
+    /// copied or unpacked.
+    #[default]
+    Keep,
+    /// On macOS, sign the binary again ad hoc; do that after changing its
+    /// bytes. Everywhere else this is the same as [`Keep`](Self::Keep).
+    Resign,
+}
 
 /// What [`make_runnable`] had to change.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -59,18 +71,18 @@ impl Repairs {
 
 /// Makes `path` something the system will start.
 ///
-/// With `resign` set, on macOS the binary is signed again ad hoc; do that after
-/// changing its bytes. Everywhere else `resign` has no effect.
+/// With [`CodeSignature::Resign`], on macOS the binary is signed again ad hoc; do that after
+/// changing its bytes. Everywhere else the signature is left alone.
 ///
 /// # Errors
 ///
 /// Returns an error if the file cannot be inspected or its permissions changed,
 /// or if `codesign` is asked for and fails.
-pub fn make_runnable(path: &Path, resign: bool) -> Result<Repairs, SeleniumBaseError> {
+pub fn make_runnable(path: &Path, signature: CodeSignature) -> Result<Repairs, SeleniumBaseError> {
     let repairs = Repairs {
         made_executable: make_executable(path)?,
         quarantine_removed: remove_quarantine(path),
-        signed: resign && ad_hoc_sign(path)?,
+        signed: signature == CodeSignature::Resign && ad_hoc_sign(path)?,
     };
     if repairs.any() {
         tracing::info!(path = %path.display(), ?repairs, "repaired a driver the system would not start");
@@ -102,7 +114,7 @@ pub fn killed_by_the_system(status: ExitStatus) -> bool {
 ///
 /// A program killed just after it starts cannot be seen from here; use
 /// [`killed_by_the_system`] on its exit status and call [`make_runnable`] with
-/// `resign` set.
+/// [`CodeSignature::Resign`].
 ///
 /// # Errors
 ///
@@ -125,7 +137,7 @@ pub fn spawn_repairing(
     };
     match spawn() {
         Err(error) if error.kind() == std::io::ErrorKind::PermissionDenied => {
-            make_runnable(binary, false)?;
+            make_runnable(binary, CodeSignature::Keep)?;
             spawn().map_err(launch_error)
         }
         other => other.map_err(launch_error),
@@ -222,11 +234,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = script(dir.path(), 0o644);
 
-        let first = make_runnable(&path, false).unwrap();
+        let first = make_runnable(&path, CodeSignature::Keep).unwrap();
         assert!(first.made_executable);
         assert_eq!(mode(&path), 0o755);
 
-        let second = make_runnable(&path, false).unwrap();
+        let second = make_runnable(&path, CodeSignature::Keep).unwrap();
         assert!(!second.made_executable, "nothing was left to fix");
     }
 
@@ -234,7 +246,7 @@ mod tests {
     fn group_and_other_get_execute_only_where_they_can_read() {
         let dir = tempfile::tempdir().unwrap();
         let path = script(dir.path(), 0o640);
-        make_runnable(&path, false).unwrap();
+        make_runnable(&path, CodeSignature::Keep).unwrap();
         assert_eq!(mode(&path), 0o750);
     }
 
@@ -289,7 +301,7 @@ mod tests {
             return;
         }
 
-        let repairs = make_runnable(&path, true).unwrap();
+        let repairs = make_runnable(&path, CodeSignature::Resign).unwrap();
         assert!(repairs.signed);
         let again = Command::new(&path).arg("--help").output().unwrap();
         assert!(

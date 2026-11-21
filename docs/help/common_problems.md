@@ -185,7 +185,7 @@ refuses to start the driver, it adds the execute permission, removes the
 quarantine flag and, for a binary the system killed as it started, signs it
 again ad hoc (`codesign --force --sign -`). `ChromedriverPatcher::patch` also
 signs the patched file again on macOS. The same repair is available as
-`seleniumbase_rs::browser::driver_access::make_runnable(path, resign)`. If a
+`seleniumbase_rs::browser::driver_access::make_runnable(path, CodeSignature::Resign)` (or `CodeSignature::Keep`). If a
 driver you supply still will not start, run the two steps by hand:
 
 ```bash

@@ -6,7 +6,7 @@ use reqwest::Client;
 use zip::ZipArchive;
 
 use crate::browser::download_progress::{archive_name, DownloadProgress};
-use crate::browser::driver_access::make_runnable;
+use crate::browser::driver_access::{make_runnable, CodeSignature};
 use crate::error::SeleniumBaseError;
 
 /// The Chrome for Testing listing of the newest stable build.
@@ -90,7 +90,7 @@ pub(crate) async fn download_chrome_driver_from(
 
     let dest_path = extract_chromedriver(client, &download_url, dest_dir).await?;
     // Executable, and free of the macOS quarantine flag if the archive had one.
-    make_runnable(&dest_path, false)?;
+    make_runnable(&dest_path, CodeSignature::Keep)?;
     Ok(dest_path)
 }
 

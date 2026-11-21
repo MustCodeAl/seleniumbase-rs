@@ -40,7 +40,7 @@ use crate::browser::binaries::{
 };
 use crate::browser::chrome_for_testing::{fetch_bytes, http_client, install_archive};
 use crate::browser::config::Browser;
-use crate::browser::driver_access::make_runnable;
+use crate::browser::driver_access::{make_runnable, CodeSignature};
 use crate::browser::driver_version::binary_major;
 use crate::error::SeleniumBaseError;
 
@@ -275,7 +275,7 @@ pub(crate) async fn install_snapshot_in(
             install_archive(client, &url, &dest, Some(MAX_BROWSER_BYTES)).await?;
             let browser = downloaded_executable(Browser::Chromium, &dest)
                 .ok_or_else(|| SeleniumBaseError::download(&url, "the archive holds no browser"))?;
-            make_runnable(&browser, false)?;
+            make_runnable(&browser, CodeSignature::Keep)?;
             fs::write(dest.join(REVISION_FILE), revision.to_string())?;
             tracing::info!(revision, path = %browser.display(), "downloaded Chromium");
             browser
@@ -317,7 +317,7 @@ async fn install_snapshot_driver(
     install_archive(client, &url, &folder, Some(MAX_DRIVER_BYTES)).await?;
     let driver = find_executable(&folder, &CHROMEDRIVER_NAMES)
         .ok_or_else(|| SeleniumBaseError::download(&url, "the archive holds no chromedriver"))?;
-    make_runnable(&driver, false)?;
+    make_runnable(&driver, CodeSignature::Keep)?;
     Ok(Some(driver))
 }
 

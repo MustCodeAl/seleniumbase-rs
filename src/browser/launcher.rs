@@ -15,7 +15,9 @@ use crate::browser::binaries::{locate, DOWNLOADS_DIR};
 use crate::browser::chrome_for_testing::install_chromedriver;
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::downloader::download_chrome_driver_for;
-use crate::browser::driver_access::{killed_by_the_system, make_runnable, spawn_repairing};
+use crate::browser::driver_access::{
+    killed_by_the_system, make_runnable, spawn_repairing, CodeSignature,
+};
 use crate::browser::driver_install::{
     downloaded_driver, install_geckodriver, install_msedgedriver,
 };
@@ -208,7 +210,7 @@ pub async fn launch_chromedriver_at(
                 // macOS kills a driver whose signature or quarantine flag it
                 // rejects. Fix the file and start it once more.
                 repaired = true;
-                make_runnable(binary, true)?;
+                make_runnable(binary, CodeSignature::Resign)?;
                 child = spawn_repairing(binary, configure)?;
             }
             Waited::Exited(status) => {
@@ -785,7 +787,7 @@ async fn launch_driver_binary(
                 if cfg!(target_os = "macos") && !repaired && killed_by_the_system(status) =>
             {
                 repaired = true;
-                make_runnable(binary, true)?;
+                make_runnable(binary, CodeSignature::Resign)?;
                 child = spawn_repairing(binary, configure)?;
             }
             Waited::Exited(status) => {

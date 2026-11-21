@@ -18,7 +18,7 @@ use crate::browser::chromium_snapshots::{
 };
 use crate::browser::config::Browser;
 use crate::browser::downloader::download_chrome_driver_for;
-use crate::browser::driver_access::make_runnable;
+use crate::browser::driver_access::{make_runnable, CodeSignature};
 use crate::browser::driver_install::{
     downloaded_driver, install_geckodriver, install_msedgedriver, GECKODRIVER_NAMES,
 };
@@ -360,7 +360,7 @@ async fn fetch(request: &InstallRequest) -> Result<Installed, SeleniumBaseError>
             let path = make_uc_driver(root, &chromedriver, version.as_deref(), &|path| {
                 patch_chromedriver(path)?;
                 // The patch changed the bytes, so macOS needs the signature made again.
-                make_runnable(path, true).map(|_| ())
+                make_runnable(path, CodeSignature::Resign).map(|_| ())
             })?;
             Ok(Installed {
                 path,
@@ -518,7 +518,7 @@ fn copy_then_move(from: &Path, temporary: &Path, target: &Path) -> io::Result<()
     io::copy(&mut input, &mut output)?;
     output.set_permissions(input.metadata()?.permissions())?;
     drop(output);
-    make_runnable(temporary, false).map_err(io::Error::other)?;
+    make_runnable(temporary, CodeSignature::Keep).map_err(io::Error::other)?;
     fs::rename(temporary, target)
 }
 

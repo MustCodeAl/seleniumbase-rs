@@ -28,7 +28,7 @@ use crate::browser::binaries::{
 use crate::browser::config::Browser;
 use crate::browser::download_progress::{archive_name, DownloadProgress};
 use crate::browser::downloader::platform_label;
-use crate::browser::driver_access::make_runnable;
+use crate::browser::driver_access::{make_runnable, CodeSignature};
 use crate::browser::options::{DriverVersion, ReleaseChannel};
 use crate::error::SeleniumBaseError;
 
@@ -598,7 +598,7 @@ pub(crate) async fn install_chromedriver_from(
     let executable = find_executable(&folder, &CHROMEDRIVER_NAMES).ok_or_else(|| {
         SeleniumBaseError::download(&build.url, "the archive holds no chromedriver")
     })?;
-    make_runnable(&executable, false)?;
+    make_runnable(&executable, CodeSignature::Keep)?;
     Ok(executable)
 }
 
@@ -678,7 +678,7 @@ pub(crate) async fn install_browser_from(
     let executable = downloaded_executable(browser, &dest).ok_or_else(|| {
         SeleniumBaseError::download(&build.url, "the archive holds no browser program")
     })?;
-    make_runnable(&executable, false)?;
+    make_runnable(&executable, CodeSignature::Keep)?;
     tracing::info!(version = %build.version, path = %executable.display(), "downloaded {browser}");
     Ok(executable)
 }
