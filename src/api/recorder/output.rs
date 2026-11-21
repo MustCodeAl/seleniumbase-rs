@@ -23,7 +23,7 @@ use std::sync::{Mutex, OnceLock};
 use super::{check_file_name, rust_identifier, ActionRecorder, RecordedAction, RecorderSession};
 use crate::common::color::{banner, palette};
 
-use crate::SeleniumBaseError;
+use crate::{DriverMode, SeleniumBaseError};
 
 /// The folder the recordings go to, as in Python.
 pub const RECORDINGS_FOLDER: &str = "recordings";
@@ -146,8 +146,10 @@ pub struct RecordingOptions {
     pub behave: bool,
     /// Print the code file with line numbers (`--rec-print`).
     pub print: bool,
-    /// Python's `--uc` output: the test starts in CDP mode.
-    pub uc: bool,
+    /// The driver mode of the session: [`DriverMode::Uc`] is Python's `--uc`
+    /// output, where the test starts in CDP mode. The other modes write the
+    /// plain output.
+    pub mode: DriverMode,
     /// Colour the `RECORDING SAVED as:` banner the way Python does. Off by
     /// default: the caller that owns the stream decides, usually with
     /// [`use_color`](crate::common::color::use_color).
@@ -237,7 +239,7 @@ pub fn write_recording(
     let stem = &target.file_stem;
     let code = folder.join(format!("{stem}_rec.rs"));
     let added = match options.format {
-        RecordingFormat::Test => write_test(&code, &recorder, &target.scenario, options.uc)?,
+        RecordingFormat::Test => write_test(&code, &recorder, &target.scenario, options.mode)?,
         RecordingFormat::Script => {
             std::fs::write(&code, recorder.to_rust_script())?;
             false
@@ -261,7 +263,7 @@ pub fn write_recording(
 
     let feature = if options.behave {
         let path = folder.join("features").join(format!("{stem}_rec.feature"));
-        let appended = write_feature(&path, &recorder, target, options.uc, added)?;
+        let appended = write_feature(&path, &recorder, target, options.mode, added)?;
         let verb = if appended { "ADDED to" } else { "SAVED as" };
         announce(out, verb, &path, options.color)?;
         Some(path)
@@ -324,9 +326,9 @@ fn write_test(
     path: &Path,
     recorder: &ActionRecorder,
     scenario: &str,
-    uc: bool,
+    mode: DriverMode,
 ) -> Result<bool, SeleniumBaseError> {
-    let full = recorder.to_rstest_test(scenario, uc);
+    let full = recorder.to_rstest_test(scenario, mode);
     if !seen_before(path) || !path.exists() {
         std::fs::write(path, &full)?;
         return Ok(false);
@@ -375,13 +377,13 @@ fn write_feature(
     path: &Path,
     recorder: &ActionRecorder,
     target: &RecordingTarget,
-    uc: bool,
+    mode: DriverMode,
     add: bool,
 ) -> Result<bool, SeleniumBaseError> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let feature = recorder.to_gherkin_scenario(&target.feature, &target.scenario, uc);
+    let feature = recorder.to_gherkin_scenario(&target.feature, &target.scenario, mode);
     if add
         && path.exists()
         && let Some(at) = feature.find("  Scenario:")

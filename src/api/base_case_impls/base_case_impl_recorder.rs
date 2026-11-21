@@ -506,8 +506,8 @@ impl BaseCase {
             &fallback_origin,
         );
         raw.extend(extras);
-        let uc = self.config.is_uc_enabled();
-        let recorder = ActionRecorder::from_raw_actions(raw, self.recording.start_ms, &origins, uc);
+        let mode = self.config.session.driver_mode();
+        let recorder = ActionRecorder::from_raw_actions(raw, self.recording.start_ms, &origins, mode);
         if recorder.actions.is_empty() {
             return Ok(None);
         }
@@ -527,7 +527,7 @@ impl BaseCase {
                     format,
                     behave: self.config.rec_behave(),
                     print: self.config.rec_print(),
-                    uc,
+                    mode,
                     // The banner goes to standard output, which may be a terminal.
                     color: crate::common::color::use_color(&std::io::stdout()),
                 };

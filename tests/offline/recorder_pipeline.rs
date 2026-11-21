@@ -14,6 +14,7 @@ use std::path::{Path, PathBuf};
 use seleniumbase_rs::api::recorder::{
     add_parent_frame_switches, process, to_actions, ActionRecorder, RawAction,
 };
+use seleniumbase_rs::DriverMode;
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -64,12 +65,21 @@ fn load(name: &str) -> (Case, Expected) {
     (case, expected)
 }
 
+/// The driver mode a fixture's `uc` flag stands for.
+fn mode_of(uc: bool) -> DriverMode {
+    if uc {
+        DriverMode::Uc
+    } else {
+        DriverMode::WebDriver
+    }
+}
+
 /// The pipeline as the harvest runs it for one tab.
 fn run(case: Case) -> (Vec<RawAction>, Vec<Call>) {
     let mut tab = case.actions;
     add_parent_frame_switches(&mut tab);
     let processed = process(tab, case.start_ms, &case.origins);
-    let calls = to_actions(&processed, case.uc)
+    let calls = to_actions(&processed, mode_of(case.uc))
         .into_iter()
         .map(|action| Call {
             name: action.command.name().to_owned(),
@@ -164,7 +174,15 @@ async fn test_recording(sb: Sb) -> Result<()> {
     .await
 }
 ";
-    assert_eq!(recorder.to_rstest_test("test_recording", false), expected);
+    assert_eq!(
+        recorder.to_rstest_test("test_recording", DriverMode::WebDriver),
+        expected
+    );
+    // The CDP mode is not the undetected one: it writes the plain test too.
+    assert_eq!(
+        recorder.to_rstest_test("test_recording", DriverMode::Cdp),
+        expected
+    );
 }
 
 #[test]
@@ -174,7 +192,7 @@ fn uc_starts_the_test_in_cdp_mode_and_a_password_comes_from_the_environment() {
         ("press_keys", Some("#pw"), Some("{{SB_RECORDED_SECRET}}\n")),
         ("levitate", Some("#a"), None),
     ]);
-    let test = recorder.to_rstest_test("my test", true);
+    let test = recorder.to_rstest_test("my test", DriverMode::Uc);
     assert!(
         test.contains("use seleniumbase_rs::api::recorder::recorded_secret;\n"),
         "{test}"
@@ -195,7 +213,7 @@ fn uc_starts_the_test_in_cdp_mode_and_a_password_comes_from_the_environment() {
         "{test}"
     );
     // No empty recording starts the browser in CDP mode for nothing.
-    let empty = ActionRecorder::default().to_rstest_test("t", true);
+    let empty = ActionRecorder::default().to_rstest_test("t", DriverMode::Uc);
     assert!(!empty.contains("activate_cdp_mode"), "{empty}");
 }
 
@@ -207,7 +225,7 @@ fn the_gherkin_scenario_is_named_and_worded_as_pythons() {
         ("assert_text", Some("h1"), Some("Hello")),
     ]);
     assert_eq!(
-        recorder.to_gherkin_scenario("RecorderTest", "test_recording", false),
+        recorder.to_gherkin_scenario("RecorderTest", "test_recording", DriverMode::WebDriver),
         "Feature: RecorderTest\n\n  Scenario: test_recording\n    \
          Given Open \"https://a.test/\"\n    \
          And Click \"#go\"\n    \
@@ -218,8 +236,12 @@ fn the_gherkin_scenario_is_named_and_worded_as_pythons() {
 #[test]
 fn a_raw_recording_becomes_an_action_recorder() {
     let (case, _) = load("basic");
-    let recorder =
-        ActionRecorder::from_raw_actions(case.actions, case.start_ms, &case.origins, false);
+    let recorder = ActionRecorder::from_raw_actions(
+        case.actions,
+        case.start_ms,
+        &case.origins,
+        DriverMode::WebDriver,
+    );
     let names: Vec<&str> = recorder.actions.iter().map(|a| a.command.name()).collect();
     assert_eq!(names[0], "goto");
     assert!(names.contains(&"assert_exact_text"), "{names:?}");

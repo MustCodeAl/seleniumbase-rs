@@ -16,7 +16,7 @@
 use std::io::{Read, Write};
 
 use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RECORDER_JS};
-use seleniumbase_rs::{BaseCase, BrowserConfig};
+use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
 const HOME: &str = r##"<!doctype html><title>Home</title>
 <h1>Home page</h1>
@@ -108,7 +108,7 @@ async fn a_label_click_typing_a_password_and_enter_become_the_calls_of_a_test() 
         .find(|action| action.kind == "input" && action.secret);
     assert!(password.is_some(), "the password is marked: {raw:?}");
 
-    let recorder = ActionRecorder::from_raw_actions(raw, 0, &[], false);
+    let recorder = ActionRecorder::from_raw_actions(raw, 0, &[], DriverMode::WebDriver);
     let calls: Vec<(String, String, String)> = recorder
         .actions
         .iter()

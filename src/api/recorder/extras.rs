@@ -308,7 +308,10 @@ mod tests {
         let rows = extra_raw_actions(&log, &page, 0, 0, false, "");
         let mut all = page.to_vec();
         all.extend(rows);
-        let calls = super::super::to_actions(&super::super::process(all, 0, &[]), false);
+        let calls = super::super::to_actions(
+            &super::super::process(all, 0, &[]),
+            crate::DriverMode::WebDriver,
+        );
         let names: Vec<_> = calls.iter().map(|call| call.command.name()).collect();
         assert_eq!(
             names,

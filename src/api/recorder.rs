@@ -112,7 +112,7 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
 use crate::api::base_case::BaseCase;
-use crate::SeleniumBaseError;
+use crate::{DriverMode, SeleniumBaseError};
 
 use rust_call::rust_call;
 
@@ -302,15 +302,17 @@ impl ActionRecorder {
     ///
     /// `start_ms` is the browser's `Date.now()` when recording began (older
     /// actions are dropped), `origins_to_save` the origins of the tabs that
-    /// were harvested, and `uc` is Python's `--uc` output.
+    /// were harvested, and `mode` is the driver mode of the session:
+    /// [`DriverMode::Uc`] writes Python's `--uc` output, any other mode the
+    /// plain one.
     pub fn from_raw_actions(
         raw: Vec<RawAction>,
         start_ms: i64,
         origins_to_save: &[String],
-        uc: bool,
+        mode: DriverMode,
     ) -> Self {
         Self {
-            actions: to_actions(&process(raw, start_ms, origins_to_save), uc),
+            actions: to_actions(&process(raw, start_ms, origins_to_save), mode),
         }
     }
 
@@ -318,7 +320,7 @@ impl ActionRecorder {
     /// `sb` fixture ([`RSTEST_PRELUDE`]) and runs the recorded calls in
     /// `sb.run(...)`, which owns the browser, the reruns and the evidence.
     ///
-    /// `test_name` becomes the function name. With `uc` the test starts with
+    /// `test_name` becomes the function name. With [`DriverMode::Uc`] the test starts with
     /// `activate_cdp_mode`, as Python's `--uc` output does (the caller turns
     /// `type_text` into `press_keys` when it builds the actions).
     ///
@@ -329,21 +331,21 @@ impl ActionRecorder {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::api::recorder::{ActionRecorder, RecordedCommand};
+    /// use seleniumbase_rs::{api::recorder::{ActionRecorder, RecordedCommand}, DriverMode};
     ///
     /// let mut recorder = ActionRecorder::default();
     /// recorder.record(RecordedCommand::Goto { url: "https://example.com".to_owned() });
     /// recorder.record(RecordedCommand::from_parts("assert_text", Some("h1"), Some("Example Domain")));
     ///
-    /// let test = recorder.to_rstest_test("test_recording", false);
+    /// let test = recorder.to_rstest_test("test_recording", DriverMode::WebDriver);
     /// assert!(test.contains("async fn test_recording(sb: Sb) -> Result<()> {"));
     /// assert!(test.contains("        sb.goto(\"https://example.com\").await?;"));
     /// ```
-    pub fn to_rstest_test(&self, test_name: &str, uc: bool) -> String {
+    pub fn to_rstest_test(&self, test_name: &str, mode: DriverMode) -> String {
         let secret = format!("std::env::var({})?", literal(SECRET_VARIABLE));
         let mut body = String::new();
         let mut needs_secret = false;
-        if uc && !self.actions.is_empty() {
+        if mode == DriverMode::Uc && !self.actions.is_empty() {
             body.push_str("        sb.activate_cdp_mode().await?;\n");
         }
         for action in &self.actions {
@@ -373,7 +375,7 @@ impl ActionRecorder {
     /// Gherkin in the wording of Python's `--rec-behave`
     /// (`behave/behave_helper.py`): `Feature:` and `Scenario:` named as given,
     /// then `Given Open "url"` and `And Click "selector"`, one step per
-    /// action. With `uc` the first step is `Activate CDP Mode`.
+    /// action. With [`DriverMode::Uc`] the first step is `Activate CDP Mode`.
     ///
     /// A password typed into the browser is `<SB_RECORDED_SECRET>`. An
     /// action with no step becomes a `# skipped:` comment.
@@ -381,18 +383,18 @@ impl ActionRecorder {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::api::recorder::{ActionRecorder, RecordedCommand};
+    /// use seleniumbase_rs::{api::recorder::{ActionRecorder, RecordedCommand}, DriverMode};
     ///
     /// let mut recorder = ActionRecorder::default();
     /// recorder.record(RecordedCommand::Goto { url: "https://example.com".to_owned() });
     /// recorder.record(RecordedCommand::Click { selector: "a".to_owned() });
     ///
-    /// let feature = recorder.to_gherkin_scenario("RecorderTest", "test_recording", false);
+    /// let feature = recorder.to_gherkin_scenario("RecorderTest", "test_recording", DriverMode::WebDriver);
     /// assert!(feature.starts_with("Feature: RecorderTest\n\n  Scenario: test_recording\n"));
     /// assert!(feature.contains("    Given Open \"https://example.com\"\n    And Click \"a\"\n"));
     /// ```
-    pub fn to_gherkin_scenario(&self, feature: &str, scenario: &str, uc: bool) -> String {
-        generate::gherkin_scenario(&self.actions, feature, scenario, uc)
+    pub fn to_gherkin_scenario(&self, feature: &str, scenario: &str, mode: DriverMode) -> String {
+        generate::gherkin_scenario(&self.actions, feature, scenario, mode)
     }
 
     /// Writes the recording as a Gherkin feature file into `dir/{name}.feature`.
@@ -1054,7 +1056,7 @@ mod tests {
         assert!(script.contains("sb.click(\"#after\")"), "{script}");
         syn::parse_file(&script).expect("a comment leaves a valid program");
 
-        let test = recorder.to_rstest_test("test_x", false);
+        let test = recorder.to_rstest_test("test_x", DriverMode::WebDriver);
         assert!(
             test.contains(&format!("// {note} sb.solve_captcha()")),
             "{test}"
@@ -1067,7 +1069,7 @@ mod tests {
         );
         syn::parse_file(&cdp).expect("a comment leaves a valid program");
 
-        let feature = recorder.to_gherkin_scenario("F", "S", false);
+        let feature = recorder.to_gherkin_scenario("F", "S", DriverMode::WebDriver);
         assert!(
             feature.contains(&format!("# {note} sb.solve_captcha()")),
             "{feature}"

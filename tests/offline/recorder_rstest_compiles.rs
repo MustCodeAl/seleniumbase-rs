@@ -16,6 +16,7 @@ use std::fs;
 use std::path::Path;
 
 use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RecordedAction, RecordedCommand};
+use seleniumbase_rs::DriverMode;
 
 fn recording() -> ActionRecorder {
     let mut actions: Vec<RecordedAction> = Vec::new();
@@ -34,7 +35,9 @@ fn recording() -> ActionRecorder {
         let case: serde_json::Value = serde_json::from_str(&text).expect("fixture JSON");
         let raw: Vec<RawAction> = serde_json::from_value(case["actions"].clone()).expect("actions");
         let start = case["start_ms"].as_i64().expect("start_ms");
-        actions.extend(ActionRecorder::from_raw_actions(raw, start, &[], false).actions);
+        actions.extend(
+            ActionRecorder::from_raw_actions(raw, start, &[], DriverMode::WebDriver).actions,
+        );
     }
     actions.push(RecordedAction::new(RecordedCommand::from_parts(
         "type_text",
@@ -46,7 +49,7 @@ fn recording() -> ActionRecorder {
 
 #[test]
 fn the_golden_file_is_what_the_generator_writes() {
-    let generated = recording().to_rstest_test("test_recording", false);
+    let generated = recording().to_rstest_test("test_recording", DriverMode::WebDriver);
     let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/golden_rust/rstest_recording.rs");
     if std::env::var_os("SB_UPDATE_GOLDEN").is_some() {
         fs::write(&path, &generated).expect("write the golden file");

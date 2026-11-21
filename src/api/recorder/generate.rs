@@ -10,6 +10,8 @@
 
 use serde_json::Value;
 
+use crate::DriverMode;
+
 use super::raw::{text, RawAction};
 use super::RecordedCommand;
 use super::{keep_secrets, RecordedAction, SECRET_PLACEHOLDER};
@@ -122,7 +124,7 @@ fn typed(row: &RawAction) -> String {
 
 /// Python's `generate_sbase_code`, producing calls instead of Python text.
 ///
-/// `sorted` is the output of [`process`](super::process). `uc` turns
+/// `sorted` is the output of [`process`](super::process). [`DriverMode::Uc`] turns
 /// `type_text` into `press_keys`, as Python's `--uc` output does. The
 /// timestamp of each action is the time the page recorded.
 ///
@@ -137,21 +139,21 @@ fn typed(row: &RawAction) -> String {
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::api::recorder::{process, to_actions, RawAction};
+/// use seleniumbase_rs::{api::recorder::{process, to_actions, RawAction}, DriverMode};
 /// use serde_json::json;
 ///
 /// let raw = vec![
 ///     RawAction::new("begin", json!("https://a.test"), json!("https://a.test/"), 1000),
 ///     RawAction::new("input", json!("#q"), json!("rust\n"), 1200),
 /// ];
-/// let actions = to_actions(&process(raw, 0, &[]), false);
+/// let actions = to_actions(&process(raw, 0, &[]), DriverMode::WebDriver);
 /// assert_eq!(actions[0].command.name(), "goto");
 /// assert_eq!(actions[1].command.name(), "type_text");
 /// assert_eq!(actions[1].command.value().as_deref(), Some("rust\n"));
 /// ```
-pub fn to_actions(sorted: &[RawAction], uc: bool) -> Vec<RecordedAction> {
+pub fn to_actions(sorted: &[RawAction], mode: DriverMode) -> Vec<RecordedAction> {
     let mut actions: Vec<RecordedAction> = Vec::new();
-    for action in sorted.iter().filter_map(|row| action(row, uc)) {
+    for action in sorted.iter().filter_map(|row| action(row, mode)) {
         // A person who works a CAPTCHA widget makes several of these in a
         // row; the test needs one note about it.
         let again = match (&action.command, actions.last().map(|last| &last.command)) {
@@ -257,7 +259,7 @@ const CALLS: &[(&str, &str, CallForm)] = &[
 ];
 
 /// The call one processed action makes, if it makes one.
-fn action(row: &RawAction, uc: bool) -> Option<RecordedAction> {
+fn action(row: &RawAction, mode: DriverMode) -> Option<RecordedAction> {
     let arg = text(&row.arg).to_owned();
     let detail = text(&row.detail).to_owned();
     let parts = &row.arg;
@@ -293,7 +295,11 @@ fn action(row: &RawAction, uc: bool) -> Option<RecordedAction> {
             )
         }
         "input" => make(
-            if uc { "press_keys" } else { "type_text" },
+            if mode == DriverMode::Uc {
+                "press_keys"
+            } else {
+                "type_text"
+            },
             Some(arg),
             Some(typed(row)),
         ),
@@ -579,7 +585,7 @@ fn gherkin_step(action: &RecordedAction) -> Result<String, String> {
 
 /// A Gherkin feature of one scenario in the wording of Python's
 /// `--rec-behave` (`behave/behave_helper.py`): `Feature:`, `Scenario:`, `Given`
-/// for the first step and `And` for the rest. With `uc` the first step is
+/// for the first step and `And` for the rest. With [`DriverMode::Uc`] the first step is
 /// `Activate CDP Mode`.
 ///
 /// A step with no wording becomes a `# skipped:` comment that says why.
@@ -590,7 +596,7 @@ pub(super) fn gherkin_scenario(
     actions: &[RecordedAction],
     feature: &str,
     scenario: &str,
-    uc: bool,
+    mode: DriverMode,
 ) -> String {
     let flat = |name: &str| -> String {
         name.chars()
@@ -607,7 +613,7 @@ pub(super) fn gherkin_scenario(
         out.push_str(&format!("    {keyword} {step}\n"));
         keyword = "And";
     };
-    if uc && !actions.is_empty() {
+    if mode == DriverMode::Uc && !actions.is_empty() {
         step(&mut out, "Activate CDP Mode");
     }
     for action in actions {
@@ -625,7 +631,7 @@ mod tests {
     use serde_json::json;
 
     fn named(rows: &[RawAction]) -> Vec<String> {
-        to_actions(rows, false)
+        to_actions(rows, DriverMode::WebDriver)
             .into_iter()
             .map(|a| {
                 format!(
@@ -642,7 +648,7 @@ mod tests {
     }
 
     fn one(row: RawAction) -> Option<(String, Option<String>, Option<String>)> {
-        action(&row, false).map(|a| {
+        action(&row, DriverMode::WebDriver).map(|a| {
             (
                 a.command.name().to_owned(),
                 a.command.target(),
@@ -776,21 +782,35 @@ mod tests {
     #[test]
     fn uc_types_with_press_keys() {
         let rows = [raw("input", json!("#q"), json!("hi"))];
-        assert_eq!(to_actions(&rows, true)[0].command.name(), "press_keys");
-        assert_eq!(to_actions(&rows, false)[0].command.name(), "type_text");
+        assert_eq!(
+            to_actions(&rows, DriverMode::Uc)[0].command.name(),
+            "press_keys"
+        );
+        assert_eq!(
+            to_actions(&rows, DriverMode::WebDriver)[0].command.name(),
+            "type_text"
+        );
+        // Only the undetected mode types with `press_keys`: the CDP mode writes the plain call.
+        assert_eq!(
+            to_actions(&rows, DriverMode::Cdp)[0].command.name(),
+            "type_text"
+        );
     }
 
     #[test]
     fn a_typed_password_is_the_placeholder() {
         let row = raw("input", json!("#pw"), json!("hunter2\n")).secret();
-        let actions = to_actions(&[row], false);
+        let actions = to_actions(&[row], DriverMode::WebDriver);
         assert_eq!(
             actions[0].command.value().as_deref(),
             Some("{{SB_RECORDED_SECRET}}\n")
         );
         let row = raw("input", json!("#pw"), json!("hunter2")).secret();
         assert_eq!(
-            to_actions(&[row], false)[0].command.value().as_deref(),
+            to_actions(&[row], DriverMode::WebDriver)[0]
+                .command
+                .value()
+                .as_deref(),
             Some(SECRET_PLACEHOLDER)
         );
     }
@@ -890,9 +910,14 @@ mod tests {
                 raw("c_box", json!("#b"), json!("no")),
                 raw("h_clk", json!(".menu"), json!(".item")),
             ],
-            false,
+            DriverMode::WebDriver,
         );
-        let feature = gherkin_scenario(&actions, "RecorderTest", "test_recording", false);
+        let feature = gherkin_scenario(
+            &actions,
+            "RecorderTest",
+            "test_recording",
+            DriverMode::WebDriver,
+        );
         assert_eq!(
             feature,
             "Feature: RecorderTest\n\n  Scenario: test_recording\n    \
@@ -906,19 +931,27 @@ mod tests {
              And Uncheck if checked \"#b\"\n    \
              And Hover \".menu\" and click \".item\"\n"
         );
-        let uc = gherkin_scenario(&actions[..1], "F", "s", true);
+        let uc = gherkin_scenario(&actions[..1], "F", "s", DriverMode::Uc);
         assert!(uc.contains("Given Activate CDP Mode\n    And Open"), "{uc}");
+        // Only the undetected mode writes that step: the other two modes write the plain feature.
+        for plain in [DriverMode::WebDriver, DriverMode::Cdp] {
+            let feature = gherkin_scenario(&actions[..1], "F", "s", plain);
+            assert!(!feature.contains("Activate CDP Mode"), "{feature}");
+        }
     }
 
     #[test]
     fn a_password_and_an_unknown_action_in_gherkin() {
-        let mut actions = to_actions(&[raw("input", json!("#pw"), json!("x")).secret()], false);
+        let mut actions = to_actions(
+            &[raw("input", json!("#pw"), json!("x")).secret()],
+            DriverMode::WebDriver,
+        );
         actions.push(RecordedAction::new(RecordedCommand::from_parts(
             "levitate",
             Some("#a"),
             None,
         )));
-        let feature = gherkin_scenario(&actions, "F", "s", false);
+        let feature = gherkin_scenario(&actions, "F", "s", DriverMode::WebDriver);
         assert!(
             feature.contains("Given Type \"<SB_RECORDED_SECRET>\" into \"#pw\""),
             "{feature}"
