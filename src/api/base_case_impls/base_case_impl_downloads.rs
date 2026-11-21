@@ -11,15 +11,19 @@
 fn check_downloaded_data(
     folder: &Path,
     data: &str,
-    filename: &str,
+    filename: impl AsRef<Path>,
 ) -> Result<(), SeleniumBaseError> {
+    let filename = filename.as_ref();
+
+    let shown = filename.display();
+
     let path = crate::artifacts::confined_path(folder, filename)?;
     let actual = fs::read_to_string(&path)?;
     if actual.contains(data.trim()) {
         Ok(())
     } else {
         Err(SeleniumBaseError::AssertionFailed(format!(
-            "Expected data [{}] is not in downloaded file [{filename}]!",
+            "Expected data [{}] is not in downloaded file [{shown}]!",
             data.trim()
         )))
     }
@@ -84,12 +88,12 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::InvalidConfig`] if `filename` is not a plain
     /// file name (no directory part, no `..`), so it cannot reach a file
     /// outside the downloads folder.
-    pub fn path_of_downloaded_file(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
+    pub fn path_of_downloaded_file(&self, filename: impl AsRef<Path>) -> Result<PathBuf, SeleniumBaseError> {
         crate::artifacts::confined_path(&default_download_dir(), filename)
     }
 
     /// Returns true if `filename` exists in the downloads folder.
-    pub fn is_downloaded_file_present(&self, filename: &str) -> bool {
+    pub fn is_downloaded_file_present(&self, filename: impl AsRef<Path>) -> bool {
         self.path_of_downloaded_file(filename)
             .is_ok_and(|path| path.exists())
     }
@@ -100,7 +104,7 @@ impl BaseCase {
     }
 
     /// Reads the contents of `filename` from the downloads folder.
-    pub fn data_from_downloaded_file(&self, filename: &str) -> Result<String, SeleniumBaseError> {
+    pub fn data_from_downloaded_file(&self, filename: impl AsRef<Path>) -> Result<String, SeleniumBaseError> {
         let path = self.path_of_downloaded_file(filename)?;
         Ok(fs::read_to_string(&path)?)
     }
@@ -134,14 +138,14 @@ impl BaseCase {
     pub async fn assert_data_in_downloaded_file(
         &self,
         data: &str,
-        filename: &str,
+        filename: impl AsRef<Path>,
     ) -> Result<(), SeleniumBaseError> {
-        self.assert_downloaded_file(filename).await?;
-        check_downloaded_data(&default_download_dir(), data, filename)
+        self.assert_downloaded_file(filename.as_ref()).await?;
+        check_downloaded_data(&default_download_dir(), data, filename.as_ref())
     }
 
     /// Deletes `filename` from the downloads folder if it exists.
-    pub fn delete_downloaded_file_if_present(&self, filename: &str) -> Result<(), SeleniumBaseError> {
+    pub fn delete_downloaded_file_if_present(&self, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         let path = self.path_of_downloaded_file(filename)?;
         if path.exists() {
             fs::remove_file(&path)?;
@@ -171,6 +175,21 @@ mod tests_downloads {
     }
 
     #[test]
+    fn a_file_name_may_be_a_str_a_string_or_a_path() {
+        let folder = tempfile::tempdir().unwrap();
+        fs::write(folder.path().join("report.csv"), "id,name\n1,Ada\n").unwrap();
+
+        check_downloaded_data(folder.path(), "1,Ada", "report.csv").unwrap();
+        check_downloaded_data(folder.path(), "1,Ada", String::from("report.csv")).unwrap();
+        check_downloaded_data(folder.path(), "1,Ada", Path::new("report.csv")).unwrap();
+        check_downloaded_data(folder.path(), "1,Ada", PathBuf::from("report.csv")).unwrap();
+        // A path with a directory part is refused, as a string with one always was.
+        let error = check_downloaded_data(folder.path(), "1,Ada", Path::new("../report.csv"));
+        assert!(matches!(error, Err(SeleniumBaseError::InvalidConfig(_))), "{error:?}");
+    }
+
+    #[test]
+
     fn whitespace_at_the_ends_of_the_data_is_ignored() {
         let folder = tempfile::tempdir().unwrap();
         fs::write(folder.path().join("a.txt"), "hello world").unwrap();

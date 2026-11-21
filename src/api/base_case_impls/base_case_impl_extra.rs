@@ -1246,8 +1246,8 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::AssertionFailed`] if the file is not there
     /// when the timeout ends.
-    pub async fn assert_downloaded_file(&self, filename: &str) -> Result<(), SeleniumBaseError> {
-        let path = crate::artifacts::confined_path(&default_download_dir(), filename)?;
+    pub async fn assert_downloaded_file(&self, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
+        let path = crate::artifacts::confined_path(&default_download_dir(), &filename)?;
         let timeout = self.default_wait_secs();
         wait_for_file(&path, timeout).await.map_err(|_| {
             SeleniumBaseError::AssertionFailed(format!(
@@ -1255,13 +1255,13 @@ impl BaseCase {
                 path.display()
             ))
         })?;
-        let message = demo::bracketed_message("ASSERT DOWNLOADED FILE", filename);
+        let message = demo::bracketed_message("ASSERT DOWNLOADED FILE", &filename.as_ref().display().to_string());
         self.demo_assert_success(&message, None).await;
         Ok(())
     }
 
     /// Deletes `filename` from the downloads folder.
-    pub fn delete_downloaded_file(&self, filename: &str) -> Result<(), SeleniumBaseError> {
+    pub fn delete_downloaded_file(&self, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         let path = crate::artifacts::confined_path(&default_download_dir(), filename)?;
         if path.exists() {
             fs::remove_file(&path)?;
@@ -1279,7 +1279,7 @@ impl BaseCase {
     pub async fn download_file_in_browser(
         &mut self,
         url: &str,
-        filename: &str,
+        filename: impl AsRef<Path>,
         timeout_secs: u64,
     ) -> Result<PathBuf, SeleniumBaseError> { let original = self.current_window_handle().await?;
     self.session.switch_to_new_window().await?;
@@ -1843,13 +1843,13 @@ impl BaseCase {
     pub fn append_data_to_file(
         &self,
         data: &str,
-        filename: &str,
+        filename: impl AsRef<Path>,
     ) -> Result<(), SeleniumBaseError> {
         Self::append_data_in(&ensure_latest_logs_dir()?, data, filename)
     }
 
     /// Appends `data` and a newline to the file `filename` in `dir`.
-    fn append_data_in(dir: &Path, data: &str, filename: &str) -> Result<(), SeleniumBaseError> {
+    fn append_data_in(dir: &Path, data: &str, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         use std::io::Write;
         let path = crate::artifacts::confined_path(dir, filename)?;
         let mut file = std::fs::OpenOptions::new()
@@ -1880,12 +1880,12 @@ impl BaseCase {
     }
 
     /// Saves `data` to `filename` in the logs directory (overwrites).
-    pub fn save_data_as(&self, data: &str, filename: &str) -> Result<(), SeleniumBaseError> {
+    pub fn save_data_as(&self, data: &str, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         Self::save_data_in(&ensure_latest_logs_dir()?, data, filename)
     }
 
     /// Writes `data` to the file `filename` in `dir`, replacing it.
-    fn save_data_in(dir: &Path, data: &str, filename: &str) -> Result<(), SeleniumBaseError> {
+    fn save_data_in(dir: &Path, data: &str, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         let path = crate::artifacts::confined_path(dir, filename)?;
         fs::write(&path, data)?;
         Ok(())

@@ -2432,14 +2432,14 @@ impl BaseCase {
     pub async fn choose_file(
         &mut self,
         selector: impl Into<SelectorBuf>,
-        file_path: &str,
+        file_path: impl AsRef<Path>,
     ) -> Result<(), SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
-        self.record_selector("choose_file", css, Some(file_path));
+        let path = file_path.as_ref();
+        self.record_selector("choose_file", css, Some(&path.to_string_lossy()));
         let selector = shadow_find::checked(css)?;
         let element = self.session.wait_for_element(selector, 10).await?;
 
-        let path = std::path::Path::new(file_path);
         let abs_path = std::fs::canonicalize(path)
             .map_err(|e| SeleniumBaseError::AssertionFailed(format!("File not found: {}", e)))?;
 

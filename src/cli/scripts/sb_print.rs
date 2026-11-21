@@ -14,9 +14,9 @@ use std::fs;
 /// let dir = tempfile::tempdir().unwrap();
 /// let path = dir.path().join("note.txt");
 /// std::fs::write(&path, b"caf\xe9").unwrap();
-/// assert_eq!(print_file(path.to_str().unwrap()).unwrap(), "caf\u{fffd}");
+/// assert_eq!(print_file(&path).unwrap(), "caf\u{fffd}");
 /// ```
-pub fn print_file(filename: &str) -> std::io::Result<String> {
+pub fn print_file(filename: impl AsRef<std::path::Path>) -> std::io::Result<String> {
     let bytes = fs::read(filename)?;
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
@@ -62,6 +62,19 @@ mod tests {
     }
 
     #[test]
+    fn a_path_a_str_and_a_string_name_the_same_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("a.txt");
+        std::fs::write(&path, "same\n").unwrap();
+        let text = path.to_str().unwrap().to_owned();
+
+        assert_eq!(print_file(&path).unwrap(), "same\n");
+        assert_eq!(print_file(text.as_str()).unwrap(), "same\n");
+        assert_eq!(print_file(text).unwrap(), "same\n");
+    }
+
+    #[test]
+
     fn a_missing_file_is_a_not_found_error() {
         let dir = tempfile::tempdir().unwrap();
         let missing = dir.path().join("missing.txt");

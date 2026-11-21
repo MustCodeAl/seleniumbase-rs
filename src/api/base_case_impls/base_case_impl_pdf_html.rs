@@ -28,7 +28,7 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::Unsupported`] if the session has no CDP
     /// connection or the response has no PDF data, and an I/O error if the file
     /// cannot be written.
-    pub async fn print_to_pdf(&self, filename: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn print_to_pdf(&self, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         let response = self
             .session
             .execute_cdp_with_params(
@@ -54,7 +54,7 @@ impl BaseCase {
     }
 
     /// Alias for `print_to_pdf`.
-    pub async fn save_as_pdf(&self, filename: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn save_as_pdf(&self, filename: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         self.print_to_pdf(filename).await
     }
 
@@ -62,7 +62,7 @@ impl BaseCase {
     ///
     /// Needs the `pdf` Cargo feature.
     #[cfg(feature = "pdf")]
-    pub fn pdf_text(&self, filename: &str) -> Result<String, SeleniumBaseError> {
+    pub fn pdf_text(&self, filename: impl AsRef<Path>) -> Result<String, SeleniumBaseError> {
         pdf::extract_text_from_file(filename)
     }
 
@@ -70,12 +70,12 @@ impl BaseCase {
     ///
     /// Needs the `pdf` Cargo feature.
     #[cfg(feature = "pdf")]
-    pub fn assert_pdf_text(&self, filename: &str, text: &str) -> Result<(), SeleniumBaseError> {
-        let content = self.pdf_text(filename)?;
+    pub fn assert_pdf_text(&self, filename: impl AsRef<Path>, text: &str) -> Result<(), SeleniumBaseError> {
+        let content = self.pdf_text(filename.as_ref())?;
         if !content.contains(text) {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "PDF '{}' did not contain text '{}'",
-                filename, text
+                filename.as_ref().display(), text
             )));
         }
         Ok(())

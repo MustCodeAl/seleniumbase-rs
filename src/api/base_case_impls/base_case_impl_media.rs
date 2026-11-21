@@ -8,7 +8,7 @@ impl BaseCase {
     /// `filename` must be a plain file name; one with a directory part or a
     /// `..` is refused, so the file cannot land outside the logs directory.
     /// A file of the same name is replaced.
-    pub async fn save_screenshot(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
+    pub async fn save_screenshot(&self, filename: impl AsRef<Path>) -> Result<PathBuf, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
         self.session.screenshot(&path).await?;
@@ -20,17 +20,17 @@ impl BaseCase {
     /// writes to. A file of the same name is replaced.
     ///
     /// `filename` must be a plain file name, as for [`Self::save_screenshot`].
-    pub async fn save_as_pdf_to_logs(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
+    pub async fn save_as_pdf_to_logs(&self, filename: impl AsRef<Path>) -> Result<PathBuf, SeleniumBaseError> {
         let dir = self.test_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
-        self.print_to_pdf(path.to_str().unwrap_or("page.pdf")).await?;
+        self.print_to_pdf(&path).await?;
         Ok(path)
     }
 
     /// Saves a screenshot of `css` to the logs directory.
     ///
     /// `filename` must be a plain file name, as for [`Self::save_screenshot`].
-    pub async fn save_element_as_image_file(&mut self, selector: impl Into<SelectorBuf>, filename: &str,) -> Result<PathBuf, SeleniumBaseError> {
+    pub async fn save_element_as_image_file(&mut self, selector: impl Into<SelectorBuf>, filename: impl AsRef<Path>) -> Result<PathBuf, SeleniumBaseError> {
         let css: &SelectorBuf = &selector.into();
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
@@ -58,7 +58,7 @@ impl BaseCase {
     /// Reads the contents of a file from the logs directory.
     ///
     /// `filename` must be a plain file name, as for [`Self::save_screenshot`].
-    pub fn file_data(&self, filename: &str) -> Result<String, SeleniumBaseError> {
+    pub fn file_data(&self, filename: impl AsRef<Path>) -> Result<String, SeleniumBaseError> {
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
         Ok(fs::read_to_string(&path)?)

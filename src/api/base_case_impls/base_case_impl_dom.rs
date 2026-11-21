@@ -60,7 +60,7 @@ impl BaseCase {
     }
 
     /// Saves the current page source to the logs directory.
-    pub async fn save_page_source(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
+    pub async fn save_page_source(&self, filename: impl AsRef<Path>) -> Result<PathBuf, SeleniumBaseError> {
         let source = self.page_source().await?;
         let dir = ensure_latest_logs_dir()?;
         let path = crate::artifacts::confined_path(&dir, filename)?;
@@ -69,7 +69,7 @@ impl BaseCase {
     }
 
     /// Loads a local HTML file into the browser.
-    pub async fn load_html_file(&mut self, path: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn load_html_file(&mut self, path: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         let abs = std::fs::canonicalize(path)?;
         let url = url::Url::from_file_path(&abs)
             .map_err(|_| SeleniumBaseError::InvalidConfig("invalid file path".to_owned()))?;
@@ -77,7 +77,7 @@ impl BaseCase {
     }
 
     /// Alias for `load_html_file`.
-    pub async fn open_html_file(&mut self, path: &str) -> Result<(), SeleniumBaseError> {
+    pub async fn open_html_file(&mut self, path: impl AsRef<Path>) -> Result<(), SeleniumBaseError> {
         self.load_html_file(path).await
     }
 
@@ -411,7 +411,7 @@ impl BaseCase {
     }
 
     /// Saves the current page source to `filename`.
-    pub async fn save_as_html(&self, filename: &str) -> Result<PathBuf, SeleniumBaseError> {
+    pub async fn save_as_html(&self, filename: impl AsRef<Path>) -> Result<PathBuf, SeleniumBaseError> {
         self.save_page_source(filename).await
     }
 

@@ -232,7 +232,7 @@ fn ensure_dir(path: &Path) -> Result<(), SeleniumBaseError> {
     })
 }
 
-/// `name` as a path, if it is one plain file name: no directory part, no
+/// `name` (a string or a path) as a path, if it is one plain file name: no directory part, no
 /// `..`, not absolute, no drive prefix.
 ///
 /// Both `/` and `\` count as separators on every platform, so a name that is
@@ -253,18 +253,25 @@ fn ensure_dir(path: &Path) -> Result<(), SeleniumBaseError> {
 ///     assert!(bare_file_name(bad).is_err(), "{bad}");
 /// }
 /// ```
-pub fn bare_file_name(name: &str) -> Result<&Path, SeleniumBaseError> {
-    let path = Path::new(name);
+pub fn bare_file_name<'a>(
+    name: &'a (impl AsRef<Path> + ?Sized),
+) -> Result<&'a Path, SeleniumBaseError> {
+    let path = name.as_ref();
     let mut parts = path.components();
     let one_plain_part = matches!(
         (parts.next(), parts.next()),
         (Some(Component::Normal(_)), None)
     );
-    if one_plain_part && !name.contains(['/', '\\', '\0']) {
+    if one_plain_part
+        && !path
+            .as_os_str()
+            .to_string_lossy()
+            .contains(['/', '\\', '\0'])
+    {
         Ok(path)
     } else {
         Err(SeleniumBaseError::InvalidConfig(format!(
-            "a file name here must be a plain name with no directory part, not {name:?}"
+            "a file name here must be a plain name with no directory part, not {path:?}"
         )))
     }
 }
@@ -274,8 +281,8 @@ pub fn bare_file_name(name: &str) -> Result<&Path, SeleniumBaseError> {
 /// # Errors
 ///
 /// Returns [`SeleniumBaseError::InvalidConfig`] if `name` is not a bare name.
-pub fn confined_path(dir: &Path, name: &str) -> Result<PathBuf, SeleniumBaseError> {
-    Ok(dir.join(bare_file_name(name)?))
+pub fn confined_path(dir: &Path, name: impl AsRef<Path>) -> Result<PathBuf, SeleniumBaseError> {
+    Ok(dir.join(bare_file_name(&name)?))
 }
 
 /// The folder, in the working directory, where the cookie helpers keep their
@@ -622,6 +629,29 @@ mod tests {
         assert_eq!(confined_path(dir, "a.png").unwrap(), dir.join("a.png"));
         assert!(confined_path(dir, "../a.png").is_err());
         assert!(confined_path(dir, "/tmp/a.png").is_err());
+    }
+
+    #[test]
+    fn a_file_name_may_be_a_str_a_string_or_a_path() {
+        let dir = Path::new("logs");
+        let expected = dir.join("a.png");
+        assert_eq!(confined_path(dir, "a.png").unwrap(), expected);
+        assert_eq!(confined_path(dir, String::from("a.png")).unwrap(), expected);
+        assert_eq!(confined_path(dir, Path::new("a.png")).unwrap(), expected);
+        assert_eq!(
+            confined_path(dir, PathBuf::from("a.png")).unwrap(),
+            expected
+        );
+        assert_eq!(
+            bare_file_name(&String::from("a.png")).unwrap(),
+            Path::new("a.png")
+        );
+        for bad in [Path::new("../a.png"), Path::new("sub/a.png"), Path::new("")] {
+            assert!(confined_path(dir, bad).is_err(), "accepted {bad:?}");
+            assert!(bare_file_name(bad).is_err(), "accepted {bad:?}");
+        }
+        let message = bare_file_name(Path::new("../x")).unwrap_err().to_string();
+        assert!(message.contains(r#""../x""#), "{message}");
     }
 
     #[test]

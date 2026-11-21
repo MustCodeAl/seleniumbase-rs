@@ -1017,10 +1017,7 @@ pub(super) async fn print_to_pdf(ctx: Ctx<BaseCase>, args: Args) -> Result<Outpu
             .await
             .map_err(SeleniumBaseError::from)?;
     }
-    ctx.session()
-        .await?
-        .print_to_pdf(&path.to_string_lossy())
-        .await?;
+    ctx.session().await?.print_to_pdf(&path).await?;
     Ok(format!("Page saved as PDF: {name}").into())
 }
 
