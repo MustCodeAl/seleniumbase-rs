@@ -66,7 +66,7 @@ Actions wait until the element can take the action, then run. `click_if_visible`
 | `right_click()` | Right-clicks it. |
 | `hover()` | Moves the pointer onto it. |
 | `click_and_hold(hold)` | Presses and holds for a `Duration`. |
-| `click_with_offset(x, y, center)` | Clicks at an offset. `center` measures from the centre when true, otherwise from the top left. |
+| `click_with_offset(x, y, from)` | Clicks at an offset. `from` is an `OffsetFrom` (`seleniumbase_rs::sb_cdp`): `Center` measures from the centre, `TopLeft` from the top left corner. |
 | `click_if_visible()` | Clicks if the element becomes visible. Returns `bool`. |
 | `click_if_visible_with_timeout(timeout)` | The same, with this wait. |
 | `drag_to(target)` | Drags this match onto another locator. |

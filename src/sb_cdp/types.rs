@@ -130,6 +130,25 @@ impl State {
     }
 }
 
+/// The point of an element that an offset click counts from.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::sb_cdp::OffsetFrom;
+///
+/// // `TopLeft` is Python's default (`center=False`).
+/// assert_eq!(OffsetFrom::default(), OffsetFrom::TopLeft);
+/// ```
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash)]
+pub enum OffsetFrom {
+    /// The element's top-left corner, as Python's `center=False` does.
+    #[default]
+    TopLeft,
+    /// The element's centre, as Python's `center=True` does.
+    Center,
+}
+
 /// How to choose an option in a `<select>` dropdown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]

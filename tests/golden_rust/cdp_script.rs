@@ -1,4 +1,4 @@
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Scroll, SelectBy, State};
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, OffsetFrom, Scroll, SelectBy, State};
 use seleniumbase_rs::tokio;
 
 #[tokio::main]
@@ -63,7 +63,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     page.local_storage().set("theme", "dark").await?;
     page.local_storage().remove("theme").await?;
     page.local_storage().clear().await?;
-    page.locator("#c").click_with_offset(5.0, -7.0, false).await?;
+    page.locator("#c").click_with_offset(5.0, -7.0, OffsetFrom::TopLeft).await?;
     tokio::time::sleep(std::time::Duration::from_secs_f64(1.5)).await;
     // skipped: switch_to_frame: no pure CDP call for this action; the WebDriver form is sb.switch_to_frame("#frame").await?;
     // skipped: js_click: no pure CDP call for this action; the WebDriver form is sb.js_click("#hidden").await?;

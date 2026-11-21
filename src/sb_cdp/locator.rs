@@ -15,7 +15,7 @@ use super::input::{Button, Key};
 use super::page::Page;
 use super::trace;
 
-use super::types::{ElementInfo, Point, Rect, SelectBy, State};
+use super::types::{ElementInfo, OffsetFrom, Point, Rect, SelectBy, State};
 use crate::error::SeleniumBaseError;
 use crate::utils::selectors::{xpath_root_branch, SelectorBuf};
 
@@ -1304,9 +1304,10 @@ impl Locator {
     /// Clicks `x` pixels right of and `y` pixels below a corner of the first
     /// match, or of its centre, scrolling it into view first.
     ///
-    /// Python's `click_with_offset(selector, x, y, center=False)`: the offset
+    /// Python's `click_with_offset(selector, x, y, center=False)`, with
+    /// [`OffsetFrom`] for `center`: the offset
     /// is measured from the element's top-left corner, or, with
-    /// `center == true`, from its centre. A negative offset goes left or up.
+    /// [`OffsetFrom::Center`], from its centre. A negative offset goes left or up.
     ///
     /// # Errors
     ///
@@ -1315,10 +1316,10 @@ impl Locator {
         &self,
         x: f64,
         y: f64,
-        center: bool,
+        from: OffsetFrom,
     ) -> Result<(), SeleniumBaseError> {
         let middle = self.actionable_center().await?;
-        let origin = if center {
+        let origin = if from == OffsetFrom::Center {
             middle
         } else {
             let size = self.bounding_box().await?;

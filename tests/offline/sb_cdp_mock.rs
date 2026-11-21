@@ -11,7 +11,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use seleniumbase_rs::evasion::providers::{session_registry, EvasionContext};
-use seleniumbase_rs::sb_cdp::{Browser, Cookie, Key, Locator, MockCtrl, Page, SelectBy, State};
+use seleniumbase_rs::sb_cdp::{
+    Browser, Cookie, Key, Locator, MockCtrl, OffsetFrom, Page, SelectBy, State,
+};
 use seleniumbase_rs::{
     AssertionApi, BrowserApi, ElementApi, Fingerprint, OsType, ProxyConfig, ScreenshotApi,
     SeleniumBaseError,
@@ -748,7 +750,7 @@ async fn click_with_offset_measures_from_the_elements_top_left() {
     });
 
     page.locator("#target")
-        .click_with_offset(10.0, 5.0, false)
+        .click_with_offset(10.0, 5.0, OffsetFrom::TopLeft)
         .await
         .unwrap();
 
@@ -808,9 +810,18 @@ async fn an_offset_click_measures_from_the_top_left_or_from_the_centre_as_asked(
     script_sized_element(&mock, true);
     let target = page.locator("#target");
 
-    target.click_with_offset(10.0, 5.0, false).await.unwrap();
-    target.click_with_offset(10.0, 5.0, true).await.unwrap();
-    target.click_with_offset(-50.0, -20.0, false).await.unwrap();
+    target
+        .click_with_offset(10.0, 5.0, OffsetFrom::TopLeft)
+        .await
+        .unwrap();
+    target
+        .click_with_offset(10.0, 5.0, OffsetFrom::Center)
+        .await
+        .unwrap();
+    target
+        .click_with_offset(-50.0, -20.0, OffsetFrom::TopLeft)
+        .await
+        .unwrap();
 
     assert_eq!(
         pressed_at(&mock),

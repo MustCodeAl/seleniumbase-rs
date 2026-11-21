@@ -2130,7 +2130,7 @@ note = "`page.locator(selector).visible()` narrows the Locator to the displayed 
 [cdp."click_with_offset"]
 status = "implemented"
 rust = "Locator::click_with_offset"
-note = "`page.locator(selector).click_with_offset(x, y, center)`; the offset is from the element's top-left corner, or from its centre when `center` is true, as in Python."
+note = "`page.locator(selector).click_with_offset(x, y, from)`; the offset is from the element's top-left corner (`OffsetFrom::TopLeft`), or from its centre with `OffsetFrom::Center` (Python's `center=True`)."
 divergence = "Always scrolls the element into view (Python's `scroll=True`, its default)."
 
 [cdp."close_active_tab"]

@@ -54,6 +54,15 @@ impl CdpCall {
 /// that out.
 const LONGEST_SLEEP_SECONDS: f64 = 1.0e9;
 
+/// The `OffsetFrom` value a recorded `center` flag is written as.
+fn offset_from(center: bool) -> &'static str {
+    if center {
+        "OffsetFrom::Center"
+    } else {
+        "OffsetFrom::TopLeft"
+    }
+}
+
 /// `page.locator(<selector>)` with the selector as a string literal.
 fn locator(selector: &str) -> String {
     format!("page.locator({})", literal(selector))
@@ -264,10 +273,14 @@ pub(super) fn cdp_call(action: &RecordedAction) -> Result<CdpCall, String> {
             center,
         } => {
             // The offset is a float; the whole numbers recorded are written as such.
-            Ok(CdpCall::statement(format!(
-                "{}.click_with_offset({x}.0, {y}.0, {center}).await?;",
-                locator(selector)
-            )))
+            Ok(CdpCall::importing(
+                format!(
+                    "{}.click_with_offset({x}.0, {y}.0, {}).await?;",
+                    locator(selector),
+                    offset_from(*center)
+                ),
+                "OffsetFrom",
+            ))
         }
         C::Captcha { provider } => Err(captcha_note(provider.as_deref(), "page.solve_captcha()")),
         C::Sleep { seconds } => {
@@ -436,7 +449,7 @@ mod tests {
                 ("set_local_storage_item", Some("theme"), Some("dark"), vec![r#"page.local_storage().set("theme", "dark").await?;"#]),
                 ("remove_local_storage_item", Some("theme"), None, vec![r#"page.local_storage().remove("theme").await?;"#]),
                 ("clear_local_storage", None, None, vec!["page.local_storage().clear().await?;"]),
-                ("click_with_offset", Some("#c"), Some("5, -7"), vec![r##"page.locator("#c").click_with_offset(5.0, -7.0, false).await?;"##]),
+                ("click_with_offset", Some("#c"), Some("5, -7"), vec![r##"page.locator("#c").click_with_offset(5.0, -7.0, OffsetFrom::TopLeft).await?;"##]),
                 ("sleep", None, Some("1.5"), vec!["tokio::time::sleep(std::time::Duration::from_secs_f64(1.5)).await;"]),
             ]
         }
@@ -499,11 +512,11 @@ mod tests {
     fn a_click_with_offset_counts_from_the_top_left_corner_unless_it_says_centre() {
         assert_eq!(
             lines("click_with_offset", Some("#c"), Some("5, -7")).unwrap(),
-            [r##"page.locator("#c").click_with_offset(5.0, -7.0, false).await?;"##]
+            [r##"page.locator("#c").click_with_offset(5.0, -7.0, OffsetFrom::TopLeft).await?;"##]
         );
         assert_eq!(
             lines("click_with_offset", Some("#c"), Some("5, -7, center")).unwrap(),
-            [r##"page.locator("#c").click_with_offset(5.0, -7.0, true).await?;"##]
+            [r##"page.locator("#c").click_with_offset(5.0, -7.0, OffsetFrom::Center).await?;"##]
         );
         assert_eq!(
             lines("click_with_offset", Some("#c"), Some("5, -7, middle")).unwrap_err(),
@@ -570,11 +583,14 @@ mod tests {
             ["State"]
         );
         assert_eq!(imports("scroll_to_top", None, None), ["Scroll"]);
-        assert!(imports("click_with_offset", Some("#c"), Some("1,2")).is_empty());
+        assert_eq!(
+            imports("click_with_offset", Some("#c"), Some("1,2")),
+            ["OffsetFrom"]
+        );
         for (name, target, value, _) in expected() {
             let needed = imports(name, target, value);
             let text = lines(name, target, value).unwrap().join("\n");
-            for word in ["SelectBy", "State", "Scroll"] {
+            for word in ["SelectBy", "State", "Scroll", "OffsetFrom"] {
                 assert_eq!(
                     text.contains(&format!("{word}::")),
                     needed.contains(&word),
@@ -771,7 +787,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let script = recorder.to_cdp_script();
         assert!(
             script.starts_with(
-                "use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Scroll, SelectBy, State};\n"
+                "use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, OffsetFrom, Scroll, SelectBy, State};\n"
             ),
             "{script}"
         );
