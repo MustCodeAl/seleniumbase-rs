@@ -1,10 +1,12 @@
-//! The commands of `sbrs-mcp` besides serving: `install`, `uninstall` and `clients` (see
+//! The commands of `sbrs-mcp` besides serving: `install`, `uninstall`, `clients`, `repair` and `upgrade` (see
 //! [`mcp_install`]) and, with the `mcp-client` feature, the client commands `tools`, `call`,
 //! `resources`, `read`, `prompts`, `prompt` and `batch` (see [`mcp_client`]).
 
 #[cfg(feature = "mcp-client")]
 use crate::mcp_client::{self, BatchArgs, CallArgs, ListArgs, PromptArgs, ReadArgs, ToolsArgs};
-use crate::mcp_install::{self, Action, ClientsArgs, InstallArgs, UninstallArgs};
+use crate::mcp_install::{
+    self, Action, ClientsArgs, InstallArgs, RepairArgs, UninstallArgs, UpgradeArgs,
+};
 
 // The commands of `sbrs-mcp` besides serving. (Plain comments, not docs, as on the other
 // declarations of this crate.)
@@ -39,6 +41,41 @@ pub enum Command {
     /// the client's program (claude, codex, grok, code) is on PATH, and which of NAME and NAME-dev
     /// are registered.
     Clients(ClientsArgs),
+    /// Find what is broken in the entries MCP clients hold for sbrs-mcp, and fix it.
+    ///
+    /// Looks at every client that has a config here (its user config, and the project config in
+    /// the current folder) for the entries that start sbrs-mcp: NAME and NAME-dev, and any other
+    /// name that starts a program called sbrs-mcp. It finds a program that is not there or is not
+    /// executable, a path that is another sbrs-mcp than this one, a relative name a desktop app
+    /// may not find, the same server registered twice, and a name other than NAME and NAME-dev
+    /// (reported, left as it is). The fix points an entry at this program, keeping its arguments
+    /// and environment, and removes the duplicate. Every finding and every fix is printed for
+    /// each client.
+    ///
+    /// A config that cannot be read (JSON or TOML that does not parse, or JSON with comments) is
+    /// reported and never rewritten. The rest of a config keeps its bytes, and the old file is
+    /// kept as FILE.bak-sbrs-mcp, as `install` does. --dry-run writes and runs nothing.
+    ///
+    /// Exit status: 0 when nothing is left broken, 1 when a fix failed or --dry-run found
+    /// something to fix, 2 when something cannot be fixed by this command (an unreadable config,
+    /// a client program that is not on PATH) or a client is unknown.
+    Repair(RepairArgs),
+    /// Rewrite the entries to this program, then say how to upgrade the program itself.
+    ///
+    /// Every entry NAME and NAME-dev that a client holds is rewritten to what `install` writes
+    /// today for this program: its absolute path (for Homebrew the link that stays after `brew
+    /// upgrade`), and its server, plugin options and output folder as they were. An entry that
+    /// does not start a local program is left alone. Then it finds out how this program was
+    /// installed and prints the command that upgrades it: `brew upgrade sbrs` for Homebrew, `cargo
+    /// install --git ... --tag <latest tag> seleniumbase-rs-cli --locked` for `cargo install`
+    /// (the tag is looked up with `git ls-remote`), and the page of the releases for a release
+    /// archive or anything else. The command runs only with --run. --dry-run writes and runs
+    /// nothing.
+    ///
+    /// Exit status as `repair`: 0 when it worked, 1 when a write or the command failed, 2 when
+    /// something was refused or there is nothing to run.
+    #[usage(alias = "update")]
+    Upgrade(UpgradeArgs),
     /// List the tools of an MCP server, or show one with the schema of its arguments.
     ///
     /// The server is --url (streamable HTTP, token in SB_MCP_TOKEN or --token-file),
@@ -91,6 +128,8 @@ pub fn run(command: Command) -> i32 {
         Command::Install(args) => mcp_install::run(Action::Install(args)),
         Command::Uninstall(args) => mcp_install::run(Action::Uninstall(args)),
         Command::Clients(args) => mcp_install::run(Action::Clients(args)),
+        Command::Repair(args) => mcp_install::run(Action::Repair(args)),
+        Command::Upgrade(args) => mcp_install::run(Action::Upgrade(args)),
         #[cfg(feature = "mcp-client")]
         Command::Tools(args) => mcp_client::tools(args),
         #[cfg(feature = "mcp-client")]

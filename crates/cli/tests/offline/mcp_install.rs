@@ -413,6 +413,156 @@ mod on_a_temporary_home {
         assert!(text(&output.stdout).contains("\"context_servers\""));
     }
 
+    /// Registers the binary with Cursor, then makes the entries start a program that is not
+    /// there, as a `brew upgrade` that removed the old version would. Returns the text of the
+    /// stale config.
+    fn stale_cursor_config(machine: &Machine) -> String {
+        let out = machine.output_dir();
+        let output = machine.run(&["install", "--output-dir", out.to_str().unwrap(), "cursor"]);
+        assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+        let file = cursor_config(machine);
+        let stale = fs::read_to_string(&file)
+            .unwrap()
+            .replace(&registered_exe(), "/gone/sbrs-mcp");
+        fs::write(&file, &stale).unwrap();
+        stale
+    }
+
+    #[test]
+    fn repair_fixes_a_program_that_is_gone_and_a_dry_run_changes_nothing() {
+        let machine = Machine::new();
+        let stale = stale_cursor_config(&machine);
+        let file = cursor_config(&machine);
+
+        let dry = machine.run(&["repair", "--dry-run"]);
+        assert_eq!(dry.status.code(), Some(1), "{}", text(&dry.stderr));
+        let stdout = text(&dry.stdout);
+        assert!(stdout.contains("would be fixed"), "{stdout}");
+        assert!(stdout.contains("/gone/sbrs-mcp"), "{stdout}");
+        assert_eq!(fs::read_to_string(&file).unwrap(), stale, "nothing written");
+
+        let fixed = machine.run(&["repair"]);
+        assert_eq!(fixed.status.code(), Some(0), "{}", text(&fixed.stderr));
+        assert!(
+            text(&fixed.stdout).contains("fixed"),
+            "{}",
+            text(&fixed.stdout)
+        );
+        let servers = read_json(&file)["mcpServers"].clone();
+        assert_eq!(servers["seleniumbase"]["command"], registered_exe());
+        assert_eq!(servers["seleniumbase-dev"]["command"], registered_exe());
+        assert_eq!(
+            servers["seleniumbase"]["args"],
+            serde_json::json!(["--server", "cdp"]),
+            "the arguments stay"
+        );
+        let backup = file.with_file_name("mcp.json.bak-sbrs-mcp");
+        assert_eq!(fs::read_to_string(backup).unwrap(), stale);
+
+        let again = machine.run(&["repair"]);
+        assert_eq!(again.status.code(), Some(0), "{}", text(&again.stderr));
+        assert!(
+            text(&again.stdout).contains("nothing to repair"),
+            "{}",
+            text(&again.stdout)
+        );
+    }
+
+    #[test]
+    fn repair_does_not_rewrite_a_config_it_cannot_parse() {
+        let machine = Machine::new();
+        let file = cursor_config(&machine);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
+        fs::write(&file, "{ \"mcpServers\": { not json").unwrap();
+
+        let output = machine.run(&["repair"]);
+
+        assert_eq!(output.status.code(), Some(2), "{}", text(&output.stderr));
+        assert!(
+            text(&output.stdout).contains("cannot be read"),
+            "{}",
+            text(&output.stdout)
+        );
+        assert_eq!(
+            fs::read_to_string(&file).unwrap(),
+            "{ \"mcpServers\": { not json"
+        );
+        assert!(!file.with_file_name("mcp.json.bak-sbrs-mcp").exists());
+    }
+
+    #[test]
+    fn repair_names_an_unknown_client_and_exits_2() {
+        let machine = Machine::new();
+        let output = machine.run(&["repair", "--client", "nosuch"]);
+        assert_eq!(output.status.code(), Some(2));
+        assert!(
+            text(&output.stderr).contains("`nosuch`"),
+            "{}",
+            text(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn upgrade_rewrites_the_entries_and_runs_nothing_without_run() {
+        let machine = Machine::new();
+        let stale = stale_cursor_config(&machine);
+        let file = cursor_config(&machine);
+
+        let dry = machine.run(&["upgrade", "--dry-run"]);
+        assert_eq!(dry.status.code(), Some(0), "{}", text(&dry.stderr));
+        let stdout = text(&dry.stdout);
+        assert!(stdout.contains("would be replaced"), "{stdout}");
+        assert!(
+            stdout.contains("https://github.com/MustCodeAl/seleniumbase-rs/releases"),
+            "a binary in a build folder is neither brew's nor cargo's: {stdout}"
+        );
+        assert_eq!(fs::read_to_string(&file).unwrap(), stale, "nothing written");
+
+        // `update` is the same command.
+        let output = machine.run(&["update"]);
+        assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+        assert_eq!(
+            read_json(&file)["mcpServers"]["seleniumbase"]["command"],
+            registered_exe()
+        );
+    }
+
+    #[test]
+    fn upgrade_run_with_nothing_to_run_is_exit_2() {
+        let machine = Machine::new();
+        let output = machine.run(&["upgrade", "--run"]);
+        assert_eq!(output.status.code(), Some(2), "{}", text(&output.stderr));
+        assert!(
+            text(&output.stderr).contains("--run"),
+            "{}",
+            text(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn help_names_repair_and_upgrade_and_their_flags() {
+        let machine = Machine::new();
+        let output = machine.run(&["--help"]);
+        let stdout = text(&output.stdout);
+        for word in ["repair", "upgrade"] {
+            assert!(stdout.contains(word), "{word} in {stdout}");
+        }
+        for (command, flags) in [
+            ("repair", ["--client", "--name", "--dry-run"].as_slice()),
+            (
+                "upgrade",
+                ["--client", "--name", "--dry-run", "--run"].as_slice(),
+            ),
+        ] {
+            let output = machine.run(&[command, "--help"]);
+            assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+            let stdout = text(&output.stdout);
+            for flag in flags {
+                assert!(stdout.contains(flag), "{flag} in {stdout}");
+            }
+        }
+    }
+
     /// A script called `name` in the machine's `bin` folder that logs its arguments.
     fn fake(machine: &Machine, name: &str, before: &str) -> PathBuf {
         let log = machine.root.join(format!("{name}.log"));

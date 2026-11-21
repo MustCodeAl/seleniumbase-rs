@@ -3,6 +3,9 @@
 //! the `claude` and `codex` programs are scripts on a `PATH` of the test's own that record the
 //! arguments they were given.
 
+mod repair;
+mod upgrade;
+
 use std::fs;
 use std::path::{Path, PathBuf};
 

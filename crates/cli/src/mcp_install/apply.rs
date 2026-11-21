@@ -57,6 +57,14 @@ pub enum Task<'a> {
         /// The names.
         names: &'a [String],
     },
+    /// Make the config hold `write`, replacing what is there under those names, and take the
+    /// entries called `remove` out, all in one read and one write of the file.
+    Repair {
+        /// The entries that must be there, as they are to be.
+        write: &'a [Entry],
+        /// The names of the entries to remove.
+        remove: &'a [String],
+    },
 }
 
 /// Printed for Claude Desktop with every install and uninstall.
@@ -143,6 +151,11 @@ fn json_client(
             .map(|entry| Op::Upsert { entry, force })
             .collect(),
         Task::Uninstall { names } => names.iter().map(|name| Op::Remove { name }).collect(),
+        Task::Repair { write, remove } => write
+            .iter()
+            .map(|entry| Op::Upsert { entry, force: true })
+            .chain(remove.iter().map(|name| Op::Remove { name }))
+            .collect(),
     };
     match jsonfile::apply(path, &layout, &ops, job.dry_run) {
         Ok(applied) => {
@@ -205,40 +218,46 @@ fn plan_steps(
     add: impl Fn(&Entry) -> Cmd,
     remove: impl Fn(&str) -> Cmd,
 ) -> Vec<Step> {
+    let register = |entry: &Entry, force: bool| {
+        let (status, cmds) = match decide(existing.get(&entry.name), &entry.spec, force) {
+            Decision::Add => (Status::Added, vec![add(entry)]),
+            Decision::Replace => (Status::Replaced, vec![remove(&entry.name), add(entry)]),
+            Decision::Unchanged => (Status::Unchanged, Vec::new()),
+            Decision::Conflict => (Status::Conflict, Vec::new()),
+        };
+        Step {
+            name: entry.name.clone(),
+            status,
+            cmds,
+        }
+    };
+    let unregister = |name: &String| {
+        if existing.contains_key(name) {
+            Step {
+                name: name.clone(),
+                status: Status::Removed,
+                cmds: vec![remove(name)],
+            }
+        } else {
+            Step {
+                name: name.clone(),
+                status: Status::Absent,
+                cmds: Vec::new(),
+            }
+        }
+    };
     match *task {
-        Task::Install { entries, force } => entries
+        Task::Install { entries, force } => {
+            entries.iter().map(|entry| register(entry, force)).collect()
+        }
+        Task::Uninstall { names } => names.iter().map(unregister).collect(),
+        Task::Repair {
+            write,
+            remove: removals,
+        } => write
             .iter()
-            .map(|entry| {
-                let (status, cmds) = match decide(existing.get(&entry.name), &entry.spec, force) {
-                    Decision::Add => (Status::Added, vec![add(entry)]),
-                    Decision::Replace => (Status::Replaced, vec![remove(&entry.name), add(entry)]),
-                    Decision::Unchanged => (Status::Unchanged, Vec::new()),
-                    Decision::Conflict => (Status::Conflict, Vec::new()),
-                };
-                Step {
-                    name: entry.name.clone(),
-                    status,
-                    cmds,
-                }
-            })
-            .collect(),
-        Task::Uninstall { names } => names
-            .iter()
-            .map(|name| {
-                if existing.contains_key(name) {
-                    Step {
-                        name: name.clone(),
-                        status: Status::Removed,
-                        cmds: vec![remove(name)],
-                    }
-                } else {
-                    Step {
-                        name: name.clone(),
-                        status: Status::Absent,
-                        cmds: Vec::new(),
-                    }
-                }
-            })
+            .map(|entry| register(entry, true))
+            .chain(removals.iter().map(unregister))
             .collect(),
     }
 }
@@ -357,6 +376,11 @@ fn write_toml(job: &Job<'_>, path: &Path, task: &Task<'_>, report: &mut ClientRe
         Task::Uninstall { names } => names
             .iter()
             .map(|name| tomlfile::Op::Remove { name })
+            .collect(),
+        Task::Repair { write, remove } => write
+            .iter()
+            .map(|entry| tomlfile::Op::Upsert { entry, force: true })
+            .chain(remove.iter().map(|name| tomlfile::Op::Remove { name }))
             .collect(),
     };
     match tomlfile::apply(path, &ops, job.dry_run) {

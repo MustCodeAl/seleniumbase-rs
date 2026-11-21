@@ -4,6 +4,11 @@
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+#[cfg(test)]
+use super::runner::NoRunner;
+use super::runner::{Runner, SystemRunner};
 
 /// The operating systems whose config locations differ.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -51,6 +56,11 @@ pub struct Env {
     pub cwd: PathBuf,
     /// `PATH`, where `claude`, `codex` and `code` are looked for. `None` finds nothing.
     pub path: Option<OsString>,
+    /// Cargo's home folder: `$CARGO_HOME`, else `~/.cargo`. `cargo install` puts its programs in
+    /// the `bin` folder of it.
+    pub cargo_home: PathBuf,
+    /// Runs the programs `upgrade` looks at and starts; a test swaps it for one that records.
+    pub runner: Arc<dyn Runner>,
 }
 
 impl Env {
@@ -74,6 +84,12 @@ impl Env {
             .map_or_else(|| home.join(".grok"), PathBuf::from);
         let cwd =
             std::env::current_dir().map_err(|e| format!("cannot read the current folder: {e}"))?;
+        let cargo_home = std::env::var_os("CARGO_HOME")
+            .filter(|value| !value.is_empty())
+            .map_or_else(
+                || home.join(".cargo"),
+                |value| absolute(Path::new(&value), &cwd),
+            );
         Ok(Self {
             os: Os::current(),
             home,
@@ -84,6 +100,8 @@ impl Env {
             grok_home,
             cwd,
             path: std::env::var_os("PATH"),
+            cargo_home,
+            runner: Arc::new(SystemRunner),
         })
     }
 
@@ -112,12 +130,14 @@ impl Env {
             os,
             codex_home: home.join(".codex"),
             grok_home: home.join(".grok"),
+            cargo_home: home.join(".cargo"),
             home,
             config_dir,
             data_dir,
             xdg_config_home: None,
             cwd: root.join("project"),
             path: None,
+            runner: Arc::new(NoRunner),
         }
     }
 }
@@ -144,6 +164,50 @@ pub fn running_binary() -> Result<PathBuf, String> {
     let resolved = std::fs::canonicalize(&exe)
         .map_err(|e| format!("cannot resolve {}: {e}", exe.display()))?;
     Ok(strip_verbatim(resolved))
+}
+
+/// The prefix of the Homebrew install that holds `path`: the folders before `Cellar`, as in
+/// `/opt/homebrew/Cellar/sbrs/0.8.5/bin/sbrs-mcp`. `None` for a path outside a Cellar.
+pub fn homebrew_prefix(path: &Path) -> Option<PathBuf> {
+    let mut prefix = PathBuf::new();
+    let mut parts = path.components().peekable();
+    while let Some(part) = parts.next() {
+        if part.as_os_str() == "Cellar" && parts.peek().is_some() {
+            return Some(prefix);
+        }
+        prefix.push(part);
+    }
+    None
+}
+
+/// The path to register for the program at `exe`.
+///
+/// Homebrew keeps each version in `PREFIX/Cellar/NAME/VERSION/` and `brew upgrade` removes the
+/// old one, so the resolved path of a Homebrew program stops working at the next upgrade. The
+/// link `PREFIX/bin/NAME` follows the upgrade; it is returned when it is there and leads to
+/// `exe`. Any other path is returned as it was.
+pub fn stable_path(exe: PathBuf) -> PathBuf {
+    let Some(prefix) = homebrew_prefix(&exe) else {
+        return exe;
+    };
+    let Some(name) = exe.file_name() else {
+        return exe;
+    };
+    let link = prefix.join("bin").join(name);
+    match (std::fs::canonicalize(&link), std::fs::canonicalize(&exe)) {
+        (Ok(through), Ok(own)) if through == own => link,
+        _ => exe,
+    }
+}
+
+/// The path of the running binary as a client should start it: [`running_binary`], through
+/// [`stable_path`].
+///
+/// # Errors
+///
+/// A message when the path cannot be found or resolved.
+pub fn registration_binary() -> Result<PathBuf, String> {
+    running_binary().map(stable_path)
 }
 
 /// Removes the `\\?\` prefix of a Windows drive path (`\\?\C:\x` becomes `C:\x`); every other
@@ -174,6 +238,20 @@ mod tests {
             strip_verbatim(PathBuf::from("/usr/bin/sbrs-mcp")),
             PathBuf::from("/usr/bin/sbrs-mcp")
         );
+    }
+
+    #[test]
+    fn the_homebrew_prefix_is_what_comes_before_the_cellar() {
+        assert_eq!(
+            homebrew_prefix(Path::new("/opt/homebrew/Cellar/sbrs/0.8.5/bin/sbrs-mcp")),
+            Some(PathBuf::from("/opt/homebrew"))
+        );
+        assert_eq!(
+            homebrew_prefix(Path::new("/home/linuxbrew/.linuxbrew/Cellar/sbrs/1/bin/x")),
+            Some(PathBuf::from("/home/linuxbrew/.linuxbrew"))
+        );
+        assert_eq!(homebrew_prefix(Path::new("/usr/local/bin/sbrs-mcp")), None);
+        assert_eq!(homebrew_prefix(Path::new("/opt/homebrew/Cellar")), None);
     }
 
     #[cfg(unix)]

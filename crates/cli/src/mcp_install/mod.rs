@@ -1,5 +1,7 @@
-//! `sbrs-mcp install`, `uninstall` and `clients`: register this server with the MCP clients on
-//! the machine, and remove the registration again.
+//! `sbrs-mcp install`, `uninstall`, `clients`, `repair` and `upgrade`: register this server with
+//! the MCP clients on the machine, remove the registration again, fix what is broken in it
+//! (`repair`, in `repair.rs`) and bring it up to date with the program (`upgrade`, in
+//! `upgrade.rs`).
 //!
 //! One install registers two servers, which is what an assistant wants: the browser server as
 //! `NAME` (default `seleniumbase`, `--server cdp|driver|sb`) and the development server as
@@ -29,8 +31,11 @@ mod external;
 mod fsx;
 mod jsonedit;
 mod jsonfile;
+mod repair;
 mod report;
+mod runner;
 mod tomlfile;
+mod upgrade;
 
 #[cfg(test)]
 mod tests;
@@ -43,7 +48,9 @@ use seleniumbase_rs::cli::plugin_cmd::check_selection;
 use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::SeleniumBaseError;
 
-pub use args::{ClientsArgs, InstallArgs, UninstallArgs};
+pub use args::{ClientsArgs, InstallArgs, RepairArgs, UninstallArgs, UpgradeArgs};
+pub use repair::{repair, RepairRequest};
+pub use upgrade::{upgrade, UpgradeRequest};
 
 /// One of the commands of this module, as `mcp_cmd::Command` hands it over.
 #[derive(Debug)]
@@ -54,12 +61,16 @@ pub enum Action {
     Uninstall(UninstallArgs),
     /// `clients`.
     Clients(ClientsArgs),
+    /// `repair`.
+    Repair(RepairArgs),
+    /// `upgrade`.
+    Upgrade(UpgradeArgs),
 }
 
 use apply::{perform, registered, Job, Scope, Task};
 use client::Client;
 use entry::{names, plan, Only, PlanInput};
-use env::{absolute, running_binary, Env};
+use env::{absolute, registration_binary, running_binary, Env};
 use report::{exit_code, ClientReport};
 
 /// What `install` was asked for.
@@ -168,6 +179,20 @@ pub fn run(action: Action) -> i32 {
             uninstall(&env, &request, &mut out, &mut err)
         }
         Action::Clients(args) => clients(&env, &args.into_request(), &mut out, &mut err),
+        Action::Repair(args) => match registration_binary() {
+            Ok(exe) => repair(&env, &args.into_request(exe), &mut out, &mut err),
+            Err(message) => {
+                let _ = writeln!(err, "sbrs-mcp: {message}");
+                1
+            }
+        },
+        Action::Upgrade(args) => match registration_binary() {
+            Ok(exe) => upgrade(&env, &args.into_request(exe), &mut out, &mut err),
+            Err(message) => {
+                let _ = writeln!(err, "sbrs-mcp: {message}");
+                1
+            }
+        },
     }
 }
 
@@ -536,6 +561,14 @@ fn show_preview(job: &Job<'_>, clients: &[Client], task: &Task<'_>, out: &mut dy
             entries.iter().map(|entry| entry.name.as_str()).collect(),
         ),
         Task::Uninstall { names } => ("remove", names.iter().map(String::as_str).collect()),
+        Task::Repair { write, remove } => (
+            "repair",
+            write
+                .iter()
+                .map(|entry| entry.name.as_str())
+                .chain(remove.iter().map(String::as_str))
+                .collect(),
+        ),
     };
     let _ = writeln!(out, "plan:");
     for client in clients {

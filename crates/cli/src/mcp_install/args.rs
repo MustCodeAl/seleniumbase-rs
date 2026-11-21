@@ -1,10 +1,10 @@
-//! The command line of `sbrs-mcp install`, `uninstall` and `clients`.
+//! The command line of `sbrs-mcp install`, `uninstall`, `clients`, `repair` and `upgrade`.
 
 use std::path::PathBuf;
 
 use super::apply::Scope;
 use super::entry::Only;
-use super::{ClientsRequest, InstallRequest, UninstallRequest};
+use super::{ClientsRequest, InstallRequest, RepairRequest, UninstallRequest, UpgradeRequest};
 
 /// The browser toolsets `install` can register.
 #[derive(Clone, Copy, Debug, usage::ValueEnum)]
@@ -179,6 +179,66 @@ impl UninstallArgs {
             dry_run: self.print,
             all: self.all,
             choice: None,
+        }
+    }
+}
+
+// The options of `repair`. (Plain comments, not docs.)
+#[derive(Debug, usage::Args)]
+#[usage(args_override_self = false)]
+pub struct RepairArgs {
+    /// Check only this client (repeatable); default: every client that has a config here.
+    #[usage(long, value_name = "CLIENT")]
+    client: Vec<String>,
+    /// The name of the browser entry; the development entry is NAME-dev.
+    #[usage(long, value_name = "NAME", default = "seleniumbase")]
+    name: String,
+    /// Report what is wrong and what would be fixed, and change nothing.
+    #[usage(long)]
+    dry_run: bool,
+}
+
+impl RepairArgs {
+    /// The request these arguments make, for the program at `exe`.
+    pub fn into_request(self, exe: PathBuf) -> RepairRequest {
+        RepairRequest {
+            clients: self.client,
+            exe,
+            name: self.name,
+            dry_run: self.dry_run,
+        }
+    }
+}
+
+// The options of `upgrade`. (Plain comments, not docs.)
+#[derive(Debug, usage::Args)]
+#[usage(args_override_self = false)]
+pub struct UpgradeArgs {
+    /// Rewrite only this client (repeatable); default: every client that has a config here.
+    #[usage(long, value_name = "CLIENT")]
+    client: Vec<String>,
+    /// The name of the browser entry; the development entry is NAME-dev.
+    #[usage(long, value_name = "NAME", default = "seleniumbase")]
+    name: String,
+    /// Show what would be rewritten and which command would upgrade this program, and do nothing.
+    #[usage(long)]
+    dry_run: bool,
+    /// Run the command that upgrades this program (brew or cargo), instead of printing it.
+    ///
+    /// Without it nothing is started: the command is printed for you to run.
+    #[usage(long)]
+    run: bool,
+}
+
+impl UpgradeArgs {
+    /// The request these arguments make, for the program at `exe`.
+    pub fn into_request(self, exe: PathBuf) -> UpgradeRequest {
+        UpgradeRequest {
+            clients: self.client,
+            exe,
+            name: self.name,
+            dry_run: self.dry_run,
+            run: self.run,
         }
     }
 }
