@@ -296,12 +296,13 @@ mod tests {
         flag_variable, is_known, EXTRA_VARIABLES, TABLE_FLAGS,
     };
 
-    /// A flag of the usage spec: the program and command it belongs to, its long spellings
-    /// and its help.
+    /// A flag of the usage spec: the program and command it belongs to, its long spellings,
+    /// its help and the variable the spec says fills it (`env`).
     struct SpecFlag {
         path: String,
         longs: Vec<String>,
         help: String,
+        env: Option<String>,
     }
 
     /// Every flag of every command of the usage spec of `sbrs`.
@@ -312,6 +313,7 @@ mod tests {
                     path: path.to_owned(),
                     longs: flag.long.clone(),
                     help: flag.help.clone().unwrap_or_default(),
+                    env: flag.env.clone(),
                 });
             }
             for sub in command.subcommands.values() {
@@ -398,6 +400,30 @@ mod tests {
                     flag.longs.join("/--")
                 );
             }
+        }
+    }
+
+    /// No flag declares `env` in the usage spec, on purpose. With `env = "NAME"` the parser fills
+    /// the flag from the variable when the command line has none (a switch only for `1`, `true`,
+    /// `True` and `TRUE`), and the parsed struct does not say where the value came from. `sbrs`
+    /// has to know: a start page typed for a command with a URL of its own is refused but the
+    /// variable is not, `--server` is refused beside a typed `--webdriver` but not beside the
+    /// variable `SB_WEBDRIVER_URL`, `--firefox` beats `SB_BROWSER`, and `--headed`, `--cdp`
+    /// and the flags of the option table stand for a value of a variable (`SB_HEADLESS=false`,
+    /// `SB_MODE=cdp`). So the settings layers read the `SB_*` variables, with the one precedence
+    /// of `config::layers` (flag, variable, settings file, default), and each flag names its
+    /// variable in its help, which `a_flag_that_stands_for_a_variable_names_it_in_its_help` holds
+    /// to the registry.
+    #[test]
+    fn no_flag_declares_env_because_the_settings_layers_read_the_variables() {
+        for flag in spec_flags() {
+            assert_eq!(
+                flag.env,
+                None,
+                "`{} --{}` declares env: the parser would fill it from the variable and lose where the value came from",
+                flag.path,
+                flag.longs.join("/--")
+            );
         }
     }
 

@@ -122,7 +122,7 @@ The codec has no browser enum of its own: it names browsers with core's
 
 <Card color="#1a85d4" title="WireMeasurement" icon="database" href="/stealth/api/codec-measurement">
 
-The measured tables: `WireMeasurement`, `Provenance`, `get`, `get_version`, `measured`.
+The measured tables: `WireMeasurement`, `Provenance`, `get`, `version`, `measured`.
 
 </Card>
 

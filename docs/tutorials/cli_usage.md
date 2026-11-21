@@ -810,6 +810,14 @@ sbrs behave-options          # how Python's behave -D options map to sbrs test
 with the flag, in the environment and in the settings file, and the command
 line wins over the environment, which wins over the file.
 
+Every flag that stands for a variable names it at the end of its help, so `sbrs --help`, the
+[CLI reference](/help/cli_reference) and the man pages say which `SB_*` variable sets the same
+thing (`--locale` ends in `(SB_LOCALE)`), and `sbrs options --env` lists them all. The parser
+does not read the variables, the settings layers do, so a flag you type always beats its
+variable, also where the variable looks like a flag: `--headed` stands for `SB_HEADLESS=false`
+and `--cdp` for `SB_MODE=cdp`.
+
+
 
 ## Generate files
 

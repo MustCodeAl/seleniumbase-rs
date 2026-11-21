@@ -271,7 +271,7 @@ fn demo() -> Result<(), Box<dyn std::error::Error>> {
     let profile = WireFormat::builder()
         .akamai("1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p")?
         .client_headers(
-            ClientHeaders::new("Mozilla/5.0 (custom)").with_accept_language("de-DE,de;q=0.9"),
+            ClientHeaders::new("Mozilla/5.0 (custom)").accept_language("de-DE,de;q=0.9"),
         )
         .build()?;
     assert_eq!(profile.client_headers().user_agent, "Mozilla/5.0 (custom)");

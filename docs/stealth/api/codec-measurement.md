@@ -1,7 +1,7 @@
 ---
 title: "codec::measurement"
 sidebarTitle: "WireMeasurement"
-description: "The measured browser tables of seleniumbase-rs-codec: WireMeasurement, Provenance, WireMeasurementError and the lookups get, get_version, for_kind, all, try_all, newest and measured_systems."
+description: "The measured browser tables of seleniumbase-rs-codec: WireMeasurement, Provenance, WireMeasurementError and the lookups get, version, for_kind, all, try_all, newest and measured_systems."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
@@ -342,12 +342,12 @@ The newest measured entry of a browser on an operating system.
 
 </ResponseField>
 
-## `get_version`
+## `version`
 
 <Badge color="yellow" shape="pill">fn</Badge>
 
 ```rust
-pub fn get_version(
+pub fn version(
     kind: Browser,
     os: OsType,
     major: u32,

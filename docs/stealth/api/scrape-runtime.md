@@ -551,7 +551,7 @@ A listener on a loopback port that reads the first message of each connection it
 
 ```rust
 pub async fn bind() -> Result<Self, CaptureError>
-pub fn with_timeout(mut self, timeout: Duration) -> Self
+pub fn timeout(mut self, timeout: Duration) -> Self
 pub fn addr(&self) -> SocketAddr
 pub fn port(&self) -> u16
 pub async fn accept_client_hello(&self) -> Result<CapturedHello, CaptureError>
@@ -571,7 +571,7 @@ pub async fn accept_http1(&self, response: &[u8]) -> Result<CapturedHttp1, Captu
 
 
 - `bind`: Binds `127.0.0.1` on a port the system picks.
-- `with_timeout`: Replaces how long a connection may take to send its first message.
+- `timeout`: Replaces how long a connection may take to send its first message.
 - `addr`: The address the listener is bound to.
 - `port`: The port the listener is bound to.
 - `accept_client_hello`: Accepts one connection, reads its `ClientHello` and drops the connection.
