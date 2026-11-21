@@ -433,10 +433,36 @@ fn with_base(source: &str, last_page: Option<&str>) -> String {
     }
 }
 
+/// What becomes of the files of the last run (the logs in `latest_logs`, the
+/// downloads in `downloaded_files`) when a new run starts.
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum OldFiles {
+    /// Delete them. The default, and what Python SeleniumBase does.
+    #[default]
+    Clear,
+    /// Keep them in a folder of their own, named by the time
+    /// (`--archive-logs`, `--archive-downloads`).
+    Archive,
+}
+
+impl OldFiles {
+    /// [`Archive`](Self::Archive) when `archive` is set, else
+    /// [`Clear`](Self::Clear): how the `archive_logs` and `archive_downloads`
+    /// settings are read.
+    #[must_use]
+    pub const fn archive_if(archive: bool) -> Self {
+        if archive {
+            Self::Archive
+        } else {
+            Self::Clear
+        }
+    }
+}
+
 /// Prepares the `latest_logs` folder of `root` for a new run and returns the
 /// folder the old logs were moved to, if they were.
 ///
-/// With `archive_logs` the old logs are first copied to
+/// With [`OldFiles::Archive`] the old logs are first copied to
 /// `archived_logs/logs_<unix seconds>`. Then the folder is emptied and made
 /// again. Nothing outside `latest_logs` is touched.
 ///
@@ -445,7 +471,7 @@ fn with_base(source: &str, last_page: Option<&str>) -> String {
 /// Returns an error, and deletes nothing, if `latest_logs` is a symbolic link
 /// or a file. Returns the I/O error if the folder cannot be archived, emptied
 /// or created.
-pub fn log_folder_setup(root: &Path, archive_logs: bool) -> io::Result<Option<PathBuf>> {
+pub fn log_folder_setup(root: &Path, old_logs: OldFiles) -> io::Result<Option<PathBuf>> {
     let latest = root.join(LATEST_LOGS_DIR);
     let mut archived = None;
     match fs::symlink_metadata(&latest) {
@@ -459,7 +485,7 @@ pub fn log_folder_setup(root: &Path, archive_logs: bool) -> io::Result<Option<Pa
             ));
         }
         Ok(meta) if meta.is_dir() => {
-            archived = archive_logs_if_set(root, archive_logs)?;
+            archived = archive_logs_if_set(root, old_logs)?;
             fs::remove_dir_all(&latest)?;
         }
         Ok(_) => {
@@ -475,17 +501,17 @@ pub fn log_folder_setup(root: &Path, archive_logs: bool) -> io::Result<Option<Pa
     Ok(archived)
 }
 
-/// With `archive_logs`, copies the `latest_logs` folder of `root` to
-/// `archived_logs/logs_<unix seconds>` and returns the new folder. Without it,
+/// With [`OldFiles::Archive`], copies the `latest_logs` folder of `root` to
+/// `archived_logs/logs_<unix seconds>` and returns the new folder. With [`OldFiles::Clear`],
 /// or when there is nothing to keep, does nothing.
 ///
 /// # Errors
 ///
 /// Returns the I/O error if the copy fails.
-pub fn archive_logs_if_set(root: &Path, archive_logs: bool) -> io::Result<Option<PathBuf>> {
+pub fn archive_logs_if_set(root: &Path, old_logs: OldFiles) -> io::Result<Option<PathBuf>> {
     let latest = root.join(LATEST_LOGS_DIR);
     let has_logs = fs::read_dir(&latest).is_ok_and(|mut entries| entries.next().is_some());
-    if !archive_logs || !has_logs {
+    if old_logs == OldFiles::Clear || !has_logs {
         return Ok(None);
     }
     let seconds = SystemTime::now()
@@ -849,10 +875,21 @@ mod tests {
     }
 
     #[test]
+    fn the_archive_setting_is_read_as_what_becomes_of_the_old_files() {
+        assert_eq!(OldFiles::archive_if(true), OldFiles::Archive);
+        assert_eq!(OldFiles::archive_if(false), OldFiles::Clear);
+        assert_eq!(OldFiles::default(), OldFiles::Clear);
+    }
+
+    #[test]
+
     fn a_new_run_clears_the_old_logs() {
         let root = tempfile::tempdir().unwrap();
         logs_with_a_file(root.path(), "old");
-        assert_eq!(log_folder_setup(root.path(), false).unwrap(), None);
+        assert_eq!(
+            log_folder_setup(root.path(), OldFiles::Clear).unwrap(),
+            None
+        );
         assert!(root.path().join(LATEST_LOGS_DIR).is_dir());
         assert_eq!(
             fs::read_dir(root.path().join(LATEST_LOGS_DIR))
@@ -867,7 +904,9 @@ mod tests {
     fn archiving_keeps_the_old_logs_in_a_folder_named_by_the_time() {
         let root = tempfile::tempdir().unwrap();
         logs_with_a_file(root.path(), "old");
-        let archived = log_folder_setup(root.path(), true).unwrap().unwrap();
+        let archived = log_folder_setup(root.path(), OldFiles::Archive)
+            .unwrap()
+            .unwrap();
         assert!(archived.parent().unwrap().ends_with(ARCHIVED_LOGS_DIR));
         assert!(archived
             .file_name()
@@ -884,7 +923,9 @@ mod tests {
         );
         // A second archive in the same second does not replace the first.
         logs_with_a_file(root.path(), "newer");
-        let second = archive_logs_if_set(root.path(), true).unwrap().unwrap();
+        let second = archive_logs_if_set(root.path(), OldFiles::Archive)
+            .unwrap()
+            .unwrap();
         assert_ne!(second, archived);
         assert!(archived.join("old/screenshot.png").is_file());
     }
@@ -892,9 +933,15 @@ mod tests {
     #[test]
     fn nothing_is_archived_when_there_is_nothing_or_it_is_off() {
         let root = tempfile::tempdir().unwrap();
-        assert_eq!(archive_logs_if_set(root.path(), true).unwrap(), None);
+        assert_eq!(
+            archive_logs_if_set(root.path(), OldFiles::Archive).unwrap(),
+            None
+        );
         logs_with_a_file(root.path(), "t");
-        assert_eq!(archive_logs_if_set(root.path(), false).unwrap(), None);
+        assert_eq!(
+            archive_logs_if_set(root.path(), OldFiles::Clear).unwrap(),
+            None
+        );
     }
 
     #[cfg(unix)]
@@ -904,7 +951,7 @@ mod tests {
         let elsewhere = tempfile::tempdir().unwrap();
         fs::write(elsewhere.path().join("precious"), b"keep").unwrap();
         std::os::unix::fs::symlink(elsewhere.path(), root.path().join(LATEST_LOGS_DIR)).unwrap();
-        let error = log_folder_setup(root.path(), false).unwrap_err();
+        let error = log_folder_setup(root.path(), OldFiles::Clear).unwrap_err();
         assert!(error.to_string().contains("symbolic link"), "{error}");
         assert!(elsewhere.path().join("precious").is_file());
     }
@@ -913,7 +960,7 @@ mod tests {
     fn a_latest_logs_that_is_a_file_is_refused() {
         let root = tempfile::tempdir().unwrap();
         fs::write(root.path().join(LATEST_LOGS_DIR), b"x").unwrap();
-        assert!(log_folder_setup(root.path(), false).is_err());
+        assert!(log_folder_setup(root.path(), OldFiles::Clear).is_err());
         assert!(root.path().join(LATEST_LOGS_DIR).is_file());
     }
 

@@ -790,14 +790,19 @@ impl Plan {
                 .as_deref()
                 .is_some_and(|root| std::fs::canonicalize(dir).is_ok_and(|dir| dir == root));
             if !is_run_root
-                && let run_logs::Reset::Archived(to) =
-                    run_logs::reset_logs(dir, self.archive_logs, stamp)?
+                && let run_logs::Reset::Archived(to) = run_logs::reset_logs(
+                    dir,
+                    run_logs::OldFiles::archive_if(self.archive_logs),
+                    stamp,
+                )?
             {
                 eprintln!("Archived the logs of {} in {}", dir.display(), to.display());
             }
-            if let run_logs::Reset::Archived(to) =
-                run_logs::reset_downloads(dir, self.archive_downloads, stamp)?
-            {
+            if let run_logs::Reset::Archived(to) = run_logs::reset_downloads(
+                dir,
+                run_logs::OldFiles::archive_if(self.archive_downloads),
+                stamp,
+            )? {
                 eprintln!(
                     "Archived the downloads of {} in {}",
                     dir.display(),

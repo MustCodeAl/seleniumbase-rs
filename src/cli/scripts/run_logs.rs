@@ -13,14 +13,14 @@
 //! # Examples
 //!
 //! ```
-//! use seleniumbase_rs::cli::scripts::run_logs::{reset_logs, Reset};
+//! use seleniumbase_rs::cli::scripts::run_logs::{reset_logs, OldFiles, Reset};
 //!
 //! let dir = tempfile::tempdir()?;
 //! let logs = dir.path().join("latest_logs");
 //! std::fs::create_dir(&logs)?;
 //! std::fs::write(logs.join("old.txt"), "old")?;
 //!
-//! let done = reset_logs(dir.path(), true, 1_700_000_000)?;
+//! let done = reset_logs(dir.path(), OldFiles::Archive, 1_700_000_000)?;
 //! assert_eq!(
 //!     done,
 //!     Reset::Archived(dir.path().join("archived_logs/logs_1700000000"))
@@ -33,6 +33,8 @@
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+pub use crate::core::log_helper::OldFiles;
 
 /// The folder the tests write their logs and failure evidence in.
 pub const LATEST_LOGS: &str = "latest_logs";
@@ -98,7 +100,7 @@ fn reset(
     folder: &str,
     archive_folder: &str,
     prefix: &str,
-    archive: bool,
+    old: OldFiles,
     stamp: u64,
 ) -> io::Result<Reset> {
     let path = root.join(folder);
@@ -108,7 +110,7 @@ fn reset(
     if std::fs::read_dir(&path)?.next().is_none() {
         return Ok(Reset::Empty);
     }
-    if !archive {
+    if old == OldFiles::Clear {
         empty_folder(&path)?;
         return Ok(Reset::Cleared);
     }
@@ -120,28 +122,28 @@ fn reset(
     Ok(Reset::Archived(target))
 }
 
-/// Archives (`archive`) or empties the `latest_logs/` folder of `root`.
+/// Archives or empties (`old`) the `latest_logs/` folder of `root`.
 ///
 /// # Errors
 ///
 /// Returns the I/O error of the move or the removal.
-pub fn reset_logs(root: &Path, archive: bool, stamp: u64) -> io::Result<Reset> {
-    reset(root, LATEST_LOGS, ARCHIVED_LOGS, "logs", archive, stamp)
+pub fn reset_logs(root: &Path, old: OldFiles, stamp: u64) -> io::Result<Reset> {
+    reset(root, LATEST_LOGS, ARCHIVED_LOGS, "logs", old, stamp)
 }
 
-/// Archives (`archive`) or empties the `downloaded_files/` folder of `root`.
+/// Archives or empties (`old`) the `downloaded_files/` folder of `root`.
 /// The operating system's own Downloads folder is never touched.
 ///
 /// # Errors
 ///
 /// Returns the I/O error of the move or the removal.
-pub fn reset_downloads(root: &Path, archive: bool, stamp: u64) -> io::Result<Reset> {
+pub fn reset_downloads(root: &Path, old: OldFiles, stamp: u64) -> io::Result<Reset> {
     reset(
         root,
         DOWNLOADED_FILES,
         ARCHIVED_FILES,
         "downloads",
-        archive,
+        old,
         stamp,
     )
 }
@@ -221,7 +223,8 @@ mod tests {
     fn without_archiving_the_contents_go_and_the_folder_stays() {
         let dir = tempfile::tempdir().unwrap();
         let logs = folder_with_a_file(dir.path(), LATEST_LOGS);
-        assert_eq!(reset_logs(dir.path(), false, 5).unwrap(), Reset::Cleared);
+        let done = reset_logs(dir.path(), OldFiles::Clear, 5).unwrap();
+        assert_eq!(done, Reset::Cleared);
         assert!(logs.is_dir());
         assert!(std::fs::read_dir(&logs).unwrap().next().is_none());
         assert!(!dir.path().join(ARCHIVED_LOGS).exists());
@@ -231,7 +234,7 @@ mod tests {
     fn archiving_moves_the_folder_and_leaves_an_empty_one() {
         let dir = tempfile::tempdir().unwrap();
         let logs = folder_with_a_file(dir.path(), LATEST_LOGS);
-        let done = reset_logs(dir.path(), true, 42).unwrap();
+        let done = reset_logs(dir.path(), OldFiles::Archive, 42).unwrap();
         let archive = dir.path().join("archived_logs/logs_42");
         assert_eq!(done, Reset::Archived(archive.clone()));
         assert!(archive.join("a.txt").is_file());
@@ -243,9 +246,9 @@ mod tests {
     fn a_second_archive_in_the_same_second_does_not_overwrite_the_first() {
         let dir = tempfile::tempdir().unwrap();
         folder_with_a_file(dir.path(), LATEST_LOGS);
-        reset_logs(dir.path(), true, 7).unwrap();
+        reset_logs(dir.path(), OldFiles::Archive, 7).unwrap();
         folder_with_a_file(dir.path(), LATEST_LOGS);
-        let done = reset_logs(dir.path(), true, 7).unwrap();
+        let done = reset_logs(dir.path(), OldFiles::Archive, 7).unwrap();
         assert_eq!(
             done,
             Reset::Archived(dir.path().join("archived_logs/logs_7-1"))
@@ -256,11 +259,14 @@ mod tests {
     #[test]
     fn a_missing_or_empty_folder_is_left_alone() {
         let dir = tempfile::tempdir().unwrap();
-        assert_eq!(reset_logs(dir.path(), true, 1).unwrap(), Reset::Missing);
+        let archive =
+            |dir: &tempfile::TempDir| reset_logs(dir.path(), OldFiles::Archive, 1).unwrap();
+        assert_eq!(archive(&dir), Reset::Missing);
         assert!(!dir.path().join(ARCHIVED_LOGS).exists());
         std::fs::create_dir(dir.path().join(LATEST_LOGS)).unwrap();
-        assert_eq!(reset_logs(dir.path(), true, 1).unwrap(), Reset::Empty);
-        assert_eq!(reset_logs(dir.path(), false, 1).unwrap(), Reset::Empty);
+        assert_eq!(archive(&dir), Reset::Empty);
+        let cleared = reset_logs(dir.path(), OldFiles::Clear, 1).unwrap();
+        assert_eq!(cleared, Reset::Empty);
         assert!(!dir.path().join(ARCHIVED_LOGS).exists());
     }
 
@@ -268,14 +274,14 @@ mod tests {
     fn downloads_have_their_own_folders() {
         let dir = tempfile::tempdir().unwrap();
         folder_with_a_file(dir.path(), DOWNLOADED_FILES);
-        let done = reset_downloads(dir.path(), true, 9).unwrap();
+        let done = reset_downloads(dir.path(), OldFiles::Archive, 9).unwrap();
         assert_eq!(
             done,
             Reset::Archived(dir.path().join("archived_files/downloads_9"))
         );
         folder_with_a_file(dir.path(), DOWNLOADED_FILES);
         assert_eq!(
-            reset_downloads(dir.path(), false, 9).unwrap(),
+            reset_downloads(dir.path(), OldFiles::Clear, 9).unwrap(),
             Reset::Cleared
         );
     }
@@ -286,7 +292,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let elsewhere = folder_with_a_file(dir.path(), "elsewhere");
         std::os::unix::fs::symlink(&elsewhere, dir.path().join(LATEST_LOGS)).unwrap();
-        assert_eq!(reset_logs(dir.path(), false, 1).unwrap(), Reset::Missing);
+        let done = reset_logs(dir.path(), OldFiles::Clear, 1).unwrap();
+        assert_eq!(done, Reset::Missing);
         assert!(elsewhere.join("a.txt").is_file());
 
         // A link inside the folder is removed, not what it names.

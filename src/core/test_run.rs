@@ -62,7 +62,7 @@ use crate::core::dashboard::{write_dashboard, write_html_report, PageOptions};
 use crate::core::junit::write_junit_xml;
 use crate::core::log_helper::{
     archive_logs_if_set, clear_empty_logs, log_folder_setup, log_page_source, log_screenshot,
-    log_skipped_test_data, log_test_failure_data, FailureInfo, TestId, PAGE_SOURCE_FILE,
+    log_skipped_test_data, log_test_failure_data, FailureInfo, OldFiles, TestId, PAGE_SOURCE_FILE,
     SCREENSHOT_FILE,
 };
 use crate::core::report_helper::{
@@ -818,7 +818,7 @@ impl TestRun {
         let asked_before = existing
             .as_ref()
             .is_some_and(|previous| previous.settings.archive_logs && !previous.archived);
-        let archive = self.settings.archive_logs || asked_before;
+        let archive = OldFiles::archive_if(self.settings.archive_logs || asked_before);
         let archived = log_folder_setup(&self.root, archive)
             .map_err(|error| io_error("cannot prepare", &self.logs_dir(), &error))?;
         if let Some(target) = &archived {
@@ -1097,7 +1097,7 @@ impl TestRun {
         merge_warnings(&mut run.warnings, written.warnings);
         let mut archived = None;
         if (run.settings.archive_logs || self.settings.archive_logs) && !run.archived {
-            match archive_logs_if_set(&self.root, true) {
+            match archive_logs_if_set(&self.root, OldFiles::Archive) {
                 Ok(Some(target)) => {
                     for name in [RUN_FILE, RESULTS_FILE] {
                         let _ = fs::copy(dir.join(name), target.join(name));
