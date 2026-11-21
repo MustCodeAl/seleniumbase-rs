@@ -61,6 +61,9 @@ pub(super) struct Needs {
     pub(super) sb_cdp: BTreeSet<&'static str>,
     /// `SelectorBuf` from `seleniumbase_rs::utils::selectors`.
     pub(super) selector_buf: bool,
+    /// `TextMatching` from `seleniumbase_rs::utils::selectors`.
+    pub(super) text_matching: bool,
+
     pub(super) helpers: BTreeSet<Helper>,
 }
 
@@ -282,7 +285,9 @@ pub(super) fn render(tool: Tool, tests: &[TestOut], file_todos: &[Line], needs: 
         }
         out.push_str("use seleniumbase_rs::tokio;\n");
 
-        if needs.selector_buf {
+        if needs.selector_buf && needs.text_matching {
+            out.push_str("use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};\n");
+        } else if needs.selector_buf {
             out.push_str("use seleniumbase_rs::utils::selectors::SelectorBuf;\n");
         }
         out.push('\n');

@@ -18,7 +18,7 @@
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
-use seleniumbase_rs::utils::selectors::SelectorBuf;
+use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
 use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
 
 const PAGE: &str = include_str!("../fixtures/element_find.html");
@@ -121,7 +121,7 @@ async fn a_role_or_text_selector_from_an_element_finds_only_what_is_inside_it() 
         sb.set_timeout(3).await?;
 
         // From the page, `.//` is the whole document: both buttons.
-        let save = SelectorBuf::role("button", Some("Save"), false);
+        let save = SelectorBuf::role("button", Some("Save"), TextMatching::Contains);
         assert_eq!(sb.find_elements(&save.to_string()).await?.len(), 2);
 
         // From the container, only the one inside it.
@@ -133,7 +133,7 @@ async fn a_role_or_text_selector_from_an_element_finds_only_what_is_inside_it() 
         for selector in [
             SelectorBuf::containing_text("Save", Some("button")),
             SelectorBuf::containing_text("Save", None),
-            SelectorBuf::text("Save", false),
+            SelectorBuf::text("Save", TextMatching::Contains),
         ] {
             let name = selector.to_string();
             let found = panel.find_all(selector).await?;
@@ -143,7 +143,9 @@ async fn a_role_or_text_selector_from_an_element_finds_only_what_is_inside_it() 
 
         // A label names its control from anywhere in the document.
         let form = sb.find_element("#order").await?;
-        let email = form.find(SelectorBuf::label("Email", false)).await?;
+        let email = form
+            .find(SelectorBuf::label("Email", TextMatching::Contains))
+            .await?;
         assert_eq!(email.attribute("id").await?.as_deref(), Some("email"));
         Ok(())
     })

@@ -417,10 +417,12 @@ different ground.
 
 #### Role and label selectors
 
-`SelectorBuf::role(role, name, exact)` builds a selector for an ARIA role with an
+`SelectorBuf::role(role, name, matching)` builds a selector for an ARIA role with an
 optional accessible name, the counterpart of Playwright's `getByRole`.
-`SelectorBuf::label(text, exact)` finds a form control by its label, as
-`getByLabel` does.
+`SelectorBuf::label(text, matching)` finds a form control by its label, as
+`getByLabel` does. `matching` is a `TextMatching`: `Contains` (the text of the page
+contains the text, ASCII case ignored) or `Exact` (the whole text, case and all),
+Playwright's `exact` option.
 
 <Warning>
 
@@ -436,12 +438,12 @@ tree would name differently.
 </Warning>
 
 ```rust,ignore src/main.rs
-use seleniumbase_rs::utils::selectors::SelectorBuf;
+use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
 
 // Page::locator and every BaseCase selector parameter take anything that converts to a SelectorBuf.
-sb.click(SelectorBuf::role("button", Some("Sign in"), false)).await?;
-page.locator(SelectorBuf::role("button", Some("Sign in"), false)).click().await?;
-page.locator(SelectorBuf::label("Email", false)).fill("me@example.test").await?;
+sb.click(SelectorBuf::role("button", Some("Sign in"), TextMatching::Contains)).await?;
+page.locator(SelectorBuf::role("button", Some("Sign in"), TextMatching::Contains)).click().await?;
+page.locator(SelectorBuf::label("Email", TextMatching::Contains)).fill("me@example.test").await?;
 ```
 
 #### The audit_page tool

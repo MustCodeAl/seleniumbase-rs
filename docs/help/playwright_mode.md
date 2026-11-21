@@ -104,10 +104,10 @@ Playwright call becomes:
 | `page.wait_for_function(js)` | `Page::wait_for_function` | |
 | `page.wait_for_timeout(ms)` | `seleniumbase_rs::tokio::time::sleep` | `BaseCase::sleep(seconds)` |
 | `locator(..).nth(i)`, `.count()`, `.first()` | `Locator::nth`, `Locator::count`, `Locator::first` | |
-| `text=Foo`, `getByText(text, { exact })` | `page.locator(SelectorBuf::text("Foo", exact))` | `:contains(Foo)` in the selector string |
+| `text=Foo`, `getByText(text, { exact })` | `page.locator(SelectorBuf::text("Foo", matching))`, `matching` a `TextMatching` (`Contains` or `Exact`) | `:contains(Foo)` in the selector string |
 | `:has-text("x")`, `.filter({ hasText })` | `page.locator(css).locator(SelectorBuf::has_text("x"))` | `:contains(x)` (it matches case; `:has-text()` does not) |
-| `getByRole(role, { name, exact })`, `role=` | `page.locator(SelectorBuf::role(role, Some(name), exact))`: an XPath approximation of the accessibility tree | |
-| `getByLabel(text, { exact })` | `page.locator(SelectorBuf::label(text, exact))` | |
+| `getByRole(role, { name, exact })`, `role=` | `page.locator(SelectorBuf::role(role, Some(name), matching))`: an XPath approximation of the accessibility tree | |
+| `getByLabel(text, { exact })` | `page.locator(SelectorBuf::label(text, matching))` | |
 | `getByTestId(id)`, `data-testid=id` | `page.locator(r#"[data-testid="id"]"#)` | `[data-testid="id"]` as the CSS selector |
 | `frameLocator(css).locator(css)` | `page.locator(frame).locator(css)`: the engine searches inside frames of any origin | |
 | `expect(locator).to_have_text(..)`, `to_be_visible()` | `Locator::expect`, then `to_have_text`, `to_be_visible` | `BaseCase::assert_text`, `assert_element` |

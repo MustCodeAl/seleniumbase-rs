@@ -97,15 +97,15 @@ test.describe('shop', () => {
 ```rust,ignore Rust
 use seleniumbase_rs::sb_cdp::Browser;
 use seleniumbase_rs::tokio;
-use seleniumbase_rs::utils::selectors::SelectorBuf;
+use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
 
 #[tokio::test]
 async fn shop_orders() -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::launch(support::launch_options()?).await?;
     let page = browser.default_page().await?;
     page.goto("https://shop.test/").await?;
-    page.locator(SelectorBuf::label("Email", false)).fill("a@b.test").await?;
-    page.locator(SelectorBuf::role("button", Some("Place order"), false)).click().await?;
+    page.locator(SelectorBuf::label("Email", TextMatching::Contains)).fill("a@b.test").await?;
+    page.locator(SelectorBuf::role("button", Some("Place order"), TextMatching::Contains)).click().await?;
     page.locator("#status").expect().to_have_text("Ordered").await?;
     browser.close().await?;
     Ok(())
@@ -184,9 +184,9 @@ page.getByTestId('total');
 
 ```rust,ignore Rust
 page.locator("#cart");
-page.locator(SelectorBuf::text("Checkout", true));
-page.locator(SelectorBuf::label("Email", false));
-page.locator(SelectorBuf::role("button", Some("Go"), false));
+page.locator(SelectorBuf::text("Checkout", TextMatching::Exact));
+page.locator(SelectorBuf::label("Email", TextMatching::Contains));
+page.locator(SelectorBuf::role("button", Some("Go"), TextMatching::Contains));
 page.locator("ul > li").nth(2);
 page.locator(r#"[data-testid="total"]"#);
 ```
@@ -196,13 +196,13 @@ page.locator(r#"[data-testid="total"]"#);
 | Playwright | Rust |
 |---|---|
 | `locator(css)`, `css=`, `xpath=`, `//...` | `page.locator("css")`, `page.locator("//xpath")` |
-| `text=Foo` / `text="Foo"`, `"Foo"` | `SelectorBuf::text("Foo", false)` / `SelectorBuf::text("Foo", true)` |
+| `text=Foo` / `text="Foo"`, `"Foo"` | `SelectorBuf::text("Foo", TextMatching::Contains)` / `SelectorBuf::text("Foo", TextMatching::Exact)` |
 | `id=x`, `data-testid=x` | `[id="x"]`, `[data-testid="x"]` |
 | `css:has-text("x")`, `:text("x")` (at the end of a selector), `:visible` | `.locator(css).locator(SelectorBuf::has_text("x"))`, `.visible()` |
 | `a >> b`, `nth=N`, `locator(a).locator(b)` | `page.locator(a).locator(b)`, `.nth(N)` (`nth=-1` is `.last()`) |
-| `getByRole(role, { name, exact })` | `SelectorBuf::role(role, Some(name), exact)` (see below) |
-| `getByText(text, { exact })` | `SelectorBuf::text(text, exact)` |
-| `getByLabel(text, { exact })` | `SelectorBuf::label(text, exact)` |
+| `getByRole(role, { name, exact })` | `SelectorBuf::role(role, Some(name), matching)` (see below) |
+| `getByText(text, { exact })` | `SelectorBuf::text(text, matching)` |
+| `getByLabel(text, { exact })` | `SelectorBuf::label(text, matching)` |
 | `getByPlaceholder`, `getByAltText`, `getByTitle` | `[placeholder*="text" i]`, `[alt*=...]`, `[title*=...]` (`exact` makes it `[attr="text"]`) |
 | `getByTestId(id)` | `[data-testid="id"]` |
 | `.first()`, `.last()`, `.nth(i)` | `.first()`, `.last()`, `.nth(i)` |
@@ -211,7 +211,8 @@ page.locator(r#"[data-testid="total"]"#);
 
 The text matches follow Playwright: whitespace collapsed, and without `exact`
 a substring match that ignores case (ASCII letters only, since it is done in
-XPath 1.0).
+XPath 1.0). `matching` is a `TextMatching`: `TextMatching::Exact` is Playwright's
+`exact: true`, `TextMatching::Contains` (the default) is the substring match.
 
 ### Actions
 

@@ -207,8 +207,8 @@ await page.click('aria/Place order[role="button"]');
 ```rust,ignore Rust
 page.locator("#cart").click().await?;
 page.locator(r#"//button[@id="go"]"#).click().await?;
-page.locator(SelectorBuf::text("Checkout", false)).click().await?;
-page.locator(SelectorBuf::role("button", Some("Place order"), true)).click().await?;
+page.locator(SelectorBuf::text("Checkout", TextMatching::Contains)).click().await?;
+page.locator(SelectorBuf::role("button", Some("Place order"), TextMatching::Exact)).click().await?;
 ```
 
 </CodeGroup>
@@ -217,10 +217,10 @@ page.locator(SelectorBuf::role("button", Some("Place order"), true)).click().awa
 |---|---|
 | CSS | `page.locator("css")` |
 | `xpath/...`, `::-p-xpath(...)` | `page.locator("//xpath")` |
-| `text/...`, `::-p-text(...)` | `SelectorBuf::text(text, false)`: the innermost elements containing the text (case-insensitive here, case-sensitive in Puppeteer) |
+| `text/...`, `::-p-text(...)` | `SelectorBuf::text(text, TextMatching::Contains)`: the innermost elements containing the text (case-insensitive here, case-sensitive in Puppeteer) |
 | `css ::-p-text(...)` (descendant) | `.locator(css).locator(SelectorBuf::text(...))` |
 | `css::-p-text(...)` (the element itself) | `.locator(css).locator(SelectorBuf::has_text(...))` |
-| `aria/Name`, `aria/Name[role="button"]`, `::-p-aria(...)` | `SelectorBuf::role(role, Some(name), true)`, the role approximation described in [Migrate Playwright Tests](/playwright-migration#the-getbyrole-approximation) |
+| `aria/Name`, `aria/Name[role="button"]`, `::-p-aria(...)` | `SelectorBuf::role(role, Some(name), TextMatching::Exact)`, the role approximation described in [Migrate Playwright Tests](/playwright-migration#the-getbyrole-approximation) |
 | `pierce/...`, `>>>` | a `TODO`: the pure CDP engine's selectors do not enter shadow roots |
 
 ### Assertions

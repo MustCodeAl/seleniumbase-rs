@@ -473,9 +473,9 @@ XPath for you, as approximations of Playwright's `getByText`, `getByLabel` and
 
 | Constructor | Finds |
 |---|---|
-| `SelectorBuf::text(text, exact)` | The innermost elements that show the text, ignoring ASCII case unless `exact`; `input` buttons match by their value |
-| `SelectorBuf::label(text, exact)` | Form controls by their `label`, wrapping `label` or `aria-label` |
-| `SelectorBuf::role(role, name, exact)` | Elements with the ARIA role, set explicitly or implied by the tag (`button`, `a` with `href` for `link`, `h1` to `h6` for `heading`), and optionally an accessible name taken from `aria-label`, text, `value`, `title`, `alt` or a label |
+| `SelectorBuf::text(text, matching)` | The innermost elements that show the text, ignoring ASCII case unless `matching` is `TextMatching::Exact`; `input` buttons match by their value |
+| `SelectorBuf::label(text, matching)` | Form controls by their `label`, wrapping `label` or `aria-label` |
+| `SelectorBuf::role(role, name, matching)` | Elements with the ARIA role, set explicitly or implied by the tag (`button`, `a` with `href` for `link`, `h1` to `h6` for `heading`), and optionally an accessible name taken from `aria-label`, text, `value`, `title`, `alt` or a label |
 | `SelectorBuf::containing_text(text, tag)` | Elements of a tag whose text contains the text |
 | `SelectorBuf::has_text(text)` | Keeps the matches of a previous selector whose text contains the text |
 
@@ -485,7 +485,7 @@ followed, and roles that depend on context, hidden elements and states such as
 
 The XPath they build starts at the context node (`.//`), so a page gives every
 match of the document, and an `Element` or a step below another `Locator` gives
-the matches inside it: `panel.find(SelectorBuf::role("button", Some("Save"), false))`
+the matches inside it: `panel.find(SelectorBuf::role("button", Some("Save"), TextMatching::Contains))`
 does not find the Save button outside the panel. A label that names a control with
 `for` is still looked for in the whole document.
 
@@ -494,16 +494,16 @@ does not find the Save button outside the panel. A label that names a control wi
 <Tab title="Pure CDP engine" icon="bolt">
 
 ```rust,ignore src/main.rs
-use seleniumbase_rs::utils::selectors::SelectorBuf;
+use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
 
 // A test attribute: the most stable choice.
 page.locator("[data-testid='checkout']").click().await?;
 
 // By role and accessible name, whatever markup the framework made.
-page.locator(SelectorBuf::role("button", Some("Sign in"), false)).click().await?;
+page.locator(SelectorBuf::role("button", Some("Sign in"), TextMatching::Contains)).click().await?;
 
 // By the text a user reads.
-page.locator(SelectorBuf::text("Add to cart", true)).click().await?;
+page.locator(SelectorBuf::text("Add to cart", TextMatching::Exact)).click().await?;
 ```
 
 A `Locator` is lazy: it looks the element up again each time it acts, and waits

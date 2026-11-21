@@ -523,7 +523,7 @@ impl SelectorBuf {
 
     /// Elements that show `text`, the way Playwright's `getByText` finds them:
     /// the innermost elements whose text contains `text`, ignoring ASCII case,
-    /// or (with `exact`) whose whole text is `text`, case and all. Buttons made
+    /// or ([`TextMatching::Exact`]) whose whole text is `text`, case and all. Buttons made
     /// with `<input type="submit">` (and `button`, `reset`) match by their
     /// value. Runs of white space count as one space, and `<script>` and
     /// `<style>` never match, nor does anything in the `<head>`.
@@ -534,17 +534,17 @@ impl SelectorBuf {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    /// use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
     ///
-    /// let SelectorBuf::XPath(xpath) = SelectorBuf::text("Sign in", true) else {
+    /// let SelectorBuf::XPath(xpath) = SelectorBuf::text("Sign in", TextMatching::Exact) else {
     ///     unreachable!()
     /// };
     /// assert!(xpath.contains("normalize-space(.)='Sign in'"));
     /// ```
-    pub fn text(text: impl AsRef<str>, exact: bool) -> Self {
+    pub fn text(text: impl AsRef<str>, matching: TextMatching) -> Self {
         let text = text.as_ref();
-        let content = text_match(".", text, exact);
-        let value = text_match("@value", text, exact);
+        let content = text_match(".", text, matching);
+        let value = text_match("@value", text, matching);
         Self::XPath(format!(
             ".//*[not(ancestor-or-self::head)]\
              [not(self::script or self::style or self::noscript or self::template)]\
@@ -568,7 +568,7 @@ impl SelectorBuf {
     pub fn has_text(text: impl AsRef<str>) -> Self {
         Self::XPath(format!(
             "self::*[{}]",
-            text_match(".", text.as_ref(), false)
+            text_match(".", text.as_ref(), TextMatching::Contains)
         ))
     }
 
@@ -576,22 +576,22 @@ impl SelectorBuf {
     /// them: by a `<label for>` that names the control's id, by a `<label>`
     /// around the control, or by its `aria-label`. The label matches as in
     /// [`text`](Self::text): containing `text` with ASCII case ignored, or the
-    /// whole label when `exact`. `aria-labelledby` is not followed.
+    /// whole label for [`TextMatching::Exact`]. `aria-labelledby` is not followed.
     ///
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    /// use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
     ///
-    /// let SelectorBuf::XPath(xpath) = SelectorBuf::label("Email", false) else {
+    /// let SelectorBuf::XPath(xpath) = SelectorBuf::label("Email", TextMatching::Contains) else {
     ///     unreachable!()
     /// };
     /// assert!(xpath.contains("//label["));
     /// ```
-    pub fn label(text: impl AsRef<str>, exact: bool) -> Self {
+    pub fn label(text: impl AsRef<str>, matching: TextMatching) -> Self {
         let text = text.as_ref();
-        let by_label = text_match(".", text, exact);
-        let by_aria = text_match("@aria-label", text, exact);
+        let by_label = text_match(".", text, matching);
+        let by_aria = text_match("@aria-label", text, matching);
         Self::XPath(format!(
             ".//*[(self::input and not(@type='hidden')) or self::textarea or self::select or \
              self::button or self::meter or self::output or self::progress or \
@@ -616,7 +616,7 @@ impl SelectorBuf {
     ///
     /// The name matches the `aria-label`, the text, the `value`, the `title` or
     /// the `alt` of the element, or the text of its `<label>`: containing
-    /// `name` with ASCII case ignored, or the whole of it when `exact`. With no
+    /// `name` with ASCII case ignored, or the whole of it for [`TextMatching::Exact`]. With no
     /// role, the text match takes the innermost element, so the page's
     /// `<body>` does not match because it contains everything.
     ///
@@ -627,15 +627,15 @@ impl SelectorBuf {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::utils::selectors::SelectorBuf;
+    /// use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
     ///
-    /// let SelectorBuf::XPath(xpath) = SelectorBuf::role("button", Some("Sign in"), false) else {
+    /// let SelectorBuf::XPath(xpath) = SelectorBuf::role("button", Some("Sign in"), TextMatching::Contains) else {
     ///     unreachable!()
     /// };
     /// assert!(xpath.starts_with(".//*[@role='button' or (not(@role) and (self::button"));
     /// assert!(xpath.contains("'sign in'"));
     /// ```
-    pub fn role(role: &str, name: Option<&str>, exact: bool) -> Self {
+    pub fn role(role: &str, name: Option<&str>, matching: TextMatching) -> Self {
         let role = role.trim();
         let mut xpath = String::from(".//*");
         if !role.is_empty() {
@@ -648,7 +648,7 @@ impl SelectorBuf {
             }
         }
         if let Some(name) = name {
-            let by = |value: &str| text_match(value, name, exact);
+            let by = |value: &str| text_match(value, name, matching);
             let content = by(".");
             let content = if role.is_empty() {
                 format!("({content} and not(.//*[{content}]))")
@@ -670,6 +670,30 @@ impl SelectorBuf {
     }
 }
 
+/// How [`SelectorBuf::text`], [`SelectorBuf::label`] and [`SelectorBuf::role`]
+/// compare the text they are given with the text of the page: Playwright's
+/// `exact` option of `getByText`, `getByLabel` and `getByRole`, as a name.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
+///
+/// let SelectorBuf::XPath(xpath) = SelectorBuf::label("Email", TextMatching::Exact) else {
+///     unreachable!()
+/// };
+/// assert!(xpath.contains("normalize-space(.)='Email'"));
+/// assert_eq!(TextMatching::default(), TextMatching::Contains);
+/// ```
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
+pub enum TextMatching {
+    /// The text of the page contains the text, ASCII case ignored. The default.
+    #[default]
+    Contains,
+    /// The whole text of the page is the text, case and all.
+    Exact,
+}
+
 /// The ASCII capitals and their lower-case forms, for XPath's `translate()`:
 /// XPath 1.0 has no `lower-case()`, so case-insensitive matching folds ASCII
 /// letters only.
@@ -679,16 +703,17 @@ const XPATH_LOWER: &str = "abcdefghijklmnopqrstuvwxyz";
 
 /// An XPath test that the string of `value` (an XPath expression such as `.`
 /// or `@title`) matches `text`, white space collapsed on both sides: equal
-/// when `exact`, otherwise containing `text` with ASCII case ignored.
-fn text_match(value: &str, text: &str, exact: bool) -> String {
+/// for [`TextMatching::Exact`], else containing `text` with ASCII case ignored.
+fn text_match(value: &str, text: &str, matching: TextMatching) -> String {
     let wanted = text.split_whitespace().collect::<Vec<_>>().join(" ");
-    if exact {
-        format!("normalize-space({value})={}", xpath_string_literal(&wanted))
-    } else {
-        format!(
+    match matching {
+        TextMatching::Exact => {
+            format!("normalize-space({value})={}", xpath_string_literal(&wanted))
+        }
+        TextMatching::Contains => format!(
             "contains(translate(normalize-space({value}), '{XPATH_UPPER}', '{XPATH_LOWER}'), {})",
             xpath_string_literal(&wanted.to_ascii_lowercase())
-        )
+        ),
     }
 }
 
@@ -2016,24 +2041,28 @@ mod tests {
     #[test]
     fn text_matches_ignore_ascii_case_unless_exact() {
         assert_eq!(
-            text_match(".", "  Sign   In ", false),
+            text_match(".", "  Sign   In ", TextMatching::Contains),
             "contains(translate(normalize-space(.), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', \
              'abcdefghijklmnopqrstuvwxyz'), 'sign in')"
         );
         assert_eq!(
-            text_match("@title", "Sign In", true),
+            text_match("@title", "Sign In", TextMatching::Exact),
             "normalize-space(@title)='Sign In'"
         );
     }
 
     #[test]
     fn a_quote_in_the_text_cannot_end_the_xpath_string() {
-        let xpath = xpath_of(SelectorBuf::text(r#"it's "quoted"']"#, true));
+        let xpath = xpath_of(SelectorBuf::text(r#"it's "quoted"']"#, TextMatching::Exact));
         assert!(
             xpath.contains(r#"concat('it', "'", 's "quoted"', "'", ']')"#),
             "{xpath}"
         );
-        let xpath = xpath_of(SelectorBuf::role("x'] | //script[('", Some("n"), false));
+        let xpath = xpath_of(SelectorBuf::role(
+            "x'] | //script[('",
+            Some("n"),
+            TextMatching::Contains,
+        ));
         assert!(
             xpath.starts_with(r#".//*[@role="x'] | //script[('"]["#),
             "{xpath}"
@@ -2043,11 +2072,15 @@ mod tests {
     #[test]
     fn a_quote_in_the_text_cannot_add_a_branch_to_the_xpath() {
         for selector in [
-            SelectorBuf::role("x'] | //script[('", Some("n'] | //b['"), false),
+            SelectorBuf::role(
+                "x'] | //script[('",
+                Some("n'] | //b['"),
+                TextMatching::Contains,
+            ),
             SelectorBuf::containing_text("x'] | //b['", Some("p")),
             SelectorBuf::containing_text("x'] | //b['", None),
-            SelectorBuf::text("x\"] | //b[\"", false),
-            SelectorBuf::label("x'] | //b['", true),
+            SelectorBuf::text("x\"] | //b[\"", TextMatching::Contains),
+            SelectorBuf::label("x'] | //b['", TextMatching::Exact),
         ] {
             let xpath = xpath_of(selector);
             assert_eq!(xpath_union_branches(&xpath), [xpath.as_str()]);
@@ -2063,15 +2096,15 @@ mod tests {
         for selector in [
             SelectorBuf::containing_text("Save", Some("button")),
             SelectorBuf::containing_text("Save", None),
-            SelectorBuf::text("Save", false),
-            SelectorBuf::text("Save", true),
+            SelectorBuf::text("Save", TextMatching::Contains),
+            SelectorBuf::text("Save", TextMatching::Exact),
             SelectorBuf::has_text("Save"),
-            SelectorBuf::label("Email", false),
-            SelectorBuf::role("button", Some("Save"), false),
-            SelectorBuf::role("button", None, true),
-            SelectorBuf::role("tab", None, false),
-            SelectorBuf::role("", Some("Save"), true),
-            SelectorBuf::role("", None, false),
+            SelectorBuf::label("Email", TextMatching::Contains),
+            SelectorBuf::role("button", Some("Save"), TextMatching::Contains),
+            SelectorBuf::role("button", None, TextMatching::Exact),
+            SelectorBuf::role("tab", None, TextMatching::Contains),
+            SelectorBuf::role("", Some("Save"), TextMatching::Exact),
+            SelectorBuf::role("", None, TextMatching::Contains),
         ] {
             let xpath = xpath_of(selector);
             assert_eq!(xpath_root_branch(&xpath), None, "{xpath}");
@@ -2087,9 +2120,13 @@ mod tests {
         // A `<label for>` may sit anywhere in the document, outside the element
         // that is searched too: that part of the path stays absolute.
         for xpath in [
-            xpath_of(SelectorBuf::label("Email", false)),
-            xpath_of(SelectorBuf::role("textbox", Some("Email"), false)),
-            xpath_of(SelectorBuf::role("", Some("Email"), true)),
+            xpath_of(SelectorBuf::label("Email", TextMatching::Contains)),
+            xpath_of(SelectorBuf::role(
+                "textbox",
+                Some("Email"),
+                TextMatching::Contains,
+            )),
+            xpath_of(SelectorBuf::role("", Some("Email"), TextMatching::Exact)),
         ] {
             assert!(xpath.starts_with(".//*["), "{xpath}");
             assert!(xpath.contains("@id=//label["), "{xpath}");
@@ -2098,7 +2135,7 @@ mod tests {
 
     #[test]
     fn text_takes_the_innermost_element_and_input_buttons() {
-        let xpath = xpath_of(SelectorBuf::text("Go", false));
+        let xpath = xpath_of(SelectorBuf::text("Go", TextMatching::Contains));
         assert!(
             xpath.starts_with(".//*[not(ancestor-or-self::head)]"),
             "{xpath}"
@@ -2123,7 +2160,7 @@ mod tests {
 
     #[test]
     fn label_follows_for_wrapping_labels_and_aria_label() {
-        let xpath = xpath_of(SelectorBuf::label("Email", true));
+        let xpath = xpath_of(SelectorBuf::label("Email", TextMatching::Exact));
         assert!(
             xpath.contains("@id=//label[normalize-space(.)='Email']/@for"),
             "{xpath}"
@@ -2141,22 +2178,26 @@ mod tests {
 
     #[test]
     fn role_uses_the_role_attribute_or_the_native_element() {
-        let button = xpath_of(SelectorBuf::role("button", None, false));
+        let button = xpath_of(SelectorBuf::role("button", None, TextMatching::Contains));
         assert_eq!(
             button,
             ".//*[@role='button' or (not(@role) and (self::button or self::summary or \
              (self::input and (@type='button' or @type='submit' or @type='reset' or \
              @type='image'))))]"
         );
-        let custom = xpath_of(SelectorBuf::role("tab", None, false));
+        let custom = xpath_of(SelectorBuf::role("tab", None, TextMatching::Contains));
         assert_eq!(custom, ".//*[@role='tab']");
-        let any = xpath_of(SelectorBuf::role("", Some("Sign in"), true));
+        let any = xpath_of(SelectorBuf::role("", Some("Sign in"), TextMatching::Exact));
         assert!(any.starts_with(".//*[normalize-space(@aria-label)='Sign in' or (normalize-space(.)='Sign in' and not(.//*["), "{any}");
     }
 
     #[test]
     fn role_names_match_text_label_value_title_and_alt() {
-        let xpath = xpath_of(SelectorBuf::role("link", Some("About"), false));
+        let xpath = xpath_of(SelectorBuf::role(
+            "link",
+            Some("About"),
+            TextMatching::Contains,
+        ));
         for source in ["@aria-label", ".", "@value", "@title", "@alt"] {
             assert!(
                 xpath.contains(&format!("normalize-space({source})")),
@@ -2173,10 +2214,10 @@ mod tests {
     #[test]
     fn every_role_helper_xpath_is_read_as_xpath() {
         for selector in [
-            SelectorBuf::text("a", false),
-            SelectorBuf::label("a", false),
-            SelectorBuf::role("button", Some("a"), false),
-            SelectorBuf::role("", None, false),
+            SelectorBuf::text("a", TextMatching::Contains),
+            SelectorBuf::label("a", TextMatching::Contains),
+            SelectorBuf::role("button", Some("a"), TextMatching::Contains),
+            SelectorBuf::role("", None, TextMatching::Contains),
         ] {
             let xpath = xpath_of(selector);
             assert!(

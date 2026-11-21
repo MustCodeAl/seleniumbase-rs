@@ -15,6 +15,15 @@ use super::selector::{self, Step};
 use super::{ImportDiagnostic, ImportSeverity};
 use crate::utils::selectors::{css_quoted, Selector};
 
+/// How the generated code names the match `exact` (Playwright's own word for it) asks for.
+fn text_matching(exact: bool) -> &'static str {
+    if exact {
+        "TextMatching::Exact"
+    } else {
+        "TextMatching::Contains"
+    }
+}
+
 /// Which tool's API the statements are written against.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Flavor {
@@ -1821,6 +1830,13 @@ impl<'s> Translator<'s> {
                 step,
                 Step::Nth(_) | Step::Last | Step::Visible | Step::HasText(_)
             );
+            if matches!(
+                step,
+                Step::Role { .. } | Step::Text { .. } | Step::Label { .. }
+            ) {
+                self.needs.text_matching = true;
+            }
+
             if index == 0 && base == "page" && modifier {
                 return Err(
                     "a selector that starts with a position or a filter is not converted"
@@ -1842,22 +1858,25 @@ impl<'s> Translator<'s> {
                         .as_ref()
                         .map_or_else(|| "None".to_owned(), |n| format!("Some({})", rust_str(n)));
                     out.push_str(&format!(
-                        ".locator(SelectorBuf::role({}, {name}, {exact}))",
-                        rust_str(role)
+                        ".locator(SelectorBuf::role({}, {name}, {}))",
+                        rust_str(role),
+                        text_matching(*exact)
                     ));
                 }
                 Step::Text { text, exact } => {
                     self.needs.selector_buf = true;
                     out.push_str(&format!(
-                        ".locator(SelectorBuf::text({}, {exact}))",
-                        rust_str(text)
+                        ".locator(SelectorBuf::text({}, {}))",
+                        rust_str(text),
+                        text_matching(*exact)
                     ));
                 }
                 Step::Label { text, exact } => {
                     self.needs.selector_buf = true;
                     out.push_str(&format!(
-                        ".locator(SelectorBuf::label({}, {exact}))",
-                        rust_str(text)
+                        ".locator(SelectorBuf::label({}, {}))",
+                        rust_str(text),
+                        text_matching(*exact)
                     ));
                 }
                 Step::HasText(text) => {

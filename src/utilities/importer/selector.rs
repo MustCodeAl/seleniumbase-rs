@@ -19,15 +19,15 @@ pub(super) enum Step {
     Css(String),
     /// An XPath expression.
     XPath(String),
-    /// `SelectorBuf::role(role, name, exact)`.
+    /// `SelectorBuf::role(role, name, matching)`: `exact` is `TextMatching::Exact`.
     Role {
         role: String,
         name: Option<String>,
         exact: bool,
     },
-    /// `SelectorBuf::text(text, exact)`.
+    /// `SelectorBuf::text(text, matching)`: `exact` is `TextMatching::Exact`.
     Text { text: String, exact: bool },
-    /// `SelectorBuf::label(text, exact)`.
+    /// `SelectorBuf::label(text, matching)`: `exact` is `TextMatching::Exact`.
     Label { text: String, exact: bool },
     /// `SelectorBuf::has_text(text)`: keep the matches whose text contains it.
     HasText(String),

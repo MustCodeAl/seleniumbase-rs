@@ -66,7 +66,7 @@ instead of relying on detection. It goes wherever a method takes a selector as
 `Page::locator` and `Locator::locator` on the pure CDP engine.
 
 ```rust
-use seleniumbase_rs::utils::selectors::SelectorBuf;
+use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
 
 let row = sb.find_element("#cart .row").await?;
 
@@ -80,7 +80,7 @@ let cell = row.find(SelectorBuf::xpath("td[2]")).await?;
 // The selector builders start at the element too: of the two Save buttons of the page,
 // only the one inside the panel.
 let panel = sb.find_element("#panel").await?;
-let save = panel.find(SelectorBuf::role("button", Some("Save"), false)).await?;
+let save = panel.find(SelectorBuf::role("button", Some("Save"), TextMatching::Contains)).await?;
 ```
 
 From an element, `find` and `find_all` search inside it. An XPath that starts at the root of the

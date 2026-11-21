@@ -124,7 +124,7 @@ fn the_fixtures_use_every_mapping() {
         ".text().await?",
         ".attribute(\"href\")",
         ".is_checked().await?",
-        "SelectorBuf::role(\"link\", Some(\"About us\"), true)",
+        "SelectorBuf::role(\"link\", Some(\"About us\"), TextMatching::Exact)",
         "SelectorBuf::text(",
         "SelectorBuf::has_text(",
         "page.locator(\"//h1\")",

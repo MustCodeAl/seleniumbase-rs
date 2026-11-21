@@ -1334,6 +1334,8 @@ mod tests {
 
     use super::*;
     use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply, Seen};
+    use crate::utils::selectors::TextMatching;
+
     use crate::browser::config::BrowserConfig;
     use crate::browser::session::BrowserSession;
 
@@ -1720,12 +1722,12 @@ mod tests {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;
         let selectors = [
-            SelectorBuf::role("button", Some("Save"), false),
-            SelectorBuf::role("", None, true),
+            SelectorBuf::role("button", Some("Save"), TextMatching::Contains),
+            SelectorBuf::role("", None, TextMatching::Exact),
             SelectorBuf::containing_text("Save", Some("button")),
             SelectorBuf::containing_text("Save", None),
-            SelectorBuf::text("Save", false),
-            SelectorBuf::label("Email", false),
+            SelectorBuf::text("Save", TextMatching::Contains),
+            SelectorBuf::label("Email", TextMatching::Contains),
             SelectorBuf::has_text("Save"),
         ];
 

@@ -15,7 +15,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page, Permission};
-use seleniumbase_rs::utils::selectors::SelectorBuf;
+use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
 use serde_json::json;
 
 const FIXTURE: &str = r##"<!doctype html>
@@ -166,12 +166,12 @@ async fn a_step_below_a_locator_finds_only_what_is_inside_it() {
 
     // The selectors that name a role, a text or a label start at the context node:
     // from the page that is the whole document, from the container only itself.
-    let role = SelectorBuf::role("button", Some("Save"), false);
+    let role = SelectorBuf::role("button", Some("Save"), TextMatching::Contains);
     assert_eq!(page.locator(role.clone()).count().await.unwrap(), 2);
     assert_eq!(panel.locator(role).count().await.unwrap(), 1);
     for selector in [
         SelectorBuf::containing_text("Save", Some("button")),
-        SelectorBuf::text("Save", false),
+        SelectorBuf::text("Save", TextMatching::Contains),
     ] {
         let name = selector.to_string();
         assert_eq!(
@@ -182,12 +182,12 @@ async fn a_step_below_a_locator_finds_only_what_is_inside_it() {
         assert_eq!(panel.locator(selector).count().await.unwrap(), 1, "{name}");
     }
     // The label names its field from anywhere in the document.
-    let nick = SelectorBuf::label("Nick", false);
+    let nick = SelectorBuf::label("Nick", TextMatching::Contains);
     assert_eq!(panel.locator(nick).count().await.unwrap(), 1);
     // Nothing in the <head> shows text: the <title> says "Parity".
-    let title = SelectorBuf::text("Parity", false);
+    let title = SelectorBuf::text("Parity", TextMatching::Contains);
     assert_eq!(page.locator(title).count().await.unwrap(), 0);
-    let heading = SelectorBuf::text("Welcome", false);
+    let heading = SelectorBuf::text("Welcome", TextMatching::Contains);
     assert_eq!(page.locator(heading).count().await.unwrap(), 1);
 
     // An XPath evaluated from the root of the document, whatever the container

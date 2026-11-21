@@ -237,7 +237,7 @@ fn selector_engines() {
         ("//a", "page.locator(\"//a\").click().await?;"),
         (
             "text=Go",
-            "page.locator(SelectorBuf::text(\"Go\", false)).click().await?;",
+            "page.locator(SelectorBuf::text(\"Go\", TextMatching::Contains)).click().await?;",
         ),
         ("id=x", r#"page.locator("[id=\"x\"]").click().await?;"#),
         (
@@ -278,7 +278,7 @@ fn selector_engines() {
     );
     has(
         &js("await page.getByText('Go').click();"),
-        "use seleniumbase_rs::utils::selectors::SelectorBuf;",
+        "use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};",
     );
 }
 
@@ -287,27 +287,27 @@ fn get_by_locators() {
     both(
         "await page.getByRole('button', { name: 'Sign in', exact: true }).click();",
         "page.get_by_role(\"button\", name=\"Sign in\", exact=True).click()",
-        "page.locator(SelectorBuf::role(\"button\", Some(\"Sign in\"), true)).click().await?;",
+        "page.locator(SelectorBuf::role(\"button\", Some(\"Sign in\"), TextMatching::Exact)).click().await?;",
     );
     both(
         "await page.getByRole('link').click();",
         "page.get_by_role(\"link\").click()",
-        "page.locator(SelectorBuf::role(\"link\", None, false)).click().await?;",
+        "page.locator(SelectorBuf::role(\"link\", None, TextMatching::Contains)).click().await?;",
     );
     both(
         "await page.getByText('Welcome').click();",
         "page.get_by_text(\"Welcome\").click()",
-        "page.locator(SelectorBuf::text(\"Welcome\", false)).click().await?;",
+        "page.locator(SelectorBuf::text(\"Welcome\", TextMatching::Contains)).click().await?;",
     );
     both(
         "await page.getByText('Welcome', { exact: true }).click();",
         "page.get_by_text(\"Welcome\", exact=True).click()",
-        "page.locator(SelectorBuf::text(\"Welcome\", true)).click().await?;",
+        "page.locator(SelectorBuf::text(\"Welcome\", TextMatching::Exact)).click().await?;",
     );
     both(
         "await page.getByLabel('Email').fill('a@b.c');",
         "page.get_by_label(\"Email\").fill(\"a@b.c\")",
-        "page.locator(SelectorBuf::label(\"Email\", false)).fill(\"a@b.c\").await?;",
+        "page.locator(SelectorBuf::label(\"Email\", TextMatching::Contains)).fill(\"a@b.c\").await?;",
     );
     both(
         "await page.getByPlaceholder('Search').fill('x');",
@@ -754,7 +754,7 @@ fn describe_titles_hooks_and_skips() {
          let browser = Browser::launch(support::launch_options()?).await?;\n    \
          let page = browser.default_page().await?;\n    \
          page.goto(\"https://x.test/\").await?;\n    \
-         page.locator(SelectorBuf::role(\"button\", Some(\"Add\"), false)).click().await?;\n    \
+         page.locator(SelectorBuf::role(\"button\", Some(\"Add\"), TextMatching::Contains)).click().await?;\n    \
          browser.close().await?;\n    Ok(())\n}"
     ), "{}", import.rust);
     assert!(import.rust.contains(
@@ -790,7 +790,7 @@ fn javascript_codegen_output() {
     has(&import, "page.goto(\"https://x.test/\").await?;");
     has(
         &import,
-        "page.locator(SelectorBuf::role(\"link\", Some(\"About\"), false)).click().await?;",
+        "page.locator(SelectorBuf::role(\"link\", Some(\"About\"), TextMatching::Contains)).click().await?;",
     );
     has(&import, "// ---------------------");
 }
@@ -823,7 +823,7 @@ fn python_codegen_sync_and_async() {
         has(&import, "page.goto(\"https://x.test/\").await?;");
         has(
             &import,
-            "page.locator(SelectorBuf::role(\"link\", Some(\"About\"), false)).click().await?;",
+            "page.locator(SelectorBuf::role(\"link\", Some(\"About\"), TextMatching::Contains)).click().await?;",
         );
     }
 }
@@ -1051,15 +1051,15 @@ fn puppeteer_selectors() {
         ),
         (
             "text/Go",
-            "page.locator(SelectorBuf::text(\"Go\", false)).click().await?;",
+            "page.locator(SelectorBuf::text(\"Go\", TextMatching::Contains)).click().await?;",
         ),
         (
             "aria/Sign in[role=\"button\"]",
-            "page.locator(SelectorBuf::role(\"button\", Some(\"Sign in\"), true)).click().await?;",
+            "page.locator(SelectorBuf::role(\"button\", Some(\"Sign in\"), TextMatching::Exact)).click().await?;",
         ),
         (
             "::-p-text(Go)",
-            "page.locator(SelectorBuf::text(\"Go\", false)).click().await?;",
+            "page.locator(SelectorBuf::text(\"Go\", TextMatching::Contains)).click().await?;",
         ),
         (
             "::-p-xpath(//button)",
@@ -1067,7 +1067,7 @@ fn puppeteer_selectors() {
         ),
         (
             "::-p-aria(Sign in)",
-            "page.locator(SelectorBuf::role(\"\", Some(\"Sign in\"), true)).click().await?;",
+            "page.locator(SelectorBuf::role(\"\", Some(\"Sign in\"), TextMatching::Exact)).click().await?;",
         ),
         (
             "button::-p-text(Go)",

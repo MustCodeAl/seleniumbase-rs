@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Page, Permission};
-use seleniumbase_rs::utils::selectors::SelectorBuf;
+use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
 use serde_json::{json, Value};
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.
@@ -67,12 +67,20 @@ async fn a_role_selector_is_sent_to_the_page_as_a_path_from_the_context_node() {
 
     // The locator of a page and a step below another one send the same path:
     // `.//` is the descendants of the context node, which is the document for the page.
-    page.locator(SelectorBuf::role("button", Some("Save"), false))
-        .count()
-        .await
-        .unwrap();
+    page.locator(SelectorBuf::role(
+        "button",
+        Some("Save"),
+        TextMatching::Contains,
+    ))
+    .count()
+    .await
+    .unwrap();
     page.locator("form")
-        .locator(SelectorBuf::role("button", Some("Save"), false))
+        .locator(SelectorBuf::role(
+            "button",
+            Some("Save"),
+            TextMatching::Contains,
+        ))
         .count()
         .await
         .unwrap();
