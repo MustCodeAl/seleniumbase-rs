@@ -7,7 +7,7 @@ Status: implemented on `lane/element-type`, with every recommendation accepted. 
 before the code (branch `lane/design-element`, from `90ca478e`), and kept as it was, so the
 text below describes the plan; two things turned out differently. The conversion of a
 `SelectorBuf` to a `By` is `shadow_find::by_of` (with `checked`, which the `BaseCase` sites call
-where they called `Selector::auto(css).to_by()?`), and the suspected bug of
+where they called `SelectorRef::auto(css).to_by()?`), and the suspected bug of
 `From<&str> for SelectorBuf` (`:contains` turned into XPath before `::shadow` is looked for) does
 not occur: the CSS-to-XPath converter reads `::` as an empty pseudo-class name and refuses, so a
 shadow selector stays CSS (a test pins it).
@@ -42,7 +42,7 @@ should follow this project's patterns. So:
 * the WebDriver engine returns an element type of its own, `seleniumbase_rs::Element`, whose
   methods carry the names of the pure CDP engine's `sb_cdp::Locator` where the idea is the same;
 * every method that takes a selector takes this crate's selector types (`&str`, `SelectorBuf`,
-  `Selector`), never a `By`;
+  `SelectorRef`), never a `By`;
 * the raw `thirtyfour` element stays reachable through one explicit escape hatch.
 
 Breaking changes are fine (no users yet, no shims).
@@ -50,7 +50,7 @@ Breaking changes are fine (no users yet, no shims).
 ## The answer in short
 
 * **One new type, `Element`** (`src/browser/element.rs`, re-exported at the crate root beside
-  `BrowserSession`, `src/lib.rs:196`, and `Selector`, `src/lib.rs:224`). It is one element the
+  `BrowserSession`, `src/lib.rs:196`, and `SelectorRef`, `src/lib.rs:224`). It is one element the
   browser found, at the moment it was found: the same idea as Python's `WebElement`, and not the
   idea of `sb_cdp::Locator`, which finds again on every use (`src/sb_cdp/locator.rs:58-67`).
   It follows the pattern of the crate's existing WebDriver handle, `Alert`
@@ -60,7 +60,7 @@ Breaking changes are fine (no users yet, no shims).
   return `Element`** (2 of the 17 go away, see open questions 2 and 3).
 * **The 26 `BrowserSession` methods that take a `By` take `selector: impl Into<SelectorBuf>`**,
   as `Page::locator` (`src/sb_cdp/page.rs:133`) and `Locator::locator` (`locator.rs:212`) do.
-  `Selector::to_by` and `Selector::auto_by` (`src/utils/selectors.rs:212`, `:226`) leave the
+  `SelectorRef::to_by` and `SelectorRef::auto_by` (`src/utils/selectors.rs:212`, `:226`) leave the
   public API.
 * **The escape hatch** is `Element::as_webdriver_element(&self) -> &drivers::WebElement` and
   `Element::into_webdriver_element(self) -> drivers::WebElement`. `drivers::WebElement` and
@@ -140,11 +140,11 @@ All in `src/browser/session/`. Their callers are `BaseCase` internals (counted p
 | `switch_to_frame(locator)` | `navigation.rs:68` | | 1 (`_dom.rs:128`) |
 
 71 call sites in `src/api/` (the counts above), nearly all of the form
-`let by = Selector::auto(css).to_by()?;` followed by `self.session.method(by, ..)`.
+`let by = SelectorRef::auto(css).to_by()?;` followed by `self.session.method(by, ..)`.
 
-### `Selector`: 2 public methods return a `By`
+### `SelectorRef`: 2 public methods return a `By`
 
-`Selector::auto_by(text)` (`src/utils/selectors.rs:212-214`) and `Selector::to_by(self)`
+`SelectorRef::auto_by(text)` (`src/utils/selectors.rs:212-214`) and `SelectorRef::to_by(self)`
 (`:226-253`). 66 calls in `src/api/` (the `let by = ...` lines above) and one in
 `src/browser/shadow_find.rs:110`; the unit tests in `selectors.rs:996-1211`; the pages
 `docs/tutorials/selectors.md:63-74`, `docs/api/crate-root.md:57` and
@@ -318,8 +318,8 @@ W3C shadow root can be searched, not clicked or read. Two choices:
 * `BaseCase` keeps `css: &str` (the crate's rule for the capability traits and `BaseCase`).
 * `BrowserSession`'s 26 methods and `Element::find` / `find_all` take
   `selector: impl Into<SelectorBuf>`, the parameter `Page::locator` and `Locator::locator` take.
-  `&str`, `String`, `&String` and `Selector` all convert (`selectors.rs:587-623`), so the kind is
-  decided once, by the rules `Selector::auto` documents. The parameter is renamed from `locator`
+  `&str`, `String`, `&String` and `SelectorRef` all convert (`selectors.rs:587-623`), so the kind is
+  decided once, by the rules `SelectorRef::auto` documents. The parameter is renamed from `locator`
   to `selector`, since `Locator` means the lazy CDP type.
 * One crate-private conversion, `SelectorBuf` to `By`, lives in `src/browser/` and replaces the
   public `to_by`. It keeps `to_by`'s two checks: an empty selector is
@@ -330,10 +330,10 @@ W3C shadow root can be searched, not clicked or read. Two choices:
   turns `:contains(..)` into XPath without looking for `::shadow` first (`:603-609`). A selector
   such as `app::shadow a:contains("Go")` would become XPath and lose its shadow root. Step 4
   gives `From<&str>` `to_by`'s order, with a test that fails first.
-* `Selector::Id` has no `SelectorBuf` variant; `From<Selector>` writes it as `[id="..."]`
+* `SelectorRef::Id` has no `SelectorBuf` variant; `From<SelectorRef>` writes it as `[id="..."]`
   (`selectors.rs:594`), where `to_by` sent `By::Id` (`:244`). Step 4 checks with a mock that the
   driver receives a working CSS lookup.
-* `Selector::to_by` and `Selector::auto_by` become `pub(crate)` (their unit tests stay), and
+* `SelectorRef::to_by` and `SelectorRef::auto_by` become `pub(crate)` (their unit tests stay), and
   `drivers::By` is re-exported only for code that uses the escape hatch.
 
 ## Migration
@@ -350,7 +350,7 @@ W3C shadow root can be searched, not clicked or read. Two choices:
 ### This repository, per kind
 
 * **`BaseCase`'s own callers**: the 37 sites in the first table; 7 change (listed under it).
-* **`BrowserSession` callers**: about 64 in `src/api/`. Each `let by = Selector::auto(css).to_by()?;`
+* **`BrowserSession` callers**: about 64 in `src/api/`. Each `let by = SelectorRef::auto(css).to_by()?;`
   plus `self.session.m(by, ..)` becomes `self.session.m(css, ..)`; `By::LinkText(text)`
   (`base_case_impl_extra.rs:511`, `:523`, `:1665`, `:1688`; `base_case.rs:1026`) becomes
   `SelectorBuf::link_text(text)`, `By::PartialLinkText` likewise, and `By::Css(..)`
@@ -383,7 +383,7 @@ W3C shadow root can be searched, not clicked or read. Two choices:
   (`thirtyfour::By::Css("#go")` to `"#go"`);
   `crates/own-imports/tests/drivers_and_json_from_our_crate.rs:13-24` (the `By` test becomes an
   `Element`-from-our-crate import test); `tests/offline/docs_current.rs:171-172` gains GONE
-  entries for `drivers::WebElement`, `drivers::By`, `Selector::to_by`, `Selector::auto_by` and
+  entries for `drivers::WebElement`, `drivers::By`, `SelectorRef::to_by`, `SelectorRef::auto_by` and
   `get_shadow_root`, with the escape-hatch section of the getting-started page in `ALLOWED`.
 * **Docs pages**: `docs/api/queries.md:26-28`; `docs/api/traits.md:20`;
   `docs/api/crate-root.md:57`; `docs/ABI_API.md:29`, `:94`; `docs/best-practices.md:34`, `:387`,
@@ -418,7 +418,7 @@ helper (`:762`) builds the element reference a mock lookup answers with.
    that error with the chain as the selector; `find_all` with no match is empty.
 4. **`refactor(browser): BrowserSession takes selectors and returns Element`.** The 26 methods,
    the crate-private `SelectorBuf` to `By` conversion, `From<&str>`'s shadow-before-`:contains`
-   order (red test first), `Selector::to_by`/`auto_by` made `pub(crate)`, `waits.rs` and
+   order (red test first), `SelectorRef::to_by`/`auto_by` made `pub(crate)`, `waits.rs` and
    `sb_cdp_attach.rs` tests updated. The internal `BaseCase` sites are rewritten in this commit
    so it compiles.
 5. **`refactor(api): BaseCase returns Element`.** The 17 methods (less `get_shadow_root` and

@@ -245,13 +245,13 @@ use seleniumbase_rs::{
 
 ### `selector!`
 
-Builds a `Selector` variant at compile time.
+Builds a `SelectorRef` variant at compile time.
 
 ```rust
-use seleniumbase_rs::{selector, Selector};
+use seleniumbase_rs::{selector, SelectorRef};
 
 let s = selector!(css, "#submit");
-assert_eq!(s, Selector::Css("#submit"));
+assert_eq!(s, SelectorRef::Css("#submit"));
 
 let s = selector!(xpath, "//button[text()='Go']");
 let s = selector!(id, "username");

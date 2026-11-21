@@ -28,7 +28,7 @@ use super::failure::shorten;
 use super::host::ProbeFuture;
 use super::{Args, Ctx, Effect, Prop, Schema, ToolDef, ToolError};
 use crate::error::SeleniumBaseError;
-use crate::utils::selectors::Selector;
+use crate::utils::selectors::SelectorRef;
 
 /// The page side of the tools: one function expression, called as
 /// `(<script>)(op, args)`.
@@ -76,12 +76,12 @@ pub(crate) trait DevSession: Send + Sync + 'static {
 /// `selector` tagged with the strategy both engines use for it, the form the
 /// page script takes.
 pub(crate) fn tagged(selector: &str) -> Value {
-    let (kind, value) = match Selector::auto(selector) {
-        Selector::Css(value) => ("css", value.to_owned()),
-        Selector::XPath(value) => ("xpath", value.to_owned()),
-        Selector::LinkText(value) => ("link_text", value.to_owned()),
-        Selector::PartialLinkText(value) => ("partial_link_text", value.to_owned()),
-        Selector::Id(value) => ("css", format!("[id={}]", Value::from(value))),
+    let (kind, value) = match SelectorRef::auto(selector) {
+        SelectorRef::Css(value) => ("css", value.to_owned()),
+        SelectorRef::XPath(value) => ("xpath", value.to_owned()),
+        SelectorRef::LinkText(value) => ("link_text", value.to_owned()),
+        SelectorRef::PartialLinkText(value) => ("partial_link_text", value.to_owned()),
+        SelectorRef::Id(value) => ("css", format!("[id={}]", Value::from(value))),
     };
     json!({ "kind": kind, "value": value })
 }

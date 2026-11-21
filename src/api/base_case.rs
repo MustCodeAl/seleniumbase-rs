@@ -36,7 +36,7 @@ use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
 use crate::sb_cdp::DevToolsEndpoint;
-use crate::utils::selectors::{css_to_xpath, Selector, SelectorBuf};
+use crate::utils::selectors::{css_to_xpath, SelectorBuf, SelectorRef};
 use serde_json::Value;
 use std::collections::HashMap;
 use thirtyfour::common::keys::Key;

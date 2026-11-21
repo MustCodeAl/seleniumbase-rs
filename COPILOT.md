@@ -48,7 +48,7 @@ last raised. Raise it deliberately and keep the `msrv` CI job and the
 
 - **Error type**: `crate::Result<T>` is an alias for `Result<T, SeleniumBaseError>`.
 - **Async runtime**: Tokio. Tests use `#[tokio::test]`.
-- **Selectors**: Use `crate::Selector` (CSS, XPath, Id, LinkText, PartialLinkText).
+- **Selectors**: Use `crate::SelectorRef` (CSS, XPath, Id, LinkText, PartialLinkText).
 - **Stealth additions**: Add JS evasions to `src/evasion/evasions.rs`, flags to `src/evasion/fingerprint.rs`, launch args to `src/evasion/options.rs` or `src/evasion/patcher.rs::engine_spoofing_args`, and expose via crate root if user-facing.
 - **Macros**: `#[macro_export]` so they live at the crate root. Import as `use seleniumbase_rs::{selector, sb_click, ...};`.
 - **MCP tools**: Add a `ToolDef` in `src/mcp/` (see "Adding an MCP Tool" in `CONTRIBUTING.md`).

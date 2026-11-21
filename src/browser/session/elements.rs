@@ -336,7 +336,7 @@ mod tests {
     use super::*;
     use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply, Seen};
     use crate::browser::config::BrowserConfig;
-    use crate::utils::selectors::Selector;
+    use crate::utils::selectors::SelectorRef;
 
     /// A page whose `#a` is the element `e1`, an `<input>` with no rendered text and the
     /// value `typed`; `.row` lists `r1` and `r2`; anything else is not there.
@@ -424,7 +424,7 @@ mod tests {
 
         // `Selector::Id` has no `SelectorBuf` variant: it is written as an attribute selector,
         // which needs no escaping whatever characters the id holds.
-        let found = session.find(Selector::Id("a b")).await.unwrap();
+        let found = session.find(SelectorRef::Id("a b")).await.unwrap();
 
         assert_eq!(found.to_string(), "[id=\"a b\"]");
         let asked = driver.requests("/element");

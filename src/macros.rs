@@ -5,15 +5,15 @@
 //! intended to be used inside `async` test functions (for example those created
 //! with [`sb_test!`](crate::sb_test)).
 
-/// Builds a [`Selector`](crate::Selector) variant at compile time.
+/// Builds a [`SelectorRef`](crate::SelectorRef) variant at compile time.
 ///
 /// # Examples
 ///
 /// ```ignore
-/// use seleniumbase_rs::{selector, Selector};
+/// use seleniumbase_rs::{selector, SelectorRef};
 ///
 /// let s = selector!(css, "#login");
-/// assert_eq!(s, Selector::auto("#login"));
+/// assert_eq!(s, SelectorRef::auto("#login"));
 ///
 /// let s = selector!(xpath, "//button[text()='Go']");
 /// let s = selector!(link, "Click here");
@@ -23,19 +23,19 @@
 #[macro_export]
 macro_rules! selector {
     (css, $value:expr) => {
-        $crate::Selector::auto($value)
+        $crate::SelectorRef::auto($value)
     };
     (xpath, $value:expr) => {
-        $crate::Selector::XPath($value)
+        $crate::SelectorRef::XPath($value)
     };
     (id, $value:expr) => {
-        $crate::Selector::Id($value)
+        $crate::SelectorRef::Id($value)
     };
     (link, $value:expr) => {
-        $crate::Selector::LinkText($value)
+        $crate::SelectorRef::LinkText($value)
     };
     (partial_link, $value:expr) => {
-        $crate::Selector::PartialLinkText($value)
+        $crate::SelectorRef::PartialLinkText($value)
     };
 }
 
@@ -432,7 +432,7 @@ macro_rules! sb_with_timeout {
 #[cfg(test)]
 mod tests {
     use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply};
-    use crate::{Selector, SeleniumBaseError};
+    use crate::{SelectorRef, SeleniumBaseError};
     use serde_json::{json, Value};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -548,33 +548,33 @@ mod tests {
 
     #[test]
     fn selector_macro_css() {
-        assert_eq!(selector!(css, "#id"), Selector::auto("#id"));
+        assert_eq!(selector!(css, "#id"), SelectorRef::auto("#id"));
     }
 
     #[test]
     fn selector_macro_xpath() {
         assert_eq!(
             selector!(xpath, "//div[@class='x']"),
-            Selector::XPath("//div[@class='x']")
+            SelectorRef::XPath("//div[@class='x']")
         );
     }
 
     #[test]
     fn selector_macro_link_text() {
-        assert_eq!(selector!(link, "Home"), Selector::LinkText("Home"));
+        assert_eq!(selector!(link, "Home"), SelectorRef::LinkText("Home"));
     }
 
     #[test]
     fn selector_macro_partial_link_text() {
         assert_eq!(
             selector!(partial_link, "Hom"),
-            Selector::PartialLinkText("Hom")
+            SelectorRef::PartialLinkText("Hom")
         );
     }
 
     #[test]
     fn selector_macro_id() {
-        assert_eq!(selector!(id, "user"), Selector::Id("user"));
+        assert_eq!(selector!(id, "user"), SelectorRef::Id("user"));
     }
 
     #[test]

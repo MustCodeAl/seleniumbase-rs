@@ -1094,13 +1094,13 @@ impl SeleniumBaseError {
 /// The same rules as [`Selector::auto`](crate::utils::selectors::Selector::auto),
 /// so the name in an error is the strategy that was really used.
 fn guess_strategy(selector: &str) -> &'static str {
-    use crate::utils::selectors::Selector;
-    match Selector::auto(selector) {
-        Selector::LinkText(_) => "link text",
-        Selector::PartialLinkText(_) => "partial link text",
-        Selector::XPath(_) => "xpath",
-        Selector::Id(_) => "id",
-        Selector::Css(_) => "css selector",
+    use crate::utils::selectors::SelectorRef;
+    match SelectorRef::auto(selector) {
+        SelectorRef::LinkText(_) => "link text",
+        SelectorRef::PartialLinkText(_) => "partial link text",
+        SelectorRef::XPath(_) => "xpath",
+        SelectorRef::Id(_) => "id",
+        SelectorRef::Css(_) => "css selector",
     }
 }
 
@@ -1165,11 +1165,11 @@ pub(crate) fn selector_advice(selector: &str) -> Option<String> {
             }
         }
     }
-    use crate::utils::selectors::{is_xpath_selector, Selector};
+    use crate::utils::selectors::{is_xpath_selector, SelectorRef};
     // Link text is plain text: brackets and quotes in it mean nothing.
     if !matches!(
-        Selector::auto(trimmed),
-        Selector::Css(_) | Selector::XPath(_)
+        SelectorRef::auto(trimmed),
+        SelectorRef::Css(_) | SelectorRef::XPath(_)
     ) {
         return None;
     }

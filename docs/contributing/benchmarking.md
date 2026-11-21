@@ -93,7 +93,7 @@ It times, with no browser involved:
 
 - `Fingerprint::randomized` for a Windows persona, building the stealth
   bootstrap script, and `Fingerprint::validate`;
-- classifying a CSS or XPath selector (`Selector::auto`, eight selectors per
+- classifying a CSS or XPath selector (`SelectorRef::auto`, eight selectors per
   call);
 - planning a human mouse path (600 px) and human typing (100 characters);
 - `HtmlInspector::inspect` on a page of 50 rows and one of 2,000 rows.

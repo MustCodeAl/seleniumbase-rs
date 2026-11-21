@@ -213,7 +213,7 @@ and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second; the thir
 | C-CALLER-CONTROL | met | 0 | No `&String`, `&Vec` or `&PathBuf` parameter; the 6 `&String` are `From<&String>` impls. |
 | C-GENERIC | partly | not counted | Filesystem paths taken as `&str` (F9). |
 | C-OBJECT | met | 0 | The four capability traits are object safe through `async_trait`. |
-| C-NEWTYPE | partly | up to 371 | 270 `css: &str` and 101 `selector: &str` parameters (public or not), though `Selector` exists (F9). |
+| C-NEWTYPE | partly | up to 371 | 270 `css: &str` and 101 `selector: &str` parameters (public or not), though `SelectorRef` exists (F9). |
 | C-CUSTOM-TYPE | partly | 9 or more | `bool` parameters where an enum fits, `uc: bool` for `DriverMode` (F9). |
 | C-BITFLAG | n/a | 0 | No flag set. |
 | C-BUILDER | partly | 4 plus 4 | Four real builders; four other construction styles (F15). |
@@ -350,7 +350,7 @@ guide.
    trees by attributes in `src/lib.rs`; `[workspace.lints]` does not exist, so over 4,000 lines with `.unwrap()`,
    600 with `.expect(` and 160 with `panic!(` in `src` are unchecked and every count in this note that says
    "not counted" waits on it.
-2. **Selectors are `&str` in about 370 signatures (F9; C, M, G)** although `Selector` and `SelectorBuf`
+2. **Selectors are `&str` in about 370 signatures (F9; C, M, G)** although `SelectorRef` and `SelectorBuf`
    exist and `Page::locator` already takes `impl Into<SelectorBuf>`; the parameter is called `css`
    even when it holds an XPath.
 3. **104 `get_` functions (F5; C, G)**, 78 on `BaseCase`, the one checklist item with a
@@ -723,7 +723,7 @@ literal_string_with_formatting_args = "allow"
 
 ### F9. Strings, booleans and paths where a type fits (C-NEWTYPE, C-CUSTOM-TYPE, C-GENERIC; Google: flexible references, `Into`, enum over bool, named fields)
 
-* Selectors: 270 `css: &str` and 101 `selector: &str` parameters, although `Selector` and
+* Selectors: 270 `css: &str` and 101 `selector: &str` parameters, although `SelectorRef` and
   `SelectorBuf` exist (`src/utils/selectors.rs`) and `sb_cdp::Page::locator` already takes
   `impl Into<SelectorBuf>` (`src/sb_cdp/page.rs:133`). The name `css` is also wrong when the
   string is an XPath.

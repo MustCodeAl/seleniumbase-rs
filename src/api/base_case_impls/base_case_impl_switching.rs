@@ -48,7 +48,7 @@ impl BaseCase {
                 }
             }
         }
-        if let Ok(by) = Selector::auto(locator).to_by()
+        if let Ok(by) = SelectorRef::auto(locator).to_by()
             && let Ok(found) = driver.find(by).await
                 && (invisible || found.is_displayed().await.unwrap_or(false)) {
                     match found.enter_frame().await {
