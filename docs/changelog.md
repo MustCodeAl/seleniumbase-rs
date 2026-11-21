@@ -59,21 +59,6 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   (the tag comes from `git ls-remote`), the releases page for a release archive or anything else.
   The command runs only with `--run`; `--dry-run` writes and runs nothing; `--client NAME`
   limits the clients. See [the MCP server tutorial](/tutorials/mcp_server#upgrade).
-- **Where each flag's variable is named**: [the CLI usage page](/tutorials/cli_usage#look-up-methods-and-options)
-  says that `sbrs --help`, the CLI reference and the man pages name the `SB_*` variable of every
-  flag in its help, and that the flag wins over the variable, which wins over the settings file.
-  The flags do not declare usage's `env`: usage then reads the variable itself while it parses and
-  the parsed struct cannot say whether a value was typed, which `sbrs` has to know (a typed
-  `--firefox` beats `SB_BROWSER`, a start page typed for a command with a URL of its own is
-  refused, `--headed` stands for `SB_HEADLESS=false`). A test fails when a flag declares it, and
-  another pins that a variable is no typed flag where flags are checked against each other.
-
-### Fixed
-
-- **`sbrs-mcp install` under Homebrew** registers the link `PREFIX/bin/sbrs-mcp`, as `repair` and
-  `upgrade` do, and no longer the versioned `Cellar` path that `brew upgrade` deletes (every client
-  was then left with a program that was not there, which is what `repair` mended). A test runs a
-  copy of the binary through a link in a Cellar of its own.
 
 ### Breaking
 
@@ -102,6 +87,22 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   `sb_print::print_file` take `impl AsRef<Path>` instead of `&str`; so do the file names of
   `artifacts::bare_file_name` and `confined_path`. A string still works, and a name that must be
   plain is still refused when it has a directory part.
+
+- **Where each flag's variable is named**: [the CLI usage page](/tutorials/cli_usage#look-up-methods-and-options)
+  says that `sbrs --help`, the CLI reference and the man pages name the `SB_*` variable of every
+  flag in its help, and that the flag wins over the variable, which wins over the settings file.
+  The flags do not declare usage's `env`: usage then reads the variable itself while it parses and
+  the parsed struct cannot say whether a value was typed, which `sbrs` has to know (a typed
+  `--firefox` beats `SB_BROWSER`, a start page typed for a command with a URL of its own is
+  refused, `--headed` stands for `SB_HEADLESS=false`). A test fails when a flag declares it, and
+  another pins that a variable is no typed flag where flags are checked against each other.
+
+### Fixed
+
+- **`sbrs-mcp install` under Homebrew** registers the link `PREFIX/bin/sbrs-mcp`, as `repair` and
+  `upgrade` do, and no longer the versioned `Cellar` path that `brew upgrade` deletes (every client
+  was then left with a program that was not there, which is what `repair` mended). A test runs a
+  copy of the binary through a link in a Cellar of its own.
 
 </Update>
 
