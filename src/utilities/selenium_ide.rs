@@ -6,6 +6,7 @@ use thiserror::Error;
 
 /// A command extracted from a Selenium IDE HTML test case.
 #[derive(Debug, Clone, PartialEq)]
+#[non_exhaustive]
 pub struct IdeCommand {
     /// The command name, such as `open` or `click`.
     pub command: String,
@@ -13,6 +14,22 @@ pub struct IdeCommand {
     pub target: String,
     /// The text or option the command takes. Empty when the command has none.
     pub value: String,
+}
+
+impl IdeCommand {
+    /// Creates a command with its target and value.
+    #[must_use]
+    pub fn new(
+        command: impl Into<String>,
+        target: impl Into<String>,
+        value: impl Into<String>,
+    ) -> Self {
+        Self {
+            command: command.into(),
+            target: target.into(),
+            value: value.into(),
+        }
+    }
 }
 
 /// The HTML file could not be read.

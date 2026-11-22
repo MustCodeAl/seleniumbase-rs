@@ -97,6 +97,7 @@ pub(crate) const ANSWER_SCRIPT: &str = "return window.__sbJqcAnswer || null;";
 
 /// A jquery-confirm theme.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum JqcTheme {
     /// `bootstrap`, the default.
     #[default]

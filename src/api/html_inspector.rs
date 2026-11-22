@@ -53,6 +53,7 @@ use crate::SeleniumBaseError;
 
 /// Importance of an inspection issue.
 #[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
+#[non_exhaustive]
 pub enum InspectionSeverity {
     /// A problem that should not reach production.
     Warning,
@@ -62,6 +63,7 @@ pub enum InspectionSeverity {
 
 /// A single HTML inspection issue.
 #[derive(Clone, Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct InspectionIssue {
     /// Stable rule identifier suitable for CI allowlists.
     pub rule: String,
@@ -72,6 +74,24 @@ pub struct InspectionIssue {
     /// A CSS selector that matches the affected element in the inspected
     /// document, when the issue is about one element.
     pub selector: Option<String>,
+}
+
+impl InspectionIssue {
+    /// Creates an inspection issue.
+    #[must_use]
+    pub fn new(
+        rule: impl Into<String>,
+        severity: InspectionSeverity,
+        message: impl Into<String>,
+        selector: Option<impl Into<String>>,
+    ) -> Self {
+        Self {
+            rule: rule.into(),
+            severity,
+            message: message.into(),
+            selector: selector.map(Into::into),
+        }
+    }
 }
 
 /// Result of inspecting one HTML document.

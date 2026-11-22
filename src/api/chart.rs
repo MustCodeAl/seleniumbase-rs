@@ -118,6 +118,7 @@ pub enum ChartLibs {
 
 /// Supported chart types.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[non_exhaustive]
 pub enum ChartType {
     /// A pie chart: one slice per point.
     Pie,
@@ -133,6 +134,7 @@ pub enum ChartType {
 
 /// One labelled value of a series.
 #[derive(Clone, Debug, PartialEq)]
+#[non_exhaustive]
 pub struct ChartPoint {
     /// The label of the point: a slice, a bar, a place on the horizontal axis.
     pub label: String,
@@ -142,8 +144,31 @@ pub struct ChartPoint {
     pub color: Option<String>,
 }
 
+impl ChartPoint {
+    /// Creates a data point with a label and a value.
+    #[must_use]
+    pub fn new(label: impl Into<String>, value: f64) -> Self {
+        Self {
+            label: label.into(),
+            value,
+            color: None,
+        }
+    }
+
+    /// Creates a data point with a label, a value, and a CSS colour.
+    #[must_use]
+    pub fn new_with_color(label: impl Into<String>, value: f64, color: impl Into<String>) -> Self {
+        Self {
+            label: label.into(),
+            value,
+            color: Some(color.into()),
+        }
+    }
+}
+
 /// A named data series for charts.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct ChartSeries {
     /// Display name for the series (used in the legend).
     pub name: String,
