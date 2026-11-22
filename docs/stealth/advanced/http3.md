@@ -61,8 +61,14 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 
 ```rust
 use seleniumbase_rs_stealth::wire::http3::{Http3Client, Http3Options, Http3Request};
+use seleniumbase_rs_stealth::wire::client::WireProtocol;
+use seleniumbase_rs_stealth::codec::H3Spec;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    // Inspect the measured Chrome 156 HTTP/3 specification
+    let spec = H3Spec::chrome_156_macos();
+    assert_eq!(spec.pseudo_header_order(), &["method", "authority", "scheme", "path"]);
+
     // sbrs-h3d on the PATH, or the program named in SBRS_H3D.
     let mut client = Http3Client::start(&Http3Options::new())?;
     let response = client.send(Http3Request::get("https://example.com/")).await?;
@@ -75,6 +81,13 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 </Step>
 
 </Steps>
+
+### Codec and wire integration
+
+Beyond the standalone `sbrs-h3d` helper client, the HTTP/3 layer is integrated directly into the `codec` and `wire` crates:
+- **`seleniumbase_rs_stealth::codec::H3Spec`**: Pure data representation of an HTTP/3 profile. Includes pseudo-header order (`:method`, `:authority`, `:scheme`, `:path`), SETTINGS table (QPACK table capacity, max field section size, blocked streams), and 11 fixed QUIC transport parameters measured from Chrome 156 on macOS.
+- **`WireProtocol::Http3`**: Protocol variant in `seleniumbase_rs_stealth::wire::client::WireProtocol`.
+- **`HttpRequest::protocol(WireProtocol::Http3)`**: Enables per-request wire protocol routing and leading headers configuration in `HttpSession`.
 
 What to know:
 

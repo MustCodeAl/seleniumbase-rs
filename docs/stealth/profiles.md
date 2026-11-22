@@ -33,8 +33,8 @@ or not. The Pure CDP engine does not pass `cmd_params` at all.
 
 The payload keeps its own format, because other tools write it: the flags are
 strings (`ProfileFlags`) and the nested sections (`navigator`, `screen`, ...)
-hold values. Every key reads the same words and ends in one of the four states of
-a `Spoof`. The profile's `folder_id` and `name` seed the draws, so a profile gets
+hold values. Every key reads the same words and ends in one of the five states of
+a `Spoof` (`Natural`, `Random`, `Value`, `Off`, `Mimic`). The profile's `folder_id` and `name` seed the draws, so a profile gets
 the same drawn values on every launch, and its `core_version` is the Chromium
 major that a drawn user agent and drawn Client Hints claim (not for the Firefox
 and Safari personas, whose core is not a Chrome version).
@@ -53,6 +53,8 @@ key; this is what the groups of words do:
   where it holds none.
 - The **off** words turn the API off. Only where an API can be off (geolocation,
   WebRTC, media devices); for any other key they are read as `Natural`, and logged.
+- The **mimic** words or maps (`{"mimic": "specimen-name"}`) resolve to the
+  measured attributes of a named real browser build, machine, or locale specimen.
 - **A literal** is the value, in the format of its key. The other settings of the
   same key then follow the mask words: a held value, else drawn.
 
@@ -120,6 +122,73 @@ navigator, localization, time zone, graphics, fonts, screen, geolocation and
 WebRTC flags, which filled in generic values nobody asked for); `off` and
 `disabled` turn geolocation, WebRTC and media devices off instead of leaving them
 natural; an unknown word is `Natural` instead of `mask`.
+
+## Native Fingerprint Profile JSON Format
+
+The crate's native profile format (`Fingerprint::load`, `Fingerprint::from_json`,
+`fp.to_json_pretty()`) stores the complete anti-detection profile as formatted JSON.
+Files are capped at 4 MiB (`Fingerprint::MAX_FILE_BYTES`) and saved atomically with `0600`
+permissions to protect stored proxy credentials.
+
+A `Natural` setting is omitted in JSON output. Each setting field can be:
+- `"natural"`: Keep browser default
+- `"random"`: Draw coherently on load
+- `"off"`: Disable this browser API
+- `{ "mimic": "<specimen>" }`: Mimic a named specimen record
+- A typed value: number, string, array, or object
+
+### Full JSON parameters
+
+```json
+{
+  "browser_type": "chrome",
+  "os_type": "macos",
+  "core_version": 156,
+  "seed": 42,
+  "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 ...",
+  "platform": "MacIntel",
+  "hardware_concurrency": 8,
+  "device_memory": 8.0,
+  "max_touch_points": 0,
+  "vendor": "Google Inc.",
+  "locale": "en-US",
+  "languages": ["en-US", "en"],
+  "timezone": "America/Los_Angeles",
+  "keyboard_layout": "qwerty",
+  "screen": [1920, 1080],
+  "avail_screen": [1920, 1055],
+  "pixel_ratio": 2.0,
+  "color_depth": 30,
+  "webgl": {
+    "vendor": "Google Inc. (Apple)",
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)"
+  },
+  "geolocation": [34.0522, -118.2437],
+  "media_devices": [1, 1, 1],
+  "webrtc": "natural",
+  "battery": "random",
+  "connection": "random",
+  "storage_quota": 536870912000,
+  "speech_voices": "natural",
+  "bluetooth": true,
+  "client_hints": "random",
+  "proxy": "socks5://127.0.0.1:1080",
+  "local_storage": true,
+  "save_service_worker": true,
+  "custom_start_urls": ["https://example.com"],
+  "policy": {
+    "delivery": "balanced",
+    "native_spoofing": false,
+    "canvas_noise": "persistent",
+    "audio_noise": "persistent",
+    "grant_permissions": true
+  }
+}
+```
+
+Loading this file via `Fingerprint::load(path)` or `from_json(text)` validates all
+types, draws any `Random` settings coherently, resolves `Mimic` records, and applies
+the specified `StealthPolicy`.
 
 ## Profile coherence validation
 

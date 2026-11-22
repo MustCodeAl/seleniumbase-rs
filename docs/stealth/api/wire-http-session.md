@@ -346,8 +346,9 @@ pub fn is_empty(&self) -> bool
 
 ```rust
 pub enum WireProtocol {
-    Http2,
     Http1,
+    Http2,
+    Http3,
 }
 ```
 
@@ -419,6 +420,7 @@ pub fn body(mut self, body: impl Into<Bytes>) -> Self
 pub fn json<T: Serialize + ?Sized>(mut self, value: &T) -> Self
 pub fn form(mut self, fields: &[(&str, &str)]) -> Self
 pub fn timeout(mut self, timeout: std::time::Duration) -> Self
+pub fn protocol(mut self, protocol: WireProtocol) -> Self
 pub async fn send(self) -> Result<HttpResponse, HttpError>
 ```
 
@@ -429,6 +431,7 @@ pub async fn send(self) -> Result<HttpResponse, HttpError>
 - `json`: Sets a JSON body and `Content-Type: application/json`.
 - `form`: Sets a form body and `Content-Type: application/x-www-form-urlencoded`.
 - `timeout`: Limits this request, redirects included, to `timeout`, in place of the session's.
+- `protocol`: Selects the wire protocol version (`WireProtocol::Http1`, `WireProtocol::Http2`, or `WireProtocol::Http3`).
 - `send`: Sends the request, following redirects by hand, and reads the whole reply.
 
 ## Related

@@ -3203,6 +3203,10 @@ note = "Prints the same line as `sbrs --version`."
 status = "implemented"
 rust = "BaseCase::add_cookie"
 
+[driver."assert_element_absent"]
+status = "implemented"
+rust = "BaseCase::assert_element_absent"
+
 [driver."assert_element_not_visible"]
 status = "implemented"
 rust = "BaseCase::assert_element_not_visible"

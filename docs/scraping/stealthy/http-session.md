@@ -93,8 +93,9 @@ async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
 
 - `GET` and `HEAD` carry the headers of a navigation (`RequestShape::Document`),
   every other method those of a script's request (`RequestShape::Fetch`);
-  `.shape(..)` chooses. `.header`, `.body`, `.json`, `.form` and `.timeout`
-  complete the request. `Method` is `wreq::Method`, re-exported.
+  `.shape(..)` chooses. `.header`, `.body`, `.json`, `.form`, `.timeout` and
+  `.protocol(WireProtocol)` complete the request. `Method` is `wreq::Method`, re-exported.
+  `.protocol(WireProtocol::Http3)` or `WireProtocol::Http2` routes traffic via the chosen protocol version.
 - The profile owns `User-Agent`, `Sec-CH-UA*`, `Accept-Language`,
   `Accept-Encoding`, `Cookie` and `priority`, and the connection owns `Host`,
   `Content-Length` and the like. Setting one is `HttpError::ReservedHeader`, not

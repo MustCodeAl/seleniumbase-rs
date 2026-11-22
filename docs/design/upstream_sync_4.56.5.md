@@ -54,12 +54,12 @@ No command, flag, pytest option, `SB()` option or `Driver()` option changed betw
 - `decorators.print_runtime` with no description labels the block as `file:line` of the caller instead of `"Code Block"`. We have no `print_runtime`. Not applicable.
 - 4.56.0 is "full Python 3.15 support" plus driver-method wiring. The language support does not port.
 
-## Recommended port order
+## Port Status
 
-1. **Tab list (S).** Confirm a new CDP tab is recorded once. This is the bug 4.56.4 fixed.
-2. **Highlight `DOM.enable` (S).** Ignore a failed enable and still highlight. This is the bug 4.56.5 fixed.
-3. **CDP timeout forwarding (S).** Only where a WebDriver call delegates to CDP.
-4. **Parity row for `Driver.assert_element_absent` (S).** Point it at `BaseCase::assert_element_absent`. Do not add a second method.
-5. **`verify` on link checks (S, optional).** Add an argument only if a caller must skip certificate checks. The new Python default already matches Rust.
-
-Do not port the dependency pins, the `INFO:` wording, or `print_runtime`.
+All porting items for 4.56.5 (and 4.57/4.58 enhancements) are completed:
+1. **Tab list:** Verified that CDP target enumeration in `src/sb_cdp/browser.rs` queries DevTools `Target.getTargets` directly without duplicate recording.
+2. **Highlighting:** Handled in `src/api/demo.rs` via CSS box-shadow animation and direct execution with error suppression.
+3. **CDP timeout forwarding:** Completed across all `BaseCase` CDP-delegated actions.
+4. **Parity row for `Driver.assert_element_absent`:** Added to `parity/api.toml` mapped to `BaseCase::assert_element_absent`.
+5. **Upstream version pin:** Updated in `parity/upstream.toml` and `src/lib.rs` (`UPSTREAM_SELENIUMBASE_VERSION = "4.56.5"`).
+6. **Super Stealth Typing (4.58 parity):** Implemented in `src/sb_cdp/input.rs`: human typing of uppercase characters automatically dispatches `ShiftLeft` (virtual key code 16, modifier 8) down/up event framing around character inputs.

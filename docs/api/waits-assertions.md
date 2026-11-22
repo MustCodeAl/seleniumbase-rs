@@ -43,8 +43,11 @@ See [Waits and Assertions](/tutorials/utilities#waits-and-assertions) for detail
 | `assert_text_not_visible(text, selector)` | Asserts text not visible. |
 | `assert_text(text, selector)` | Waits for the element to show the text, then asserts it. Same as `assert_text_visible`. |
 | `assert_exact_text(text, selector)` | Asserts the element's text equals `text` exactly (whitespace at the ends ignored); waits like `assert_text`. |
+| `assert_element(selector)` | Waits for the element to be visible and asserts it. Alias for `assert_element_visible`. |
 | `assert_element_visible(selector)` | Asserts element is visible. |
 | `assert_element_not_visible(selector)` | Asserts element is not visible. |
+| `assert_element_present(selector)` | Asserts element exists in the DOM, visible or hidden. |
+| `assert_element_absent(selector)` | Waits for the element to be removed from the DOM or not present (SeleniumBase parity). |
 | `assert_attribute(selector, attr, value)` | Asserts the attribute equals `value`, polling until the default timeout. |
 | `assert_url_contains(fragment)` | Asserts current URL contains fragment. |
 | `assert_no_404_errors()` | Fails if any same-origin link returns HTTP 404. |

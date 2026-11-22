@@ -360,18 +360,69 @@ impl Keyboard {
             '\t' => self.press(Key::Tab).await,
             _ => {
                 let typed = ch.to_string();
+                let is_upper = ch.is_uppercase();
+                let unmodified = if ch.is_ascii_uppercase() {
+                    ch.to_ascii_lowercase().to_string()
+                } else {
+                    typed.clone()
+                };
+                let modifiers = if is_upper { 8 } else { 0 };
+
+                if is_upper {
+                    self.page
+                        .execute(
+                            "Input.dispatchKeyEvent",
+                            json!({
+                                "type": "rawKeyDown",
+                                "key": "Shift",
+                                "code": "ShiftLeft",
+                                "windowsVirtualKeyCode": 16,
+                                "nativeVirtualKeyCode": 16,
+                                "modifiers": 8,
+                            }),
+                        )
+                        .await?;
+                }
+
                 self.page
                     .execute(
                         "Input.dispatchKeyEvent",
-                        json!({ "type": "keyDown", "key": typed, "text": typed, "unmodifiedText": typed }),
+                        json!({
+                            "type": "keyDown",
+                            "key": typed,
+                            "text": typed,
+                            "unmodifiedText": unmodified,
+                            "modifiers": modifiers,
+                        }),
                     )
                     .await?;
                 self.page
                     .execute(
                         "Input.dispatchKeyEvent",
-                        json!({ "type": "keyUp", "key": typed }),
+                        json!({
+                            "type": "keyUp",
+                            "key": typed,
+                            "modifiers": modifiers,
+                        }),
                     )
                     .await?;
+
+                if is_upper {
+                    self.page
+                        .execute(
+                            "Input.dispatchKeyEvent",
+                            json!({
+                                "type": "keyUp",
+                                "key": "Shift",
+                                "code": "ShiftLeft",
+                                "windowsVirtualKeyCode": 16,
+                                "nativeVirtualKeyCode": 16,
+                                "modifiers": 0,
+                            }),
+                        )
+                        .await?;
+                }
+
                 Ok(())
             }
         }

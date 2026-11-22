@@ -67,6 +67,7 @@ Why a profile or a client could not be built.
 pub enum WireProtocol {
     Http1,
     Http2,
+    Http3,
 }
 ```
 

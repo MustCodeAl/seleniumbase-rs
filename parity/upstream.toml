@@ -3,12 +3,12 @@
 
 [seleniumbase]
 repository = "https://github.com/seleniumbase/SeleniumBase"
-version = "4.55.2"
-commit = "5fc0c4bd5c38098be170b63470e5ea07ff3950a5"
+version = "4.56.5"
+commit = "c5b23d06eb8d5f35df8bfd32158fe2ec3fc8da6e"
 
 [seleniumbase_mcp]
 repository = "https://github.com/seleniumbase/seleniumbase-mcp"
 commit = "cecbdc68f84b88d482a0de34de329a6b6a6cef0a"
 
 [sync]
-date = "2026-10-08"
+date = "2026-11-22"

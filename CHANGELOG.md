@@ -10,6 +10,17 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Upstream Sync to 4.56.5 & Parity Hardening**: Bumped upstream SeleniumBase pin to 4.56.5 (`UPSTREAM_SELENIUMBASE_VERSION = "4.56.5"`, commit `c5b23d06eb8d5f35df8bfd32158fe2ec3fc8da6e`), implemented `BaseCase::assert_element_absent(selector)`, and re-verified full parity across `parity/api.toml`, `parity/upstream-api.json`, and `docs/parity.md`.
+- **Super Stealth Typing Parity (SeleniumBase 4.58)**: Added automatic ShiftLeft keydown (virtual keycode 16, modifier 8) + lowercase `unmodifiedText` + ShiftLeft keyup emulation for uppercase characters in `sb_cdp::input` (`type_char` and `type_text`), matching real human typing events on modern anti-bot detectors.
+- **Documentation Centralization & Deepening**: Centralized and updated documentation across all 5 workspace repositories in `docs/`:
+  - **Mimic & Specimen Spoofing**: Documented the 5th state of `Spoof` (`Spoof::Mimic(Specimen)`), four specimen kinds (`Build`, `Machine`, `Place`, `Rendering`), specimen constructors, JSON serialization, and coherence resolution in `docs/stealth/fingerprints.md` and `docs/api/stealth-settings.md`.
+  - **Selectors & Lookup Rewriting**: Documented owned `Selector` vs borrowed `SelectorRef`, semantic constructors (`text`, `label`, `role`, `containing_text`), `selector.check()`, and transparent `:contains()` rewriting to relative XPath in `docs/tutorials/selectors.md`.
+  - **Macro Catalog**: Documented convenience macros (`selector!`, `sb_test!`, `uc_config!`, `cdp_config!`, `sb_config!`, `fingerprint!`, action macros, and form/timeout helpers) with return type semantics in `docs/tutorials/utilities.md`.
+  - **Native Fingerprint Profile JSON Parameters**: Documented full schema breakdown, atomic file creation, and size limits in `docs/stealth/profiles.md`.
+  - **HTTP/3 Wire Integration**: Documented `H3Spec`, `WireProtocol::Http3`, and `HttpRequest::protocol(WireProtocol::Http3)` in `docs/stealth/advanced/http3.md`, `docs/scraping/stealthy/http-session.md`, and API reference pages.
+  - **Plugin Enhancements**: Documented new browser execution, hydration wait (`wait_for`), scroll, action, and structured extraction parameters across `fetcher.md`, `extractor.md`, `crawler.md`, and `block-resources.md`.
+- **Release Profile Optimization**: Configured thin LTO, single codegen unit, and binary stripping in root `Cargo.toml` for maximized release performance and minimal binary footprint.
+
 - **MCP Client Registry Expansion**: Extended `sbrs-mcp install` to support 27 AI clients
   (including Antigravity, AugmentCode, Claude Code, Cline, Codex, Copilot, Cursor, Factory Droid,
   Gemini CLI, Grok Build, Hermes, Kilo, Kimi, Kiro, Oh My Pi, OpenCode, OpenClaw, Pi, Plank, Qwen Code,

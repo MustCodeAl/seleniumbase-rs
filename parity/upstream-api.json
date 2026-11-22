@@ -4703,6 +4703,13 @@
       ]
     },
     {
+      "name": "assert_element_absent",
+      "params": [
+        "*args",
+        "**kwargs"
+      ]
+    },
+    {
       "name": "assert_element_not_visible",
       "params": [
         "*args",
@@ -6548,8 +6555,8 @@
     ]
   },
   "seleniumbase": {
-    "commit": "5fc0c4bd5c38098be170b63470e5ea07ff3950a5",
-    "version": "4.55.2"
+    "commit": "c5b23d06eb8d5f35df8bfd32158fe2ec3fc8da6e",
+    "version": "4.56.5"
   },
   "seleniumbase_mcp": {
     "commit": "cecbdc68f84b88d482a0de34de329a6b6a6cef0a"

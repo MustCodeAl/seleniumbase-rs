@@ -50,6 +50,8 @@ Give the set to `LaunchOptionsBuilder::plugins`, as shown in the
 |---|---|
 | `BlockResources::images_and_fonts()` | Images (`*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.avif`, `*.svg`, `*.ico`) and web fonts (`*.woff`, `*.woff2`, `*.ttf`, `*.otf`) |
 | `BlockResources::media()` | Audio and video files (`*.mp4`, `*.webm`, `*.mp3`, `*.ogg`, `*.wav`, `*.m4a`) |
+| `BlockResources::stylesheets()` | CSS stylesheets (`*.css`) |
+| `BlockResources::resource_kinds(...)` | Declarative CDP `ResourceKind` blocking (`Image`, `Media`, `Font`, `Stylesheet`, `Script`) |
 | `BlockResources::patterns(...)` | URLs that match these patterns, such as `*://ads.example.com/*` (`*` matches anything) |
 
 ## How it works

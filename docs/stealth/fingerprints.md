@@ -9,7 +9,7 @@ value, a given value or nothing is wanted. How the claims are delivered is the
 [policy](/stealth/policies)'s job; which engines apply them is on the
 [overview](/stealth/introduction#which-launch-paths-apply-a-fingerprint).
 
-## One setting, four states
+## One setting, five states
 
 Every setting of a fingerprint is one `Spoof`, and the state says everything
 about it. The value and the intent are one field, so they cannot disagree.
@@ -20,25 +20,65 @@ about it. The value and the intent are one field, so they cannot disagree.
 | `Random` | A valid value, coherent with the rest, drawn when the fingerprint is built. Repeatable with `.seed(u64)`. |
 | `Value(v)` | Exactly this value. A plain value converts to it: `.timezone("Europe/Berlin")` is `Value`. |
 | `Off` | The API is turned off: unavailable, or denied. Only for geolocation, WebRTC, media devices, battery, Bluetooth, speech voices, network information and Client Hints. |
+| `Mimic(specimen)` | Mimics a named real browser build, machine model, place or recorded rendering specimen (e.g. `Spoof::mimic(Machine::named("macbook-13-m1")?)`). |
 
 `build()` returns an error that names the setting when `Off` is given to any
-other, so a time zone cannot be "off" by accident.
+setting that has no off state, so a time zone cannot be "off" by accident.
 
 ```rust
 use seleniumbase_rs_stealth::evasion::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
+use seleniumbase_rs_stealth::evasion::mimic::Machine;
 
 let fp = Fingerprint::builder()
     .timezone("Europe/Berlin")
     .screen(1920, 1080)
     .geolocation(Spoof::Random)
     .webrtc(Spoof::Off)
+    .webgl(Spoof::mimic(Machine::named("macbook-13-m1")?))
     .policy(StealthPolicy::balanced())
     .canvas_noise(CanvasNoise::Random)
     .build()?;
-Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), Box<dyn std::error::Error>>(())
 ```
 
-The random position is a spot in Berlin, because the time zone is a `Value`.
+The random position is a spot in Berlin, because the time zone is a `Value`. The WebGL
+vendor and renderer mimic an Apple Silicon M1 GPU taken from our measured hardware catalogue.
+
+### Mimic and specimens
+
+The fifth state, `Mimic`, replaces generic spoofing with verified records from real hardware
+and browser builds:
+
+```rust
+use seleniumbase_rs_stealth::evasion::mimic::{Build, Machine, Place, Specimen};
+use seleniumbase_rs_stealth::evasion::spoof::Spoof;
+
+// Mimic a device model
+let macbook = Machine::named("macbook-13-m1")?;
+let machine_spoof = Spoof::mimic(macbook);
+
+// Mimic a browser build
+let chrome_win = Build::named("chrome-156-windows")?;
+let build_spoof = Spoof::mimic(chrome_win);
+
+// Mimic a place (locale, time zone, coordinates)
+let berlin = Place::named("de-de-berlin")?;
+let place_spoof = Spoof::mimic(berlin);
+# Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+In JSON, a mimic state is serialized as a map `{ "mimic": "<specimen-name>" }`:
+
+```json
+{
+  "webgl": { "mimic": "macbook-13-m1" },
+  "timezone": { "mimic": "de-de-berlin" }
+}
+```
+
+When `FingerprintBuilder::build` resolves the fingerprint, `Mimic` draws all associated signals
+(user agent, Client Hints full versions, WebGL renderer and vendor strings, device memory, core count,
+screen geometry, and locale) consistently from the named specimen record.
 
 A built fingerprint is never changed. Its fields are private and are read
 through accessors (`fp.timezone()` returns `&Spoof<String>`); to change one,

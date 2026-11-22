@@ -250,6 +250,38 @@ Console errors fail the report. They are recorded either way.
 
 </ParamField>
 
+<ParamField body="extract" type="table" default="{}">
+
+A map of field names to CSS selectors to extract structured values on every crawled page,
+e.g. `{"title": "h1", "price": ".price"}`. Extracted data is included on each landed line
+under `extracted` and collected into the summary's `records` array.
+
+</ParamField>
+
+<ParamField body="markdown" type="boolean" default="false">
+
+When `true`, extracts clean Markdown text for each crawled page.
+
+</ParamField>
+
+<ParamField body="wait_for" type="string">
+
+A CSS selector to wait for on each page before extracting and following links (for dynamic SPAs).
+
+</ParamField>
+
+<ParamField body="wait_ms" type="integer" default="0">
+
+Additional delay in milliseconds after navigation on each page before processing.
+
+</ParamField>
+
+<ParamField body="scroll_y" type="integer" default="0">
+
+Pixels to scroll down on each visited page before link discovery and extraction.
+
+</ParamField>
+
 Other mistakes in the options, each reported as ``plugin configuration: crawler: `` followed by:
 
 | Mistake | Message |

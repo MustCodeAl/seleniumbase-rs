@@ -90,6 +90,7 @@ crate has no default features.
 | `h2_frames`, `h2_frames::hpack`, `h2_frames::huffman` | HTTP/2 frame reading, the client preface, HPACK and Huffman decoding. | [HTTP/2 frames](/stealth/api/codec-h2-frames) |
 | `tls_spec` | The TLS profile a client must send, and the custom JA3, JA4 and peetprint overlays. | [TlsSpec](/stealth/api/codec-tls-spec) |
 | `h2_spec` | The HTTP/2 profile: SETTINGS, window, PRIORITY, pseudo-header order. | [H2Spec](/stealth/api/codec-h2-spec) |
+| `h3_spec` | The HTTP/3 profile: SETTINGS, pseudo-header order, and QUIC transport parameters. | [H3Spec](/stealth/advanced/http3) |
 | `header_spec` | Header names, order and values per request shape. | [HeaderSpec](/stealth/api/codec-header-spec) |
 | `ids` | IANA names of TLS and HTTP/2 ids, and what BoringSSL can emit. | Registries |
 
@@ -106,6 +107,7 @@ of `measurement` are called through the module (`measurement::all`, `measurement
 | `ClientHello`, `ClientHelloError` | `client_hello::ClientHello`, `client_hello::ClientHelloError` |
 | `WireMeasurement`, `WireMeasurementError` | `measurement::WireMeasurement`, `measurement::WireMeasurementError` |
 | `H2Spec`, `H2SpecError` | `h2_spec::H2Spec`, `h2_spec::H2SpecError` |
+| `H3Spec`, `H3SpecError`, `TransportParam` | `h3_spec::H3Spec`, `h3_spec::H3SpecError`, `h3_spec::TransportParam` |
 | `ClientHeaders`, `HeaderSpec`, `HeaderSpecError`, `RequestShape` | the `header_spec` items of the same name |
 | `Ja3`, `Ja3Error`, `Peetprint`, `PeetprintError` | `ja3::Ja3`, `ja3::Ja3Error`, `ja3::peetprint::Peetprint`, `ja3::peetprint::PeetprintError` |
 | `Ja4`, `Ja4Error`, `Ja4Raw` | the `ja4` items of the same name |

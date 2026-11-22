@@ -24,25 +24,48 @@ UC mode is separate. It does not build a fingerprint and it does not patch chrom
 | `Random` | Draw a coherent value when the fingerprint is built. A built fingerprint does not still hold `Random`. |
 | `Value(T)` | Exactly this value. `value()` and `into_value()` return it. |
 | `Off` | The API is unavailable or denied. `build` returns an error that names the setting when that setting has no off state. |
+| `Mimic(Specimen)` | Mimics a named specimen: real browser build, machine model, place or recorded rendering. |
 
 | Method | Description |
 |--------|-------------|
-| `is_natural()`, `is_random()`, `is_value()`, `is_off()` | Which state this is. |
+| `is_natural()`, `is_random()`, `is_value()`, `is_off()`, `is_mimic()` | Which state this is. |
+| `specimen()` | Returns `Option<Specimen>` if this setting is a `Mimic`. |
+| `mimic(specimen)` | Constructs `Spoof::Mimic(specimen.into())`. |
 | `is_set()` | True for every state except `Natural`. |
 | `as_ref()` | The same state, borrowing the value. |
 | `map(f)` | The same state with the value passed through `f`. |
 
-In JSON a `Spoof` is `"natural"`, `"random"`, `"off"`, or the value itself. `null` reads as `Natural`. On a string setting those three words are reserved: a value spelled like one of them reads as the keyword.
+In JSON a `Spoof` is `"natural"`, `"random"`, `"off"`, `{"mimic": "<specimen-name>"}`, or the value itself. `null` reads as `Natural`. On a string setting those three words are reserved: a value spelled like one of them reads as the keyword.
 
 ```rust
 use seleniumbase_rs::Spoof;
+use seleniumbase_rs::evasion::mimic::Machine;
 
 let zone: Spoof<String> = "Europe/Berlin".into();
 assert_eq!(zone.value().map(String::as_str), Some("Europe/Berlin"));
 assert!(Spoof::<String>::default().is_natural());
 assert!(Spoof::<String>::Random.is_random());
 assert!(Spoof::<String>::Off.is_off());
+
+let mac = Machine::named("macbook-13-m1")?;
+let mimic_spoof: Spoof<String> = Spoof::mimic(mac);
+assert!(mimic_spoof.is_mimic());
+assert_eq!(mimic_spoof.specimen().map(|s| s.name()), Some("macbook-13-m1"));
+# Ok::<(), Box<dyn std::error::Error>>(())
 ```
+
+### Specimen
+
+A `Specimen` names an entry in the measured hardware and software catalogue:
+
+| Kind | Type | Lookup | Examples |
+|------|------|--------|----------|
+| Browser build | `Build` | `Build::named(name)` | `"chrome-156-windows"`, `"chrome-156-macos"`, `"chrome-156-linux"` |
+| Machine model | `Machine` | `Machine::named(name)` | `"macbook-13-m1"`, `"thinkpad-x1-carbon-gen9"`, `"pixel-7"`, `"iphone-14-pro"` |
+| Place | `Place` | `Place::named(name)` | `"de-de-berlin"`, `"en-us-new-york"`, `"ja-jp-tokyo"` |
+| Rendering | `Rendering` | `Rendering::named(name)` | Recorded WebGL/Canvas output bundles |
+
+`Specimen::named(name)` looks up any specimen by name. An unknown name returns `UnknownSpecimen` listing available candidates.
 
 ## Fingerprint
 

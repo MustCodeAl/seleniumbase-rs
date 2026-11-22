@@ -316,6 +316,65 @@ cookies. `false` fetches from wherever the tab is.
 
 </ParamField>
 
+<ParamField body="mode" type="string" default="fetch">
+
+Execution mode: `"fetch"` uses in-page `fetch()`, while `"navigate"` (or `js_render: true`)
+performs a full browser navigation. Full navigation executes JavaScript, renders single-page
+apps (SPAs), runs action sequences, and enables screenshot captures.
+
+</ParamField>
+
+<ParamField body="wait_for" type="string">
+
+A CSS selector to wait for before extracting or reading page content. Useful for
+SPAs and dynamic content that renders asynchronously.
+
+</ParamField>
+
+<ParamField body="wait_ms" type="integer" default="0">
+
+Additional explicit hydration delay in milliseconds after navigation or actions complete.
+
+</ParamField>
+
+<ParamField body="scroll_y" type="integer" default="0">
+
+Scrolls the window down by `scroll_y` pixels to trigger lazy-loaded images, dynamic components,
+or infinite scroll feeds before extraction.
+
+</ParamField>
+
+<ParamField body="actions" type="object[]" default="[]">
+
+Sequential user interaction steps to perform before extraction in `"navigate"` mode:
+- `{"type": "click", "selector": "#cookie-accept"}`: Click an element.
+- `{"type": "fill", "selector": "#search", "value": "shoes"}`: Fill an input field.
+- `{"type": "wait_for", "selector": "#results"}`: Wait for an element to appear.
+- `{"type": "scroll_y", "amount": 800}`: Scroll vertically.
+- `{"type": "wait", "ms": 1000}`: Explicit pause.
+
+</ParamField>
+
+<ParamField body="extract" type="table" default="{}">
+
+Map of field names to CSS selectors to extract structured values directly from the rendered DOM,
+e.g. `{"title": "h1", "price": ".price"}`. Extracted data appears in the output's `extracted` field.
+
+</ParamField>
+
+<ParamField body="markdown" type="boolean" default="false">
+
+When `true`, extracts the clean Markdown representation of the page, stripping boilerplate scripts,
+stylesheets, navbars, and ads while preserving headings, paragraphs, lists, and links.
+
+</ParamField>
+
+<ParamField body="screenshot" type="boolean" default="false">
+
+When `true`, captures a full-page PNG screenshot encoded as base64 in the `screenshot` output field.
+
+</ParamField>
+
 ```sh Terminal
 sbrs plugin run fetcher --input urls.json --out pages.jsonl
 ```

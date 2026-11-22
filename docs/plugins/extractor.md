@@ -238,8 +238,13 @@ an error:
 | `select` | `{"name": "css selector"}` or `{"name": {"selector", "attr", "type", "required", "all"}}`. Reads exactly these |
 | `item` | A selector for the repeated element the `select` selectors are relative to. It needs a `select` map |
 | `schema` | A schema found earlier, applied as it is |
-| `discover` | `true` forces discovery, `false` turns it off |
+| `discover`, `auto` | `true` forces discovery without selectors, `false` turns it off |
 | `source` | With discovery, the kind to prefer: `json-ld`, `table` or `repeat` |
+| `fields` | Optional list of field names to keep (projection), e.g. `["title", "price"]` |
+| `wait_for` | CSS selector to poll and await before extracting dynamic content |
+| `wait_ms` | Additional delay in milliseconds after navigation before parsing |
+| `scroll_y` | Scroll distance in pixels before parsing to trigger dynamic feeds |
+| `markdown` | When `true`, extracts clean Markdown text stripped of boilerplate |
 | `text`, `links`, `tables`, `meta` | Also return the visible text, the `http(s)` links, the tables (headers and rows), and the title, description, Open Graph and canonical data |
 
 Without `select`, `schema` or `discover`, asking for any of `text`, `links`,

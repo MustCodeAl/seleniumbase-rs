@@ -63,7 +63,23 @@ APIs retain their feature gates.
 | `init_tracing()`, `init_tracing_json()` | Install the global `tracing` subscriber (text or JSON) and bridge `log`. They read `RUST_LOG` (default `info`) and ignore a second call. |
 | `init_tracing_with_filter(filter)`, `init_tracing_json_with_filter(filter)` | The same with an `EnvFilter` string; an unparsable filter falls back to `RUST_LOG`, then `info`. The process environment is not changed. |
 | `init_tracing_from_runtime(&RuntimeConfig)` | Uses `SB_LOG_LEVEL` and `SB_LOG_FORMAT`; without a valid `SB_LOG_LEVEL` the filter is `RUST_LOG`, then `info`. |
-| `UPSTREAM_SELENIUMBASE_VERSION` | The constant `"4.55.2"`, the Python SeleniumBase version the API tracks. |
+| `UPSTREAM_SELENIUMBASE_VERSION` | The constant `"4.56.5"`, the Python SeleniumBase version the API tracks. |
+
+### Macros
+
+Macros exported at the crate root for concise test writing, configuration, and interactions:
+
+| Item | What it is |
+|---|---|
+| `selector!` | Builds a `SelectorRef` variant at compile time (`selector!(css, "#id")`, `selector!(xpath, "//div")`, `selector!(id, "name")`, `selector!(link, "text")`). |
+| `sb_test!` | Declares an async `#[tokio::test]` that launches a browser via `run_browser_test`, executes the test block, and guarantees clean browser termination via `quit()`. |
+| `uc_config!` | Builds a default `BrowserConfig` configured for undetected (UC) mode. |
+| `cdp_config!` | Builds a default `BrowserConfig` configured for pure CDP mode. |
+| `sb_config!` | Ergonomic macro for constructing `BrowserConfig` with chained settings (`mode`, `headless`, `browser`, etc.). |
+| `fingerprint!` | Instant constructor for built-in OS fingerprint presets (`fingerprint!(windows)`, `fingerprint!(macos)`, `fingerprint!(linux)`, `fingerprint!(android)`, `fingerprint!(ios)`). |
+| `sb_fill_form!` | Fills sequential form fields with key-value pairs (`sb_fill_form!(sb, "#user" => "alice", "#pass" => "secret")`). |
+| `sb_with_timeout!` | Runs an asynchronous block with a temporary override of the default wait timeout. |
+| Action macros | Ergonomic wrappers calling `BaseCase` methods: `sb_open!`, `sb_click!`, `sb_type!`, `sb_hover!`, `sb_scroll_to!`, `sb_wait_for!`, `sb_wait_and_click!`, `sb_select!`, `sb_assert_text!`, `sb_assert_title!`, `sb_assert_title_contains!`, `sb_assert_url!, `sb_assert_url_contains!`, `sb_assert_visible!`, `sb_assert_not_visible!`, `sb_screenshot!`, `sb_js!`, `sb_quit!`. |
 
 ### Charts and tours
 
@@ -79,7 +95,7 @@ tutorial is the reference for them.
 
 | Item | What it is |
 |---|---|
-| Fingerprint types | `Fingerprint` (built once with `Fingerprint::builder()`, read through accessors, changed with `to_builder()`), `FingerprintBuilder`, `FingerprintError`, `Spoof<T>` (each setting: `Natural`, `Random`, `Value(T)` or `Off`), `StealthPolicy` (how the claims are delivered; presets `default()`, `balanced()`, `native_only()`, `max()`), `Dimension`, and the value types `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `OsType`, `BrowserType`; the policy enums `CanvasNoise`, `AudioNoise`, `QuicMode`, `WebRtcPolicy`; `HumanizeConfig` and `CoherenceReport`. |
+| Fingerprint types | `Fingerprint` (built once with `Fingerprint::builder()`, read through accessors, changed with `to_builder()`), `FingerprintBuilder`, `FingerprintError`, `Spoof<T>` (each setting: `Natural`, `Random`, `Value(T)`, `Mimic(Specimen)` or `Off`), `Specimen` (mimic target profile), `StealthPolicy` (how the claims are delivered; presets `default()`, `balanced()`, `native_only()`, `max()`), `Dimension`, and the value types `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `OsType`, `BrowserType`; the policy enums `CanvasNoise`, `AudioNoise`, `QuicMode`, `WebRtcPolicy`; `HumanizeConfig` and `CoherenceReport`. |
 | Evasion providers | `default_registry()` returns an `EvasionRegistry` with every built-in provider. `session_registry(&Fingerprint)` is the registry for a pure CDP tab: it leaves out the providers named in `SESSION_OMITTED_PROVIDERS` (`"plugins"` and `"connection"`), because Chrome already answers for those itself. `EvasionProvider` is the trait for your own, `EvasionContext` the data a provider's script is built from, `EvasionConfig` its settings. |
 | Patching | `find_system_chrome() -> Option<PathBuf>` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`. See [Binary patching](/stealth/advanced/binary-patching). |
 

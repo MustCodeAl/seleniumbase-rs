@@ -31,13 +31,15 @@ Prefer a [Locator](/api/cdp-locator) (`click`, `fill`, `type_text`, `press`) whe
 
 ## Keyboard
 
-`press` presses and releases one key. `type_text` types one character at a time, so the page sees a key press for each; a newline presses Enter and a tab presses Tab. `type_char` is one character, with the same newline and tab rule. `insert_text` inserts the whole string in one step, as a paste would, and produces no per-character key events. `Locator::fill` uses `insert_text`; `Locator::type_text` and `Locator::send_keys` use `type_text`.
+`press` presses and releases one key. `type_text` types one character at a time, so the page sees a key press for each; a newline presses Enter and a tab presses Tab. `type_char` is one character, with the same newline and tab rule. For uppercase ASCII characters, `type_char` and `type_text` emulate real human Shift typing (SeleniumBase super stealth typing parity): they dispatch `ShiftLeft` (`rawKeyDown`, virtual keycode 16, modifier 8) before the character, emit the character key event with `modifiers: 8` and `unmodifiedText` set to lowercase, and dispatch `ShiftLeft` (`keyUp`) immediately after.
+
+`insert_text` inserts the whole string in one step, as a paste would, and produces no per-character key events. `Locator::fill` uses `insert_text`; `Locator::type_text` and `Locator::send_keys` use `type_text`.
 
 | Method | Description |
 |--------|-------------|
 | `press(key)` | Presses and releases `key`. |
-| `type_text(text)` | Types `text` one character at a time. |
-| `type_char(ch)` | Presses and releases the key that produces `ch`. |
+| `type_text(text)` | Types `text` one character at a time, emulating Shift keydown/keyup for uppercase characters. |
+| `type_char(ch)` | Presses and releases the key that produces `ch`, with Shift modifiers for uppercase. |
 | `insert_text(text)` | Inserts `text` in one step, with no per-key events. |
 
 `Key` is `Enter`, `Tab`, `Escape`, `Backspace`, `Delete`, `ArrowUp`, `ArrowDown`, `ArrowLeft`, `ArrowRight`, `Home`, `End`, `PageUp` or `PageDown`.

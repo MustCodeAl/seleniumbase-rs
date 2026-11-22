@@ -65,23 +65,38 @@ instead of relying on detection. It goes wherever a method takes a selector as
 `impl Into<Selector>`: the methods of `BaseCase`, `CdpDriver`, `Element` and `BrowserSession`, and
 `Page::locator` and `Locator::locator` on the pure CDP engine.
 
+### `Selector` and `SelectorRef`
+
+`seleniumbase-rs` provides two selector types:
+- **`Selector`**: The owned selector enum (`Css`, `XPath`, `LinkText`, `PartialLinkText`). It implements `Serialize`, `Deserialize`, `From<&str>`, and `FromStr`.
+- **`SelectorRef<'a>`**: The zero-copy borrowed enum (`Css(&'a str)`, `XPath(&'a str)`, `LinkText(&'a str)`, `PartialLinkText(&'a str)`, `Id(&'a str)`).
+
 ```rust
-use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
+use seleniumbase_rs::utils::selectors::{Selector, SelectorRef, TextMatching};
 
 let row = sb.find_element("#cart .row").await?;
 
-// Detected automatically: a string is read by the rules above.
+// Detected automatically: a string is read by the prefix rules.
 let remove = row.find("link=Remove").await?;
 
-// Or stated explicitly, where the guess would be wrong: `td[2]` is XPath for the
-// second cell, but nothing in the text says so, and a string is read as CSS then.
+// Explicit constructors: skip guessing when a string looks like CSS but is XPath.
 let cell = row.find(Selector::xpath("td[2]")).await?;
+let link = row.find(Selector::link_text("Sign in")).await?;
+let partial = row.find(Selector::partial_link_text("Sign")).await?;
 
-// The selector builders start at the element too: of the two Save buttons of the page,
-// only the one inside the panel.
-let panel = sb.find_element("#panel").await?;
-let save = panel.find(Selector::role("button", Some("Save"), TextMatching::Contains)).await?;
+// Semantic role, text, and label constructors:
+let save_btn = row.find(Selector::role("button", Some("Save"), TextMatching::Contains)).await?;
+let exact_txt = row.find(Selector::text("Checkout", TextMatching::Exact)).await?;
+let email_input = row.find(Selector::label("Email address", TextMatching::Contains)).await?;
+let contains_p = row.find(Selector::containing_text("Order confirmed", Some("p"))).await?;
 ```
+
+### Validation and lookup rewriting
+
+1. **`selector.check()`**: Validates that the selector is not empty or pure whitespace, and ensures CSS crossing a shadow root does not end on `::shadow`. Called automatically by `parse::<Selector>()` and by both engines before any wait starts, failing fast on invalid selectors instead of waiting out the timeout.
+2. **`selector.lookup_form()`**: Seamlessly converts SeleniumBase's `:contains("text")` CSS pseudo-class into relative XPath (`.//p[contains(., 'text')]`), allowing standard browser engines to execute it without error while preserving the clean user-facing CSS selector in test reports, logs, and screenshots.
+3. **`selector.as_str()`**: Returns the inner string slice without kind prefixes (`"Home"` for `"link=Home"`).
+4. **`selector.as_selector_ref()`**: Borrows an owned `Selector` as a zero-copy `SelectorRef`.
 
 From an element, `find` and `find_all` search inside it. An XPath that starts at the root of the
 page (`//td`, `(//td)[1]`, `id('x')`) matches the whole page from any element, so they refuse it
