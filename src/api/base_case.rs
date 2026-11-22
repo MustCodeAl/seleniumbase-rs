@@ -1245,18 +1245,20 @@ impl BaseCase {
         seen
     }
 
-    /// Executes the `assert_element_absent` action.
+    /// Asserts that the element `selector` is absent from the DOM, waiting up to
+    /// the default timeout for it to be removed.
     pub async fn assert_element_absent(
         &self,
         selector: impl Into<Selector>,
     ) -> Result<(), SeleniumBaseError> {
         let css: &Selector = &selector.into();
-        if !self.is_element_present(css).await? {
-            return Ok(());
+        let timeout = self.default_wait_secs();
+        match self.wait_for_element_absent(css, timeout).await {
+            Err(SeleniumBaseError::WaitTimeout(_)) => Err(SeleniumBaseError::AssertionFailed(
+                format!("expected element '{css}' to be absent after {timeout}s"),
+            )),
+            other => other,
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{css}' to be absent"
-        )))
     }
 
     /// Returns the current page title.
@@ -2210,20 +2212,20 @@ impl BaseCase {
         self.assert_element(css).await
     }
 
-    /// Executes the `assert_element_not_visible` action.
+    /// Asserts that the element `selector` is not visible, waiting up to the default
+    /// timeout for it to become hidden.
     pub async fn assert_element_not_visible(
         &mut self,
         selector: impl Into<Selector>,
     ) -> Result<(), SeleniumBaseError> {
         let css: &Selector = &selector.into();
-        let is_visible = self.is_displayed(css).await.unwrap_or_default();
-        if !is_visible {
-            return Ok(());
+        let timeout = self.default_wait_secs();
+        match self.wait_for_element_not_visible(css, timeout).await {
+            Err(SeleniumBaseError::WaitTimeout(_)) => Err(SeleniumBaseError::AssertionFailed(
+                format!("expected element '{css}' to not be visible after {timeout}s"),
+            )),
+            other => other,
         }
-        Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected element '{}' to not be visible",
-            css
-        )))
     }
 
     /// Clicks `css` if it is displayed now, and does nothing if it is not, as
