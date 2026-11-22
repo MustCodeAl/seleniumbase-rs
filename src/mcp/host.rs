@@ -244,8 +244,30 @@ pub enum Started {
 /// A locked view of the running session.
 ///
 /// Holding it keeps other tool calls waiting, which is what a single shared
-/// browser needs: two clicks must not interleave. It dereferences to the session; the guard type behind it is Tokio's and may change.
-pub type Session<S> = OwnedMappedMutexGuard<Option<S>, S>;
+/// browser needs: two clicks must not interleave. It dereferences to the session.
+pub struct Session<S> {
+    guard: OwnedMappedMutexGuard<Option<S>, S>,
+}
+
+impl<S> std::ops::Deref for Session<S> {
+    type Target = S;
+
+    fn deref(&self) -> &Self::Target {
+        &self.guard
+    }
+}
+
+impl<S> std::ops::DerefMut for Session<S> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.guard
+    }
+}
+
+impl<S: std::fmt::Debug> std::fmt::Debug for Session<S> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(&**self, f)
+    }
+}
 
 /// What a tool handler gets: the shared session slot, the settings, and the
 /// log of the calls made so far.
@@ -345,7 +367,9 @@ impl<S: Send + 'static> Ctx<S> {
     /// The running session, or `None` if there is not one.
     pub async fn try_session(&self) -> Option<Session<S>> {
         let guard = Arc::clone(&self.slot).lock_owned().await;
-        OwnedMutexGuard::try_map(guard, Option::as_mut).ok()
+        OwnedMutexGuard::try_map(guard, Option::as_mut)
+            .ok()
+            .map(|guard| Session { guard })
     }
 
     /// Creates the session with `create` unless one is already running.
