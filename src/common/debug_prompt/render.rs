@@ -53,12 +53,12 @@ const MACRO: Style = Style::PLAIN.fg(Color::Cyan);
 const LINE_NUMBER: Style = palette::PATH;
 /// The file name in a header (pdbp's fuchsia).
 const FILE_NAME: Style = Style::PLAIN.fg(Color::Magenta);
-/// The line the pause is at (pdbp: white on blue).
-const CURRENT_BAR: Style = Style::PLAIN.fg(Color::LightWhite).on(Color::Blue).bold();
-/// The line the pause is at after a failure (pdbp: white on red).
-const POST_MORTEM_BAR: Style = Style::PLAIN.fg(Color::LightWhite).on(Color::Red).bold();
-/// A line that names what failed (pdbp: red on yellow).
-const FAILING_BAR: Style = Style::PLAIN.fg(Color::Red).on(Color::LightYellow).bold();
+/// The line the pause is at: bold cyan.
+const CURRENT_BAR: Style = Style::PLAIN.fg(Color::Cyan).bold();
+/// The line the pause is at after a failure: bold red.
+const POST_MORTEM_BAR: Style = Style::PLAIN.fg(Color::Red).bold();
+/// A line that names what failed: bold yellow.
+const FAILING_BAR: Style = Style::PLAIN.fg(Color::Yellow).bold();
 
 /// A place in the source of a test: a file, a line and a column.
 ///
@@ -796,11 +796,6 @@ pub(super) fn render_listing(
     kind: PromptKind,
     color: bool,
 ) -> String {
-    let width = (view.first..=view.last)
-        .filter_map(|number| source.line(number))
-        .map(|text| text.chars().count())
-        .max()
-        .unwrap_or(0);
     let mut out = String::new();
     if view.cut_before {
         let _ = writeln!(out, "{}", palette::DIM.paint(DOTS, color));
@@ -814,12 +809,7 @@ pub(super) fn render_listing(
             Some(mark) => {
                 let (symbol, bar) = bar_for(mark.kind, kind);
                 let body = format!("{symbol} {text}");
-                if color {
-                    let padded = format!("{body:<pad$}", pad = width + 3);
-                    let _ = writeln!(out, "{shown}  {}", bar.paint(padded, true));
-                } else {
-                    let _ = writeln!(out, "{shown}  {body}");
-                }
+                let _ = writeln!(out, "{shown}  {}", bar.paint(body, color));
             }
             None if text.is_empty() => {
                 let _ = writeln!(out, "{shown}");
@@ -1235,8 +1225,8 @@ mod tests {
         let expected = [
             // Number in cyan, keyword, string and comment in their colours.
             "\x1b[36m   1\x1b[0m     \x1b[94mlet\x1b[0m x = \x1b[32m\"hi\"\x1b[0m; \x1b[90m// note\x1b[0m",
-            // The marked line is one bar: white on blue, bold, padded to the widest line.
-            "\x1b[36m   2\x1b[0m  \x1b[97;44;1m-> go();                \x1b[0m",
+            // The marked line in bold cyan.
+            "\x1b[36m   2\x1b[0m  \x1b[36;1m-> go();\x1b[0m",
             "",
         ]
         .join("\n");
@@ -1259,7 +1249,7 @@ mod tests {
 
         let text = render_listing(&source, &view, PromptKind::PostMortem, true);
 
-        assert!(text.contains("\x1b[97;41;1m-> boom();\x1b[0m"), "{text:?}");
+        assert!(text.contains("\x1b[31;1m-> boom();\x1b[0m"), "{text:?}");
     }
 
     #[test]

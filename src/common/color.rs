@@ -10,9 +10,8 @@
 //!    capture and JSON logs (`SB_LOG_FORMAT=json`) therefore get plain text.
 //! 2. **With what?** A [`Style`] is a foreground, a background and the
 //!    attributes bold, dim and underline. The named styles in [`palette`] keep
-//!    the colours in one place; the banner ones are the colorama pairs that
-//!    Python SeleniumBase prints its `sbase mkrec` banners with, so the two
-//!    tools look alike.
+//!    the colours in one place; the banner ones use clean, modern foreground
+//!    colours that adapt cleanly to dark and light terminal backgrounds.
 //!
 //! Painting never decides for itself. [`Style::paint`] takes the answer to the
 //! first question, so a caller that owns a stream decides once, and a test
@@ -28,10 +27,10 @@
 //! let shown = palette::BANNER_FILE.paint("login_rec.rs", on);
 //! assert!(shown.contains("login_rec.rs"));
 //!
-//! // Forced on, it is the colorama pair that Python prints.
+//! // Forced on, it is painted with the clean banner style.
 //! assert_eq!(
 //!     palette::BANNER_FILE.paint("x.rs", true),
-//!     "\x1b[31;103mx.rs\x1b[0m"
+//!     "\x1b[32;1mx.rs\x1b[0m"
 //! );
 //! ```
 
@@ -352,21 +351,23 @@ impl Style {
 
 /// The named styles.
 ///
-/// The `BANNER_*` ones are the colorama pairs of Python SeleniumBase's
-/// `console_scripts/sb_mkrec.py` (`c0` to `c7`); the rest colour the log lines
-/// and are for any message that means the same thing.
+/// The `BANNER_*` ones style banners across the CLI and recorder with clean,
+/// modern foreground colours that adapt cleanly to dark and light terminal
+/// themes; the rest colour the log lines and are for any message that means the
+/// same thing.
 pub mod palette {
     use super::{Color, Style};
 
-    /// `c0`: blue on light cyan. The label `* RECORDING initialized:`.
-    pub const BANNER_LABEL: Style = Style::PLAIN.fg(Color::Blue).on(Color::LightCyan);
-    /// `c1` and `c5`: red on light yellow. A file name in a banner, and an
-    /// `ERROR: ...` message.
-    pub const BANNER_FILE: Style = Style::PLAIN.fg(Color::Red).on(Color::LightYellow);
-    /// `c2`: light red on light yellow. The `>>>` and `***` that start a banner.
-    pub const BANNER_MARK: Style = Style::PLAIN.fg(Color::LightRed).on(Color::LightYellow);
-    /// `c7`: black on magenta. The `>>` and `<<` around an invalid option.
-    pub const BANNER_OPTION: Style = Style::PLAIN.fg(Color::Black).on(Color::Magenta);
+    /// The label `* RECORDING initialized:`: bold cyan.
+    pub const BANNER_LABEL: Style = Style::PLAIN.fg(Color::Cyan).bold();
+    /// A file or target in a banner: bold green.
+    pub const BANNER_FILE: Style = Style::PLAIN.fg(Color::Green).bold();
+    /// The `>>>` and `***` that start a banner: bold yellow.
+    pub const BANNER_MARK: Style = Style::PLAIN.fg(Color::Yellow).bold();
+    /// An error banner: bold red.
+    pub const BANNER_ERROR: Style = Style::PLAIN.fg(Color::Red).bold();
+    /// The `>>` and `<<` around an invalid option: bold magenta.
+    pub const BANNER_OPTION: Style = Style::PLAIN.fg(Color::Magenta).bold();
 
     /// Faint text that is context, not content: a time, a module path, a field name.
     pub const DIM: Style = Style::PLAIN.dim();
@@ -437,12 +438,12 @@ mod tests {
     }
 
     #[test]
-
     fn a_style_is_one_escape_sequence_with_the_colours_first() {
-        assert_eq!(palette::BANNER_LABEL.escape(), "\x1b[34;106m");
-        assert_eq!(palette::BANNER_FILE.escape(), "\x1b[31;103m");
-        assert_eq!(palette::BANNER_MARK.escape(), "\x1b[91;103m");
-        assert_eq!(palette::BANNER_OPTION.escape(), "\x1b[30;45m");
+        assert_eq!(palette::BANNER_LABEL.escape(), "\x1b[36;1m");
+        assert_eq!(palette::BANNER_FILE.escape(), "\x1b[32;1m");
+        assert_eq!(palette::BANNER_MARK.escape(), "\x1b[33;1m");
+        assert_eq!(palette::BANNER_ERROR.escape(), "\x1b[31;1m");
+        assert_eq!(palette::BANNER_OPTION.escape(), "\x1b[35;1m");
         assert_eq!(palette::STEP.escape(), "\x1b[35;1m");
         assert_eq!(palette::DIM.escape(), "\x1b[2m");
         let all = Style::PLAIN
@@ -550,7 +551,7 @@ mod tests {
         );
         assert_eq!(
             painted,
-            "\x1b[91;103m>>>\x1b[0m RECORDING SAVED as: \x1b[31;103mrecordings/x_rec.rs\x1b[0m"
+            "\x1b[33;1m>>>\x1b[0m RECORDING SAVED as: \x1b[32;1mrecordings/x_rec.rs\x1b[0m"
         );
         let plain = banner(
             ">>>",
@@ -573,7 +574,7 @@ mod tests {
         );
         assert_eq!(
             painted,
-            "\x1b[34;106m* RECORDING initialized:\x1b[0m \x1b[31;103mnew_test.rs\x1b[0m"
+            "\x1b[36;1m* RECORDING initialized:\x1b[0m \x1b[32;1mnew_test.rs\x1b[0m"
         );
     }
 }

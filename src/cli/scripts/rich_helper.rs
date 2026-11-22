@@ -210,7 +210,7 @@ pub fn format_error_report(error: &(dyn Error + 'static), color: bool) -> String
             let _ = writeln!(
                 report,
                 "  {}{}",
-                label("caused by", Style::PLAIN),
+                label("caused by", palette::DIM),
                 sanitize(&text)
             );
             said.push(text);

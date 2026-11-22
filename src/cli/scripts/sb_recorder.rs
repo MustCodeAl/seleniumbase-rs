@@ -344,9 +344,8 @@ pub async fn run_mkrec(
     })
 }
 
-/// `ERROR: MESSAGE`, all of it in Python's `c5` (red on light yellow) when
-/// `color` is set: what `sbrs mkrec` prints for a bad file name or when
-/// nothing was recorded.
+/// `ERROR: MESSAGE` in bold red when `color` is set: what `sbrs mkrec`
+/// prints for a bad file name or when nothing was recorded.
 ///
 /// # Examples
 ///
@@ -357,11 +356,10 @@ pub async fn run_mkrec(
 /// ```
 #[must_use]
 pub fn error_banner(message: &str, color: bool) -> String {
-    palette::BANNER_FILE.paint(format!("ERROR: {message}"), color)
+    palette::BANNER_ERROR.paint(format!("ERROR: {message}"), color)
 }
 
-/// `* RECORDING initialized: FILE`: the label in Python's `c0` (blue on light
-/// cyan) and the file name in `c1` (red on light yellow).
+/// `* RECORDING initialized: FILE`: the label in bold cyan and the file name in bold green.
 fn initialized_banner(file: &str, color: bool) -> String {
     banner(
         "* RECORDING initialized:",
@@ -372,7 +370,7 @@ fn initialized_banner(file: &str, color: bool) -> String {
     )
 }
 
-/// `*** RECORDING COPIED to: FILE`: the stars in Python's `c2` and the file name in `c1`.
+/// `*** RECORDING COPIED to: FILE`: the stars in bold yellow and the file name in bold green.
 fn copied_banner(file: &str, color: bool) -> String {
     banner(
         "***",
@@ -509,32 +507,30 @@ mod tests {
     }
 
     #[test]
-    fn the_banners_use_the_colours_of_sbase_mkrec() {
-        // Python: c0 = blue on light cyan, c1 = red on light yellow,
-        // c2 = light red on light yellow.
+    fn the_banners_use_modern_terminal_colors() {
         assert_eq!(
             initialized_banner("new_test.rs", true),
-            "\x1b[34;106m* RECORDING initialized:\x1b[0m \x1b[31;103mnew_test.rs\x1b[0m"
+            "\x1b[36;1m* RECORDING initialized:\x1b[0m \x1b[32;1mnew_test.rs\x1b[0m"
         );
         assert_eq!(
             copied_banner("new_test.rs", true),
-            "\x1b[91;103m***\x1b[0m RECORDING COPIED to: \x1b[31;103mnew_test.rs\x1b[0m"
+            "\x1b[33;1m***\x1b[0m RECORDING COPIED to: \x1b[32;1mnew_test.rs\x1b[0m"
         );
         assert_eq!(
             behave_banner(Path::new("recordings/features/x_rec.feature"), true),
-            "\x1b[91;103m***\x1b[0m BEHAVE RECORDING at: \x1b[31;103mrecordings/features/x_rec.feature\x1b[0m"
+            "\x1b[33;1m***\x1b[0m BEHAVE RECORDING at: \x1b[32;1mrecordings/features/x_rec.feature\x1b[0m"
         );
     }
 
     #[test]
-    fn an_error_is_the_whole_message_in_the_colours_of_c5() {
+    fn an_error_is_the_whole_message_in_bold_red() {
         assert_eq!(
             error_banner("File name must end with \".rs\"!", false),
             "ERROR: File name must end with \".rs\"!"
         );
         assert_eq!(
             error_banner("Invalid file name!", true),
-            "\x1b[31;103mERROR: Invalid file name!\x1b[0m"
+            "\x1b[31;1mERROR: Invalid file name!\x1b[0m"
         );
     }
 

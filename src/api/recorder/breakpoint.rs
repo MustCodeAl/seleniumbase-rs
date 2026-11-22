@@ -164,10 +164,10 @@ mod tests {
             "{plain:?}"
         );
         assert!(!plain.contains('\x1b'), "{plain:?}");
-        // The label in Python's `c0`, blue on light cyan; the rest is plain.
+        // The label in bold cyan; the rest is plain.
         let coloured = prompt_text("look", true);
         assert!(
-            coloured.starts_with("\n\x1b[34;106m[RECORDER BREAKPOINT]\x1b[0m: look\nPerform"),
+            coloured.starts_with("\n\x1b[36;1m[RECORDER BREAKPOINT]\x1b[0m: look\nPerform"),
             "{coloured:?}"
         );
         assert!(coloured.ends_with("continue execution: "), "{coloured:?}");

@@ -95,7 +95,7 @@ use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
 use crate::artifacts::LATEST_LOGS_DIR;
-use crate::common::color::{palette, sanitize, use_color, Color, Style};
+use crate::common::color::{palette, sanitize, use_color, Style};
 
 use crate::error::SeleniumBaseError;
 
@@ -580,12 +580,12 @@ const fn commands(kind: PromptKind) -> &'static str {
     }
 }
 
-/// The style of the `[LABEL]` that starts a banner: the colorama pair of the
-/// recorder's `[RECORDER BREAKPOINT]`, and white on red for a post-mortem, as
-/// pdbp marks the line of a failure.
+/// The style of the `[LABEL]` that starts a banner: bold cyan for breakpoints
+/// and bold red for a post-mortem, adapting cleanly to dark and light terminal
+/// backgrounds.
 const fn label_style(kind: PromptKind) -> Style {
     match kind {
-        PromptKind::PostMortem => Style::PLAIN.fg(Color::LightWhite).on(Color::Red).bold(),
+        PromptKind::PostMortem => palette::ERROR,
         _ => palette::BANNER_LABEL,
     }
 }
@@ -1471,8 +1471,8 @@ mod tests {
         assert_eq!(outcome, PromptOutcome::Continue);
         let expected = [
             "",
-            // The label is the colorama pair of the recorder's breakpoint.
-            "\x1b[34;106m[BREAKPOINT]\x1b[0m: Paused at login page setup.",
+            // The label in bold cyan.
+            "\x1b[36;1m[BREAKPOINT]\x1b[0m: Paused at login page setup.",
             "  \x1b[2mtest:\x1b[0m  \x1b[35;1mlogin.valid_login\x1b[0m   page: \x1b[36mhttps://example.com/login\x1b[0m  \x1b[2m\"Login\"\x1b[0m",
             "Perform your manual actions in the browser now.",
             "\x1b[2mCommands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help\x1b[0m",
@@ -1543,8 +1543,8 @@ mod tests {
         .await;
 
         assert!(
-            text.contains("\x1b[97;41;1m[POST MORTEM]\x1b[0m: "),
-            "white on red: {text:?}"
+            text.contains("\x1b[31;1m[POST MORTEM]\x1b[0m: "),
+            "bold red: {text:?}"
         );
         assert!(
             text.contains("\x1b[31;1mnavigation to 'https://example.com/gone' failed: net::ERR_NAME_NOT_RESOLVED\x1b[0m"),
