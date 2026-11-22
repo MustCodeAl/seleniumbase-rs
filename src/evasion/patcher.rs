@@ -399,18 +399,27 @@ impl ChromeBinaryPatcher {
 
 /// Attempts to locate a system Chrome/Chromium binary.
 ///
+/// Calls [`find_system_chrome_with`] using [`std::env::var`].
+#[must_use]
+pub fn find_system_chrome() -> Option<PathBuf> {
+    find_system_chrome_with(|name| std::env::var(name).ok())
+}
+
+/// Attempts to locate a system Chrome/Chromium binary, reading environment variables through `lookup`.
+///
 /// Checks, in order:
-/// * The `CHROME_BIN` / `CHROMIUM_BIN` environment variables.
+/// * The `CHROME_BIN` / `CHROMIUM_BIN` environment variables returned by `lookup`.
 /// * Common well-known paths per platform.
 /// * `which google-chrome` / `which chromium` / `which chromium-browser`.
-pub fn find_system_chrome() -> Option<PathBuf> {
-    if let Ok(path) = std::env::var("CHROME_BIN") {
+#[must_use]
+pub fn find_system_chrome_with(lookup: impl Fn(&str) -> Option<String>) -> Option<PathBuf> {
+    if let Some(path) = lookup("CHROME_BIN").filter(|s| !s.trim().is_empty()) {
         let p = PathBuf::from(path);
         if p.exists() {
             return Some(p);
         }
     }
-    if let Ok(path) = std::env::var("CHROMIUM_BIN") {
+    if let Some(path) = lookup("CHROMIUM_BIN").filter(|s| !s.trim().is_empty()) {
         let p = PathBuf::from(path);
         if p.exists() {
             return Some(p);
@@ -429,9 +438,9 @@ pub fn find_system_chrome() -> Option<PathBuf> {
         }
         #[cfg(target_os = "windows")]
         {
-            let local = std::env::var("LOCALAPPDATA").unwrap_or_default();
-            let pf = std::env::var("PROGRAMFILES").unwrap_or_default();
-            let pf_x86 = std::env::var("PROGRAMFILES(X86)").unwrap_or_default();
+            let local = lookup("LOCALAPPDATA").unwrap_or_default();
+            let pf = lookup("PROGRAMFILES").unwrap_or_default();
+            let pf_x86 = lookup("PROGRAMFILES(X86)").unwrap_or_default();
             vec![
                 format!(r"{local}\Google\Chrome\Application\chrome.exe").into(),
                 format!(r"{pf}\Google\Chrome\Application\chrome.exe").into(),
@@ -826,5 +835,29 @@ mod backup_tests {
             .filter(|name| name.ends_with(".patching"))
             .collect();
         assert!(leftovers.is_empty(), "{leftovers:?}");
+    }
+
+    #[test]
+    fn find_system_chrome_with_lookup_reads_mocked_env() {
+        let dir = tempfile::tempdir().unwrap();
+        let fake_chrome = dir.path().join("fake_chrome");
+        fs::write(&fake_chrome, b"binary").unwrap();
+
+        let found = find_system_chrome_with(|name| match name {
+            "CHROME_BIN" => Some(fake_chrome.to_str().unwrap().to_owned()),
+            _ => None,
+        });
+        assert_eq!(found, Some(fake_chrome));
+
+        let not_found = find_system_chrome_with(|name| match name {
+            "CHROME_BIN" => Some("/nonexistent/chrome/path".to_owned()),
+            "CHROMIUM_BIN" => Some("/nonexistent/chromium/path".to_owned()),
+            _ => None,
+        });
+        // May find system chrome from well-known paths or which, or None
+        if let Some(p) = not_found {
+            assert!(p.exists());
+            assert_ne!(p, PathBuf::from("/nonexistent/chrome/path"));
+        }
     }
 }

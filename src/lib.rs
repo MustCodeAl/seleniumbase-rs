@@ -265,7 +265,8 @@ pub use evasion::providers::{
 };
 #[doc(inline)]
 pub use evasion::{
-    engine_spoofing_args, find_system_chrome, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
+    engine_spoofing_args, find_system_chrome, find_system_chrome_with, ChromeBinaryPatcher,
+    ChromedriverPatcher, EnginePatch,
 };
 #[doc(inline)]
 pub use sb_cdp::{Key, SelectBy};
