@@ -453,6 +453,8 @@ fn a_config_with_every_option_gives_this_command_line() {
         "--no-first-run",
         "--no-default-browser-check",
         "--disable-search-engine-choice-screen",
+        "--disable-blink-features=AutomationControlled",
+        "--disable-infobars",
         "--disable-features=Translate,Bar",
         "--password-store=basic",
         "--use-mock-keychain",

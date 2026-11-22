@@ -88,6 +88,10 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
     ]
 }
 
+#[allow(
+    clippy::large_futures,
+    reason = "Browser::launch and attach in async block"
+)]
 async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     let headless = args
         .opt_bool("headless")?

@@ -10,6 +10,7 @@ pub mod evasions;
 pub mod fingerprint;
 pub mod humanize;
 pub mod js;
+pub mod mimic;
 pub mod options;
 pub mod patcher;
 pub mod policy;
@@ -26,6 +27,7 @@ pub use fingerprint::{
     Fingerprint, FingerprintComparison, FingerprintError, HumanizeConfig, SettingDiff, Severity,
     SpeechVoice, StealthPolicy,
 };
+pub use mimic::Specimen;
 pub use patcher::{
     engine_spoofing_args, find_system_chrome, find_system_chrome_with, ChromeBinaryPatcher,
     ChromedriverPatcher, EnginePatch,

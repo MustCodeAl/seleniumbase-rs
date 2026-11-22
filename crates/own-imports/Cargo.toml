@@ -15,6 +15,9 @@ description = "Tests that compile with only seleniumbase-rs imported: the proof 
 repository.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dev-dependencies]
 seleniumbase-rs = { path = "../..", features = ["testing", "bdd", "test-util"] }
 # The Gherkin macros (`given`, `scenario`, ... re-exported by `seleniumbase_rs::testing::bdd`)

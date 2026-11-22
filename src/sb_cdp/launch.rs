@@ -198,6 +198,9 @@ pub struct LaunchOptions {
     pub(crate) user_data_dir: Option<PathBuf>,
     pub(crate) user_agent: Option<String>,
     pub(crate) lang: Option<String>,
+    pub(crate) timezone: Option<String>,
+    pub(crate) geolocation: Option<(f64, f64, Option<f64>)>,
+    pub(crate) platform: Option<String>,
     pub(crate) window_size: Option<(u32, u32)>,
     pub(crate) window_position: Option<(i32, i32)>,
     pub(crate) no_sandbox: bool,
@@ -347,6 +350,24 @@ impl LaunchOptions {
     #[must_use]
     pub fn lang(&self) -> Option<&str> {
         self.lang.as_deref()
+    }
+
+    /// The timezone for emulation (`Emulation.setTimezoneOverride`), if set.
+    #[must_use]
+    pub fn timezone(&self) -> Option<&str> {
+        self.timezone.as_deref()
+    }
+
+    /// The geolocation coordinates for emulation (`Emulation.setGeolocationOverride`), if set.
+    #[must_use]
+    pub fn geolocation(&self) -> Option<(f64, f64, Option<f64>)> {
+        self.geolocation
+    }
+
+    /// The platform for emulation (`Emulation.setUserAgentOverride`), if set.
+    #[must_use]
+    pub fn platform(&self) -> Option<&str> {
+        self.platform.as_deref()
     }
 
     /// The command-line arguments Chrome will be started with.

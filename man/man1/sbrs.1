@@ -10,9 +10,15 @@ A Rust port of the Python SeleniumBase testing framework. Provides browser autom
 .TP
 \fB\-\-webdriver\fR \fI<URL>\fR
 WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)
+.RS
+\fIEnvironment: \fR\fBSB_WEBDRIVER_URL\fR
+.RE
 .TP
 \fB\-\-browser\fR \fI<BROWSER>\fR
 Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)
+.RS
+\fIEnvironment: \fR\fBSB_BROWSER\fR
+.RE
 .TP
 \fB\-\-headed\fR
 Run the browser in headed mode (SB_HEADLESS=false)
@@ -28,17 +34,29 @@ Enable undetected\-chromedriver style evasions (SB_MODE=uc)
 .TP
 \fB\-\-user\-agent\fR \fI<USER_AGENT>\fR
 Override the default user agent string (SB_USER_AGENT)
+.RS
+\fIEnvironment: \fR\fBSB_USER_AGENT\fR
+.RE
 .TP
 \fB\-a, \-\-agent\fR \fI<AGENT>\fR
 Alias for \-\-user\-agent (SB_USER_AGENT)
+.RS
+\fIEnvironment: \fR\fBSB_USER_AGENT\fR
+.RE
 .TP
 \fB\-\-locale\fR \fI<LOCALE>\fR
 Locale string for the browser context (SB_LOCALE)
+.RS
+\fIEnvironment: \fR\fBSB_LOCALE\fR
+.RE
 .TP
 \fB\-\-start\-page, \-\-url, \-\-start_page\fR \fI<URL>\fR
 Page the browser opens first, Python's \-\-start\-page (SB_START_PAGE; aliases \-\-url and \-\-start_page)
 
 Every command starts its own browser and closes it at the end, so a command that acts on a page (get\-text, click, screenshot, assert\-element, ...) acts on this one: `sbrs \-\-url https://example.com get\-text \-\-css p`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download\-file, print\-pdf, pdf\-text, assert\-pdf\-text, record) refuse it.
+.RS
+\fIEnvironment: \fR\fBSB_START_PAGE\fR
+.RE
 .TP
 \fB\-\-save\-screenshot, \-\-save_screenshot\fR
 Save a screenshot to latest_logs/ just before the browser closes, and print its path (SB_SAVE_SCREENSHOT)
@@ -50,18 +68,33 @@ Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver ses
 .TP
 \fB\-\-proxy\fR \fI<PROXY>\fR
 Proxy (SB_PROXY; host:port or scheme://host:port); with \-\-proxy\-list, a name from the list
+.RS
+\fIEnvironment: \fR\fBSB_PROXY\fR
+.RE
 .TP
 \fB\-\-proxy\-list\fR \fI<FILE>\fR
 File of proxies to choose from; without \-\-proxy a random one is used (SB_PROXY_LIST)
+.RS
+\fIEnvironment: \fR\fBSB_PROXY_LIST\fR
+.RE
 .TP
 \fB\-\-proxy\-pac\-url\fR \fI<PROXY_PAC_URL>\fR
 URL to a proxy auto\-config (PAC) file (SB_PROXY_PAC_URL)
+.RS
+\fIEnvironment: \fR\fBSB_PROXY_PAC_URL\fR
+.RE
 .TP
 \fB\-\-user\-data\-dir\fR \fI<USER_DATA_DIR>\fR
 Path to a persistent browser user\-data directory (SB_USER_DATA_DIR)
+.RS
+\fIEnvironment: \fR\fBSB_USER_DATA_DIR\fR
+.RE
 .TP
 \fB\-\-extension\-dir\fR \fI<EXTENSION_DIR>\fR
 Path to an unpacked extension directory (SB_EXTENSION_DIR)
+.RS
+\fIEnvironment: \fR\fBSB_EXTENSION_DIR\fR
+.RE
 .TP
 \fB\-\-reuse\-session, \-\-reuse_session, \-\-rs\fR
 Share browsers among the tests of the run (SB_REUSE_SESSION)
@@ -80,11 +113,17 @@ Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)
 .TP
 \fB\-c, \-\-config\fR \fI<CONFIG>\fR
 Path to a TOML/JSON settings file (SB_SETTINGS_FILE)
+.RS
+\fIEnvironment: \fR\fBSB_SETTINGS_FILE\fR
+.RE
 .TP
 \fB\-\-fingerprint\fR \fI<FILE>\fR
 Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
 
 The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write. A Chromium browser then runs in the CDP mode unless \-\-uc or another mode is given. The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of the settings file. The user agent, language and proxy named by their own options win over the fingerprint's.
+.RS
+\fIEnvironment: \fR\fBSB_FINGERPRINT\fR
+.RE
 .TP
 \fB\-\-plugin\fR \fI<NAME>\fR
 Turn on a built\-in plugin in the browsers the command starts (SB_PLUGINS; repeatable)

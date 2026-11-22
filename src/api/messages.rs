@@ -8,7 +8,6 @@
 //!
 //! [`BaseCase::post_message`]: crate::api::base_case::BaseCase::post_message
 
-use std::future::IntoFuture;
 use std::time::Duration;
 
 use crate::api::base_case::BaseCase;

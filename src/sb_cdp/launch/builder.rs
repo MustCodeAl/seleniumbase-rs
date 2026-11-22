@@ -206,6 +206,27 @@ impl LaunchOptionsBuilder {
         self
     }
 
+    /// Sets the emulation timezone ID, such as `"America/New_York"`.
+    #[must_use]
+    pub fn timezone(mut self, timezone: impl Into<String>) -> Self {
+        self.given.set.timezone = Some(timezone.into());
+        self
+    }
+
+    /// Sets the emulation geolocation coordinates (latitude, longitude, and optional accuracy in meters).
+    #[must_use]
+    pub fn geolocation(mut self, latitude: f64, longitude: f64, accuracy: Option<f64>) -> Self {
+        self.given.set.geolocation = Some((latitude, longitude, accuracy));
+        self
+    }
+
+    /// Sets the emulation platform, such as `"Win32"` or `"MacIntel"`.
+    #[must_use]
+    pub fn platform(mut self, platform: impl Into<String>) -> Self {
+        self.given.set.platform = Some(platform.into());
+        self
+    }
+
     /// Sets the initial window size in pixels.
     #[must_use]
     pub fn window_size(mut self, width: u32, height: u32) -> Self {

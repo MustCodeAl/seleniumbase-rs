@@ -558,8 +558,7 @@ mod tests {
         let said = text(&out);
         let path = saved.code.display();
         // `>>>` bold yellow, the path bold green: clean, modern foreground colors.
-        let line =
-            format!("\x1b[33;1m>>>\x1b[0m RECORDING SAVED as: \x1b[32;1m{path}\x1b[0m\n");
+        let line = format!("\x1b[33;1m>>>\x1b[0m RECORDING SAVED as: \x1b[32;1m{path}\x1b[0m\n");
         assert!(said.contains(&line), "{said:?}");
         // The line of stars under it is plain.
         let stars = said.split(&line).nth(1).unwrap().lines().next().unwrap();

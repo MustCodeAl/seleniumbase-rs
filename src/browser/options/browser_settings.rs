@@ -41,6 +41,15 @@ pub struct BrowserSettings {
     /// The browser's language, such as `fr-FR` (`--locale`, `SB_LOCALE`, `SB_LOCALE_CODE`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub lang: Option<String>,
+    /// The timezone for emulation, such as `"America/New_York"` (`--timezone`, `SB_TIMEZONE`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timezone: Option<String>,
+    /// The geolocation coordinates for emulation (`latitude`, `longitude`, `accuracy`).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub geolocation: Option<(f64, f64, Option<f64>)>,
+    /// The emulation platform, such as `"Win32"` or `"MacIntel"`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
     /// Mobile emulation (`--mobile`, `SB_MOBILE`).
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub mobile: bool,

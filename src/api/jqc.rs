@@ -46,7 +46,6 @@
 //! [jquery-confirm]: https://craftpip.github.io/jquery-confirm/
 
 use std::fmt;
-use std::future::IntoFuture;
 use std::str::FromStr;
 
 use serde_json::Value;

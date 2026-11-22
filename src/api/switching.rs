@@ -35,7 +35,6 @@
 //! ```
 
 use std::fmt;
-use std::future::IntoFuture;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 

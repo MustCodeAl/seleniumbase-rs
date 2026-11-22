@@ -218,9 +218,8 @@ fn parse_frame_line(s: &str) -> Option<(&str, &str)> {
 
 fn parse_address_and_symbol(s: &str) -> Option<(&str, &str)> {
     if s.starts_with("0x") || s.starts_with("0X") {
-        if let Some(pos) = s.find(" - ") {
-            return Some((&s[..pos + 2], &s[pos + 3..]));
-        }
+        let pos = s.find(" - ")?;
+        return Some((&s[..pos + 2], &s[pos + 3..]));
     }
     None
 }
@@ -332,7 +331,9 @@ pub(crate) fn install_panic_hook() {
                 "\x1b[2mnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\x1b[0m"
             );
         } else {
-            eprintln!("note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace");
+            eprintln!(
+                "note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace"
+            );
         }
     }));
 }
@@ -342,10 +343,7 @@ pub(crate) fn install_panic_hook() {
 pub(crate) fn print(program: &str, error: &(dyn Error + 'static)) {
     let color = use_color(Stream::Stderr);
     let wrap_at = std::io::stderr().is_terminal().then(terminal_width);
-    eprint!(
-        "{}",
-        render(&Failure::of(program, error), color, wrap_at)
-    );
+    eprint!("{}", render(&Failure::of(program, error), color, wrap_at));
     if std::env::var("RUST_BACKTRACE")
         .map(|v| v != "0")
         .unwrap_or(false)
@@ -533,10 +531,20 @@ mod tests {
         // Check frame 0 styled
         assert!(colored.contains("\x1b[36m0:\x1b[0m"), "{colored}");
         // Check crate code highlighted in green
-        assert!(colored.contains("\x1b[1;32mseleniumbase_rs::browser::session::connect\x1b[0m"), "{colored}");
+        assert!(
+            colored.contains("\x1b[1;32mseleniumbase_rs::browser::session::connect\x1b[0m"),
+            "{colored}"
+        );
         // Check std code muted in blue
-        assert!(colored.contains("\x1b[2;34mstd::sys::backtrace\x1b[0m"), "{colored}");
+        assert!(
+            colored.contains("\x1b[2;34mstd::sys::backtrace\x1b[0m"),
+            "{colored}"
+        );
         // Check location line highlighted
-        assert!(colored.contains("\x1b[4;36msrc/browser/session/connect.rs\x1b[0m\x1b[1;33m:42:15\x1b[0m"), "{colored}");
+        assert!(
+            colored
+                .contains("\x1b[4;36msrc/browser/session/connect.rs\x1b[0m\x1b[1;33m:42:15\x1b[0m"),
+            "{colored}"
+        );
     }
 }

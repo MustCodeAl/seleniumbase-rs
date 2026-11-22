@@ -8,7 +8,6 @@
 //! the name `Element` has for it.
 
 use std::fmt;
-use std::future::Future;
 use std::sync::Arc;
 
 use serde_json::Value;

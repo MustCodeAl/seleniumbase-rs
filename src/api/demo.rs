@@ -49,7 +49,6 @@
 //! selector, text, attribute and value parts are escaped. The words are English
 //! only.
 
-use std::future::IntoFuture;
 use std::time::Duration;
 
 use crate::api::base_case::BaseCase;

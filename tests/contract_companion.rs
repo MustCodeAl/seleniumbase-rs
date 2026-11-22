@@ -36,6 +36,9 @@ use serde_json::{json, Value};
 // parity-cdp-test.rs.txt: its `#[tokio::test]` comes from `seleniumbase_rs::tokio`, which no
 // shadow can turn into a function nothing calls, so it would run a real Chrome; its body is the
 // one of parity-cdp-main.rs.txt, compiled below, and section 2 checks it as text.
+const _: () = {
+    use seleniumbase_rs::tokio;
+};
 
 mod parity_cdp_main {
     include!("contract_companion/parity-cdp-main.rs.txt");
@@ -254,7 +257,7 @@ mod e2e_scenario {
     /// The calls of `records_exports_and_replays_in_chrome` and
     /// `inspector_selectors_match_one_element_each`.
     pub async fn the_calls(browser: &Browser, url: String, probe: &str) {
-        let page: Page = browser
+        let page = browser
             .default_page()
             .await
             .expect("a tab")

@@ -247,6 +247,10 @@ mod a_plugin_as_the_host_sees_it {
             .build()
             .expect("a valid config");
         // The re-export is the same crate: one `PluginSet` type, not two.
+        #[allow(
+            clippy::redundant_type_annotations,
+            reason = "verifies re-exported type identity"
+        )]
         let again: seleniumbase_rs::plugin_api::PluginSet = PluginSet::new();
         let _ = again;
     }

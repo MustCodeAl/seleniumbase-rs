@@ -110,6 +110,34 @@ impl BrowserSession {
         }
         Ok(())
     }
+
+    /// Applies the launch emulation commands (timezone, geolocation, user-agent/platform)
+    /// to the current window.
+    ///
+    /// # Errors
+    ///
+    /// Returns the browser's refusal if it rejects a command, and
+    /// [`SeleniumBaseError::Unsupported`] if the session is not connected.
+    pub async fn apply_launch_emulation(&self) -> Result<(), SeleniumBaseError> {
+        if self.emulation.is_empty() {
+            return Ok(());
+        }
+        let driver = self.driver.as_ref().ok_or_else(|| {
+            SeleniumBaseError::Unsupported("the session is not connected".to_owned())
+        })?;
+        let own;
+        let cdp = match self.cdp.as_ref() {
+            Some(cdp) => cdp,
+            None => {
+                own = CdpClient::new(driver);
+                &own
+            }
+        };
+        for (method, params) in &self.emulation {
+            cdp.execute(method, params.clone()).await?;
+        }
+        Ok(())
+    }
 }
 
 /// The URL patterns of the `Network.setBlockedURLs` commands in `commands`,
@@ -214,6 +242,49 @@ pub(super) fn mobile_commands(config: &BrowserConfig) -> Vec<(&'static str, Valu
         return Vec::new();
     }
     metrics.emulation_commands(user_agent)
+}
+
+/// The DevTools commands that set up launch emulation (timezone, geolocation, user-agent/platform),
+/// or none if not configured or if the browser is not Chromium-based.
+///
+/// Follows Python's CDP mode order:
+/// 1. `Emulation.setTimezoneOverride`
+/// 2. `Emulation.setGeolocationOverride`
+/// 3. `Emulation.setUserAgentOverride`
+pub(super) fn launch_emulation_commands(config: &BrowserConfig) -> Vec<(&'static str, Value)> {
+    if !config.browser.kind.is_chromium_based() {
+        return Vec::new();
+    }
+    let mut commands = Vec::new();
+    if let Some(tz) = config.timezone() {
+        commands.push(("Emulation.setTimezoneOverride", json!({ "timezoneId": tz })));
+    }
+    if let Some((lat, lon, accuracy)) = config.geolocation() {
+        let accuracy = accuracy.unwrap_or(100.0);
+        commands.push((
+            "Emulation.setGeolocationOverride",
+            json!({ "latitude": lat, "longitude": lon, "accuracy": accuracy }),
+        ));
+    }
+    if config.platform().is_some()
+        || (config.is_cdp_enabled()
+            && (config.browser.user_agent.is_some() || config.browser.lang.is_some()))
+    {
+        let mut params = serde_json::Map::new();
+        if let Some(ua) = &config.browser.user_agent {
+            params.insert("userAgent".to_owned(), json!(ua));
+        } else {
+            params.insert("userAgent".to_owned(), json!(""));
+        }
+        if let Some(platform) = config.platform() {
+            params.insert("platform".to_owned(), json!(platform));
+        }
+        if let Some(lang) = &config.browser.lang {
+            params.insert("acceptLanguage".to_owned(), json!(lang));
+        }
+        commands.push(("Emulation.setUserAgentOverride", Value::Object(params)));
+    }
+    commands
 }
 
 /// Ad blocking in a WebDriver session, against the mock WebDriver in
@@ -787,5 +858,51 @@ mod mobile_tests {
             "{sent:?}"
         );
         session.quit().await.expect("quits");
+    }
+
+    #[test]
+    fn launch_emulation_commands_follow_pythons_order() {
+        let config = BrowserConfig::builder()
+            .timezone("America/Chicago")
+            .geolocation(41.8781, -87.6298, Some(25.0))
+            .platform("Win32")
+            .user_agent("CustomAgent/2.0")
+            .locale("en-US")
+            .build()
+            .expect("a valid config");
+        let commands = launch_emulation_commands(&config);
+        assert_eq!(
+            commands.iter().map(|(name, _)| *name).collect::<Vec<_>>(),
+            [
+                "Emulation.setTimezoneOverride",
+                "Emulation.setGeolocationOverride",
+                "Emulation.setUserAgentOverride",
+            ]
+        );
+        assert_eq!(commands[0].1, json!({ "timezoneId": "America/Chicago" }));
+        assert_eq!(
+            commands[1].1,
+            json!({ "latitude": 41.8781, "longitude": -87.6298, "accuracy": 25.0 })
+        );
+        assert_eq!(
+            commands[2].1,
+            json!({
+                "userAgent": "CustomAgent/2.0",
+                "platform": "Win32",
+                "acceptLanguage": "en-US",
+            })
+        );
+    }
+
+    #[test]
+    fn launch_emulation_commands_empty_for_non_chromium() {
+        let firefox = BrowserConfig::builder()
+            .browser(Browser::Firefox)
+            .timezone("America/Chicago")
+            .geolocation(41.8781, -87.6298, None)
+            .platform("Win32")
+            .build()
+            .expect("a valid config");
+        assert!(launch_emulation_commands(&firefox).is_empty());
     }
 }

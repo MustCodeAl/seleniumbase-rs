@@ -61,6 +61,7 @@ pub(crate) use consistency::{api_expected, gpu_architecture, gpu_maker, is_mobil
 pub use consistency::{Contradiction, Severity};
 
 use super::humanize::Rng;
+pub use super::mimic::Specimen;
 pub use super::policy::{AudioNoise, CanvasNoise, StealthPolicy};
 use super::randomize;
 pub(crate) use super::settings::TASKBAR_HEIGHT;
@@ -2173,7 +2174,12 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
     let forced_major = f
         .core_version
         .or_else(|| ua.as_deref().and_then(chrome_major_of));
-    let draw = randomize::draw(os, seed, forced_major, anchor.as_ref().and_then(|a| a.0));
+    let pins = randomize::Pins {
+        major: forced_major,
+        place: anchor.as_ref().and_then(|a| a.0),
+        ..randomize::Pins::default()
+    };
+    let draw = randomize::draw(os, seed, &pins);
     let profile = &draw.profile;
 
     if f.user_agent.is_random() {

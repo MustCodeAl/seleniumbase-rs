@@ -1,7 +1,6 @@
 use std::time::Duration;
 use thirtyfour::error::{WebDriverError, WebDriverErrorInner};
 use thiserror::Error;
-use tracing;
 
 /// Shorthand result type used throughout the crate.
 pub type Result<T> = std::result::Result<T, SeleniumBaseError>;

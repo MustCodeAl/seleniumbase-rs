@@ -4088,6 +4088,7 @@ note = "Set BrowserSettings::ad_block (BrowserConfigBuilder::ad_block). Refuses 
 [options_driver."agent"]
 status = "composed"
 rust = "BrowserSettings::user_agent"
+note = "Set BrowserSettings::user_agent (BrowserConfigBuilder::user_agent, LaunchOptionsBuilder::user_agent). In CDP mode and pure CDP, wired with platform and locale into Emulation.setUserAgentOverride."
 
 [options_driver."binary_location"]
 status = "implemented"
@@ -4270,6 +4271,7 @@ note = "Give the screen with `device_metrics`."
 [options_driver."locale"]
 status = "implemented"
 rust = "BrowserSettings::lang"
+note = "Set BrowserSettings::lang (BrowserConfigBuilder::locale, LaunchOptionsBuilder::lang). In CDP mode and pure CDP, sets intl.accept_languages and acceptLanguage in Emulation.setUserAgentOverride."
 
 [options_driver."locale_code"]
 status = "composed"

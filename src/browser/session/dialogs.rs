@@ -7,7 +7,6 @@
 //! one is let go ([`DialogWatch::unless_dialog`]), as WebDriver lets it go.
 //! [`PureDialogs`] answers the open dialog (`Page.handleJavaScriptDialog`).
 
-use std::future::Future;
 use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};

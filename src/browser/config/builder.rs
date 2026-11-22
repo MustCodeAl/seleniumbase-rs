@@ -230,6 +230,24 @@ impl BrowserConfigBuilder {
         self
     }
 
+    /// Sets the emulation timezone ID, such as `"America/New_York"` (`--timezone`, `SB_TIMEZONE`).
+    pub fn timezone(mut self, timezone: impl Into<String>) -> Self {
+        self.config.browser.timezone = Some(timezone.into());
+        self
+    }
+
+    /// Sets the emulation geolocation coordinates (latitude, longitude, and optional accuracy in meters).
+    pub fn geolocation(mut self, latitude: f64, longitude: f64, accuracy: Option<f64>) -> Self {
+        self.config.browser.geolocation = Some((latitude, longitude, accuracy));
+        self
+    }
+
+    /// Sets the emulation platform, such as `"Win32"` or `"MacIntel"`.
+    pub fn platform(mut self, platform: impl Into<String>) -> Self {
+        self.config.browser.platform = Some(platform.into());
+        self
+    }
+
     /// Routes traffic through a proxy written
     /// `[scheme://][user:password@]host:port` (`--proxy`).
     ///

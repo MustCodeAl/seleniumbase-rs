@@ -1676,7 +1676,11 @@ fn naming_no_client_keeps_exit_2_when_nobody_is_asked() {
         "{}",
         outcome.err
     );
-    assert!(outcome.err.contains("claude-code"), "{}", outcome.err);
+    assert!(
+        outcome.err.contains(Client::ClaudeCode.id()),
+        "{}",
+        outcome.err
+    );
 }
 
 #[test]
@@ -1686,7 +1690,9 @@ fn all_installs_only_a_client_whose_config_folder_is_there() {
     let outcome = sb.install(&[], |request| request.all = true);
     assert_eq!(outcome.code, 0, "{}", outcome.err);
     assert!(
-        outcome.err.contains("claude-code: not found, skipped"),
+        outcome
+            .err
+            .contains(&format!("{}: not found, skipped", Client::ClaudeCode.id())),
         "{}",
         outcome.err
     );

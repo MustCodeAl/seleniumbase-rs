@@ -11,9 +11,10 @@ use usage_lib::docs::manpage::ManpageRenderer;
 use usage_lib::Spec;
 
 /// The manual section of both pages: user commands.
+#[allow(dead_code, reason = "used by binary tests and specs")]
 const SECTION: u8 = 1;
 
-/// The man page of the program whose usage spec is `spec`, as roff.
+#[allow(dead_code, reason = "used by binary tests and specs")]
 pub(crate) fn render(spec: &Spec) -> String {
     ManpageRenderer::new(spec.clone())
         .with_section(SECTION)
@@ -26,6 +27,7 @@ pub(crate) fn render(spec: &Spec) -> String {
 ///
 /// The same switch as for the usage spec, the CLI reference and the Fig spec: the pages are
 /// generated from the same declarations, so one command writes them all again.
+#[allow(dead_code, reason = "used by binary tests and specs")]
 pub(crate) fn assert_current(relative: &str, generated: &str) {
     // The files live at the repository root, two folders above this crate.
     let path = std::path::PathBuf::from(format!("{}/../../{relative}", env!("CARGO_MANIFEST_DIR")));

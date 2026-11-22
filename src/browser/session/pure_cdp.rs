@@ -22,7 +22,7 @@ use super::{BrowserSession, DialogWatch, PureDialogs};
 /// does through `&self`, so it sits behind a lock: handed out as a clone and
 /// never held across an `.await`.
 #[derive(Default)]
-pub(super) struct PageSlot(Mutex<Option<Tab>>);
+pub struct PageSlot(Mutex<Option<Tab>>);
 
 /// A tab and the watch of its dialogs.
 #[derive(Clone)]

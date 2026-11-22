@@ -134,6 +134,7 @@ impl BrowserSession {
         let h = thirtyfour::common::types::WindowHandle::from(handle.to_string());
         self.webdriver()?.switch_to_window(h).await?;
         self.apply_mobile_emulation().await?;
+        self.apply_launch_emulation().await?;
         self.apply_ad_block().await
     }
 
@@ -159,6 +160,7 @@ impl BrowserSession {
             .map_err(SeleniumBaseError::from)?;
         self.apply_ad_block().await?;
         self.apply_mobile_emulation().await?;
+        self.apply_launch_emulation().await?;
         #[cfg(feature = "plugins")]
         self.apply_plugins_to_window().await?;
         Ok(())

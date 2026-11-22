@@ -426,6 +426,7 @@ fn warn_if_shared(file: &str) {
 fn warn_if_shared(_file: &str) {}
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
+    diagnostic::install_panic_hook();
     let mut cli = Cli::parse();
     if let Some(command) = cli.command.take() {
         std::process::exit(mcp_cmd::run(command));

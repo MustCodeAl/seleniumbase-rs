@@ -138,8 +138,10 @@ impl Layer {
                 .fingerprint
                 .clone()
                 .or_else(|| {
-                    (config.is_uc_enabled() || config.is_cdp_enabled())
-                        .then(crate::Fingerprint::default)
+                    (config.is_uc_enabled()
+                        || (config.session.driver_mode() == crate::DriverMode::Cdp
+                            && config.cdp_url.is_none()))
+                    .then(crate::Fingerprint::default)
                 })
                 .as_ref()
                 .map(SharedFingerprint::new),
@@ -161,6 +163,9 @@ impl Layer {
             url,
             user_agent,
             lang,
+            timezone,
+            geolocation,
+            platform,
             mobile,
             device_metrics,
             window_size,
@@ -205,6 +210,9 @@ impl Layer {
             ad_block: ad_block.then_some(true),
             user_agent: user_agent.clone(),
             lang: locale,
+            timezone: timezone.clone(),
+            geolocation: *geolocation,
+            platform: platform.clone(),
             proxy: proxy_server.clone().map(|text| ProxySpec {
                 text: Redacted(text),
                 checked: true,

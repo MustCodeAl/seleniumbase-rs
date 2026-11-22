@@ -1,5 +1,7 @@
 //! The convenience macros: shorthand for configuration, selectors,
 //! fingerprints and the most common browser actions.
+
+#![allow(deprecated)]
 //!
 //! Part 1 builds values with `selector!`, `fingerprint!`, `uc_config!`,
 //! `cdp_config!` and `sb_config!`; it needs no browser.

@@ -30,9 +30,11 @@ mod author;
 mod cli;
 mod diagnose;
 mod help;
+mod no_browser;
 mod spec;
 
 pub use cli::{InstallFuture, Installer};
+pub use no_browser::NoBrowser;
 
 use super::{devtools, Closeable, Host, Settings, ToolDef};
 
@@ -47,16 +49,6 @@ the built-in plugins. For a problem: explain_error reads an error text, check_co
 the settings and SB_* variables, check_fingerprint checks a fingerprint, and \
 diagnose_environment checks Chrome, the driver and the machine. install_driver downloads a \
 driver, the only tool here that changes anything.";
-
-/// The session of the `dev` server: there is none, because the server has no
-/// browser. A tool that asked for one would get
-/// [`ToolError::NoBrowser`](super::ToolError::NoBrowser).
-#[derive(Debug, Clone, Copy, Default)]
-pub struct NoBrowser;
-
-impl Closeable for NoBrowser {
-    async fn close(self) {}
-}
 
 /// Builds the `dev` server. `install_driver` downloads through the code of
 /// `sbrs install`.

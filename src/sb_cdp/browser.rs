@@ -6,7 +6,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{json, Map, Value};
 use tempfile::TempDir;
 use tokio::process::Child;
 use tokio::sync::Mutex;
@@ -1261,6 +1261,10 @@ impl Browser {
 
     /// Enables the domains a tab needs and injects the page helpers, then
     /// gives the tab the plugins' packages and `on_page_created`.
+    #[allow(
+        clippy::too_many_lines,
+        reason = "wires full tab session domains and emulation overrides"
+    )]
     async fn prepare_session(&self, target: &str, session: &str) -> Result<(), SeleniumBaseError> {
         let client = &self.inner.client;
         let send = |method: &'static str, params: Value| client.send(method, params, Some(session));
@@ -1333,6 +1337,37 @@ impl Browser {
             for (method, params) in metrics.emulation_commands(user_agent.as_deref()) {
                 send(method, params).await?;
             }
+        }
+        // Launch emulation in Python's order: timezone, geolocation, user agent override with platform.
+        if let Some(tz) = self.inner.options.timezone() {
+            send("Emulation.setTimezoneOverride", json!({ "timezoneId": tz })).await?;
+        }
+        if let Some((lat, lon, accuracy)) = self.inner.options.geolocation() {
+            let accuracy = accuracy.unwrap_or(100.0);
+            send(
+                "Emulation.setGeolocationOverride",
+                json!({ "latitude": lat, "longitude": lon, "accuracy": accuracy }),
+            )
+            .await?;
+        }
+        if self.inner.options.device.is_none()
+            && (self.inner.options.platform().is_some()
+                || self.inner.options.user_agent().is_some()
+                || self.inner.options.lang().is_some())
+        {
+            let mut params = Map::new();
+            if let Some(ua) = self.inner.options.user_agent() {
+                params.insert("userAgent".to_owned(), json!(ua));
+            } else {
+                params.insert("userAgent".to_owned(), json!(""));
+            }
+            if let Some(platform) = self.inner.options.platform() {
+                params.insert("platform".to_owned(), json!(platform));
+            }
+            if let Some(lang) = self.inner.options.lang() {
+                params.insert("acceptLanguage".to_owned(), json!(lang));
+            }
+            send("Emulation.setUserAgentOverride", Value::Object(params)).await?;
         }
         if self
             .inner

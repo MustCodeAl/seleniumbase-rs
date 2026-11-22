@@ -15,7 +15,7 @@ use crate::browser::reuse::{self, Lease, ReuseKey, SessionAddress};
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
 
-use super::emulation::{ad_block_commands, mobile_commands};
+use super::emulation::{ad_block_commands, launch_emulation_commands, mobile_commands};
 use super::launch::{
     apply_window_rect, connect_driver, resolve_remote_debug, start_virtual_display,
     validate_mode_support,
@@ -75,6 +75,7 @@ impl BrowserSession {
             driver_process,
             virtual_display,
             mobile: mobile_commands(&config),
+            emulation: launch_emulation_commands(&config),
             remote_debug,
             proxy_login: None,
             ad_block,
@@ -119,6 +120,7 @@ impl BrowserSession {
             ad_block,
             reuse: Some(lease),
             mobile: mobile_commands(config),
+            emulation: launch_emulation_commands(config),
             remote_debug: config.browser.debugging_port,
             proxy_login: None,
             #[cfg(feature = "plugins")]

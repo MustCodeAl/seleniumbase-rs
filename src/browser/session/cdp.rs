@@ -384,6 +384,7 @@ impl BrowserSession {
         }
         self.apply_ad_block().await?;
         self.apply_mobile_emulation().await?;
+        self.apply_launch_emulation().await?;
         Ok(())
     }
 

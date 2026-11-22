@@ -11,7 +11,7 @@ use crate::browser::proxy_auth;
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
 
-use super::emulation::{ad_block_commands, mobile_commands};
+use super::emulation::{ad_block_commands, launch_emulation_commands, mobile_commands};
 use super::launch::connect_driver;
 use super::BrowserSession;
 
@@ -114,6 +114,7 @@ impl BrowserSession {
         };
         self.ad_block = ad_block;
         self.mobile = mobile_commands(config);
+        self.emulation = launch_emulation_commands(config);
         self.begin_proxy_login(config).await?;
         self.initialize_mode(config).await?;
         Ok(())

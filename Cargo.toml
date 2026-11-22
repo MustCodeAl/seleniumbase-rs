@@ -14,11 +14,51 @@ resolver = "2"
 
 # Shared by both packages, so the command line always has the library's version.
 [workspace.package]
-version = "0.8.7"
+version = "0.9.0"
 edition = "2024"
 rust-version = "1.99"
 license = "MIT"
 repository = "https://github.com/MustCodeAl/seleniumbase-rs"
+
+[workspace.lints.rust]
+ambiguous_negative_literals = "warn"
+missing_debug_implementations = "warn"
+redundant_imports = "allow"
+redundant_lifetimes = "warn"
+trivial_numeric_casts = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unused_lifetimes = "warn"
+
+[workspace.lints.clippy]
+cargo = { level = "allow", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "warn", priority = -1 }
+pedantic = { level = "allow", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+allow_attributes_without_reason = "allow"
+as_pointer_underscore = "warn"
+assertions_on_result_states = "allow"
+clone_on_ref_ptr = "allow"
+deref_by_slicing = "allow"
+disallowed_script_idents = "warn"
+empty_drop = "warn"
+empty_enum_variants_with_brackets = "warn"
+empty_structs_with_brackets = "warn"
+fn_to_numeric_cast_any = "warn"
+if_then_some_else_none = "allow"
+map_err_ignore = "allow"
+redundant_type_annotations = "allow"
+renamed_function_params = "allow"
+semicolon_outside_block = "allow"
+undocumented_unsafe_blocks = "warn"
+unnecessary_safety_comment = "allow"
+unnecessary_safety_doc = "warn"
+unneeded_field_pattern = "allow"
+unused_result_ok = "allow"
+too_long_first_doc_paragraph = "allow"
+literal_string_with_formatting_args = "allow"
 
 [package]
 name = "seleniumbase-rs"
@@ -28,6 +68,9 @@ rust-version.workspace = true
 license.workspace = true
 description = "Rust port foundation of SeleniumBase with module parity and core browser automation."
 repository.workspace = true
+
+[lints]
+workspace = true
 
 [lib]
 name = "seleniumbase_rs"

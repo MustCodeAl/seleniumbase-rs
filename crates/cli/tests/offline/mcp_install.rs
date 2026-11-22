@@ -18,11 +18,11 @@ use std::time::Duration;
 use serde_json::Value;
 
 const KNOWN: [&str; 8] = [
-    "claude-code",
+    "claude",
     "claude-desktop",
     "codex",
     "cursor",
-    "gemini-cli",
+    "gemini",
     "opencode",
     "vscode",
     "zed",

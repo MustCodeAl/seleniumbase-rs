@@ -92,11 +92,11 @@ pub const KNOWN_FULL_VERSIONS: [KnownFullVersion; 4] = [
         full_version: "156.0.8078.35",
         source: FullVersionSource::GooglePublished,
     },
-    // Chrome for Testing last-known-good Stable, read 2026-11-08. Not measured here.
+    // Chrome 157.0.8103.39 on macOS, measured on 2026-11-07.
     KnownFullVersion {
         major: 157,
-        full_version: "157.0.8103.38",
-        source: FullVersionSource::GooglePublished,
+        full_version: "157.0.8103.39",
+        source: FullVersionSource::MeasuredOnMac,
     },
 ];
 
@@ -150,7 +150,7 @@ impl Screen {
 
 /// How capable a PC is, which decides the cores, memory and screens it has.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Tier {
+pub(super) enum Tier {
     /// Laptops and office desktops with integrated or entry graphics.
     Entry,
     /// Mainstream gaming and workstation desktops.
@@ -235,7 +235,7 @@ impl Tier {
 
 /// The makers of discrete and integrated PC graphics.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum GpuVendor {
+pub(super) enum GpuVendor {
     Nvidia,
     Intel,
     Amd,
@@ -272,124 +272,144 @@ impl GpuVendor {
 
 /// A PC graphics adapter and the class of machine it sits in.
 #[derive(Clone, Copy, Debug)]
-struct Adapter {
-    vendor: GpuVendor,
+pub(super) struct Adapter {
+    pub(super) vendor: GpuVendor,
     /// On Windows the adapter name Direct3D reports; on Linux the part of the
     /// renderer string after the maker, as Mesa or the NVIDIA driver words it.
-    name: &'static str,
+    pub(super) name: &'static str,
     /// The PCI device id.
-    device_id: u16,
-    tier: Tier,
+    pub(super) device_id: u16,
+    pub(super) tier: Tier,
+    pub(super) slug: &'static str,
 }
 
 impl Adapter {
-    const fn new(vendor: GpuVendor, name: &'static str, device_id: u16, tier: Tier) -> Self {
+    const fn new(
+        vendor: GpuVendor,
+        name: &'static str,
+        device_id: u16,
+        tier: Tier,
+        slug: &'static str,
+    ) -> Self {
         Self {
             vendor,
             name,
             device_id,
             tier,
+            slug,
         }
     }
 }
 
 /// Windows adapters, named the way Chrome's ANGLE layer reports them.
 #[rustfmt::skip]
-static WINDOWS_ADAPTERS: [Adapter; 16] = [
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1650", 0x1f82, Tier::Entry),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1660 SUPER", 0x21c4, Tier::Mid),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 2060", 0x1f08, Tier::Mid),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3050", 0x2507, Tier::Mid),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3060", 0x2503, Tier::Mid),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3070", 0x2484, Tier::High),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4060", 0x28a0, Tier::Mid),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4070", 0x2786, Tier::High),
-    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 620", 0x5917, Tier::Entry),
-    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 630", 0x3e9b, Tier::Entry),
-    Adapter::new(GpuVendor::Intel, "Intel(R) Iris(R) Xe Graphics", 0x46a6, Tier::Entry),
-    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 770", 0x4680, Tier::Mid),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon(TM) Graphics", 0x1638, Tier::Entry),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 580 Series", 0x67df, Tier::Mid),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6600", 0x73ff, Tier::Mid),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6700 XT", 0x73df, Tier::High),
+pub(super) static WINDOWS_ADAPTERS: [Adapter; 16] = [
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1650", 0x1f82, Tier::Entry, "gtx-1650"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1660 SUPER", 0x21c4, Tier::Mid, "gtx-1660-super"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 2060", 0x1f08, Tier::Mid, "rtx-2060"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3050", 0x2507, Tier::Mid, "rtx-3050"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3060", 0x2503, Tier::Mid, "rtx-3060"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3070", 0x2484, Tier::High, "rtx-3070"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4060", 0x28a0, Tier::Mid, "rtx-4060"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4070", 0x2786, Tier::High, "rtx-4070"),
+    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 620", 0x5917, Tier::Entry, "uhd-620"),
+    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 630", 0x3e9b, Tier::Entry, "uhd-630"),
+    Adapter::new(GpuVendor::Intel, "Intel(R) Iris(R) Xe Graphics", 0x46a6, Tier::Entry, "iris-xe"),
+    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 770", 0x4680, Tier::Mid, "uhd-770"),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon(TM) Graphics", 0x1638, Tier::Entry, "radeon-graphics"),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 580 Series", 0x67df, Tier::Mid, "rx-580"),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6600", 0x73ff, Tier::Mid, "rx-6600"),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6700 XT", 0x73df, Tier::High, "rx-6700-xt"),
 ];
 
 /// Linux adapters, worded the way Mesa and the NVIDIA driver word them.
-static LINUX_ADAPTERS: [Adapter; 10] = [
+pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
     Adapter::new(
         GpuVendor::Intel,
         "Mesa Intel(R) UHD Graphics 630 (CFL GT2), OpenGL 4.6",
         0x3e9b,
         Tier::Entry,
+        "uhd-630",
     ),
     Adapter::new(
         GpuVendor::Intel,
         "Mesa Intel(R) UHD Graphics 620 (KBL GT2), OpenGL 4.6",
         0x5917,
         Tier::Entry,
+        "uhd-620",
     ),
     Adapter::new(
         GpuVendor::Intel,
         "Mesa Intel(R) Iris(R) Xe Graphics (TGL GT2), OpenGL 4.6",
         0x9a49,
         Tier::Entry,
+        "iris-xe",
     ),
     Adapter::new(
         GpuVendor::Intel,
         "Mesa Intel(R) UHD Graphics 770 (ADL-S GT1), OpenGL 4.6",
         0x4680,
         Tier::Mid,
+        "uhd-770",
     ),
     Adapter::new(
         GpuVendor::Amd,
         "AMD Radeon RX 6600 (radeonsi, navi23, LLVM 17.0.6, DRM 3.57, 6.8.0-45-generic), OpenGL 4.6",
         0x73ff,
         Tier::Mid,
+        "rx-6600",
     ),
     Adapter::new(
         GpuVendor::Amd,
         "AMD Radeon RX 580 Series (radeonsi, polaris10, LLVM 15.0.7, DRM 3.49, 6.1.0-18-amd64), OpenGL 4.6",
         0x67df,
         Tier::Mid,
+        "rx-580",
     ),
     Adapter::new(
         GpuVendor::Amd,
         "AMD Radeon RX 7800 XT (radeonsi, navi32, LLVM 17.0.6, DRM 3.57, 6.8.0-45-generic), OpenGL 4.6",
         0x747e,
         Tier::High,
+        "rx-7800-xt",
     ),
     Adapter::new(
         GpuVendor::Nvidia,
         "NVIDIA GeForce GTX 1660 SUPER/PCIe/SSE2, OpenGL 4.5.0 NVIDIA 535.183.01",
         0x21c4,
         Tier::Mid,
+        "gtx-1660-super",
     ),
     Adapter::new(
         GpuVendor::Nvidia,
         "NVIDIA GeForce RTX 3060/PCIe/SSE2, OpenGL 4.5.0 NVIDIA 550.107.02",
         0x2503,
         Tier::Mid,
+        "rtx-3060",
     ),
     Adapter::new(
         GpuVendor::Nvidia,
         "NVIDIA GeForce RTX 4070/PCIe/SSE2, OpenGL 4.5.0 NVIDIA 550.107.02",
         0x2786,
         Tier::High,
+        "rtx-4070",
     ),
 ];
 
 /// An Apple Silicon Mac: the chip, its logical core count, and the screen that
 /// ships with the model that carries it.
 #[derive(Clone, Copy, Debug)]
-struct MacModel {
-    chip: &'static str,
-    cores: u32,
-    screen: Screen,
+pub(super) struct MacModel {
+    pub(super) name: &'static str,
+    pub(super) chip: &'static str,
+    pub(super) cores: u32,
+    pub(super) screen: Screen,
 }
 
 impl MacModel {
-    const fn new(chip: &'static str, cores: u32, screen: Screen) -> Self {
+    const fn new(name: &'static str, chip: &'static str, cores: u32, screen: Screen) -> Self {
         Self {
+            name,
             chip,
             cores,
             screen,
@@ -397,20 +417,75 @@ impl MacModel {
     }
 }
 
-static MAC_MODELS: [MacModel; 13] = [
-    MacModel::new("Apple M1", 8, Screen::new(1440, 900, 2.0)),
-    MacModel::new("Apple M1 Pro", 10, Screen::new(1512, 982, 2.0)),
-    MacModel::new("Apple M1 Max", 10, Screen::new(1728, 1117, 2.0)),
-    MacModel::new("Apple M2", 8, Screen::new(1470, 956, 2.0)),
-    MacModel::new("Apple M2", 8, Screen::new(1920, 1080, 1.0)),
-    MacModel::new("Apple M2 Pro", 12, Screen::new(1512, 982, 2.0)),
-    MacModel::new("Apple M2 Max", 12, Screen::new(1728, 1117, 2.0)),
-    MacModel::new("Apple M3", 8, Screen::new(1470, 956, 2.0)),
-    MacModel::new("Apple M3", 8, Screen::new(2240, 1260, 2.0)),
-    MacModel::new("Apple M3 Pro", 12, Screen::new(1512, 982, 2.0)),
-    MacModel::new("Apple M3 Max", 16, Screen::new(1728, 1117, 2.0)),
-    MacModel::new("Apple M4", 10, Screen::new(1512, 982, 2.0)),
-    MacModel::new("Apple M4 Pro", 14, Screen::new(1728, 1117, 2.0)),
+pub(super) static MAC_MODELS: [MacModel; 13] = [
+    MacModel::new("macbook-13-m1", "Apple M1", 8, Screen::new(1440, 900, 2.0)),
+    MacModel::new(
+        "macbook-pro-14-m1-pro",
+        "Apple M1 Pro",
+        10,
+        Screen::new(1512, 982, 2.0),
+    ),
+    MacModel::new(
+        "macbook-pro-16-m1-max",
+        "Apple M1 Max",
+        10,
+        Screen::new(1728, 1117, 2.0),
+    ),
+    MacModel::new(
+        "macbook-air-13-m2",
+        "Apple M2",
+        8,
+        Screen::new(1470, 956, 2.0),
+    ),
+    MacModel::new(
+        "mac-mini-m2-1080p",
+        "Apple M2",
+        8,
+        Screen::new(1920, 1080, 1.0),
+    ),
+    MacModel::new(
+        "macbook-pro-14-m2-pro",
+        "Apple M2 Pro",
+        12,
+        Screen::new(1512, 982, 2.0),
+    ),
+    MacModel::new(
+        "macbook-pro-16-m2-max",
+        "Apple M2 Max",
+        12,
+        Screen::new(1728, 1117, 2.0),
+    ),
+    MacModel::new(
+        "macbook-air-13-m3",
+        "Apple M3",
+        8,
+        Screen::new(1470, 956, 2.0),
+    ),
+    MacModel::new("imac-24-m3", "Apple M3", 8, Screen::new(2240, 1260, 2.0)),
+    MacModel::new(
+        "macbook-pro-14-m3-pro",
+        "Apple M3 Pro",
+        12,
+        Screen::new(1512, 982, 2.0),
+    ),
+    MacModel::new(
+        "macbook-pro-16-m3-max",
+        "Apple M3 Max",
+        16,
+        Screen::new(1728, 1117, 2.0),
+    ),
+    MacModel::new(
+        "macbook-pro-14-m4",
+        "Apple M4",
+        10,
+        Screen::new(1512, 982, 2.0),
+    ),
+    MacModel::new(
+        "macbook-pro-16-m4-pro",
+        "Apple M4 Pro",
+        14,
+        Screen::new(1728, 1117, 2.0),
+    ),
 ];
 
 /// macOS releases a generated Mac may run, as Chrome's `platformVersion` names
@@ -450,23 +525,26 @@ const MALI_G78: PhoneGpu = ("ARM", "Mali-G78");
 
 /// An Android phone, with the graphics chip it is built around.
 #[derive(Clone, Copy, Debug)]
-struct AndroidDevice {
+pub(super) struct AndroidDevice {
+    pub(super) name: &'static str,
     /// The model name that Client Hints report.
-    model: &'static str,
+    pub(super) model: &'static str,
     /// The Android release that Client Hints report as the platform version.
-    android: &'static str,
-    screen: Screen,
-    gpu: PhoneGpu,
+    pub(super) android: &'static str,
+    pub(super) screen: Screen,
+    pub(super) gpu: PhoneGpu,
 }
 
 impl AndroidDevice {
     const fn new(
+        name: &'static str,
         model: &'static str,
         android: &'static str,
         screen: Screen,
         gpu: PhoneGpu,
     ) -> Self {
         Self {
+            name,
             model,
             android,
             screen,
@@ -476,24 +554,37 @@ impl AndroidDevice {
 }
 
 #[rustfmt::skip]
-static ANDROID_DEVICES: [AndroidDevice; 7] = [
-    AndroidDevice::new("Pixel 8", "14.0.0", Screen::new(412, 915, 2.625), MALI_G715),
-    AndroidDevice::new("Pixel 7", "14.0.0", Screen::new(412, 915, 2.625), MALI_G710),
-    AndroidDevice::new("Pixel 7 Pro", "14.0.0", Screen::new(412, 892, 3.5), MALI_G710),
-    AndroidDevice::new("SM-S911B", "14.0.0", Screen::new(360, 780, 3.0), ADRENO_740),
-    AndroidDevice::new("SM-S918B", "14.0.0", Screen::new(412, 883, 3.5), ADRENO_740),
-    AndroidDevice::new("CPH2449", "13.0.0", Screen::new(412, 919, 3.5), ADRENO_740),
-    AndroidDevice::new("SM-G991B", "13.0.0", Screen::new(360, 800, 3.0), MALI_G78),
+pub(super) static ANDROID_DEVICES: [AndroidDevice; 7] = [
+    AndroidDevice::new("pixel-8", "Pixel 8", "14.0.0", Screen::new(412, 915, 2.625), MALI_G715),
+    AndroidDevice::new("pixel-7", "Pixel 7", "14.0.0", Screen::new(412, 915, 2.625), MALI_G710),
+    AndroidDevice::new("pixel-7-pro", "Pixel 7 Pro", "14.0.0", Screen::new(412, 892, 3.5), MALI_G710),
+    AndroidDevice::new("galaxy-s23", "SM-S911B", "14.0.0", Screen::new(360, 780, 3.0), ADRENO_740),
+    AndroidDevice::new("galaxy-s23-ultra", "SM-S918B", "14.0.0", Screen::new(412, 883, 3.5), ADRENO_740),
+    AndroidDevice::new("oneplus-11", "CPH2449", "13.0.0", Screen::new(412, 919, 3.5), ADRENO_740),
+    AndroidDevice::new("galaxy-s21", "SM-G991B", "13.0.0", Screen::new(360, 800, 3.0), MALI_G78),
 ];
 
-/// iPhone screens in CSS pixels.
-static IPHONE_SCREENS: [Screen; 6] = [
-    Screen::new(375, 667, 2.0),
-    Screen::new(375, 812, 3.0),
-    Screen::new(390, 844, 3.0),
-    Screen::new(393, 852, 3.0),
-    Screen::new(402, 874, 3.0),
-    Screen::new(430, 932, 3.0),
+/// An iPhone model with its screen.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct IphoneModel {
+    pub(super) name: &'static str,
+    pub(super) screen: Screen,
+}
+
+impl IphoneModel {
+    const fn new(name: &'static str, screen: Screen) -> Self {
+        Self { name, screen }
+    }
+}
+
+/// iPhone models with their screen in CSS pixels.
+pub(super) static IPHONE_SCREENS: [IphoneModel; 6] = [
+    IphoneModel::new("iphone-se-3", Screen::new(375, 667, 2.0)),
+    IphoneModel::new("iphone-13-mini", Screen::new(375, 812, 3.0)),
+    IphoneModel::new("iphone-14", Screen::new(390, 844, 3.0)),
+    IphoneModel::new("iphone-15", Screen::new(393, 852, 3.0)),
+    IphoneModel::new("iphone-16-pro", Screen::new(402, 874, 3.0)),
+    IphoneModel::new("iphone-15-pro-max", Screen::new(430, 932, 3.0)),
 ];
 
 /// A place a generated identity may be in: a locale, its country, the time zone it is spoken
@@ -1085,6 +1176,180 @@ pub(super) struct Profile {
     pub(super) graphics: WebGl,
 }
 
+/// The brand of a named build.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Brand {
+    Chrome,
+    Edge,
+    Safari,
+}
+
+/// A named browser build.
+#[derive(Debug)]
+pub(super) struct NamedBuild {
+    pub(super) name: String,
+    pub(super) brand: Brand,
+    pub(super) major: u32,
+    pub(super) os: OsType,
+    /// Safari only: (version, the iOS token of its user agent), a row of MOBILE_SAFARI_VERSIONS.
+    pub(super) safari: Option<(&'static str, &'static str)>,
+}
+
+/// A row of one of the machine tables.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum MachineRow {
+    Pc(OsType, &'static Adapter),
+    Mac(&'static MacModel),
+    Android(&'static AndroidDevice),
+    Iphone(&'static IphoneModel),
+}
+
+impl MachineRow {
+    pub(super) fn webgl(&self) -> WebGl {
+        match *self {
+            Self::Pc(OsType::Windows, adapter) => {
+                let maker = adapter.vendor.direct3d_name();
+                let renderer = format!(
+                    "ANGLE ({maker}, {} (0x{:08X}) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+                    adapter.name, adapter.device_id
+                );
+                pc_graphics(adapter, maker, renderer)
+            }
+            Self::Pc(OsType::Linux, adapter) => linux_graphics(adapter),
+            Self::Pc(_, adapter) => {
+                let maker = adapter.vendor.opengl_name();
+                let renderer = format!("ANGLE ({maker}, {})", adapter.name);
+                pc_graphics(adapter, maker, renderer)
+            }
+            Self::Mac(model) => apple_graphics(model.chip),
+            Self::Android(device) => direct_graphics(device.gpu),
+            Self::Iphone(_) => direct_graphics(("Apple Inc.", "Apple GPU")),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub(super) struct NamedMachine {
+    pub(super) name: String,
+    pub(super) row: MachineRow,
+}
+
+pub(super) static BUILDS: std::sync::LazyLock<Vec<NamedBuild>> = std::sync::LazyLock::new(|| {
+    let mut builds = Vec::with_capacity(24);
+    let majors: Vec<u32> = KNOWN_FULL_VERSIONS.iter().map(|row| row.major).collect();
+    for &major in &majors {
+        for &os in &[
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+        ] {
+            let os_str = match os {
+                OsType::Windows => "windows",
+                OsType::Macos => "macos",
+                OsType::Linux => "linux",
+                OsType::Android => "android",
+                OsType::Ios => "ios",
+            };
+            builds.push(NamedBuild {
+                name: format!("chrome-{major}-{os_str}"),
+                brand: Brand::Chrome,
+                major,
+                os,
+                safari: None,
+            });
+        }
+    }
+    for &major in &majors {
+        builds.push(NamedBuild {
+            name: format!("edge-{major}-windows"),
+            brand: Brand::Edge,
+            major,
+            os: OsType::Windows,
+            safari: None,
+        });
+    }
+    for &(ver, token) in &MOBILE_SAFARI_VERSIONS {
+        let slug = ver.replace('.', "-");
+        let major: u32 = ver
+            .split('.')
+            .next()
+            .and_then(|p| p.parse().ok())
+            .unwrap_or(18);
+        builds.push(NamedBuild {
+            name: format!("safari-{slug}-ios"),
+            brand: Brand::Safari,
+            major,
+            os: OsType::Ios,
+            safari: Some((ver, token)),
+        });
+    }
+    builds
+});
+
+pub(super) static MACHINES: std::sync::LazyLock<Vec<NamedMachine>> =
+    std::sync::LazyLock::new(|| {
+        let mut machines = Vec::with_capacity(52);
+        for adapter in &WINDOWS_ADAPTERS {
+            machines.push(NamedMachine {
+                name: format!("windows-{}", adapter.slug),
+                row: MachineRow::Pc(OsType::Windows, adapter),
+            });
+        }
+        for adapter in &LINUX_ADAPTERS {
+            machines.push(NamedMachine {
+                name: format!("linux-{}", adapter.slug),
+                row: MachineRow::Pc(OsType::Linux, adapter),
+            });
+        }
+        for model in &MAC_MODELS {
+            machines.push(NamedMachine {
+                name: model.name.to_owned(),
+                row: MachineRow::Mac(model),
+            });
+        }
+        for device in &ANDROID_DEVICES {
+            machines.push(NamedMachine {
+                name: device.name.to_owned(),
+                row: MachineRow::Android(device),
+            });
+        }
+        for iphone in &IPHONE_SCREENS {
+            machines.push(NamedMachine {
+                name: iphone.name.to_owned(),
+                row: MachineRow::Iphone(iphone),
+            });
+        }
+        machines
+    });
+
+pub(super) static PLACES: std::sync::LazyLock<Vec<(String, &'static Locale)>> =
+    std::sync::LazyLock::new(|| {
+        LOCALES
+            .iter()
+            .map(|loc| {
+                let tag = loc.tag.to_ascii_lowercase();
+                let city = loc
+                    .timezone
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or(loc.timezone)
+                    .to_ascii_lowercase()
+                    .replace('_', "-");
+                (format!("{tag}-{city}"), loc)
+            })
+            .collect()
+    });
+
+/// What a draw must take as given instead of picking it. `Default` pins nothing.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct Pins<'a> {
+    pub(super) major: Option<u32>,
+    pub(super) place: Option<&'a Locale>,
+    pub(super) build: Option<&'a NamedBuild>,
+    pub(super) machine: Option<MachineRow>,
+}
+
 /// What one seeded draw decides: the machine, the place and a spot in it.
 ///
 /// A fingerprint builder takes every setting that was asked for at random from
@@ -1106,21 +1371,16 @@ pub(super) struct Draw {
 /// draw still happens, so the rest of the identity is the same as for the
 /// unforced seed. With `place` the region is that locale instead of a draw, in
 /// the same way: the draw still happens.
-pub(super) fn draw(
-    os: OsType,
-    seed: u64,
-    forced_major: Option<u32>,
-    place: Option<&Locale>,
-) -> Draw {
+pub(super) fn draw(os: OsType, seed: u64, pins: &Pins<'_>) -> Draw {
     let mut rng = Rng::new(seed);
     let drawn = *rng.pick(&REGIONS);
-    let region = place.copied().unwrap_or(drawn);
+    let region = pins.place.copied().unwrap_or(drawn);
     let profile = match os {
-        OsType::Windows => windows(&mut rng, forced_major),
-        OsType::Macos => macos(&mut rng, forced_major),
-        OsType::Linux => linux(&mut rng, forced_major),
-        OsType::Android => android(&mut rng, forced_major),
-        OsType::Ios => ios(&mut rng),
+        OsType::Windows => windows(&mut rng, pins),
+        OsType::Macos => macos(&mut rng, pins),
+        OsType::Linux => linux(&mut rng, pins),
+        OsType::Android => android(&mut rng, pins),
+        OsType::Ios => ios(&mut rng, pins),
     };
     let position = region.position(&mut rng);
     Draw {
@@ -1450,9 +1710,13 @@ fn chromium_major(rng: &mut Rng, forced: Option<u32>) -> u32 {
     forced.unwrap_or(drawn)
 }
 
-fn windows(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
-    let major = chromium_major(rng, forced_major);
-    let adapter = rng.pick(&WINDOWS_ADAPTERS);
+fn windows(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
+    let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
+    let drawn_adapter = rng.pick(&WINDOWS_ADAPTERS);
+    let adapter = match pins.machine {
+        Some(MachineRow::Pc(OsType::Windows, a)) => a,
+        _ => drawn_adapter,
+    };
     let spec = adapter.tier.spec();
     let maker = adapter.vendor.direct3d_name();
     let renderer = format!(
@@ -1466,24 +1730,52 @@ fn windows(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         bitness: "64".to_owned(),
         ..chromium_hints(major)
     };
+    let drawn_cores = *rng.pick(&spec.cores);
+    let drawn_memory = *rng.pick(&spec.memory_gb);
+    let drawn_screen = *rng.pick(&spec.windows_screens);
+    let is_pc_pinned = matches!(pins.machine, Some(MachineRow::Pc(OsType::Windows, _)));
+    let cores = if is_pc_pinned {
+        spec.cores[0]
+    } else {
+        drawn_cores
+    };
+    let memory_gb = if is_pc_pinned {
+        spec.memory_gb[0]
+    } else {
+        drawn_memory
+    };
+    let screen = if is_pc_pinned {
+        spec.windows_screens[0]
+    } else {
+        drawn_screen
+    };
+    let user_agent = if matches!(pins.build.map(|b| b.brand), Some(Brand::Edge)) {
+        edge_user_agent("Windows NT 10.0; Win64; x64", major)
+    } else {
+        chromium_user_agent("Windows NT 10.0; Win64; x64", major, false)
+    };
     Profile {
         browser_type: BrowserType::Chromium,
         core_version: Some(major),
-        user_agent: chromium_user_agent("Windows NT 10.0; Win64; x64", major, false),
+        user_agent,
         vendor: CHROMIUM_VENDOR,
         client_hints: Some(client_hints),
-        cores: *rng.pick(&spec.cores),
-        memory_gb: Some(*rng.pick(&spec.memory_gb)),
+        cores,
+        memory_gb: Some(memory_gb),
         touch_points: 0,
-        screen: *rng.pick(&spec.windows_screens),
+        screen,
         color_depth: 24,
         graphics: pc_graphics(adapter, maker, renderer),
     }
 }
 
-fn macos(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
-    let major = chromium_major(rng, forced_major);
-    let model = rng.pick(&MAC_MODELS);
+fn macos(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
+    let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
+    let drawn_model = rng.pick(&MAC_MODELS);
+    let model = match pins.machine {
+        Some(MachineRow::Mac(m)) => m,
+        _ => drawn_model,
+    };
     let client_hints = ClientHints {
         platform: "macOS".to_owned(),
         platform_version: (*rng.pick(&MACOS_VERSIONS)).to_owned(),
@@ -1562,9 +1854,13 @@ pub fn locale_of_timezone(timezone: &str) -> Option<&'static Locale> {
     LOCALES.iter().find(|l| l.timezone == timezone)
 }
 
-fn linux(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
-    let major = chromium_major(rng, forced_major);
-    let adapter = rng.pick(&LINUX_ADAPTERS);
+fn linux(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
+    let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
+    let drawn_adapter = rng.pick(&LINUX_ADAPTERS);
+    let adapter = match pins.machine {
+        Some(MachineRow::Pc(OsType::Linux, a)) => a,
+        _ => drawn_adapter,
+    };
     let spec = adapter.tier.spec();
     let client_hints = ClientHints {
         platform: "Linux".to_owned(),
@@ -1573,24 +1869,47 @@ fn linux(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
         bitness: "64".to_owned(),
         ..chromium_hints(major)
     };
+    let drawn_cores = *rng.pick(&spec.cores);
+    let drawn_memory = *rng.pick(&spec.memory_gb);
+    let drawn_screen = *rng.pick(&spec.linux_screens);
+    let is_pc_pinned = matches!(pins.machine, Some(MachineRow::Pc(OsType::Linux, _)));
+    let cores = if is_pc_pinned {
+        spec.cores[0]
+    } else {
+        drawn_cores
+    };
+    let memory_gb = if is_pc_pinned {
+        spec.memory_gb[0]
+    } else {
+        drawn_memory
+    };
+    let screen = if is_pc_pinned {
+        spec.linux_screens[0]
+    } else {
+        drawn_screen
+    };
     Profile {
         browser_type: BrowserType::Chromium,
         core_version: Some(major),
         user_agent: chromium_user_agent("X11; Linux x86_64", major, false),
         vendor: CHROMIUM_VENDOR,
         client_hints: Some(client_hints),
-        cores: *rng.pick(&spec.cores),
-        memory_gb: Some(*rng.pick(&spec.memory_gb)),
+        cores,
+        memory_gb: Some(memory_gb),
         touch_points: 0,
-        screen: *rng.pick(&spec.linux_screens),
+        screen,
         color_depth: 24,
         graphics: linux_graphics(adapter),
     }
 }
 
-fn android(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
-    let major = chromium_major(rng, forced_major);
-    let device = rng.pick(&ANDROID_DEVICES);
+fn android(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
+    let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
+    let drawn_device = rng.pick(&ANDROID_DEVICES);
+    let device = match pins.machine {
+        Some(MachineRow::Android(d)) => d,
+        _ => drawn_device,
+    };
     let client_hints = ClientHints {
         platform: "Android".to_owned(),
         platform_version: device.android.to_owned(),
@@ -1618,8 +1937,23 @@ fn android(rng: &mut Rng, forced_major: Option<u32>) -> Profile {
     }
 }
 
-fn ios(rng: &mut Rng) -> Profile {
-    let (version, os_version) = *rng.pick(&MOBILE_SAFARI_VERSIONS);
+fn ios(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
+    let drawn_version = *rng.pick(&MOBILE_SAFARI_VERSIONS);
+    let (version, os_version) = match pins.build.and_then(|b| b.safari) {
+        Some(pair) => pair,
+        None => drawn_version,
+    };
+    let drawn_cores = *rng.pick(&[4, 6, 6]);
+    let cores = if pins.machine.is_some() {
+        6
+    } else {
+        drawn_cores
+    };
+    let drawn_screen = rng.pick(&IPHONE_SCREENS).screen;
+    let screen = match pins.machine {
+        Some(MachineRow::Iphone(m)) => m.screen,
+        _ => drawn_screen,
+    };
     Profile {
         browser_type: BrowserType::MobileSafari,
         core_version: None,
@@ -1631,11 +1965,11 @@ fn ios(rng: &mut Rng) -> Profile {
         vendor: SAFARI_VENDOR,
         // Safari has no `navigator.userAgentData`.
         client_hints: None,
-        cores: *rng.pick(&[4, 6, 6]),
+        cores,
         // Safari has no `navigator.deviceMemory` either.
         memory_gb: None,
         touch_points: 5,
-        screen: *rng.pick(&IPHONE_SCREENS),
+        screen,
         color_depth: 24,
         graphics: direct_graphics(("Apple Inc.", "Apple GPU")),
     }
@@ -1986,9 +2320,16 @@ mod tests {
                 .filter(|row| row.source == FullVersionSource::MeasuredOnMac)
                 .map(|row| row.major)
                 .collect::<Vec<_>>(),
-            [155],
-            "only Chrome 155 was measured on this Mac"
+            [155, 157],
+            "Chrome 155 and 157 were measured on this Mac"
         );
+    }
+
+    #[test]
+    fn the_full_version_of_157_is_the_one_chrome_157_reports_on_this_mac() {
+        let v157 = known_full_version(157).expect("157 must be known");
+        assert_eq!(v157.full_version, "157.0.8103.39");
+        assert_eq!(v157.source, FullVersionSource::MeasuredOnMac);
     }
 
     #[test]
@@ -2036,7 +2377,7 @@ mod tests {
         // Some seed draws Safari 26, and its user agent is the one WebKit bug
         // 298717 quotes.
         let agent = (0..200)
-            .map(|seed| draw(OsType::Ios, seed, None, None).profile.user_agent)
+            .map(|seed| draw(OsType::Ios, seed, &Pins::default()).profile.user_agent)
             .find(|ua| ua.contains("Version/26.0"))
             .expect("a seed draws Safari 26");
         assert_eq!(
@@ -2075,18 +2416,28 @@ mod tests {
             .map(|a| (a.vendor.pci_id(), a.device_id, a.name))
             .collect();
         assert_distinct(&windows, "WINDOWS_ADAPTERS");
+        let win_slugs: Vec<_> = WINDOWS_ADAPTERS.iter().map(|a| a.slug).collect();
+        assert_distinct(&win_slugs, "WINDOWS_ADAPTERS slugs");
         let linux: Vec<_> = LINUX_ADAPTERS
             .iter()
             .map(|a| (a.vendor.pci_id(), a.device_id, a.name))
             .collect();
         assert_distinct(&linux, "LINUX_ADAPTERS");
+        let lin_slugs: Vec<_> = LINUX_ADAPTERS.iter().map(|a| a.slug).collect();
+        assert_distinct(&lin_slugs, "LINUX_ADAPTERS slugs");
         let macs: Vec<_> = MAC_MODELS
             .iter()
             .map(|m| (m.chip, m.cores, m.screen.width))
             .collect();
         assert_distinct(&macs, "MAC_MODELS");
+        let mac_names: Vec<_> = MAC_MODELS.iter().map(|m| m.name).collect();
+        assert_distinct(&mac_names, "MAC_MODELS names");
         let phones: Vec<_> = ANDROID_DEVICES.iter().map(|d| d.model).collect();
         assert_distinct(&phones, "ANDROID_DEVICES");
+        let android_names: Vec<_> = ANDROID_DEVICES.iter().map(|d| d.name).collect();
+        assert_distinct(&android_names, "ANDROID_DEVICES names");
+        let iphone_names: Vec<_> = IPHONE_SCREENS.iter().map(|i| i.name).collect();
+        assert_distinct(&iphone_names, "IPHONE_SCREENS names");
         let places: Vec<_> = LOCALES.iter().map(|r| r.timezone).collect();
         assert_distinct(&places, "LOCALES");
     }
@@ -2227,8 +2578,15 @@ mod tests {
 
     #[test]
     fn a_forced_major_changes_the_version_and_keeps_the_rest_of_the_seed() {
-        let free = draw(OsType::Windows, 9, None, None);
-        let pinned = draw(OsType::Windows, 9, Some(155), None);
+        let free = draw(OsType::Windows, 9, &Pins::default());
+        let pinned = draw(
+            OsType::Windows,
+            9,
+            &Pins {
+                major: Some(155),
+                ..Pins::default()
+            },
+        );
         assert_eq!(pinned.profile.core_version, Some(155));
         assert!(pinned.profile.user_agent.contains("Chrome/155."));
         assert_eq!(free.profile.screen, pinned.profile.screen);
@@ -2240,8 +2598,15 @@ mod tests {
     fn a_given_place_replaces_the_region_and_keeps_the_rest_of_the_seed() {
         let berlin = *locale_of_timezone("Europe/Berlin").expect("a known zone");
         for seed in 0..30 {
-            let free = draw(OsType::Macos, seed, None, None);
-            let placed = draw(OsType::Macos, seed, None, Some(&berlin));
+            let free = draw(OsType::Macos, seed, &Pins::default());
+            let placed = draw(
+                OsType::Macos,
+                seed,
+                &Pins {
+                    place: Some(&berlin),
+                    ..Pins::default()
+                },
+            );
             assert_eq!(placed.region, berlin, "seed {seed}");
             assert_eq!(placed.profile.user_agent, free.profile.user_agent);
             assert_eq!(placed.profile.graphics, free.profile.graphics);
@@ -2254,9 +2619,161 @@ mod tests {
     }
 
     #[test]
+    fn a_pinned_machine_replaces_the_drawn_one_and_keeps_the_rest_of_the_seed() {
+        for seed in [1, 7, 42] {
+            // Windows
+            let win_adapter = &WINDOWS_ADAPTERS[0];
+            let win_row = MachineRow::Pc(OsType::Windows, win_adapter);
+            let free = draw(OsType::Windows, seed, &Pins::default());
+            let pinned = draw(
+                OsType::Windows,
+                seed,
+                &Pins {
+                    machine: Some(win_row),
+                    ..Pins::default()
+                },
+            );
+            assert_eq!(pinned.region, free.region);
+            assert_eq!(pinned.position, free.position);
+            assert_eq!(pinned.profile.core_version, free.profile.core_version);
+            assert_eq!(pinned.profile.graphics, win_row.webgl());
+            assert_eq!(pinned.profile.cores, win_adapter.tier.spec().cores[0]);
+
+            // Mac
+            let mac_model = &MAC_MODELS[0];
+            let mac_row = MachineRow::Mac(mac_model);
+            let free = draw(OsType::Macos, seed, &Pins::default());
+            let pinned = draw(
+                OsType::Macos,
+                seed,
+                &Pins {
+                    machine: Some(mac_row),
+                    ..Pins::default()
+                },
+            );
+            assert_eq!(pinned.region, free.region);
+            assert_eq!(pinned.position, free.position);
+            assert_eq!(pinned.profile.core_version, free.profile.core_version);
+            assert_eq!(pinned.profile.graphics, mac_row.webgl());
+            assert_eq!(pinned.profile.cores, mac_model.cores);
+            assert_eq!(pinned.profile.screen, mac_model.screen);
+
+            // Linux
+            let lin_adapter = &LINUX_ADAPTERS[0];
+            let lin_row = MachineRow::Pc(OsType::Linux, lin_adapter);
+            let free = draw(OsType::Linux, seed, &Pins::default());
+            let pinned = draw(
+                OsType::Linux,
+                seed,
+                &Pins {
+                    machine: Some(lin_row),
+                    ..Pins::default()
+                },
+            );
+            assert_eq!(pinned.region, free.region);
+            assert_eq!(pinned.position, free.position);
+            assert_eq!(pinned.profile.core_version, free.profile.core_version);
+            assert_eq!(pinned.profile.graphics, lin_row.webgl());
+            assert_eq!(pinned.profile.cores, lin_adapter.tier.spec().cores[0]);
+
+            // Android
+            let dev = &ANDROID_DEVICES[0];
+            let android_row = MachineRow::Android(dev);
+            let free = draw(OsType::Android, seed, &Pins::default());
+            let pinned = draw(
+                OsType::Android,
+                seed,
+                &Pins {
+                    machine: Some(android_row),
+                    ..Pins::default()
+                },
+            );
+            assert_eq!(pinned.region, free.region);
+            assert_eq!(pinned.position, free.position);
+            assert_eq!(pinned.profile.core_version, free.profile.core_version);
+            assert_eq!(pinned.profile.graphics, android_row.webgl());
+            assert_eq!(pinned.profile.screen, dev.screen);
+
+            // iOS
+            let iphone = &IPHONE_SCREENS[0];
+            let iphone_row = MachineRow::Iphone(iphone);
+            let free = draw(OsType::Ios, seed, &Pins::default());
+            let pinned = draw(
+                OsType::Ios,
+                seed,
+                &Pins {
+                    machine: Some(iphone_row),
+                    ..Pins::default()
+                },
+            );
+            assert_eq!(pinned.region, free.region);
+            assert_eq!(pinned.position, free.position);
+            assert_eq!(pinned.profile.graphics, iphone_row.webgl());
+            assert_eq!(pinned.profile.cores, 6);
+            assert_eq!(pinned.profile.screen, iphone.screen);
+        }
+    }
+
+    #[test]
+    fn a_pinned_pc_takes_the_first_values_of_its_tier() {
+        let adapter = &WINDOWS_ADAPTERS[0];
+        let spec = adapter.tier.spec();
+        let mac = MachineRow::Pc(OsType::Windows, adapter);
+        let pinned = draw(
+            OsType::Windows,
+            42,
+            &Pins {
+                machine: Some(mac),
+                ..Pins::default()
+            },
+        );
+        assert_eq!(pinned.profile.cores, spec.cores[0]);
+        assert_eq!(pinned.profile.memory_gb, Some(spec.memory_gb[0]));
+        assert_eq!(pinned.profile.screen, spec.windows_screens[0]);
+    }
+
+    #[test]
+    fn a_pinned_edge_build_draws_an_edge_user_agent() {
+        let edge_build = BUILDS
+            .iter()
+            .find(|b| b.name == "edge-156-windows")
+            .expect("edge build");
+        let pinned = draw(
+            OsType::Windows,
+            42,
+            &Pins {
+                build: Some(edge_build),
+                ..Pins::default()
+            },
+        );
+        assert!(pinned.profile.user_agent.contains("Edg/156.0.0.0"));
+    }
+
+    #[test]
+    fn a_pinned_safari_build_draws_its_version() {
+        let safari_build = BUILDS
+            .iter()
+            .find(|b| b.name == "safari-26-0-ios")
+            .expect("safari build");
+        let pinned = draw(
+            OsType::Ios,
+            42,
+            &Pins {
+                build: Some(safari_build),
+                ..Pins::default()
+            },
+        );
+        assert!(pinned.profile.user_agent.contains("Version/26.0"));
+        assert!(pinned
+            .profile
+            .user_agent
+            .contains("CPU iPhone OS 18_6 like Mac OS X"));
+    }
+
+    #[test]
     fn the_extras_repeat_for_a_seed_and_do_not_depend_on_each_other() {
-        let first = draw(OsType::Windows, 12, None, None);
-        let second = draw(OsType::Windows, 12, None, None);
+        let first = draw(OsType::Windows, 12, &Pins::default());
+        let second = draw(OsType::Windows, 12, &Pins::default());
         assert_eq!(first.fonts(), second.fonts());
         assert_eq!(first.media_devices(), second.media_devices());
         assert_eq!(first.webrtc(), second.webrtc());
@@ -2266,14 +2783,14 @@ mod tests {
         // Another seed gives another set of addresses.
         assert_ne!(
             first.webrtc(),
-            draw(OsType::Windows, 13, None, None).webrtc()
+            draw(OsType::Windows, 13, &Pins::default()).webrtc()
         );
     }
 
     #[test]
     fn the_extras_are_what_the_system_and_the_browser_have() {
         for seed in 0..30 {
-            let windows = draw(OsType::Windows, seed, None, None);
+            let windows = draw(OsType::Windows, seed, &Pins::default());
             assert!(windows.fonts().iter().any(|f| f == "Segoe UI"));
             assert!(windows
                 .battery()
@@ -2283,9 +2800,9 @@ mod tests {
                 .local_ip
                 .as_deref()
                 .is_some_and(|ip| ip.starts_with("192.168.")));
-            let phone = draw(OsType::Android, seed, None, None);
+            let phone = draw(OsType::Android, seed, &Pins::default());
             assert_eq!(phone.media_devices(), MediaDevices::counts(1, 1, 2));
-            let safari = draw(OsType::Ios, seed, None, None);
+            let safari = draw(OsType::Ios, seed, &Pins::default());
             assert!(safari.battery().is_none() && safari.connection().is_none());
             assert!(safari.bluetooth().is_none());
             assert!(!safari.speech_voices().is_empty());
@@ -2300,7 +2817,15 @@ mod tests {
             OsType::Linux,
             OsType::Android,
         ] {
-            let profile = draw(os, 4, Some(161), None).profile;
+            let profile = draw(
+                os,
+                4,
+                &Pins {
+                    major: Some(161),
+                    ..Pins::default()
+                },
+            )
+            .profile;
             assert_eq!(profile.core_version, Some(161), "{os:?}");
             let ua = profile.user_agent.as_str();
             assert!(ua.contains("Chrome/161.0.0.0"), "{os:?}: {ua}");
@@ -2320,8 +2845,16 @@ mod tests {
 
     #[test]
     fn ios_has_no_chromium_major_to_force() {
-        let free = draw(OsType::Ios, 4, None, None).profile;
-        let forced = draw(OsType::Ios, 4, Some(161), None).profile;
+        let free = draw(OsType::Ios, 4, &Pins::default()).profile;
+        let forced = draw(
+            OsType::Ios,
+            4,
+            &Pins {
+                major: Some(161),
+                ..Pins::default()
+            },
+        )
+        .profile;
         assert_eq!(free.user_agent, forced.user_agent);
         assert_eq!(forced.core_version, None);
     }
@@ -2355,7 +2888,7 @@ mod tests {
             .flat_map(|t| t.windows_screens.iter().chain(t.linux_screens.iter()))
             .chain(MAC_MODELS.iter().map(|m| &m.screen))
             .chain(ANDROID_DEVICES.iter().map(|d| &d.screen))
-            .chain(IPHONE_SCREENS.iter());
+            .chain(IPHONE_SCREENS.iter().map(|m| &m.screen));
         for screen in screens {
             assert!(screen.width >= 360 && screen.height >= 640, "{screen:?}");
             assert!((1.0..=4.0).contains(&screen.pixel_ratio), "{screen:?}");
@@ -2463,7 +2996,7 @@ mod tests {
         assert!(!renderer.contains("Direct3D"), "{renderer}");
         // It is one of the strings the Linux generator can produce.
         assert!((0..200).any(|seed| {
-            let profile = draw(OsType::Linux, seed, None, None).profile;
+            let profile = draw(OsType::Linux, seed, &Pins::default()).profile;
             profile.graphics.renderer.as_deref() == Some(renderer.as_str())
         }));
 

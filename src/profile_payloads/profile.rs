@@ -4,8 +4,9 @@ use crate::browser::config::{Browser, BrowserConfig, DriverMode};
 use crate::error::SeleniumBaseError;
 use crate::evasion::fingerprint as evasion_fp;
 use crate::evasion::fingerprint::{
-    AudioNoise, CanvasNoise, Fingerprint, FingerprintBuilder, Geolocation, MediaDeviceSpec,
-    MediaDevices, OsType, QuicMode, ScreenSize, Spoof, StealthPolicy, WebGl, WebRtcAddresses,
+    AudioNoise, BatteryProfile, CanvasNoise, ClientHints, ConnectionProfile, Fingerprint,
+    FingerprintBuilder, Geolocation, KeyboardLayout, MediaDeviceSpec, MediaDevices, MediaFeatures,
+    OsType, QuicMode, ScreenSize, SpeechVoice, Spoof, StealthPolicy, WebGl, WebRtcAddresses,
     WebRtcPolicy,
 };
 
@@ -21,35 +22,62 @@ pub struct ProfileParams {
     pub name: String,
     /// Which browser. `firefox` and `stealthfox` are Firefox. Anything else is
     /// Chrome. Absent from the JSON, this is `chromium`.
-    #[serde(default = "default_browser_type")]
+    #[serde(
+        default = "default_browser_type",
+        alias = "browserType",
+        alias = "browser"
+    )]
     pub browser_type: String,
     /// Names `./profile-data/<id>` when storage is local. Characters other than
     /// letters, digits, `-` and `_` become `_`. Absent from the JSON, this is
     /// `default`.
-    #[serde(default = "default_folder_id")]
+    #[serde(
+        default = "default_folder_id",
+        alias = "folderId",
+        alias = "folder",
+        alias = "profile_id",
+        alias = "profileId"
+    )]
     pub folder_id: String,
     /// The operating system the fingerprint claims. `android` and `ios` launch
     /// mobile emulation. Absent from the JSON, this is `windows`.
-    #[serde(default = "default_os_type")]
+    #[serde(
+        default = "default_os_type",
+        alias = "osType",
+        alias = "os",
+        alias = "operating_system",
+        alias = "operatingSystem"
+    )]
     pub os_type: String,
     /// How the browser is driven. `playwright` and `puppeteer` use CDP,
     /// `selenium` uses WebDriver, and anything else is UC mode, except Firefox,
     /// which stays on WebDriver. Absent from the JSON, this is `selenium`.
-    #[serde(default = "default_automation")]
+    #[serde(default = "default_automation", alias = "driver", alias = "mode")]
     pub automation: String,
     /// Launches the browser without a window.
-    #[serde(default)]
+    #[serde(default, alias = "isHeadless", alias = "headless")]
     pub is_headless: bool,
     /// The Chromium major a drawn user agent claims, when the payload's browser
     /// is Chromium.
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "coreVersion",
+        alias = "major_version",
+        alias = "majorVersion",
+        alias = "version"
+    )]
     pub core_version: Option<u32>,
     /// Kept on the payload. Launching does not read it.
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "coreMinorVersion",
+        alias = "minor_version",
+        alias = "minorVersion"
+    )]
     pub core_minor_version: Option<u32>,
     /// Kept on the payload. Launching does not read it. Absent from the JSON,
     /// this is `true`.
-    #[serde(default = "default_auto_update_core")]
+    #[serde(default = "default_auto_update_core", alias = "autoUpdateCore")]
     pub auto_update_core: bool,
     /// Kept on the payload. Launching does not read it.
     #[serde(default)]
@@ -82,7 +110,13 @@ pub struct Parameters {
     pub proxy: Option<ProfileProxy>,
     /// Pages to open at start. [`ProfileParams::start_urls`] keeps at most five
     /// web pages.
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "customStartUrls",
+        alias = "start_urls",
+        alias = "startUrls",
+        alias = "urls"
+    )]
     pub custom_start_urls: Vec<String>,
 }
 
@@ -92,45 +126,150 @@ pub struct Parameters {
 /// settings and the [`StealthPolicy`] of a [`Fingerprint`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProfileFlags {
-    #[serde(default = "default_webrtc_masking")]
+    #[serde(
+        default = "default_webrtc_masking",
+        alias = "webrtc",
+        alias = "webRtc",
+        alias = "webrtc_masking",
+        alias = "webRtcMasking"
+    )]
     pub webrtc_masking: String,
-    #[serde(default = "default_proxy_masking")]
+    #[serde(
+        default = "default_proxy_masking",
+        alias = "proxy",
+        alias = "proxy_masking",
+        alias = "proxyMasking"
+    )]
     pub proxy_masking: String,
-    #[serde(default = "default_geolocation_popup")]
+    #[serde(
+        default = "default_geolocation_popup",
+        alias = "geolocation_permission",
+        alias = "geolocation_popup",
+        alias = "geolocationPopup",
+        alias = "geolocationPermission"
+    )]
     pub geolocation_popup: String,
-    #[serde(default = "default_audio_masking")]
+    #[serde(
+        default = "default_audio_masking",
+        alias = "audio",
+        alias = "audio_noise",
+        alias = "audio_masking",
+        alias = "audioNoise",
+        alias = "audioMasking"
+    )]
     pub audio_masking: String,
-    #[serde(default = "default_graphics_noise")]
+    #[serde(
+        default = "default_graphics_noise",
+        alias = "webgl_noise",
+        alias = "graphics_noise",
+        alias = "graphicsNoise",
+        alias = "webglNoise"
+    )]
     pub graphics_noise: String,
-    #[serde(default = "default_ports_masking")]
+    #[serde(
+        default = "default_ports_masking",
+        alias = "ports",
+        alias = "blocked_ports",
+        alias = "ports_masking",
+        alias = "portsMasking",
+        alias = "blockedPorts"
+    )]
     pub ports_masking: String,
-    #[serde(default = "default_navigator_masking")]
+    #[serde(
+        default = "default_navigator_masking",
+        alias = "navigator",
+        alias = "navigator_masking",
+        alias = "navigatorMasking"
+    )]
     pub navigator_masking: String,
-    #[serde(default = "default_localization_masking")]
+    #[serde(
+        default = "default_localization_masking",
+        alias = "localization",
+        alias = "locale",
+        alias = "localization_masking",
+        alias = "localizationMasking"
+    )]
     pub localization_masking: String,
-    #[serde(default = "default_timezone_masking")]
+    #[serde(
+        default = "default_timezone_masking",
+        alias = "timezone",
+        alias = "time_zone",
+        alias = "timezone_masking",
+        alias = "timezoneMasking",
+        alias = "timeZone"
+    )]
     pub timezone_masking: String,
-    #[serde(default = "default_graphics_masking")]
+    #[serde(
+        default = "default_graphics_masking",
+        alias = "webgl",
+        alias = "graphics",
+        alias = "graphics_masking",
+        alias = "graphicsMasking",
+        alias = "webGl"
+    )]
     pub graphics_masking: String,
-    #[serde(default = "default_fonts_masking")]
+    #[serde(
+        default = "default_fonts_masking",
+        alias = "fonts",
+        alias = "fonts_masking",
+        alias = "fontsMasking"
+    )]
     pub fonts_masking: String,
-    #[serde(default = "default_media_devices_masking")]
+    #[serde(
+        default = "default_media_devices_masking",
+        alias = "media_devices",
+        alias = "media_devices_masking",
+        alias = "mediaDevices",
+        alias = "mediaDevicesMasking"
+    )]
     pub media_devices_masking: String,
-    #[serde(default = "default_screen_masking")]
+    #[serde(
+        default = "default_screen_masking",
+        alias = "screen",
+        alias = "screen_masking",
+        alias = "screenMasking"
+    )]
     pub screen_masking: String,
-    #[serde(default = "default_geolocation_masking")]
+    #[serde(
+        default = "default_geolocation_masking",
+        alias = "geolocation",
+        alias = "geolocation_masking",
+        alias = "geolocationMasking"
+    )]
     pub geolocation_masking: String,
-    #[serde(default = "default_quic_mode")]
+    #[serde(
+        default = "default_quic_mode",
+        alias = "quic",
+        alias = "quic_mode",
+        alias = "quicMode"
+    )]
     pub quic_mode: String,
-    #[serde(default)]
+    #[serde(default, alias = "canvasNoise", alias = "canvas")]
     pub canvas_noise: Option<String>,
-    #[serde(default = "default_startup_behavior")]
+    #[serde(default = "default_startup_behavior", alias = "startupBehavior")]
     pub startup_behavior: String,
     #[serde(default)]
+    pub battery: Option<String>,
+    #[serde(default, alias = "network")]
+    pub connection: Option<String>,
+    #[serde(default, alias = "storageQuota", alias = "quota")]
+    pub storage_quota: Option<String>,
+    #[serde(default, alias = "speechVoices", alias = "voices")]
+    pub speech_voices: Option<String>,
+    #[serde(default)]
+    pub bluetooth: Option<String>,
+    #[serde(
+        default,
+        alias = "clientHints",
+        alias = "userAgentData",
+        alias = "user_agent_data"
+    )]
+    pub client_hints: Option<String>,
+    #[serde(default, alias = "disableCsp")]
     pub disable_csp: bool,
-    #[serde(default)]
+    #[serde(default, alias = "grantPermissions")]
     pub grant_permissions: bool,
-    #[serde(default)]
+    #[serde(default, alias = "nativeSpoofing")]
     pub native_spoofing: bool,
 }
 
@@ -154,6 +293,12 @@ impl Default for ProfileFlags {
             quic_mode: default_quic_mode(),
             canvas_noise: None,
             startup_behavior: default_startup_behavior(),
+            battery: None,
+            connection: None,
+            storage_quota: None,
+            speech_voices: None,
+            bluetooth: None,
+            client_hints: None,
             disable_csp: false,
             grant_permissions: false,
             native_spoofing: false,
@@ -163,9 +308,20 @@ impl Default for ProfileFlags {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StorageOptions {
-    #[serde(default = "default_is_local")]
+    #[serde(
+        default = "default_is_local",
+        alias = "isLocal",
+        alias = "local",
+        alias = "local_storage",
+        alias = "localStorage"
+    )]
     pub is_local: bool,
-    #[serde(default = "default_save_service_worker")]
+    #[serde(
+        default = "default_save_service_worker",
+        alias = "saveServiceWorker",
+        alias = "service_worker",
+        alias = "serviceWorker"
+    )]
     pub save_service_worker: bool,
 }
 
@@ -187,87 +343,190 @@ pub struct ProfileFingerprint {
     pub navigator: Option<NavigatorFingerprint>,
     #[serde(default)]
     pub localization: Option<LocalizationFingerprint>,
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "maxTouchPoints",
+        alias = "touch_points",
+        alias = "touchPoints"
+    )]
     pub max_touch_points: Option<u32>,
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "time_zone",
+        alias = "timeZone",
+        alias = "timezone_id",
+        alias = "timeZoneId"
+    )]
     pub timezone: Option<TimezoneFingerprint>,
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "webgl",
+        alias = "graphics",
+        alias = "webGl",
+        alias = "gpu",
+        alias = "video_card",
+        alias = "videoCard"
+    )]
     pub graphic: Option<GraphicFingerprint>,
-    #[serde(default)]
+    #[serde(default, alias = "webRtc", alias = "web_rtc")]
     pub webrtc: Option<WebrtcFingerprint>,
-    #[serde(default)]
+    #[serde(default, alias = "mediaDevices", alias = "devices")]
     pub media_devices: Option<MediaDevicesFingerprint>,
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "screen_resolution",
+        alias = "screenResolution",
+        alias = "resolution"
+    )]
     pub screen: Option<ScreenFingerprint>,
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "availScreen",
+        alias = "available_screen",
+        alias = "availableScreen",
+        alias = "avail"
+    )]
+    pub avail_screen: Option<ScreenFingerprint>,
+    #[serde(default, alias = "geo", alias = "location")]
     pub geolocation: Option<GeolocationFingerprint>,
     #[serde(default)]
     pub ports: Vec<u16>,
     #[serde(default)]
     pub fonts: Vec<String>,
+    #[serde(default, alias = "battery_profile", alias = "batteryProfile")]
+    pub battery: Option<BatteryProfile>,
+    #[serde(
+        default,
+        alias = "connection_profile",
+        alias = "connectionProfile",
+        alias = "network"
+    )]
+    pub connection: Option<ConnectionProfile>,
+    #[serde(default, alias = "storageQuota", alias = "quota")]
+    pub storage_quota: Option<u64>,
+    #[serde(default, alias = "speechVoices", alias = "voices")]
+    pub speech_voices: Option<Vec<SpeechVoice>>,
     #[serde(default)]
+    pub bluetooth: Option<bool>,
+    #[serde(
+        default,
+        alias = "clientHints",
+        alias = "userAgentData",
+        alias = "user_agent_data"
+    )]
+    pub client_hints: Option<ClientHints>,
+    #[serde(default, alias = "keyboardLayout", alias = "keyboard")]
+    pub keyboard_layout: Option<KeyboardLayout>,
+    #[serde(default, alias = "mediaFeatures")]
+    pub media_features: Option<MediaFeatures>,
+    #[serde(
+        default,
+        alias = "cmdParams",
+        alias = "command_params",
+        alias = "commandParams",
+        alias = "switches",
+        alias = "flags"
+    )]
     pub cmd_params: CmdParams,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct NavigatorFingerprint {
-    #[serde(default)]
+    #[serde(
+        default,
+        alias = "hardwareConcurrency",
+        alias = "concurrency",
+        alias = "cpu",
+        alias = "cores"
+    )]
     pub hardware_concurrency: Option<u32>,
-    #[serde(default)]
+    #[serde(default, alias = "deviceMemory", alias = "memory", alias = "ram")]
     pub device_memory: Option<f64>,
+    #[serde(alias = "userAgent", alias = "ua")]
     pub user_agent: String,
+    #[serde(alias = "navigator_platform", alias = "navigatorPlatform")]
     pub platform: String,
-    #[serde(default)]
+    #[serde(default, alias = "oscpu", alias = "osCpu")]
     pub os_cpu: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct LocalizationFingerprint {
+    #[serde(default, alias = "language_list", alias = "languageList")]
     pub languages: String,
+    #[serde(default, alias = "language")]
     pub locale: String,
+    #[serde(
+        default,
+        alias = "acceptLanguages",
+        alias = "accept_language",
+        alias = "acceptLanguage"
+    )]
     pub accept_languages: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct TimezoneFingerprint {
+    #[serde(
+        alias = "timezone",
+        alias = "time_zone",
+        alias = "timeZone",
+        alias = "name",
+        alias = "id"
+    )]
     pub zone: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct GraphicFingerprint {
+    #[serde(alias = "unmasked_renderer", alias = "unmaskedRenderer")]
     pub renderer: String,
+    #[serde(alias = "unmasked_vendor", alias = "unmaskedVendor")]
     pub vendor: String,
-    #[serde(default)]
+    #[serde(default, alias = "vendorId")]
     pub vendor_id: String,
-    #[serde(default)]
+    #[serde(default, alias = "rendererId")]
     pub renderer_id: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct WebrtcFingerprint {
+    #[serde(alias = "publicIp", alias = "ip", alias = "address")]
     pub public_ip: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct MediaDevicesFingerprint {
-    #[serde(default)]
+    #[serde(default, alias = "audioOutputs", alias = "speakers")]
     pub audio_outputs: u32,
-    #[serde(default)]
+    #[serde(default, alias = "audioInputs", alias = "microphones", alias = "mics")]
     pub audio_inputs: u32,
-    #[serde(default)]
+    #[serde(default, alias = "videoInputs", alias = "cameras", alias = "webcams")]
     pub video_inputs: u32,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ScreenFingerprint {
+    #[serde(alias = "w")]
     pub width: u32,
+    #[serde(alias = "h")]
     pub height: u32,
+    #[serde(
+        default = "default_pixel_ratio",
+        alias = "pixelRatio",
+        alias = "device_pixel_ratio",
+        alias = "devicePixelRatio",
+        alias = "scale_factor",
+        alias = "scaleFactor"
+    )]
     pub pixel_ratio: f64,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct GeolocationFingerprint {
+    #[serde(alias = "lat")]
     pub latitude: f64,
+    #[serde(alias = "lng", alias = "lon")]
     pub longitude: f64,
     #[serde(default)]
     pub accuracy: f64,
@@ -283,8 +542,9 @@ pub struct CmdParams {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CmdParam {
+    #[serde(alias = "param", alias = "name", alias = "key")]
     pub flag: String,
-    #[serde(default)]
+    #[serde(default, alias = "val")]
     pub value: String,
 }
 
@@ -292,15 +552,23 @@ pub struct CmdParam {
 /// into the [`ProxyConfig`](evasion_fp::ProxyConfig) of a [`Fingerprint`].
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ProfileProxy {
-    #[serde(rename = "type")]
+    #[serde(
+        rename = "type",
+        alias = "proxy_type",
+        alias = "proxyType",
+        alias = "protocol",
+        alias = "scheme"
+    )]
     pub proxy_type: String,
+    #[serde(alias = "server", alias = "ip", alias = "hostname")]
     pub host: String,
+    #[serde(alias = "port_number", alias = "portNumber")]
     pub port: u16,
-    #[serde(default)]
+    #[serde(default, alias = "user", alias = "login")]
     pub username: String,
-    #[serde(default)]
+    #[serde(default, alias = "pass")]
     pub password: String,
-    #[serde(default)]
+    #[serde(default, alias = "saveTraffic")]
     pub save_traffic: bool,
 }
 
@@ -316,6 +584,10 @@ impl std::fmt::Debug for ProfileProxy {
             .field("save_traffic", &self.save_traffic)
             .finish()
     }
+}
+
+fn default_pixel_ratio() -> f64 {
+    1.0
 }
 
 fn default_browser_type() -> String {
@@ -882,7 +1154,14 @@ impl ProfileParams {
         builder = self.media_devices(builder);
         builder = self.geolocation(builder);
         builder = self.proxy(builder);
-        self.webrtc(builder)
+        builder = self.webrtc(builder);
+        builder = self.battery_setting(builder);
+        builder = self.connection_setting(builder);
+        builder = self.storage_quota_setting(builder);
+        builder = self.speech_voices_setting(builder);
+        builder = self.bluetooth_setting(builder);
+        builder = self.client_hints_setting(builder);
+        self.extra_hardware_setting(builder)
     }
 
     /// Whether the payload's browser and system claim a Chromium user agent.
@@ -1245,6 +1524,122 @@ impl ProfileParams {
             .webrtc_policy(policy)
     }
 
+    fn battery_setting(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
+        let key = "battery";
+        let from_section = self.parameters.fingerprint.battery.clone();
+        let word = self
+            .parameters
+            .flags
+            .battery
+            .as_deref()
+            .and_then(|s| classify(s, &[]))
+            .unwrap_or(if from_section.is_some() {
+                Word::Auto
+            } else {
+                Word::Natural
+            });
+        builder.battery(settle(key, word, from_section, true, true))
+    }
+
+    fn connection_setting(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
+        let key = "connection";
+        let from_section = self.parameters.fingerprint.connection.clone();
+        let word = self
+            .parameters
+            .flags
+            .connection
+            .as_deref()
+            .and_then(|s| classify(s, &[]))
+            .unwrap_or(if from_section.is_some() {
+                Word::Auto
+            } else {
+                Word::Natural
+            });
+        builder.connection(settle(key, word, from_section, true, true))
+    }
+
+    fn storage_quota_setting(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
+        let key = "storage_quota";
+        let from_section = self.parameters.fingerprint.storage_quota;
+        let word = self
+            .parameters
+            .flags
+            .storage_quota
+            .as_deref()
+            .and_then(|s| classify(s, &[]))
+            .unwrap_or(if from_section.is_some() {
+                Word::Auto
+            } else {
+                Word::Natural
+            });
+        builder.storage_quota(settle(key, word, from_section, true, true))
+    }
+
+    fn speech_voices_setting(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
+        let key = "speech_voices";
+        let from_section = self.parameters.fingerprint.speech_voices.clone();
+        let word = self
+            .parameters
+            .flags
+            .speech_voices
+            .as_deref()
+            .and_then(|s| classify(s, &[]))
+            .unwrap_or(if from_section.is_some() {
+                Word::Auto
+            } else {
+                Word::Natural
+            });
+        builder.speech_voices(settle(key, word, from_section, true, true))
+    }
+
+    fn bluetooth_setting(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
+        let key = "bluetooth";
+        let from_section = self.parameters.fingerprint.bluetooth;
+        let word = self
+            .parameters
+            .flags
+            .bluetooth
+            .as_deref()
+            .and_then(|s| classify(s, &[]))
+            .unwrap_or(if from_section.is_some() {
+                Word::Auto
+            } else {
+                Word::Natural
+            });
+        builder.bluetooth(settle(key, word, from_section, true, true))
+    }
+
+    fn client_hints_setting(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
+        let key = "client_hints";
+        let from_section = self.parameters.fingerprint.client_hints.clone();
+        let word = self
+            .parameters
+            .flags
+            .client_hints
+            .as_deref()
+            .and_then(|s| classify(s, &[]))
+            .unwrap_or(if from_section.is_some() {
+                Word::Auto
+            } else {
+                Word::Natural
+            });
+        builder.client_hints(settle(key, word, from_section, true, true))
+    }
+
+    fn extra_hardware_setting(&self, mut builder: FingerprintBuilder) -> FingerprintBuilder {
+        let fp = &self.parameters.fingerprint;
+        if let Some(layout) = fp.keyboard_layout {
+            builder = builder.keyboard_layout(Spoof::Value(layout));
+        }
+        if let Some(media) = fp.media_features {
+            builder = builder.media_features(Spoof::Value(media));
+        }
+        if let Some(avail) = &fp.avail_screen {
+            builder = builder.avail_screen(ScreenSize::new(avail.width, avail.height));
+        }
+        builder
+    }
+
     /// Translates the external profile payload into a `BrowserConfig` that
     /// `seleniumbase-rs` can launch.
     ///
@@ -1483,6 +1878,139 @@ mod tests {
             params.proxy_string().unwrap(),
             "http://user:pass@proxyhost.com:8081"
         );
+    }
+
+    #[test]
+    fn parse_profile_payload_camel_case_and_aliases() {
+        let raw = json!({
+            "name": "CamelProfile",
+            "browserType": "chromium",
+            "folderId": "my-folder",
+            "coreVersion": 130,
+            "autoUpdateCore": false,
+            "osType": "macos",
+            "parameters": {
+                "flags": {
+                    "webrtcMasking": "block",
+                    "proxyMasking": "direct",
+                    "audioNoise": "natural",
+                    "webglNoise": "mask",
+                    "blockedPorts": "block",
+                    "navigatorMasking": "auto",
+                    "localizationMasking": "en-US",
+                    "timeZone": "America/New_York",
+                    "graphicsMasking": "natural",
+                    "mediaDevicesMasking": "auto",
+                    "screenMasking": "1920x1080",
+                    "geolocationMasking": "auto",
+                    "quicMode": "auto",
+                    "canvasNoise": "persistent",
+                    "startupBehavior": "custom",
+                    "storageQuota": "auto",
+                    "speechVoices": "natural",
+                    "userAgentData": "auto",
+                    "disableCsp": true,
+                    "grantPermissions": true,
+                    "nativeSpoofing": true
+                },
+                "storage": {
+                    "isLocal": true,
+                    "saveServiceWorker": true
+                },
+                "fingerprint": {
+                    "navigator": {
+                        "hardwareConcurrency": 16,
+                        "deviceMemory": 32.0,
+                        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                        "navigatorPlatform": "MacIntel",
+                        "osCpu": "Intel"
+                    },
+                    "localization": {
+                        "languages": "en-US,en",
+                        "locale": "en-US",
+                        "acceptLanguages": "en-US,en;q=0.9"
+                    },
+                    "timeZone": {
+                        "timeZone": "America/New_York"
+                    },
+                    "webGl": {
+                        "unmaskedRenderer": "Apple M1",
+                        "unmaskedVendor": "Apple",
+                        "vendorId": "0x106b",
+                        "rendererId": "0x0001"
+                    },
+                    "webRtc": {
+                        "publicIp": "1.2.3.4"
+                    },
+                    "mediaDevices": {
+                        "audioOutputs": 2,
+                        "audioInputs": 1,
+                        "videoInputs": 1
+                    },
+                    "screenResolution": {
+                        "width": 2560,
+                        "height": 1440,
+                        "pixelRatio": 2.0
+                    },
+                    "availScreen": {
+                        "width": 2560,
+                        "height": 1400,
+                        "pixelRatio": 2.0
+                    },
+                    "location": {
+                        "lat": 40.7128,
+                        "lng": -74.0060,
+                        "accuracy": 10.0
+                    },
+                    "maxTouchPoints": 0,
+                    "quota": 1073741824,
+                    "cmdParams": {
+                        "params": [
+                            { "param": "--enable-features=NetworkService", "val": "" }
+                        ]
+                    }
+                },
+                "proxy": {
+                    "protocol": "socks5",
+                    "server": "127.0.0.1",
+                    "portNumber": 1080,
+                    "user": "proxyuser",
+                    "pass": "proxypass",
+                    "saveTraffic": true
+                },
+                "startUrls": ["https://example.com/start"]
+            }
+        });
+
+        let params: ProfileParams = serde_json::from_value(raw).expect("valid camelCase profile");
+        assert_eq!(params.name, "CamelProfile");
+        assert_eq!(params.browser_type, "chromium");
+        assert_eq!(params.folder_id, "my-folder");
+        assert_eq!(params.core_version, Some(130));
+        assert_eq!(params.os_type, "macos");
+        assert!(params.parameters.storage.is_local);
+        assert!(params.parameters.storage.save_service_worker);
+
+        let fp = params.to_fingerprint();
+        assert!(fp.timezone().is_value());
+        assert_eq!(
+            fp.timezone().value().map(String::as_str),
+            Some("America/New_York")
+        );
+        assert_eq!(fp.hardware_concurrency().value().copied(), Some(16));
+        assert_eq!(fp.device_memory().value().copied(), Some(32.0));
+        assert_eq!(
+            params.parameters.custom_start_urls,
+            vec!["https://example.com/start"]
+        );
+
+        let proxy = params.parameters.proxy.as_ref().expect("proxy parsed");
+        assert_eq!(proxy.proxy_type, "socks5");
+        assert_eq!(proxy.host, "127.0.0.1");
+        assert_eq!(proxy.port, 1080);
+        assert_eq!(proxy.username, "proxyuser");
+        assert_eq!(proxy.password, "proxypass");
+        assert!(proxy.save_traffic);
     }
 
     #[test]
@@ -2516,5 +3044,59 @@ mod tests {
             Some("")
         );
         assert!(fp.validate().is_coherent(), "{:?}", fp.validate().errors);
+    }
+
+    #[test]
+    fn a_payload_using_fingerprint_api_names_loads_cleanly() {
+        let params: ProfileParams = serde_json::from_value(json!({
+            "name": "Fingerprint API Named Payload",
+            "browser_type": "chromium",
+            "os_type": "windows",
+            "parameters": {
+                "flags": {
+                    "webgl": "mask",
+                    "timezone": "Europe/Berlin",
+                    "ports": "block:80,443",
+                    "fonts": "Arial,Calibri",
+                    "battery": "random",
+                    "connection": "random",
+                    "storage_quota": "random",
+                    "speech_voices": "random",
+                    "bluetooth": "random",
+                    "client_hints": "random"
+                },
+                "fingerprint": {
+                    "webgl": {
+                        "vendor": "Google Inc. (NVIDIA)",
+                        "renderer": "ANGLE (NVIDIA, GeForce RTX 3070)"
+                    },
+                    "timezone": { "zone": "Europe/Berlin" },
+                    "screen": { "width": 1920, "height": 1080, "pixel_ratio": 1.0 },
+                    "avail_screen": { "width": 1920, "height": 1040, "pixel_ratio": 1.0 },
+                    "battery": { "charging": true, "level": 0.85 },
+                    "connection": { "downlink": 10.0, "rtt": 50, "effective_type": "4g", "save_data": false },
+                    "storage_quota": 1073741824,
+                    "bluetooth": true
+                }
+            }
+        }))
+        .unwrap();
+
+        let fp = params.to_fingerprint();
+        assert_eq!(fp.timezone().as_str(), Some("Europe/Berlin"));
+        assert_eq!(
+            fp.webgl().value().and_then(|gl| gl.vendor.as_deref()),
+            Some("Google Inc. (NVIDIA)")
+        );
+        assert_eq!(fp.screen().value(), Some(&ScreenSize::new(1920, 1080)));
+        assert_eq!(
+            fp.avail_screen().value(),
+            Some(&ScreenSize::new(1920, 1040))
+        );
+        assert!(fp.battery().is_value());
+        assert_eq!(fp.battery().value().map(|b| b.level), Some(0.85));
+        assert!(fp.connection().is_value());
+        assert_eq!(fp.storage_quota().value(), Some(&1073741824));
+        assert_eq!(fp.bluetooth().value(), Some(&true));
     }
 }

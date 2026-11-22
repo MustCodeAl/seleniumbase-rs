@@ -20,6 +20,7 @@
 //! `BaseCase` starts on port 9515.
 
 #![cfg(feature = "test-util")]
+#![allow(clippy::unnecessary_safety_comment)]
 
 use seleniumbase_rs::api::master_qa::MasterQA;
 use seleniumbase_rs::{BaseCase, BrowserConfig};

@@ -10,6 +10,23 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **MCP Client Registry Expansion**: Extended `sbrs-mcp install` to support 27 AI clients
+  (including Antigravity, AugmentCode, Claude Code, Cline, Codex, Copilot, Cursor, Factory Droid,
+  Gemini CLI, Grok Build, Hermes, Kilo, Kimi, Kiro, Oh My Pi, OpenCode, OpenClaw, Pi, Plank, Qwen Code,
+  Roo Code, Mistral Vibe, Trae, Warp, and Zed), with automatic client detection, command generation,
+  and project/user config layouts.
+- **Stacktrace Syntax Highlighting & ANSI Diagnostic Formatting**: Added colored, syntax-highlighted
+  stack backtraces, colored panic formatting, and adaptive terminal reports (`crates/cli/src/diagnostic.rs`).
+- **Responsive Shutdown Handling**: Ctrl+C / SIGINT signals initiate immediate feedback with bounded
+  drain timeouts and double-signal force-exit support (`crates/cli/src/sbrs.rs`).
+- **Mimic Feature & Dynamic Version Parsing**: Added `Specimen`, `Build`, `Machine`, `Place`,
+  `Rendering`, and `Provenance` models (`src/evasion/mimic.rs`), `Spoof::Mimic` variant, and dynamic
+  Chrome/Edge version parsing without hardcoded major version boundaries.
+- **Lane 5 Launch Emulation in Core**: Added direct `timezone`, `geolocation`, and `platform` launch
+  settings to `LaunchOptionsBuilder` and `BrowserConfigBuilder` in core without requiring a full `Fingerprint`.
+- **API Guidelines Compliance**: Staged workspace lints, extracted submodules from large `mod.rs` files
+  (`providers`, `mcp`, `session`), implemented monomorphic generic selector wrappers across `BaseCase`,
+  and added comprehensive JSON payload aliases across profile fingerprints.
 - **BrowserScan bot detection tests**: add real-Chrome integration tests
   (`browserscan_bot_detection_invariants_pass`, `uc_stealth_script_satisfies_browserscan_invariants`,
   `browserscan_bot_detection_live_page`) and unit tests verifying stealth invariants and live page bot

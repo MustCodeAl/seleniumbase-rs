@@ -512,6 +512,24 @@ impl BrowserConfig {
             .as_ref()
             .is_some_and(|fp| fp.policy().native_spoofing)
     }
+
+    /// The emulation timezone ID, if set.
+    #[must_use]
+    pub fn timezone(&self) -> Option<&str> {
+        self.browser.timezone.as_deref()
+    }
+
+    /// The emulation geolocation coordinates (`latitude`, `longitude`, `accuracy`), if set.
+    #[must_use]
+    pub fn geolocation(&self) -> Option<(f64, f64, Option<f64>)> {
+        self.browser.geolocation
+    }
+
+    /// The emulation platform, if set.
+    #[must_use]
+    pub fn platform(&self) -> Option<&str> {
+        self.browser.platform.as_deref()
+    }
 }
 
 #[cfg(test)]

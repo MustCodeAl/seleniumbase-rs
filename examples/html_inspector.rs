@@ -130,6 +130,7 @@ fn print_report(name: &str, inspection: &InspectionResult) {
         let severity = match issue.severity {
             InspectionSeverity::Error => "error",
             InspectionSeverity::Warning => "warning",
+            _ => "unknown",
         };
         println!(
             "  [{severity}] {}: {} ({})",

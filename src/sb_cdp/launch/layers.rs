@@ -84,6 +84,9 @@ pub(super) struct Layer {
     pub(super) user_data_dir: Option<PathBuf>,
     pub(super) user_agent: Option<String>,
     pub(super) lang: Option<String>,
+    pub(super) timezone: Option<String>,
+    pub(super) geolocation: Option<(f64, f64, Option<f64>)>,
+    pub(super) platform: Option<String>,
     pub(super) window_size: Option<(u32, u32)>,
     pub(super) window_position: Option<(i32, i32)>,
     pub(super) webrtc: Option<WebRtcPolicy>,
@@ -141,6 +144,9 @@ impl Layer {
             user_data_dir: self.user_data_dir.or(lower.user_data_dir),
             user_agent: self.user_agent.or(lower.user_agent),
             lang: self.lang.or(lower.lang),
+            timezone: self.timezone.or(lower.timezone),
+            geolocation: self.geolocation.or(lower.geolocation),
+            platform: self.platform.or(lower.platform),
             window_size: self.window_size.or(lower.window_size),
             window_position: self.window_position.or(lower.window_position),
             webrtc: self.webrtc.or(lower.webrtc),
@@ -502,6 +508,9 @@ impl Layers {
             user_data_dir,
             user_agent,
             lang,
+            timezone,
+            geolocation,
+            platform,
             window_size,
             window_position,
             webrtc,
@@ -551,6 +560,9 @@ impl Layers {
             user_data_dir,
             user_agent,
             lang,
+            timezone,
+            geolocation,
+            platform,
             window_size,
             window_position,
             no_sandbox,
@@ -1164,5 +1176,50 @@ mod tests {
             LaunchOptions::default().browser_args(profile),
             built(LaunchOptions::builder()).browser_args(profile)
         );
+    }
+
+    #[test]
+    fn builder_launch_settings_timezone_geolocation_platform() {
+        let options = built(
+            LaunchOptions::builder()
+                .timezone("America/New_York")
+                .geolocation(40.7128, -74.0060, Some(50.0))
+                .platform("Win32"),
+        );
+        assert_eq!(options.timezone(), Some("America/New_York"));
+        assert_eq!(options.geolocation(), Some((40.7128, -74.0060, Some(50.0))));
+        assert_eq!(options.platform(), Some("Win32"));
+    }
+
+    #[test]
+    fn browser_config_bridges_timezone_geolocation_platform_to_launch_options() {
+        let config = BrowserConfig::builder()
+            .timezone("Europe/London")
+            .geolocation(51.5074, -0.1278, None)
+            .platform("MacIntel")
+            .build()
+            .expect("a valid config");
+        assert_eq!(config.timezone(), Some("Europe/London"));
+        assert_eq!(config.geolocation(), Some((51.5074, -0.1278, None)));
+        assert_eq!(config.platform(), Some("MacIntel"));
+
+        let options = built(LaunchOptions::builder().browser_config(&config));
+        assert_eq!(options.timezone(), Some("Europe/London"));
+        assert_eq!(options.geolocation(), Some((51.5074, -0.1278, None)));
+        assert_eq!(options.platform(), Some("MacIntel"));
+
+        // Builder setting wins over config
+        let override_options = built(
+            LaunchOptions::builder()
+                .browser_config(&config)
+                .timezone("Asia/Tokyo")
+                .platform("Linux x86_64"),
+        );
+        assert_eq!(override_options.timezone(), Some("Asia/Tokyo"));
+        assert_eq!(
+            override_options.geolocation(),
+            Some((51.5074, -0.1278, None))
+        );
+        assert_eq!(override_options.platform(), Some("Linux x86_64"));
     }
 }

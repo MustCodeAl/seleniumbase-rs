@@ -95,9 +95,8 @@ pub struct InstallArgs {
     plugin_opt: Vec<String>,
     /// Register in your own config (user) or in the one in this folder (project).
     ///
-    /// Project works for claude-code (.mcp.json), cursor (.cursor/mcp.json), vscode
-    /// (.vscode/mcp.json), gemini-cli (.gemini/settings.json) and opencode (opencode.json).
-    /// The other clients refuse it with exit status 2.
+    /// Project works for clients with project config support (claude, cursor, vscode,
+    /// gemini, opencode, copilot, etc.). The other clients refuse it with exit status 2.
     #[usage(long, value_enum, default = "user")]
     scope: ScopeArg,
     /// Register just the browser server or just the development server.

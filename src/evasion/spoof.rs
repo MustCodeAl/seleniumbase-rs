@@ -24,6 +24,8 @@ use std::borrow::Cow;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+use super::mimic::Specimen;
+
 /// One fingerprint setting: what the browser should report for it.
 ///
 /// `Random` is resolved when a fingerprint is built (see
@@ -42,6 +44,9 @@ pub enum Spoof<T> {
     Random,
     /// Exactly this value.
     Value(T),
+    /// What the named real build, machine, place or rendering shows. `build()` reads the value
+    /// from the catalogue; the fingerprint keeps the name (`Fingerprint::mimic_of`).
+    Mimic(Specimen),
     /// The API is turned off: unavailable, or denied. Only some settings have
     /// an off state; building a fingerprint with `Off` on any other is an error
     /// that names the setting.
@@ -72,6 +77,27 @@ impl<T> Spoof<T> {
     #[must_use]
     pub const fn is_value(&self) -> bool {
         matches!(self, Self::Value(_))
+    }
+
+    /// Whether this is [`Mimic`](Spoof::Mimic).
+    #[must_use]
+    pub const fn is_mimic(&self) -> bool {
+        matches!(self, Self::Mimic(_))
+    }
+
+    /// The specimen, if this is a [`Mimic`](Spoof::Mimic).
+    #[must_use]
+    pub const fn specimen(&self) -> Option<Specimen> {
+        match self {
+            Self::Mimic(specimen) => Some(*specimen),
+            _ => None,
+        }
+    }
+
+    /// The `Mimic` state of `specimen`: `Spoof::mimic(Machine::named("macbook-13-m1")?)`.
+    #[must_use]
+    pub fn mimic(specimen: impl Into<Specimen>) -> Self {
+        Self::Mimic(specimen.into())
     }
 
     /// Whether this is [`Off`](Spoof::Off).
@@ -111,6 +137,7 @@ impl<T> Spoof<T> {
             Self::Natural => Spoof::Natural,
             Self::Random => Spoof::Random,
             Self::Value(value) => Spoof::Value(value),
+            Self::Mimic(specimen) => Spoof::Mimic(*specimen),
             Self::Off => Spoof::Off,
         }
     }
@@ -121,6 +148,7 @@ impl<T> Spoof<T> {
             Self::Natural => Spoof::Natural,
             Self::Random => Spoof::Random,
             Self::Value(value) => Spoof::Value(f(value)),
+            Self::Mimic(specimen) => Spoof::Mimic(specimen),
             Self::Off => Spoof::Off,
         }
     }
@@ -131,7 +159,7 @@ impl<T> Spoof<T> {
             Self::Natural => Some("natural"),
             Self::Random => Some("random"),
             Self::Off => Some("off"),
-            Self::Value(_) => None,
+            Self::Value(_) | Self::Mimic(_) => None,
         }
     }
 }
@@ -185,6 +213,12 @@ impl<T: Serialize> Serialize for Spoof<T> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
             Self::Value(value) => value.serialize(serializer),
+            Self::Mimic(specimen) => {
+                use serde::ser::SerializeMap;
+                let mut map = serializer.serialize_map(Some(1))?;
+                map.serialize_entry("mimic", specimen.name())?;
+                map.end()
+            }
             other => serializer.serialize_str(other.word().unwrap_or("natural")),
         }
     }
@@ -211,6 +245,14 @@ impl<T: schemars::JsonSchema> schemars::JsonSchema for Spoof<T> {
             "anyOf": [
                 { "type": "string", "enum": ["natural", "random", "off"] },
                 { "type": "null" },
+                {
+                    "type": "object",
+                    "properties": {
+                        "mimic": { "type": "string" }
+                    },
+                    "required": ["mimic"],
+                    "additionalProperties": false
+                },
                 generator.subschema_for::<T>()
             ]
         })
@@ -236,18 +278,58 @@ impl<'de> Deserialize<'de> for Word {
     }
 }
 
+struct MimicName {
+    mimic: String,
+}
+
+impl<'de> Deserialize<'de> for MimicName {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct MimicVisitor;
+
+        impl<'de> serde::de::Visitor<'de> for MimicVisitor {
+            type Value = MimicName;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                formatter.write_str("a map with a single 'mimic' key")
+            }
+
+            fn visit_map<M: serde::de::MapAccess<'de>>(
+                self,
+                mut access: M,
+            ) -> Result<MimicName, M::Error> {
+                let mut mimic = None;
+                while let Some((key, val)) = access.next_entry::<String, String>()? {
+                    if key == "mimic" {
+                        mimic = Some(val);
+                    } else {
+                        return Err(serde::de::Error::unknown_field(&key, &["mimic"]));
+                    }
+                }
+                let mimic = mimic.ok_or_else(|| serde::de::Error::missing_field("mimic"))?;
+                Ok(MimicName { mimic })
+            }
+        }
+
+        deserializer.deserialize_map(MimicVisitor)
+    }
+}
+
 impl<'de, T: Deserialize<'de>> Deserialize<'de> for Spoof<T> {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(Deserialize)]
         #[serde(untagged)]
         enum Wire<T> {
             Word(Word),
+            Mimic(MimicName),
             Value(T),
         }
         Ok(match Option::<Wire<T>>::deserialize(deserializer)? {
             None | Some(Wire::Word(Word::Natural)) => Self::Natural,
             Some(Wire::Word(Word::Random)) => Self::Random,
             Some(Wire::Word(Word::Off)) => Self::Off,
+            Some(Wire::Mimic(MimicName { mimic })) => {
+                Self::Mimic(Specimen::named(&mimic).map_err(serde::de::Error::custom)?)
+            }
             Some(Wire::Value(value)) => Self::Value(value),
         })
     }
@@ -281,27 +363,45 @@ mod tests {
     }
 
     #[test]
-    fn the_four_states_are_told_apart() {
-        let states: [Spoof<u32>; 4] = [Spoof::Natural, Spoof::Random, Spoof::Value(1), Spoof::Off];
+    fn the_five_states_are_told_apart() {
+        let specimen = Specimen::named("macbook-13-m1").unwrap();
+        let states: [Spoof<u32>; 5] = [
+            Spoof::Natural,
+            Spoof::Random,
+            Spoof::Value(1),
+            Spoof::Mimic(specimen),
+            Spoof::Off,
+        ];
 
         let kinds: Vec<_> = states
             .iter()
-            .map(|s| (s.is_natural(), s.is_random(), s.is_value(), s.is_off()))
+            .map(|s| {
+                (
+                    s.is_natural(),
+                    s.is_random(),
+                    s.is_value(),
+                    s.is_mimic(),
+                    s.is_off(),
+                )
+            })
             .collect();
 
         assert_eq!(
             kinds,
             vec![
-                (true, false, false, false),
-                (false, true, false, false),
-                (false, false, true, false),
-                (false, false, false, true),
+                (true, false, false, false, false),
+                (false, true, false, false, false),
+                (false, false, true, false, false),
+                (false, false, false, true, false),
+                (false, false, false, false, true),
             ]
         );
         assert_eq!(
             states.iter().map(Spoof::is_set).collect::<Vec<_>>(),
-            vec![false, true, true, true]
+            vec![false, true, true, true, true]
         );
+        assert_eq!(states[3].specimen(), Some(specimen));
+        assert_eq!(states[2].specimen(), None);
     }
 
     #[test]
@@ -311,6 +411,57 @@ mod tests {
         assert_eq!(Spoof::Value(3).as_ref(), Spoof::Value(&3));
         assert_eq!(Spoof::Value(3).into_value(), Some(3));
         assert_eq!(Spoof::<u32>::Random.into_value(), None);
+    }
+
+    #[test]
+    fn map_and_as_ref_keep_a_mimic() {
+        let specimen = Specimen::named("macbook-13-m1").unwrap();
+        let m = Spoof::<u32>::mimic(specimen);
+        assert_eq!(m.clone().map(|n| n * 2), Spoof::<u32>::mimic(specimen));
+        assert_eq!(m.as_ref(), Spoof::<&u32>::mimic(specimen));
+        assert_eq!(m.specimen(), Some(specimen));
+        assert!(m.is_mimic());
+        assert_eq!(m.into_value(), None);
+    }
+
+    #[test]
+    fn json_writes_a_mimic_as_an_object_with_the_name() {
+        let specimen = Specimen::named("macbook-13-m1").unwrap();
+        let mimic = Spoof::<String>::mimic(specimen);
+        let json = serde_json::to_string(&mimic).unwrap();
+        assert_eq!(json, r#"{"mimic":"macbook-13-m1"}"#);
+    }
+
+    #[test]
+    fn json_reads_a_mimic_object_and_refuses_an_unknown_name_with_the_names() {
+        let read: Spoof<String> = serde_json::from_str(r#"{"mimic":"macbook-13-m1"}"#).unwrap();
+        assert_eq!(
+            read,
+            Spoof::mimic(Specimen::named("macbook-13-m1").unwrap())
+        );
+
+        let err =
+            serde_json::from_str::<Spoof<String>>(r#"{"mimic":"unknown-specimen"}"#).unwrap_err();
+        assert!(err.to_string().contains(
+            "there is no build, machine, place or rendering called \"unknown-specimen\""
+        ));
+    }
+
+    #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]
+    struct DummySetting {
+        mimic: String,
+        other: Option<u32>,
+    }
+
+    #[test]
+    fn a_mimic_object_is_never_read_as_a_value_of_an_object_setting() {
+        let read: Spoof<DummySetting> =
+            serde_json::from_str(r#"{"mimic":"macbook-13-m1"}"#).unwrap();
+        assert!(read.is_mimic());
+        assert_eq!(
+            read.specimen(),
+            Some(Specimen::named("macbook-13-m1").unwrap())
+        );
     }
 
     #[test]
@@ -361,6 +512,7 @@ mod tests {
             Spoof::Natural,
             Spoof::Random,
             Spoof::Value("x".to_owned()),
+            Spoof::mimic(Specimen::named("macbook-13-m1").unwrap()),
             Spoof::Off,
         ] {
             let text = serde_json::to_string(&state).unwrap();

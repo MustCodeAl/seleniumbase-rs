@@ -1,6 +1,6 @@
 name sbrs
 bin sbrs
-version "0.8.7 (seleniumbase-rs)"
+version "0.9.0 (seleniumbase-rs)"
 about "SeleniumBaseRust CLI"
 long_about "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper."
 logo #"""
@@ -634,10 +634,10 @@ flagset test-options {
         }
     }
 }
-flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" global=#true {
+flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" global=#true env=SB_WEBDRIVER_URL {
     arg <URL>
 }
-flag --browser help="Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)" global=#true {
+flag --browser help="Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)" global=#true env=SB_BROWSER {
     arg <BROWSER> {
         choices {
             choice chrome
@@ -664,16 +664,16 @@ flag --cdp help="Enable Chrome DevTools Protocol mode (SB_MODE=cdp)" global=#tru
 flag --uc help="Enable undetected-chromedriver style evasions (SB_MODE=uc)" global=#true bool_value=#true {
     alias --undetected --undetectable hide=#true
 }
-flag --user-agent help="Override the default user agent string (SB_USER_AGENT)" global=#true {
+flag --user-agent help="Override the default user agent string (SB_USER_AGENT)" global=#true env=SB_USER_AGENT {
     arg <USER_AGENT>
 }
-flag "-a --agent" help="Alias for --user-agent (SB_USER_AGENT)" global=#true {
+flag "-a --agent" help="Alias for --user-agent (SB_USER_AGENT)" global=#true env=SB_USER_AGENT {
     arg <AGENT>
 }
-flag --locale help="Locale string for the browser context (SB_LOCALE)" global=#true {
+flag --locale help="Locale string for the browser context (SB_LOCALE)" global=#true env=SB_LOCALE {
     arg <LOCALE>
 }
-flag "--start-page --url --start_page" help="Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)" global=#true {
+flag "--start-page --url --start_page" help="Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)" global=#true env=SB_START_PAGE {
     long_help #"""
 Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)
 
@@ -691,21 +691,21 @@ Python's `--save-screenshot`. A command that acts on the page (click, type, ...)
 flag --ad-block help="Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver sessions)" global=#true bool_value=#true {
     alias --adblock --block-ads hide=#true
 }
-flag --proxy help="Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list" global=#true {
+flag --proxy help="Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list" global=#true env=SB_PROXY {
     alias --proxy-server --proxy-string hide=#true
     arg <PROXY>
 }
-flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)" global=#true {
+flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)" global=#true env=SB_PROXY_LIST {
     arg <FILE>
 }
-flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)" global=#true {
+flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)" global=#true env=SB_PROXY_PAC_URL {
     alias --pac-url hide=#true
     arg <PROXY_PAC_URL>
 }
-flag --user-data-dir help="Path to a persistent browser user-data directory (SB_USER_DATA_DIR)" global=#true {
+flag --user-data-dir help="Path to a persistent browser user-data directory (SB_USER_DATA_DIR)" global=#true env=SB_USER_DATA_DIR {
     arg <USER_DATA_DIR>
 }
-flag --extension-dir help="Path to an unpacked extension directory (SB_EXTENSION_DIR)" global=#true {
+flag --extension-dir help="Path to an unpacked extension directory (SB_EXTENSION_DIR)" global=#true env=SB_EXTENSION_DIR {
     arg <EXTENSION_DIR>
 }
 flag "--reuse-session --reuse_session --rs" help="Share browsers among the tests of the run (SB_REUSE_SESSION)" global=#true bool_value=#true
@@ -715,11 +715,11 @@ flag --mobile help="Use a mobile device emulation profile (SB_MOBILE)" global=#t
 }
 flag "--esc-end --esc_end --ee" help="End the current test when ESC is pressed in the browser (SB_ESC_END)" global=#true bool_value=#true
 flag "--rec-sb-cdp --rec_sb_cdp" help="Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)" global=#true bool_value=#true
-flag "-c --config" help="Path to a TOML/JSON settings file (SB_SETTINGS_FILE)" global=#true {
+flag "-c --config" help="Path to a TOML/JSON settings file (SB_SETTINGS_FILE)" global=#true env=SB_SETTINGS_FILE {
     alias --settings-file --settings hide=#true
     arg <CONFIG>
 }
-flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)" global=#true {
+flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)" global=#true env=SB_FINGERPRINT {
     long_help #"""
 Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
 

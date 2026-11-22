@@ -16,6 +16,9 @@ description = "Stealthy Playwright Mode for seleniumbase-rs: rustwright attached
 repository.workspace = true
 publish = false
 
+[lints]
+workspace = true
+
 [dependencies]
 seleniumbase-rs = { path = "../.." }
 # The Rust Playwright port. Its calls block, so the crate runs them on Tokio's blocking pool.

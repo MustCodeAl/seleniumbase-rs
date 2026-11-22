@@ -151,6 +151,7 @@ pub use seleniumbase_rs_plugin as plugin_api;
     feature = "plugin-crx"
 ))]
 pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
+pub mod evasion;
 /// Plugin names and options turned into a `PluginSet` (feature `plugins`): the
 /// registry of the built-in plugins, and the functions the launch builders
 /// call for `plugins_named` and `plugin_selection`.
@@ -162,7 +163,6 @@ pub mod resources;
 #[cfg(feature = "turso")]
 pub mod storage;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
-pub mod evasion;
 #[warn(
     clippy::pedantic,
     clippy::allow_attributes_without_reason,
@@ -258,6 +258,8 @@ pub use evasion::fingerprint::{
     ProxyConfig, QuicMode, ScreenSize, SettingDiff, Severity, SpeechVoice, Spoof, StealthPolicy,
     WebGl, WebRtcAddresses, WebRtcPolicy,
 };
+#[doc(inline)]
+pub use evasion::mimic::Specimen;
 #[doc(inline)]
 pub use evasion::providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,

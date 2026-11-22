@@ -11,6 +11,9 @@ repository.workspace = true
 publish = false
 default-run = "sbrs"
 
+[lints]
+workspace = true
+
 # Where `cargo binstall` (and `cargo binstall --git <repository>`) finds the
 # prebuilt `sbrs` and `sbrs-mcp`: the archives `.github/workflows/release.yml`
 # attaches to the GitHub release of tag v<version>, with both binaries at the

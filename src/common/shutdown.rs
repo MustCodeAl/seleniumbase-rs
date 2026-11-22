@@ -35,7 +35,7 @@
 //! itself, so whatever installs one must keep waiting on it.
 
 use std::fmt;
-use std::future::{pending, Future};
+use std::future::pending;
 use std::sync::{Mutex, MutexGuard};
 use std::time::Duration;
 
