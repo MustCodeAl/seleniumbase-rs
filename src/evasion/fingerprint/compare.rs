@@ -325,8 +325,12 @@ fn agree(setting: &str, expected: &Value, actual: &Value, mode: Mode) -> bool {
         }
         "webgl" => webgl_agrees(expected, actual),
         "media_devices" => device_counts(expected) == device_counts(actual),
-        "speech_voices" if is_off(expected) || is_off(actual) => {
-            is_empty_list(expected) && is_empty_list(actual)
+        "speech_voices" => {
+            if is_off(expected) || is_off(actual) {
+                is_empty_list(expected) && is_empty_list(actual)
+            } else {
+                same_json(&sorted_voices(expected), &sorted_voices(actual))
+            }
         }
         "client_hints" => same_json(&sorted_hints(expected), &sorted_hints(actual)),
         "battery" | "connection" if mode == Mode::Live => is_off(expected) == is_off(actual),
@@ -407,6 +411,23 @@ fn sorted_hints(hints: &Value) -> Value {
         list.sort_by_key(ToString::to_string);
     }
     Value::Object(object)
+}
+
+/// Speech voices sorted in a fixed order, because Chrome's speech synthesis
+/// voices list order is not guaranteed across loads.
+fn sorted_voices(voices: &Value) -> Value {
+    let Some(list) = voices.as_array() else {
+        return voices.clone();
+    };
+    let mut list = list.clone();
+    list.sort_by(|a, b| {
+        let name_a = a.get("name").and_then(Value::as_str).unwrap_or("");
+        let name_b = b.get("name").and_then(Value::as_str).unwrap_or("");
+        let lang_a = a.get("lang").and_then(Value::as_str).unwrap_or("");
+        let lang_b = b.get("lang").and_then(Value::as_str).unwrap_or("");
+        (name_a, lang_a).cmp(&(name_b, lang_b))
+    });
+    Value::Array(list)
 }
 
 /// JSON equality that reads `8` and `8.0` as one number.
