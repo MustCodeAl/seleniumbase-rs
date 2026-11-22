@@ -590,7 +590,6 @@ struct Cli {
         long,
         global,
         aliases = ["proxy-server", "proxy-string"],
-
         value_hint = usage::ValueHint::Other, help = "Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list"
     )]
     proxy: Option<String>,
@@ -2961,6 +2960,7 @@ fn is_broken_pipe(error: &(dyn std::error::Error + 'static)) -> bool {
 }
 
 fn run_command() -> std::process::ExitCode {
+    diagnostic::install_panic_hook();
     // A completion request is answered before the runtime starts, with the commands of the
     // plugin catalog among the candidates; without a catalog `Cli::parse` answers it as usual.
     let argv: Vec<std::ffi::OsString> = std::env::args_os().skip(1).collect();
@@ -3136,11 +3136,22 @@ async fn execute() -> Result<(), Box<dyn std::error::Error>> {
     } else {
         run_until_shutdown(work).await?
     };
-    // Browsers dropped on the way out are closed in the background; wait.
-    drain_cleanups(timeout_from_env()).await;
     match outcome {
-        Outcome::Completed(result) => result,
+        Outcome::Completed(result) => {
+            // Browsers dropped on the way out are closed in the background; wait.
+            drain_cleanups(timeout_from_env()).await;
+            result
+        }
         Outcome::Interrupted(signal) => {
+            eprintln!("\n{signal} received; stopping...");
+            let grace = std::cmp::min(timeout_from_env(), Duration::from_secs(2));
+            tokio::select! {
+                _ = drain_cleanups(grace) => {}
+                _ = tokio::signal::ctrl_c() => {
+                    eprintln!("\nSecond signal received; force exiting.");
+                    std::process::exit(signal.exit_code());
+                }
+            }
             eprintln!("{signal} received; stopped.");
             std::process::exit(signal.exit_code());
         }
@@ -3474,7 +3485,6 @@ async fn run_plugin_task(
     run: &PluginRunArgs,
     args: &Cli,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    use seleniumbase_rs::common::shutdown::Outcome;
     use seleniumbase_rs::plugin_host;
 
     // The task's plugin is named by the command line, whatever else turned it on.

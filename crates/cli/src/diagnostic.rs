@@ -160,18 +160,201 @@ pub(crate) fn render(failure: &Failure, color: bool, wrap_at: Option<usize>) -> 
     text
 }
 
+/// Formats a raw stack backtrace with syntax highlighting and coloring.
+pub(crate) fn format_backtrace(trace: &str, color: bool) -> String {
+    if !color {
+        return trace.to_string();
+    }
+
+    let mut out = String::with_capacity(trace.len() + 512);
+    for line in trace.lines() {
+        let trimmed = line.trim_start();
+        if trimmed.starts_with("stack backtrace:") {
+            out.push_str("\x1b[1;33mstack backtrace:\x1b[0m\n");
+        } else if let Some(rest) = trimmed.strip_prefix("at ") {
+            let indent_len = line.len() - trimmed.len();
+            out.push_str(&line[..indent_len]);
+            out.push_str("\x1b[2mat\x1b[0m ");
+            format_location(rest, &mut out);
+            out.push('\n');
+        } else if let Some((frame_num, rest)) = parse_frame_line(trimmed) {
+            let indent_len = line.len() - trimmed.len();
+            out.push_str(&line[..indent_len]);
+            out.push_str("\x1b[36m");
+            out.push_str(frame_num);
+            out.push_str(":\x1b[0m");
+
+            let symbol_part = rest.trim_start();
+            if let Some((addr, sym)) = parse_address_and_symbol(symbol_part) {
+                out.push_str(" \x1b[2m");
+                out.push_str(addr);
+                out.push_str("\x1b[0m ");
+                format_symbol(sym, &mut out);
+            } else {
+                out.push(' ');
+                format_symbol(symbol_part, &mut out);
+            }
+            out.push('\n');
+        } else {
+            out.push_str(line);
+            out.push('\n');
+        }
+    }
+    if !trace.ends_with('\n') && out.ends_with('\n') {
+        out.pop();
+    }
+    out
+}
+
+fn parse_frame_line(s: &str) -> Option<(&str, &str)> {
+    let colon = s.find(':')?;
+    let prefix = &s[..colon];
+    if !prefix.is_empty() && prefix.chars().all(|c| c.is_ascii_digit()) {
+        Some((prefix, &s[colon + 1..]))
+    } else {
+        None
+    }
+}
+
+fn parse_address_and_symbol(s: &str) -> Option<(&str, &str)> {
+    if s.starts_with("0x") || s.starts_with("0X") {
+        if let Some(pos) = s.find(" - ") {
+            return Some((&s[..pos + 2], &s[pos + 3..]));
+        }
+    }
+    None
+}
+
+fn format_symbol(sym: &str, out: &mut String) {
+    if sym.contains("seleniumbase_rs") || sym.contains("sbrs") {
+        out.push_str("\x1b[1;32m");
+        out.push_str(sym);
+        out.push_str("\x1b[0m");
+    } else if sym.contains("tokio")
+        || sym.contains("core::")
+        || sym.contains("std::")
+        || sym.contains("alloc::")
+    {
+        out.push_str("\x1b[2;34m");
+        out.push_str(sym);
+        out.push_str("\x1b[0m");
+    } else if sym.contains("<unknown>") || sym.contains("???") {
+        out.push_str("\x1b[2;37m");
+        out.push_str(sym);
+        out.push_str("\x1b[0m");
+    } else {
+        out.push_str("\x1b[37m");
+        out.push_str(sym);
+        out.push_str("\x1b[0m");
+    }
+}
+
+fn format_location(loc: &str, out: &mut String) {
+    let parts: Vec<&str> = loc.rsplitn(3, ':').collect();
+    if parts.len() == 3
+        && parts[0].chars().all(|c| c.is_ascii_digit())
+        && parts[1].chars().all(|c| c.is_ascii_digit())
+    {
+        let file = parts[2];
+        let line = parts[1];
+        let col = parts[0];
+        out.push_str("\x1b[4;36m");
+        out.push_str(file);
+        out.push_str("\x1b[0m");
+        out.push_str("\x1b[1;33m:");
+        out.push_str(line);
+        out.push(':');
+        out.push_str(col);
+        out.push_str("\x1b[0m");
+    } else if parts.len() >= 2 && parts[0].chars().all(|c| c.is_ascii_digit()) {
+        let file = parts[1];
+        let line = parts[0];
+        out.push_str("\x1b[4;36m");
+        out.push_str(file);
+        out.push_str("\x1b[0m");
+        out.push_str("\x1b[1;33m:");
+        out.push_str(line);
+        out.push_str("\x1b[0m");
+    } else {
+        out.push_str("\x1b[4;36m");
+        out.push_str(loc);
+        out.push_str("\x1b[0m");
+    }
+}
+
+/// Formats a panic hook info with syntax highlighting and coloring.
+pub(crate) fn format_panic_info(info: &std::panic::PanicHookInfo<'_>, color: bool) -> String {
+    let payload = if let Some(s) = info.payload().downcast_ref::<&str>() {
+        *s
+    } else if let Some(s) = info.payload().downcast_ref::<String>() {
+        s.as_str()
+    } else {
+        "Box<dyn Any>"
+    };
+
+    let location = info
+        .location()
+        .map(|loc| format!("{}:{}:{}", loc.file(), loc.line(), loc.column()));
+
+    if color {
+        let mut msg = format!(
+            "\x1b[1;31merror\x1b[0m\x1b[1m: the application panicked at \x1b[0m\x1b[1;37m'{payload}'\x1b[0m"
+        );
+        if let Some(loc) = location {
+            msg.push_str("\n  \x1b[2mat\x1b[0m ");
+            format_location(&loc, &mut msg);
+        }
+        msg
+    } else {
+        let mut msg = format!("error: the application panicked at '{payload}'");
+        if let Some(loc) = location {
+            msg.push_str(&format!("\n  at {loc}"));
+        }
+        msg
+    }
+}
+
+/// Installs a panic hook that formats the panic location and stacktrace with syntax highlighting.
+pub(crate) fn install_panic_hook() {
+    std::panic::set_hook(Box::new(|info| {
+        let color = use_color(Stream::Stderr);
+        eprintln!("{}", format_panic_info(info, color));
+        if std::env::var("RUST_BACKTRACE")
+            .map(|v| v != "0")
+            .unwrap_or(false)
+        {
+            let backtrace = std::backtrace::Backtrace::capture();
+            if backtrace.status() == std::backtrace::BacktraceStatus::Captured {
+                eprintln!("\n{}", format_backtrace(&format!("{backtrace}"), color));
+            }
+        } else if color {
+            eprintln!(
+                "\x1b[2mnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\x1b[0m"
+            );
+        } else {
+            eprintln!("note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace");
+        }
+    }));
+}
+
 /// Prints the report of `error` to standard error: coloured and wrapped on a terminal, plain
 /// and unwrapped anywhere else.
 pub(crate) fn print(program: &str, error: &(dyn Error + 'static)) {
+    let color = use_color(Stream::Stderr);
     let wrap_at = std::io::stderr().is_terminal().then(terminal_width);
     eprint!(
         "{}",
-        render(
-            &Failure::of(program, error),
-            use_color(Stream::Stderr),
-            wrap_at
-        )
+        render(&Failure::of(program, error), color, wrap_at)
     );
+    if std::env::var("RUST_BACKTRACE")
+        .map(|v| v != "0")
+        .unwrap_or(false)
+    {
+        let backtrace = std::backtrace::Backtrace::capture();
+        if backtrace.status() == std::backtrace::BacktraceStatus::Captured {
+            eprintln!("\n{}", format_backtrace(&format!("{backtrace}"), color));
+        }
+    }
 }
 
 #[cfg(test)]
@@ -337,5 +520,23 @@ mod tests {
 
         assert!(!text.contains('\x1b'), "{text:?}");
         assert!(text.contains("title was \u{fffd}[2Jowned"), "{text:?}");
+    }
+
+    #[test]
+    fn backtrace_formatting_respects_color_flag() {
+        let sample = "stack backtrace:\n   0: 0x102345678 - seleniumbase_rs::browser::session::connect\n             at src/browser/session/connect.rs:42:15\n   1: 0x102345890 - std::sys::backtrace\n             at library/std/src/sys/backtrace.rs:20:5";
+        let uncolored = format_backtrace(sample, false);
+        assert_eq!(uncolored, sample);
+
+        let colored = format_backtrace(sample, true);
+        assert!(colored.contains('\x1b'), "{colored}");
+        // Check frame 0 styled
+        assert!(colored.contains("\x1b[36m0:\x1b[0m"), "{colored}");
+        // Check crate code highlighted in green
+        assert!(colored.contains("\x1b[1;32mseleniumbase_rs::browser::session::connect\x1b[0m"), "{colored}");
+        // Check std code muted in blue
+        assert!(colored.contains("\x1b[2;34mstd::sys::backtrace\x1b[0m"), "{colored}");
+        // Check location line highlighted
+        assert!(colored.contains("\x1b[4;36msrc/browser/session/connect.rs\x1b[0m\x1b[1;33m:42:15\x1b[0m"), "{colored}");
     }
 }
