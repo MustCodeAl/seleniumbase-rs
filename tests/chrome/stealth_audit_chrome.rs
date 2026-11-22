@@ -568,3 +568,275 @@ async fn every_session_provider_runs_in_chrome_without_throwing() {
     }
     lab.close().await;
 }
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn browserscan_bot_detection_invariants_pass() {
+    let fingerprint = persona();
+    let lab = lab(Some(&fingerprint)).await;
+
+    let seen = lab
+        .eval(
+            r##"(() => {
+                const print = (f) => Function.prototype.toString.call(f);
+                const desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver');
+                const iframe = document.createElement('iframe');
+                document.body.appendChild(iframe);
+                const iframeNav = iframe.contentWindow.navigator;
+                const iframeDesc = Object.getOwnPropertyDescriptor(iframe.contentWindow.Navigator.prototype, 'webdriver');
+
+                let consoleProbeTriggered = false;
+                const probeErr = new Error('cdp_probe');
+                Object.defineProperty(probeErr, 'stack', {
+                    get() { consoleProbeTriggered = true; return ''; }
+                });
+                console.debug(probeErr);
+
+                return {
+                    webdriver: {
+                        val: navigator.webdriver,
+                        own: navigator.hasOwnProperty('webdriver'),
+                        protoHas: 'webdriver' in Navigator.prototype,
+                        descGetExists: Boolean(desc && desc.get),
+                        descGetName: desc && desc.get ? desc.get.name : null,
+                        descGetNative: desc && desc.get ? print(desc.get) : null,
+                    },
+                    iframeWebdriver: {
+                        val: iframeNav.webdriver,
+                        own: iframeNav.hasOwnProperty('webdriver'),
+                        protoHas: 'webdriver' in iframe.contentWindow.Navigator.prototype,
+                        descGetExists: Boolean(iframeDesc && iframeDesc.get),
+                    },
+                    plugins: {
+                        isInstance: navigator.plugins instanceof PluginArray,
+                        hasItem: typeof navigator.plugins.item === 'function',
+                        hasNamedItem: typeof navigator.plugins.namedItem === 'function',
+                        itemNative: print(PluginArray.prototype.item),
+                        namedItemNative: print(PluginArray.prototype.namedItem),
+                    },
+                    mimeTypes: {
+                        isInstance: navigator.mimeTypes instanceof MimeTypeArray,
+                    },
+                    permissions: {
+                        queryNative: print(navigator.permissions.query),
+                    },
+                    consoleProbeTriggered,
+                    markers: Object.getOwnPropertyNames(window)
+                        .concat(Object.getOwnPropertyNames(document))
+                        .filter((k) => /^\$?cdc_|__webdriver|__selenium|__driver|domAutomation|callPhantom|_phantom/.test(k)),
+                };
+            })()"##,
+        )
+        .await;
+
+    // BrowserScan webdriver checks
+    assert_eq!(
+        seen["webdriver"]["val"], false,
+        "navigator.webdriver must be false"
+    );
+    assert_eq!(
+        seen["webdriver"]["own"], false,
+        "navigator must not have own property 'webdriver'"
+    );
+    assert_eq!(
+        seen["webdriver"]["protoHas"], true,
+        "Navigator.prototype must have 'webdriver'"
+    );
+    assert_eq!(
+        seen["webdriver"]["descGetExists"], true,
+        "getter must exist on Navigator.prototype"
+    );
+    assert_eq!(
+        seen["webdriver"]["descGetName"], "get webdriver",
+        "getter name must be 'get webdriver'"
+    );
+    assert_eq!(
+        seen["webdriver"]["descGetNative"], "function get webdriver() { [native code] }",
+        "getter must report [native code]"
+    );
+
+    // iframe webdriver inheritance
+    assert_eq!(
+        seen["iframeWebdriver"]["val"], false,
+        "iframe navigator.webdriver must be false"
+    );
+    assert_eq!(
+        seen["iframeWebdriver"]["own"], false,
+        "iframe navigator must not have own property 'webdriver'"
+    );
+    assert_eq!(
+        seen["iframeWebdriver"]["protoHas"], true,
+        "iframe Navigator.prototype must have 'webdriver'"
+    );
+
+    // BrowserScan plugin array checks
+    assert_eq!(
+        seen["plugins"]["isInstance"], true,
+        "navigator.plugins must be instanceof PluginArray"
+    );
+    assert_eq!(
+        seen["plugins"]["hasItem"], true,
+        "navigator.plugins.item must be a function"
+    );
+    assert_eq!(
+        seen["plugins"]["hasNamedItem"], true,
+        "navigator.plugins.namedItem must be a function"
+    );
+    assert_eq!(
+        seen["plugins"]["itemNative"], "function item() { [native code] }",
+        "PluginArray.prototype.item must be native"
+    );
+    assert_eq!(
+        seen["plugins"]["namedItemNative"], "function namedItem() { [native code] }",
+        "PluginArray.prototype.namedItem must be native"
+    );
+    assert_eq!(
+        seen["mimeTypes"]["isInstance"], true,
+        "navigator.mimeTypes must be instanceof MimeTypeArray"
+    );
+
+    // Permissions
+    assert_eq!(
+        seen["permissions"]["queryNative"], "function query() { [native code] }",
+        "permissions.query must report [native code]"
+    );
+
+    // Console inspection probe
+    assert_eq!(
+        seen["consoleProbeTriggered"], false,
+        "console probe must not trigger getters"
+    );
+
+    // Automation markers
+    assert_eq!(
+        seen["markers"],
+        serde_json::json!([]),
+        "no automation markers on window or document"
+    );
+
+    lab.close().await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome"]
+#[serial_test::serial(chrome)]
+async fn uc_stealth_script_satisfies_browserscan_invariants() {
+    let lab = lab(None).await;
+
+    lab.page
+        .evaluate(seleniumbase_rs::evasion::uc::UC_STEALTH_SCRIPT)
+        .await
+        .expect("UC_STEALTH_SCRIPT evaluates cleanly");
+
+    let seen = lab
+        .eval(
+            r##"(() => {
+                const print = (f) => Function.prototype.toString.call(f);
+                const desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'webdriver');
+                return {
+                    webdriver: {
+                        val: navigator.webdriver,
+                        own: navigator.hasOwnProperty('webdriver'),
+                        descGetExists: Boolean(desc && desc.get),
+                        descGetNative: desc && desc.get ? print(desc.get) : null,
+                    },
+                    plugins: {
+                        isInstance: navigator.plugins instanceof PluginArray,
+                    },
+                    permissions: {
+                        queryNative: print(navigator.permissions.query),
+                    },
+                    markers: Object.getOwnPropertyNames(window)
+                        .concat(Object.getOwnPropertyNames(document))
+                        .filter((k) => /^\$?cdc_|__webdriver|__selenium|__driver|domAutomation/.test(k)),
+                };
+            })()"##,
+        )
+        .await;
+
+    assert_eq!(
+        seen["webdriver"]["val"], false,
+        "UC: navigator.webdriver must be false"
+    );
+    assert_eq!(
+        seen["webdriver"]["own"], false,
+        "UC: no own property webdriver"
+    );
+    assert_eq!(
+        seen["webdriver"]["descGetExists"], true,
+        "UC: getter on prototype"
+    );
+    assert!(
+        seen["webdriver"]["descGetNative"]
+            .as_str()
+            .unwrap()
+            .contains("[native code]"),
+        "UC: getter must be [native code]"
+    );
+    assert_eq!(
+        seen["plugins"]["isInstance"], true,
+        "UC: plugins instanceof PluginArray"
+    );
+    assert!(
+        seen["permissions"]["queryNative"]
+            .as_str()
+            .unwrap()
+            .contains("[native code]"),
+        "UC: permissions.query [native code]"
+    );
+    assert_eq!(seen["markers"], serde_json::json!([]), "UC: no markers");
+
+    lab.close().await;
+}
+
+#[tokio::test]
+#[ignore = "launches a real Chrome and needs the network"]
+#[serial_test::serial(chrome)]
+async fn browserscan_bot_detection_live_page() {
+    let fingerprint = persona();
+    let options = LaunchOptions::builder()
+        .headless(true)
+        .no_sandbox(std::env::var_os("CI").is_some())
+        .fingerprint(&fingerprint)
+        .build()
+        .expect("valid launch options");
+    let browser = Browser::launch(options).await.expect("Chrome starts");
+    let page = browser
+        .default_page()
+        .await
+        .expect("a page")
+        .with_timeout(Duration::from_secs(30));
+
+    page.goto("https://www.browserscan.net/bot-detection")
+        .await
+        .expect("navigates to BrowserScan bot detection");
+
+    tokio::time::sleep(Duration::from_secs(5)).await;
+
+    let eval_res = page
+        .evaluate(
+            r##"(() => ({
+                hasWebdriver: navigator.webdriver,
+                hasOwnWebdriver: navigator.hasOwnProperty('webdriver'),
+                isPluginArray: navigator.plugins instanceof PluginArray,
+            }))()"##,
+        )
+        .await
+        .expect("page evaluate");
+
+    assert_eq!(
+        eval_res["hasWebdriver"], false,
+        "navigator.webdriver is false on live page"
+    );
+    assert_eq!(
+        eval_res["hasOwnWebdriver"], false,
+        "no own webdriver property on live page"
+    );
+    assert_eq!(
+        eval_res["isPluginArray"], true,
+        "plugins is PluginArray on live page"
+    );
+
+    browser.close().await.expect("browser closes");
+}

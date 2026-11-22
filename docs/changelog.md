@@ -35,6 +35,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 ### Added
 
+- **BrowserScan bot detection tests**: add real-Chrome integration tests
+  (`browserscan_bot_detection_invariants_pass`, `uc_stealth_script_satisfies_browserscan_invariants`,
+  `browserscan_bot_detection_live_page`) and unit tests verifying stealth invariants and live page bot
+  evaluation against `https://www.browserscan.net/bot-detection`.
 - **`sbrs-mcp repair`** finds what is broken in the entries MCP clients hold for sbrs-mcp and
   fixes it: a program that is not there (after `brew upgrade`, say) or cannot be run, a path
   that is another `sbrs-mcp` than this one, a bare name a desktop app may not find, the same
@@ -291,6 +295,12 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 ### Fixed
 
+- **Harden UC Mode and CDP Mode against BrowserScan bot detection**:
+  - `UC_STEALTH_SCRIPT` disguises patched functions and prototype getters with `[native code]` `Function.prototype.toString` masks.
+  - Fix `navigator.webdriver` spoofing: remove own property on `navigator` and define a native-masked getter returning `false` on `Navigator.prototype`.
+  - Fix `navigator.plugins` to maintain `PluginArray.prototype` fidelity instead of plain JavaScript array overrides.
+  - Automatically patch ChromeDriver binary markers when launching Chromedriver in UC or CDP modes.
+  - Pass `--disable-blink-features=AutomationControlled` and `--disable-infobars` to Chrome during pure CDP launches, and bridge default stealth fingerprints when `--cdp` is active.
 - A fingerprint capture reads `speechSynthesis.getVoices()` until the list holds still. Chrome
   fills it in batches (the remote voices, then the system's), so a capture used to keep only the
   first batch and a second capture of the same browser listed more voices.

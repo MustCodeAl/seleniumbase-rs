@@ -249,7 +249,7 @@ impl StealthOptions {
             })?;
         }
 
-        if self.uc {
+        if self.uc || self.session.driver_mode() == crate::browser::config::DriverMode::Cdp {
             apply_undetected_args(caps)?;
         }
 

@@ -203,7 +203,10 @@ impl EvasionProvider for WebdriverProvider {
         Some(render(
             r##"(function () {
   @SB@
-  sb.getter(Object.getPrototypeOf(navigator), 'webdriver', function () { return false; });
+  try { delete navigator.webdriver; } catch (e) {}
+  if (navigator.webdriver !== false || Object.getOwnPropertyDescriptor(Object.getPrototypeOf(navigator), 'webdriver')?.get?.toString().indexOf('[native code]') === -1) {
+    sb.getter(Object.getPrototypeOf(navigator), 'webdriver', function () { return false; });
+  }
   const hooks = ['callPhantom', '_phantom', '__nightmare', '__selenium_unwrapped',
     '__webdriver_evaluate', '__driver_evaluate', '__webdriver_script_fn',
     '__driver_unwrapped', '__fxdriver_evaluate', '__selenium_evaluate',
@@ -241,7 +244,10 @@ impl EvasionProvider for CdpMarkerProvider {
   }
   let o = window;
   while (o) { scrub(o); o = Object.getPrototypeOf(o); }
-  scrub(document);
+  if (typeof document !== 'undefined') {
+    let d = document;
+    while (d) { scrub(d); d = Object.getPrototypeOf(d); }
+  }
 })();"##
                 .to_owned(),
         )

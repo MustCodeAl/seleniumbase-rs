@@ -354,14 +354,18 @@ impl BrowserSession {
             }
         }
         self.apply_fingerprint(config).await?;
-        // Also patch the current document for pages already loaded.
-        let _ = self
-            .webdriver()?
-            .execute(
-                "Object.defineProperty(navigator,'webdriver',{get:()=>undefined});",
-                Vec::new(),
-            )
-            .await?;
+        // Also scrub any WebDriver markers from the current document for pages already loaded.
+        if let Ok(driver) = self.webdriver() {
+            let _ = driver
+                .execute(
+                    "try { delete navigator.webdriver; } catch(e) {}",
+                    Vec::new(),
+                )
+                .await;
+            let _ = driver
+                .execute(&crate::evasion::evasions::cdc_scrub(), Vec::new())
+                .await;
+        }
         Ok(())
     }
 
@@ -375,11 +379,8 @@ impl BrowserSession {
         if config.is_cdp_enabled() {
             self.activate_cdp_mode().await?;
         }
-        if config.is_uc_enabled() {
+        if config.is_uc_enabled() || config.is_cdp_enabled() {
             self.enable_uc_mode(config).await?;
-        } else if config.is_cdp_enabled() {
-            // CDP-only mode still benefits from fingerprint spoofing.
-            self.apply_fingerprint(config).await?;
         }
         self.apply_ad_block().await?;
         self.apply_mobile_emulation().await?;

@@ -724,6 +724,24 @@ pub async fn launch_driver_for(
                 install_chromedriver(&version, major, proxy.as_deref()).await?
             }
         };
+        if config.is_uc_enabled()
+            || config.session.driver_mode() == crate::browser::config::DriverMode::Cdp
+        {
+            let patcher = crate::evasion::patcher::ChromedriverPatcher::new(&binary);
+            if let Ok(true) = patcher.needs_patch() {
+                if let Err(err) = patcher.patch(crate::evasion::patcher::EnginePatch::all()) {
+                    tracing::warn!(
+                        error = %err,
+                        "auto-patching chromedriver for stealth mode failed; continuing with unpatched binary"
+                    );
+                } else {
+                    tracing::info!(
+                        path = %binary.display(),
+                        "auto-patched chromedriver for stealth mode"
+                    );
+                }
+            }
+        }
         return launch_chromedriver_at(&binary, display).await;
     }
     let binary = match program {

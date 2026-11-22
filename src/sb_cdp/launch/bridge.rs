@@ -134,7 +134,15 @@ impl Layer {
                 .or_else(|| config.cdp_discovery.then(|| config.session.webdriver_url()))
                 .map(Redacted),
             cdp_target: config.cdp_target.clone(),
-            fingerprint: config.fingerprint.as_ref().map(SharedFingerprint::new),
+            fingerprint: config
+                .fingerprint
+                .clone()
+                .or_else(|| {
+                    (config.is_uc_enabled() || config.is_cdp_enabled())
+                        .then(crate::Fingerprint::default)
+                })
+                .as_ref()
+                .map(SharedFingerprint::new),
             #[cfg(feature = "plugins")]
             plugins: Some(config.plugins().clone()),
             ..Self::of_browser(&config.browser)

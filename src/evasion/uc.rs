@@ -9,82 +9,145 @@ use crate::error::SeleniumBaseError;
 /// objects, patches WebGL/permissions/media devices, and masks common automation
 /// fingerprints. It is designed to run via `Page.addScriptToEvaluateOnNewDocument` so
 /// it executes before any page scripts.
-const UC_STEALTH_SCRIPT: &str = r#"
+pub const UC_STEALTH_SCRIPT: &str = r#"
 (function() {
   'use strict';
 
-  // 1. Remove known chromedriver markers from the window object.
-  let objectToInspect = window;
-  let cdc_props = [];
-  while (objectToInspect !== null) {
-    cdc_props = cdc_props.concat(Object.getOwnPropertyNames(objectToInspect));
-    objectToInspect = Object.getPrototypeOf(objectToInspect);
-  }
-  cdc_props.filter(i => /^[a-z]{3}_[a-zA-Z0-9]{22}_.*/i.test(i)).forEach(p => {
-    try { delete window[p]; } catch (e) {}
+  // Native toString disguise: guarantees all patched functions report `[native code]`.
+  const nativeToString = Function.prototype.toString;
+  const customNames = new WeakMap();
+  const patchedToString = new Proxy(nativeToString, {
+    apply: function(target, thisArg, args) {
+      if (customNames.has(thisArg)) {
+        return 'function ' + customNames.get(thisArg) + '() { [native code] }';
+      }
+      return Reflect.apply(target, thisArg, args);
+    }
   });
+  customNames.set(patchedToString, 'toString');
+  try { Function.prototype.toString = patchedToString; } catch(e) {}
+  function markNative(fn, name) {
+    if (typeof fn === 'function') {
+      customNames.set(fn, name || fn.name || '');
+    }
+    return fn;
+  }
 
-  // 2. navigator.webdriver must be undefined/false, not a getter that returns undefined.
+  // 1. Remove known chromedriver markers from window and document.
+  const cdcRegex = /^[a-z]{3}_[a-zA-Z0-9]{22}_.*/i;
+  const scrub = (obj) => {
+    if (!obj) return;
+    try {
+      Object.getOwnPropertyNames(obj).forEach(p => {
+        if (cdcRegex.test(p) || /^\$?cdc_/i.test(p)) {
+          try { delete obj[p]; } catch (e) {}
+        }
+      });
+    } catch (e) {}
+  };
+  let w = window;
+  while (w) { scrub(w); w = Object.getPrototypeOf(w); }
+  if (typeof document !== 'undefined') {
+    let d = document;
+    while (d) { scrub(d); d = Object.getPrototypeOf(d); }
+  }
+
+  // 2. navigator.webdriver must be false (not undefined) on Navigator.prototype, not an own property on navigator.
   try {
-    Object.defineProperty(navigator, 'webdriver', {
-      get: () => undefined,
-      configurable: true,
-      enumerable: true
-    });
-    // Defensive: some detectors check the descriptor itself.
+    delete navigator.webdriver;
+  } catch (err) {}
+  try {
     const proto = Navigator.prototype || Object.getPrototypeOf(navigator);
     if (proto) {
+      const getter = markNative(function() { return false; }, 'get webdriver');
       Object.defineProperty(proto, 'webdriver', {
-        get: () => undefined,
+        get: getter,
         configurable: true,
         enumerable: true
       });
     }
   } catch(err) {}
 
-  // 3. Consistent language/locale/hardware profile.
-  Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
-  Object.defineProperty(navigator, 'hardwareConcurrency', { get: () => 8 });
-  Object.defineProperty(navigator, 'deviceMemory', { get: () => 8 });
-
-  // 4. Plausible plugin list so automation fingerprinting does not see an empty array.
-  const makeMimeType = (type, suffixes, description) => ({
-    type, suffixes, description, enabledPlugin: null
-  });
-  const plugins = [
-    {
-      name: 'Chrome PDF Plugin',
-      filename: 'internal-pdf-viewer',
-      description: 'Portable Document Format',
-      version: undefined,
-      length: 1,
-      item: function(idx) { return this[idx]; },
-      namedItem: function(name) { return this[name]; },
-      0: makeMimeType('application/x-google-chrome-pdf', 'pdf', 'Portable Document Format')
-    },
-    {
-      name: 'Chrome PDF Viewer',
-      filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai',
-      description: 'Portable Document Format',
-      version: undefined,
-      length: 1,
-      item: function(idx) { return this[idx]; },
-      namedItem: function(name) { return this[name]; },
-      0: makeMimeType('application/pdf', 'pdf', '')
-    },
-    {
-      name: 'Native Client',
-      filename: 'internal-nacl-plugin',
-      description: '',
-      version: undefined,
-      length: 2,
-      item: function(idx) { return this[idx]; },
-      namedItem: function(name) { return this[name]; },
-      0: makeMimeType('application/x-nacl', '', 'Native Client Executable'),
-      1: makeMimeType('application/x-pnacl', '', 'Portable Native Client Executable')
+  // 3. Consistent language/locale/hardware profile on prototype.
+  try {
+    const proto = Navigator.prototype || Object.getPrototypeOf(navigator);
+    if (proto) {
+      if (!navigator.languages || navigator.languages.length === 0) {
+        Object.defineProperty(proto, 'languages', {
+          get: markNative(() => ['en-US', 'en'], 'get languages'),
+          configurable: true,
+          enumerable: true
+        });
+      }
+      if (!navigator.hardwareConcurrency) {
+        Object.defineProperty(proto, 'hardwareConcurrency', {
+          get: markNative(() => 8, 'get hardwareConcurrency'),
+          configurable: true,
+          enumerable: true
+        });
+      }
+      if (!navigator.deviceMemory) {
+        Object.defineProperty(proto, 'deviceMemory', {
+          get: markNative(() => 8, 'get deviceMemory'),
+          configurable: true,
+          enumerable: true
+        });
+      }
     }
-  ];
-  Object.defineProperty(navigator, 'plugins', { get: () => plugins });
+  } catch(err) {}
+
+  // 4. Plausible plugin list: keep real Chrome PluginArray if valid, otherwise mock with PluginArray prototype.
+  try {
+    if (!navigator.plugins || navigator.plugins.length === 0 || !(navigator.plugins instanceof PluginArray)) {
+      const makeMimeType = (type, suffixes, description) => ({
+        type, suffixes, description, enabledPlugin: null
+      });
+      const plugins = [
+        {
+          name: 'Chrome PDF Plugin',
+          filename: 'internal-pdf-viewer',
+          description: 'Portable Document Format',
+          version: undefined,
+          length: 1,
+          item: markNative(function(idx) { return this[idx]; }, 'item'),
+          namedItem: markNative(function(name) { return this[name]; }, 'namedItem'),
+          0: makeMimeType('application/x-google-chrome-pdf', 'pdf', 'Portable Document Format')
+        },
+        {
+          name: 'Chrome PDF Viewer',
+          filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai',
+          description: 'Portable Document Format',
+          version: undefined,
+          length: 1,
+          item: markNative(function(idx) { return this[idx]; }, 'item'),
+          namedItem: markNative(function(name) { return this[name]; }, 'namedItem'),
+          0: makeMimeType('application/pdf', 'pdf', '')
+        },
+        {
+          name: 'Native Client',
+          filename: 'internal-nacl-plugin',
+          description: '',
+          version: undefined,
+          length: 2,
+          item: markNative(function(idx) { return this[idx]; }, 'item'),
+          namedItem: markNative(function(name) { return this[name]; }, 'namedItem'),
+          0: makeMimeType('application/x-nacl', '', 'Native Client Executable'),
+          1: makeMimeType('application/x-pnacl', '', 'Portable Native Client Executable')
+        }
+      ];
+      try {
+        Object.setPrototypeOf(plugins, PluginArray.prototype);
+      } catch (e) {}
+      const proto = Navigator.prototype || Object.getPrototypeOf(navigator);
+      if (proto) {
+        Object.defineProperty(proto, 'plugins', {
+          get: markNative(() => plugins, 'get plugins'),
+          configurable: true,
+          enumerable: true
+        });
+      }
+    }
+  } catch(err) {}
 
   // 5. Chrome-only globals expected by real Chrome profiles.
   if (!window.chrome) {
@@ -92,9 +155,9 @@ const UC_STEALTH_SCRIPT: &str = r#"
   }
   window.chrome.app = {
     isInstalled: false,
-    getIsInstalled: function() { return false; },
-    getDetails: function() { return null; },
-    getDetailsForFrame: function() { return null; },
+    getIsInstalled: markNative(function() { return false; }, 'getIsInstalled'),
+    getDetails: markNative(function() { return null; }, 'getDetails'),
+    getDetailsForFrame: markNative(function() { return null; }, 'getDetailsForFrame'),
     InstallState: { DISABLED: 'disabled', INSTALLED: 'installed', NOT_INSTALLED: 'not_installed' },
     RunningState: { CANNOT_RUN: 'cannot_run', READY_TO_RUN: 'ready_to_run', RUNNING: 'running' }
   };
@@ -105,11 +168,11 @@ const UC_STEALTH_SCRIPT: &str = r#"
     PlatformNaclArch: { ARM: 'arm', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
     PlatformOs: { ANDROID: 'android', CROS: 'cros', LINUX: 'linux', MAC: 'mac', OPENBSD: 'openbsd', WIN: 'win' },
     RequestUpdateCheckStatus: { NO_UPDATE: 'no_update', THROTTLED: 'throttled', UPDATE_AVAILABLE: 'update_available' },
-    getManifest: function() { return {}; },
-    getURL: function() { return ''; }
+    getManifest: markNative(function() { return {}; }, 'getManifest'),
+    getURL: markNative(function() { return ''; }, 'getURL')
   };
-  window.chrome.csi = function() { return {}; };
-  window.chrome.loadTimes = function() {
+  window.chrome.csi = markNative(function() { return {}; }, 'csi');
+  window.chrome.loadTimes = markNative(function() {
     return {
       requestTime: performance.now() / 1000,
       startLoadTime: performance.now() / 1000,
@@ -126,38 +189,38 @@ const UC_STEALTH_SCRIPT: &str = r#"
       connectionInfo: 'h2',
       effectiveConnectionType: '4g'
     };
-  };
+  }, 'loadTimes');
 
   // 6. WebGL vendor/renderer spoofing.
   try {
     const getParameter = WebGLRenderingContext.prototype.getParameter;
-    WebGLRenderingContext.prototype.getParameter = function(parameter) {
+    WebGLRenderingContext.prototype.getParameter = markNative(function(parameter) {
       if (parameter === 37445) return 'Intel Inc.';
       if (parameter === 37446) return 'Intel Iris OpenGL Engine';
       return getParameter.apply(this, [parameter]);
-    };
+    }, 'getParameter');
     if (window.WebGL2RenderingContext) {
       const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
-      WebGL2RenderingContext.prototype.getParameter = function(parameter) {
+      WebGL2RenderingContext.prototype.getParameter = markNative(function(parameter) {
         if (parameter === 37445) return 'Intel Inc.';
         if (parameter === 37446) return 'Intel Iris OpenGL Engine';
         return getParameter2.apply(this, [parameter]);
-      };
+      }, 'getParameter');
     }
   } catch(err) {}
 
   // 7. Permissions spoofing so prompts do not expose automation.
   try {
     const originalQuery = window.navigator.permissions.query;
-    window.navigator.permissions.query = function(parameters) {
+    window.navigator.permissions.query = markNative(function(parameters) {
       if (parameters && parameters.name === 'notifications') {
         return Promise.resolve({ state: Notification.permission, onchange: null });
       }
       return originalQuery.call(this, parameters);
-    };
-    window.navigator.permissions.request = function() {
+    }, 'query');
+    window.navigator.permissions.request = markNative(function() {
       return Promise.resolve({ state: 'prompt' });
-    };
+    }, 'request');
   } catch(err) {}
 
   // 8. Hairline feature detection evasion.
@@ -166,53 +229,74 @@ const UC_STEALTH_SCRIPT: &str = r#"
     if (elementDescriptor && elementDescriptor.get) {
       Object.defineProperty(HTMLDivElement.prototype, 'offsetHeight', {
         ...elementDescriptor,
-        get: function() {
+        get: markNative(function() {
           if (this.id === 'modernizr') return 1;
           return elementDescriptor.get.apply(this);
-        }
+        }, 'get offsetHeight')
       });
     }
   } catch(err) {}
 
   // 9. MediaDevices enumeration mock.
   try {
-    Object.defineProperty(navigator.mediaDevices, 'enumerateDevices', {
-      value: () => Promise.resolve([
-        { kind: 'audioinput', deviceId: 'default', label: 'Microphone (built-in)', groupId: 'default' },
-        { kind: 'videoinput', deviceId: 'default', label: 'Camera (built-in)', groupId: 'default' },
-        { kind: 'audiooutput', deviceId: 'default', label: 'Speaker (built-in)', groupId: 'default' }
-      ])
-    });
+    if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.enumerateDevices = markNative(function() {
+        return Promise.resolve([
+          { kind: 'audioinput', deviceId: 'default', label: 'Microphone (built-in)', groupId: 'default' },
+          { kind: 'videoinput', deviceId: 'default', label: 'Camera (built-in)', groupId: 'default' },
+          { kind: 'audiooutput', deviceId: 'default', label: 'Speaker (built-in)', groupId: 'default' }
+        ]);
+      }, 'enumerateDevices');
+    }
   } catch(err) {}
 
   // 10. iframe contentWindow patch so nested automation contexts look natural.
   try {
     const originalCreateElement = Document.prototype.createElement;
-    Document.prototype.createElement = function(tagName, options) {
+    Document.prototype.createElement = markNative(function(tagName, options) {
       const element = originalCreateElement.call(this, tagName, options);
-      if (tagName.toLowerCase() === 'iframe') {
+      if (tagName && String(tagName).toLowerCase() === 'iframe') {
         const contentWindowProp = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'contentWindow');
         if (contentWindowProp && contentWindowProp.get) {
           Object.defineProperty(element, 'contentWindow', {
-            get: function() {
+            get: markNative(function() {
               const win = contentWindowProp.get.call(this);
               if (win) {
                 try {
-                  Object.defineProperty(win.navigator, 'webdriver', { get: () => undefined });
+                  delete win.navigator.webdriver;
+                  const winProto = win.Navigator.prototype || Object.getPrototypeOf(win.navigator);
+                  if (winProto) {
+                    Object.defineProperty(winProto, 'webdriver', {
+                      get: markNative(() => false, 'get webdriver'),
+                      configurable: true
+                    });
+                  }
                 } catch (e) {}
               }
               return win;
-            }
+            }, 'get contentWindow')
           });
         }
       }
       return element;
-    };
+    }, 'createElement');
   } catch(err) {}
 
-  // 11. Suppress console.debug leak vectors used by some detectors.
+  // 11. Suppress console.debug serialization leak probes while preserving native appearance.
   try {
-    window.console.debug = function() {};
+    const origDebug = window.console.debug;
+    window.console.debug = markNative(function debug(...args) {
+      if (args.length === 1 && typeof args[0] === 'object' && args[0] !== null) {
+        try {
+          const keys = Object.getOwnPropertyNames(args[0]);
+          for (let k of keys) {
+            const desc = Object.getOwnPropertyDescriptor(args[0], k);
+            if (desc && desc.get) return;
+          }
+        } catch(e) {}
+      }
+      return origDebug.apply(window.console, args);
+    }, 'debug');
   } catch(err) {}
 })();
 "#;
@@ -292,4 +376,92 @@ pub async fn clear_cdc_properties(cdp: &CdpClient) -> Result<(), SeleniumBaseErr
         )));
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn uc_stealth_script_contains_all_eleven_sections() {
+        for section_num in 1..=11 {
+            let marker = format!("// {section_num}.");
+            assert!(
+                UC_STEALTH_SCRIPT.contains(&marker),
+                "UC_STEALTH_SCRIPT must contain section {section_num} marker '{marker}'"
+            );
+        }
+    }
+
+    #[test]
+    fn uc_stealth_script_masks_native_functions() {
+        assert!(
+            UC_STEALTH_SCRIPT.contains("markNative"),
+            "UC_STEALTH_SCRIPT must define and use markNative helper"
+        );
+        assert!(
+            UC_STEALTH_SCRIPT.contains("function () { [native code] }")
+                || UC_STEALTH_SCRIPT.contains("[native code]"),
+            "markNative must provide native code representation"
+        );
+    }
+
+    #[test]
+    fn uc_stealth_script_webdriver_is_prototype_false_not_own_property() {
+        // Must delete any own property on navigator
+        assert!(
+            UC_STEALTH_SCRIPT.contains("delete navigator.webdriver"),
+            "Must delete any existing own property on navigator"
+        );
+        // Must define getter on Navigator.prototype
+        assert!(
+            UC_STEALTH_SCRIPT.contains("Navigator.prototype"),
+            "Must define webdriver getter on Navigator.prototype"
+        );
+        assert!(
+            UC_STEALTH_SCRIPT.contains("return false"),
+            "webdriver getter must return false"
+        );
+        // Must NOT define returning undefined (which leaked on BrowserScan)
+        assert!(
+            !UC_STEALTH_SCRIPT.contains("() => undefined"),
+            "Must not return undefined for webdriver"
+        );
+        assert!(
+            !UC_STEALTH_SCRIPT.contains("navigator.webdriver = "),
+            "Must not set own property navigator.webdriver directly"
+        );
+    }
+
+    #[test]
+    fn uc_stealth_script_plugin_array_prototype_fidelity() {
+        assert!(
+            UC_STEALTH_SCRIPT.contains("PluginArray.prototype"),
+            "Must reference PluginArray prototype"
+        );
+        assert!(
+            UC_STEALTH_SCRIPT.contains("plugins instanceof PluginArray"),
+            "Must preserve or ensure PluginArray instance"
+        );
+    }
+
+    #[test]
+    fn uc_stealth_script_protects_against_cdp_console_inspection_probe() {
+        assert!(
+            UC_STEALTH_SCRIPT.contains("console.debug"),
+            "Must wrap console.debug for CDP inspection probe protection"
+        );
+    }
+
+    #[test]
+    fn clear_cdc_script_structure() {
+        assert!(
+            CLEAR_CDC_SCRIPT.contains("[a-z]{3}_[a-zA-Z0-9]{22}_"),
+            "CLEAR_CDC_SCRIPT must target chromedriver marker pattern"
+        );
+        assert!(
+            CLEAR_CDC_SCRIPT.contains("getPrototypeOf"),
+            "CLEAR_CDC_SCRIPT must traverse prototype chain"
+        );
+    }
 }
