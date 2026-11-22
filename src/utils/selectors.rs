@@ -18,7 +18,7 @@
 //! of the element before them. One that ends on `::shadow` is refused.
 
 //!
-//! [`Selector`] borrows the string, [`SelectorBuf`] owns it and is what the
+//! [`SelectorRef`] borrows the string, [`SelectorBuf`] owns it and is what the
 //! Pure CDP engine ([`sb_cdp`](crate::sb_cdp)) sends to the page already
 //! tagged with its kind. Use the explicit constructors ([`SelectorBuf::css`],
 //! [`SelectorBuf::xpath`]) when a string would be misread: the guess never
@@ -43,10 +43,10 @@ use crate::utils::shadow::{is_shadow_selector, shadow_chain};
 
 /// A selector that borrows its text, with its kind decided.
 ///
-/// [`Selector::auto`] decides the kind from the text; build a variant
+/// [`SelectorRef::auto`] decides the kind from the text; build a variant
 /// yourself to skip the guess.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum Selector<'a> {
+pub enum SelectorRef<'a> {
     /// A link whose text is exactly this.
     LinkText(&'a str),
     /// A link whose text contains this.
@@ -201,7 +201,7 @@ pub fn is_partial_link_text_selector(selector: &str) -> bool {
         .any(|prefix| selector.starts_with(prefix))
 }
 
-impl<'a> Selector<'a> {
+impl<'a> SelectorRef<'a> {
     /// Detects the lookup strategy for `selector` the way SeleniumBase does,
     /// so callers can pass CSS, XPath, or a prefixed link-text selector to the
     /// same method.
@@ -215,14 +215,14 @@ impl<'a> Selector<'a> {
     /// # Examples
     ///
     /// ```
-    /// use seleniumbase_rs::utils::selectors::Selector;
+    /// use seleniumbase_rs::utils::selectors::SelectorRef;
     ///
-    /// assert_eq!(Selector::auto("#submit"), Selector::Css("#submit"));
-    /// assert_eq!(Selector::auto("[name=q]"), Selector::Css("[name=q]"));
-    /// assert_eq!(Selector::auto("//div[@id='x']"), Selector::XPath("//div[@id='x']"));
-    /// assert_eq!(Selector::auto("parent::div"), Selector::XPath("parent::div"));
-    /// assert_eq!(Selector::auto("link=Home"), Selector::LinkText("Home"));
-    /// assert_eq!(Selector::auto("p_text=Hom"), Selector::PartialLinkText("Hom"));
+    /// assert_eq!(SelectorRef::auto("#submit"), SelectorRef::Css("#submit"));
+    /// assert_eq!(SelectorRef::auto("[name=q]"), SelectorRef::Css("[name=q]"));
+    /// assert_eq!(SelectorRef::auto("//div[@id='x']"), SelectorRef::XPath("//div[@id='x']"));
+    /// assert_eq!(SelectorRef::auto("parent::div"), SelectorRef::XPath("parent::div"));
+    /// assert_eq!(SelectorRef::auto("link=Home"), SelectorRef::LinkText("Home"));
+    /// assert_eq!(SelectorRef::auto("p_text=Hom"), SelectorRef::PartialLinkText("Hom"));
     /// ```
     pub fn auto(selector: &'a str) -> Self {
         for prefix in PARTIAL_LINK_TEXT_PREFIXES {
@@ -279,7 +279,7 @@ impl<'a> Selector<'a> {
     }
 }
 
-/// An owned element selector, the `String` to [`Selector`]'s `&str`.
+/// An owned element selector, the `String` to [`SelectorRef`]'s `&str`.
 ///
 /// Strings convert into a `SelectorBuf` with the same rules SeleniumBase
 /// uses, so `"#login"`, `"//form/button"` and `"link=Sign in"` all work. The
@@ -334,6 +334,9 @@ pub enum SelectorBuf {
     /// A link whose text contains this.
     PartialLinkText(String),
 }
+
+/// The owned selector type (canonical alias of [`SelectorBuf`]).
+pub type Selector = SelectorBuf;
 
 impl SelectorBuf {
     /// Creates a CSS selector, taken literally with no detection.
@@ -511,13 +514,13 @@ impl SelectorBuf {
         }
     }
 
-    /// Borrows this selector as a [`Selector`].
-    pub fn as_selector(&self) -> Selector<'_> {
+    /// Borrows this selector as a [`SelectorRef`].
+    pub fn as_selector(&self) -> SelectorRef<'_> {
         match self {
-            Self::Css(value) => Selector::Css(value),
-            Self::XPath(value) => Selector::XPath(value),
-            Self::LinkText(value) => Selector::LinkText(value),
-            Self::PartialLinkText(value) => Selector::PartialLinkText(value),
+            Self::Css(value) => SelectorRef::Css(value),
+            Self::XPath(value) => SelectorRef::XPath(value),
+            Self::LinkText(value) => SelectorRef::LinkText(value),
+            Self::PartialLinkText(value) => SelectorRef::PartialLinkText(value),
         }
     }
 
@@ -771,14 +774,14 @@ fn implicit_role(role: &str) -> Option<&'static str> {
     })
 }
 
-impl From<Selector<'_>> for SelectorBuf {
-    fn from(selector: Selector<'_>) -> Self {
+impl From<SelectorRef<'_>> for SelectorBuf {
+    fn from(selector: SelectorRef<'_>) -> Self {
         match selector {
-            Selector::Css(value) => Self::Css(value.to_owned()),
-            Selector::XPath(value) => Self::XPath(value.to_owned()),
-            Selector::LinkText(value) => Self::LinkText(value.to_owned()),
-            Selector::PartialLinkText(value) => Self::PartialLinkText(value.to_owned()),
-            Selector::Id(value) => Self::Css(format!("[id={}]", css_quoted(value, '"'))),
+            SelectorRef::Css(value) => Self::Css(value.to_owned()),
+            SelectorRef::XPath(value) => Self::XPath(value.to_owned()),
+            SelectorRef::LinkText(value) => Self::LinkText(value.to_owned()),
+            SelectorRef::PartialLinkText(value) => Self::PartialLinkText(value.to_owned()),
+            SelectorRef::Id(value) => Self::Css(format!("[id={}]", css_quoted(value, '"'))),
         }
     }
 }
@@ -790,7 +793,7 @@ impl From<&str> for SelectorBuf {
     /// way SeleniumBase runs it, when an engine looks the element up.
     /// [`FromStr`] is the strict form.
     fn from(selector: &str) -> Self {
-        Selector::auto(selector).into()
+        SelectorRef::auto(selector).into()
     }
 }
 
@@ -1334,55 +1337,55 @@ mod tests {
         format!("{by:?}")
     }
 
-    /// The kind and text `Selector::auto` finds in `selector`.
+    /// The kind and text `SelectorRef::auto` finds in `selector`.
     fn classify(selector: &str) -> (&'static str, String) {
-        match Selector::auto(selector) {
-            Selector::Css(v) => ("css", v.to_owned()),
-            Selector::XPath(v) => ("xpath", v.to_owned()),
-            Selector::LinkText(v) => ("link", v.to_owned()),
-            Selector::PartialLinkText(v) => ("partial", v.to_owned()),
-            Selector::Id(v) => ("id", v.to_owned()),
+        match SelectorRef::auto(selector) {
+            SelectorRef::Css(v) => ("css", v.to_owned()),
+            SelectorRef::XPath(v) => ("xpath", v.to_owned()),
+            SelectorRef::LinkText(v) => ("link", v.to_owned()),
+            SelectorRef::PartialLinkText(v) => ("partial", v.to_owned()),
+            SelectorRef::Id(v) => ("id", v.to_owned()),
         }
     }
 
     #[test]
     fn css_selector_to_by() {
-        let by = Selector::Css("#id").to_by().unwrap();
+        let by = SelectorRef::Css("#id").to_by().unwrap();
         assert!(variant_name(by).contains("Css"));
     }
 
     #[test]
     fn xpath_selector_to_by() {
-        let by = Selector::XPath("//div").to_by().unwrap();
+        let by = SelectorRef::XPath("//div").to_by().unwrap();
         assert!(variant_name(by).contains("XPath"));
     }
 
     #[test]
     fn id_selector_to_by() {
-        let by = Selector::Id("user").to_by().unwrap();
+        let by = SelectorRef::Id("user").to_by().unwrap();
         assert!(variant_name(by).contains("Id"));
     }
 
     #[test]
     fn link_text_selector_to_by() {
-        let by = Selector::LinkText("Home").to_by().unwrap();
+        let by = SelectorRef::LinkText("Home").to_by().unwrap();
         assert!(variant_name(by).contains("LinkText"));
     }
 
     #[test]
     fn partial_link_text_selector_to_by() {
-        let by = Selector::PartialLinkText("Hom").to_by().unwrap();
+        let by = SelectorRef::PartialLinkText("Hom").to_by().unwrap();
         assert!(variant_name(by).contains("PartialLinkText"));
     }
 
     #[test]
     fn empty_selector_fails() {
-        assert!(Selector::Css("  ").to_by().is_err());
+        assert!(SelectorRef::Css("  ").to_by().is_err());
     }
 
     #[test]
     fn css_with_contains_runs_as_xpath_for_the_driver() {
-        let by = Selector::auto("button:contains(\"Go on\")")
+        let by = SelectorRef::auto("button:contains(\"Go on\")")
             .to_by()
             .unwrap();
         assert_eq!(
@@ -1394,7 +1397,7 @@ mod tests {
     #[test]
     fn contains_css_the_converter_cannot_read_stays_css() {
         // An unterminated string is not something it can turn into XPath.
-        let by = Selector::Css("a:contains(\"open").to_by().unwrap();
+        let by = SelectorRef::Css("a:contains(\"open").to_by().unwrap();
         assert!(variant_name(by).contains("Css"));
         assert_eq!(
             SelectorBuf::from("a:contains(\"open"),
@@ -1412,9 +1415,9 @@ mod tests {
             "//my-app::shadow button",
             "button:contains(\"Go\")::shadow a",
         ] {
-            assert_eq!(Selector::auto(selector), Selector::Css(selector));
+            assert_eq!(SelectorRef::auto(selector), SelectorRef::Css(selector));
             assert_eq!(SelectorBuf::from(selector), SelectorBuf::css(selector));
-            let by = Selector::auto(selector).to_by().unwrap();
+            let by = SelectorRef::auto(selector).to_by().unwrap();
             assert_eq!(format!("{by}"), format!("CSS({selector})"));
         }
     }
@@ -1426,7 +1429,7 @@ mod tests {
             "my-app::shadow",
             "a ::shadow b ::shadow  ",
         ] {
-            let error = Selector::auto(selector).to_by().unwrap_err();
+            let error = SelectorRef::auto(selector).to_by().unwrap_err();
             assert!(
                 matches!(&error, SeleniumBaseError::InvalidSelector(m)
                     if m.contains("cannot end on a shadow root")),
@@ -1438,20 +1441,23 @@ mod tests {
     #[test]
     fn a_name_that_only_starts_with_shadow_is_no_shadow_selector() {
         assert_eq!(
-            Selector::auto("//a/parent::shadow-host"),
-            Selector::XPath("//a/parent::shadow-host")
+            SelectorRef::auto("//a/parent::shadow-host"),
+            SelectorRef::XPath("//a/parent::shadow-host")
         );
-        assert_eq!(Selector::auto("a::shadowed"), Selector::Css("a::shadowed"));
+        assert_eq!(
+            SelectorRef::auto("a::shadowed"),
+            SelectorRef::Css("a::shadowed")
+        );
     }
 
     #[test]
     fn every_kind_refuses_an_empty_or_blank_value() {
         for selector in [
-            Selector::Css(""),
-            Selector::XPath(" \t"),
-            Selector::Id(""),
-            Selector::LinkText(" "),
-            Selector::PartialLinkText(""),
+            SelectorRef::Css(""),
+            SelectorRef::XPath(" \t"),
+            SelectorRef::Id(""),
+            SelectorRef::LinkText(" "),
+            SelectorRef::PartialLinkText(""),
         ] {
             let error = selector.to_by().unwrap_err();
             assert!(
@@ -1459,14 +1465,14 @@ mod tests {
                 "{selector:?}"
             );
         }
-        assert!(Selector::auto_by("link=").is_err());
-        assert!(Selector::auto_by("p_text=  ").is_err());
+        assert!(SelectorRef::auto_by("link=").is_err());
+        assert!(SelectorRef::auto_by("p_text=  ").is_err());
     }
 
     #[test]
     fn a_shadow_selector_with_contains_after_the_combinator_stays_css() {
         // `:contains(..)` is rewritten as XPath, which cannot be cut at a
-        // shadow root: the shadow check comes first, as in `Selector::to_by`.
+        // shadow root: the shadow check comes first, as in `SelectorRef::to_by`.
         for selector in [
             "app::shadow a:contains(\"Go\")",
             "app ::shadow .row:contains('x') ::shadow b",
@@ -1477,7 +1483,7 @@ mod tests {
                 SelectorBuf::css(selector),
                 "{selector}"
             );
-            let by = Selector::auto(selector).to_by().unwrap();
+            let by = SelectorRef::auto(selector).to_by().unwrap();
             assert_eq!(format!("{by}"), format!("CSS({selector})"), "{selector}");
         }
     }
@@ -1499,7 +1505,7 @@ mod tests {
             SelectorBuf::xpath(".//div/a[contains(., 'Go')] | .//td[contains(., 'x')]"),
             "every path of the union starts at the context node"
         );
-        let by = Selector::auto("p:contains('x')").to_by().unwrap();
+        let by = SelectorRef::auto("p:contains('x')").to_by().unwrap();
         assert_eq!(format!("{by}"), "XPath(.//p[contains(., 'x')])");
         // The converter that `BaseCase::convert_css_to_xpath` offers is unchanged.
         assert_eq!(
@@ -1614,23 +1620,25 @@ mod tests {
         // "partial_link_text=" must not be truncated by the shorter
         // "partial_link=" match, and neither may be read as link text.
         assert_eq!(
-            Selector::auto("partial_link_text=Check"),
-            Selector::PartialLinkText("Check")
+            SelectorRef::auto("partial_link_text=Check"),
+            SelectorRef::PartialLinkText("Check")
         );
     }
 
     #[test]
     fn auto_by_produces_matching_locators() {
-        assert!(variant_name(Selector::auto_by("//div").unwrap()).contains("XPath"));
-        assert!(variant_name(Selector::auto_by("parent::div").unwrap()).contains("XPath"));
-        assert!(variant_name(Selector::auto_by("#id").unwrap()).contains("Css"));
-        assert!(variant_name(Selector::auto_by("link=Home").unwrap()).contains("LinkText"));
-        assert!(variant_name(Selector::auto_by("p_link=Hom").unwrap()).contains("PartialLinkText"));
+        assert!(variant_name(SelectorRef::auto_by("//div").unwrap()).contains("XPath"));
+        assert!(variant_name(SelectorRef::auto_by("parent::div").unwrap()).contains("XPath"));
+        assert!(variant_name(SelectorRef::auto_by("#id").unwrap()).contains("Css"));
+        assert!(variant_name(SelectorRef::auto_by("link=Home").unwrap()).contains("LinkText"));
+        assert!(
+            variant_name(SelectorRef::auto_by("p_link=Hom").unwrap()).contains("PartialLinkText")
+        );
     }
 
     #[test]
     fn auto_by_rejects_empty_selector() {
-        assert!(Selector::auto_by("   ").is_err());
+        assert!(SelectorRef::auto_by("   ").is_err());
     }
 
     #[test]
@@ -1663,7 +1671,7 @@ mod tests {
             assert_eq!(SelectorBuf::from(input), buf, "{input:?}");
             assert_eq!(SelectorBuf::from(input.to_owned()), buf);
             assert_eq!(SelectorBuf::from(&input.to_owned()), buf);
-            assert_eq!(buf.as_selector(), Selector::auto(input), "{input:?}");
+            assert_eq!(buf.as_selector(), SelectorRef::auto(input), "{input:?}");
         }
     }
 
@@ -1854,10 +1862,10 @@ mod tests {
     fn a_selector_buf_keeps_the_kind_of_a_selector() {
         // The borrowed and the owned view agree, kind for kind.
         for selector in [
-            Selector::Css("#a"),
-            Selector::XPath("//a"),
-            Selector::LinkText("Go"),
-            Selector::PartialLinkText("G"),
+            SelectorRef::Css("#a"),
+            SelectorRef::XPath("//a"),
+            SelectorRef::LinkText("Go"),
+            SelectorRef::PartialLinkText("G"),
         ] {
             assert_eq!(SelectorBuf::from(selector).as_selector(), selector);
         }
@@ -1876,7 +1884,7 @@ mod tests {
 
     #[test]
     fn an_id_becomes_an_attribute_selector_that_no_id_can_break() {
-        let id = |value| SelectorBuf::from(Selector::Id(value));
+        let id = |value| SelectorBuf::from(SelectorRef::Id(value));
 
         assert_eq!(id("user"), SelectorBuf::css("[id=\"user\"]"));
         assert_eq!(id("a\"b"), SelectorBuf::css("[id=\"a\\\"b\"]"));
@@ -2153,8 +2161,8 @@ mod tests {
              'abcdefghijklmnopqrstuvwxyz'), 'shoes')]"
         );
         assert!(matches!(
-            Selector::auto(&xpath_of(SelectorBuf::has_text("x"))),
-            Selector::XPath(_)
+            SelectorRef::auto(&xpath_of(SelectorBuf::has_text("x"))),
+            SelectorRef::XPath(_)
         ));
     }
 
@@ -2221,7 +2229,7 @@ mod tests {
         ] {
             let xpath = xpath_of(selector);
             assert!(
-                matches!(Selector::auto(&xpath), Selector::XPath(_)),
+                matches!(SelectorRef::auto(&xpath), SelectorRef::XPath(_)),
                 "{xpath}"
             );
         }

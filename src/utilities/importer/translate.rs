@@ -13,7 +13,7 @@ use super::emit::{float, one_line, rust_str, todo_source, var_ident, whole, Help
 use super::parser::{Arg, Expr, FnBody, Pattern, Stmt, StmtKind};
 use super::selector::{self, Step};
 use super::{ImportDiagnostic, ImportSeverity};
-use crate::utils::selectors::{css_quoted, Selector};
+use crate::utils::selectors::{css_quoted, SelectorRef};
 
 /// How the generated code names the match `exact` (Playwright's own word for it) asks for.
 fn text_matching(exact: bool) -> &'static str {
@@ -1895,7 +1895,7 @@ impl<'s> Translator<'s> {
     }
 
     fn css_arg(&mut self, css: &str) -> String {
-        if matches!(Selector::auto(css), Selector::Css(_)) && !css.contains(":contains(") {
+        if matches!(SelectorRef::auto(css), SelectorRef::Css(_)) && !css.contains(":contains(") {
             rust_str(css)
         } else {
             self.needs.selector_buf = true;
@@ -1904,7 +1904,7 @@ impl<'s> Translator<'s> {
     }
 
     fn xpath_arg(&mut self, xpath: &str) -> String {
-        if matches!(Selector::auto(xpath), Selector::XPath(_)) {
+        if matches!(SelectorRef::auto(xpath), SelectorRef::XPath(_)) {
             rust_str(xpath)
         } else {
             self.needs.selector_buf = true;

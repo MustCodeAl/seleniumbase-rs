@@ -13,7 +13,7 @@ two smaller halves of F9 (booleans, paths; item 13, line 1219) and where they fi
 
 ## Decisions
 
-1. **No new selector type.** `SelectorBuf` (owned) is the one selector type and `Selector<'a>` its
+1. **No new selector type.** `SelectorBuf` (owned) is the one selector type and `SelectorRef<'a>` its
    borrowed view, the `PathBuf`/`Path` pair, both in `src/utils/selectors.rs`. They already exist,
    already auto-detect a plain string, and the Pure CDP engine, `BrowserSession` and `Element` already
    take `impl Into<SelectorBuf>`. The lane moves the rest of the crate onto the type that is there.
@@ -21,21 +21,21 @@ two smaller halves of F9 (booleans, paths; item 13, line 1219) and where they fi
    `impl Into<SelectorBuf>`; crate-internal helpers that only read take `&SelectorBuf`. A string is
    therefore read as a selector once per call, at the public boundary (today up to three times).
    `sb.click("#id")` keeps compiling (POLA).
-3. **Conversions.** `From<&str>`, `From<String>`, `From<&String>` and `From<Selector<'_>>` stay
+3. **Conversions.** `From<&str>`, `From<String>`, `From<&String>` and `From<SelectorRef<'_>>` stay
    infallible (auto-detection, the Python-familiar form). New: `FromStr` (the strict form: `From` plus
    `check`, for text that crosses an external boundary: MCP arguments, command line, saved files) and
    `Deserialize` (mirror of the existing `Serialize`). No `TryFrom<&str>`: the infallible `From` makes
    the blanket `TryFrom` exist, so a fallible one cannot coexist.
 4. **Error.** `SeleniumBaseError::InvalidSelector(String)` (`src/error.rs:44`), already used for an
    empty selector and a selector that ends on `::shadow`. No new variant. One function,
-   `SelectorBuf::check`, holds the rule; today it is written twice (`Selector::to_by`,
+   `SelectorBuf::check`, holds the rule; today it is written twice (`SelectorRef::to_by`,
    `src/utils/selectors.rs:270-279`, and `by_of`, `src/browser/shadow_find.rs:152-158`).
 5. **One list of kinds.** The variants of `SelectorBuf` are the closed list (CSS, XPath, link text,
-   partial link text); the only code that reads prefixes is `Selector::auto` (`:210`). Every `match` on
+   partial link text); the only code that reads prefixes is `SelectorRef::auto` (`:210`). Every `match` on
    a kind becomes exhaustive (no `_` arm), so a new kind fails to compile where it is not handled.
    `#[non_exhaustive]` on `SelectorBuf`, so a kind can be added without a major version.
 6. **The `:contains()` rewrite moves from construction to lookup.** Today `SelectorBuf::from(&str)`
-   turns `p:contains("x")` into XPath at once (`:637-644`), and `Selector::to_by` does the same again
+   turns `p:contains("x")` into XPath at once (`:637-644`), and `SelectorRef::to_by` does the same again
    (`:264-269`): two copies. After the lane a `SelectorBuf` keeps the text as written, and one
    method, `lookup_form`, makes the form the engines send. This keeps `Display`, the recorder and
    generated test code on the text the user wrote.
@@ -51,10 +51,10 @@ two smaller halves of F9 (booleans, paths; item 13, line 1219) and where they fi
 
 ### How a selector flows
 
-* `src/utils/selectors.rs`: `Selector<'a>` (`:37-49`: `LinkText`, `PartialLinkText`, `Css`, `XPath`,
-  `Id`), the prefix tables (`:72`, `:75`), `Selector::auto` (`:210`, order: partial link text, link
-  text, shadow, XPath, CSS), `Selector::to_by` (`:254`, `pub(crate)`, builds the `thirtyfour::By`),
-  `SelectorBuf` (`:310-320`, serde-tagged, four kinds; `Id` has no variant of its own: `From<Selector>`
+* `src/utils/selectors.rs`: `SelectorRef<'a>` (`:37-49`: `LinkText`, `PartialLinkText`, `Css`, `XPath`,
+  `Id`), the prefix tables (`:72`, `:75`), `SelectorRef::auto` (`:210`, order: partial link text, link
+  text, shadow, XPath, CSS), `SelectorRef::to_by` (`:254`, `pub(crate)`, builds the `thirtyfour::By`),
+  `SelectorBuf` (`:310-320`, serde-tagged, four kinds; `Id` has no variant of its own: `From<SelectorRef>`
   turns it into `Css("[id=...]")`, `:628`), the constructors `css`, `xpath`, `link_text`,
   `partial_link_text` (`:324-341`) and the XPath builders `containing_text`, `text`, `label`, `role`
   (`:362-542`), `as_selector` (`:387`), the `From` impls (`:621-657`) and `Display` (`:659`:
@@ -106,7 +106,7 @@ widened.
 
 ## 2. The type
 
-`SelectorBuf` and `Selector<'a>` stay where they are. Changes to them:
+`SelectorBuf` and `SelectorRef<'a>` stay where they are. Changes to them:
 
 ```rust
 #[non_exhaustive]
@@ -126,10 +126,10 @@ impl FromStr for SelectorBuf { type Err = SeleniumBaseError; }   // From<&str> +
 * Where it lives: `utils::selectors` (one path; F12 decides the crate-root re-export, and the
   contract test pins whichever path stays).
 * The `By`-like constructors exist (`SelectorBuf::css`, `xpath`, `link_text`, `partial_link_text`) and are the
-  way to skip the guess for a string that would be misread; no `Selector::css` twin is added.
-* `Selector::Id` stays borrowed-only; `SelectorBuf` gets no `Id` variant (an id is a `[id="..."]`
+  way to skip the guess for a string that would be misread; no `SelectorRef::css` twin is added.
+* `SelectorRef::Id` stays borrowed-only; `SelectorBuf` gets no `Id` variant (an id is a `[id="..."]`
   CSS selector already, `:628`). Not widened.
-* `check` and `lookup_form` replace the two copies named in decision 4 and 6; `Selector::to_by` and
+* `check` and `lookup_form` replace the two copies named in decision 4 and 6; `SelectorRef::to_by` and
   `shadow_find::by_of` call them. The existing test `a_selector_buf_agrees_with_selector_auto`
   (`:1469`) becomes the guard that the two views still agree.
 * `Display` is unchanged except that `:contains()` text stays as written. The one visible
@@ -283,7 +283,7 @@ Breaking line of the CHANGELOG is written in phase 2 and extended after.
 
 | Phase | Owns | Tests added (first) |
 |---|---|---|
-| **1. The type** | `src/utils/selectors.rs`, `src/browser/shadow_find.rs`, `src/sb_cdp/locator.rs` | in the `tests` module of `selectors.rs`: `from_str_refuses_a_blank_selector`, `from_str_refuses_a_selector_that_ends_on_shadow`, `from_str_agrees_with_from_str_slice`, `a_contains_selector_keeps_its_text_until_lookup` (`lookup_form` equals today's XPath), `serde_round_trip_keeps_the_kind`; a `Locator` test on the mock transport that `Display` shows the CSS as written and the page receives XPath; `SelectorBuf` and `Selector` added to `tests/contract_send_sync.rs`. Docs: module doc of `selectors.rs`, `docs/api/crate-root.md:62`. |
+| **1. The type** | `src/utils/selectors.rs`, `src/browser/shadow_find.rs`, `src/sb_cdp/locator.rs` | in the `tests` module of `selectors.rs`: `from_str_refuses_a_blank_selector`, `from_str_refuses_a_selector_that_ends_on_shadow`, `from_str_agrees_with_from_str_slice`, `a_contains_selector_keeps_its_text_until_lookup` (`lookup_form` equals today's XPath), `serde_round_trip_keeps_the_kind`; a `Locator` test on the mock transport that `Display` shows the CSS as written and the page receives XPath; `SelectorBuf` and `SelectorRef` added to `tests/contract_send_sync.rs`. Docs: module doc of `selectors.rs`, `docs/api/crate-root.md:62`. |
 | **2. Helpers, `base_case.rs`, traits** | `await_ready`, `demo_highlight`, `BaseCase::record`; `src/api/base_case.rs` (87, two commits by line range); `src/api/traits.rs` (21); the measurement of the generic threshold | `a_selector_may_be_a_str_a_string_or_a_selector_buf` (the same `By` from each, in `src/api/base_case_impls/base_case_impl_element_tests.rs`, on the mock driver its neighbours use); `a_string_is_read_as_a_selector_once_per_call` (extends the test at `src/browser/session/elements.rs:396` to `BaseCase`); a recorder golden: `click("text=Home")` and `click("p:contains('x')")` record as written. CHANGELOG `### Breaking` line (`CHANGELOG.md:110`). |
 | **3. `base_case_impls/`** | the 97 methods in 12 files (largest: `extra` 30, `cdp_page` 12, `common` 11, `dom` 10); the `filename` paths of `downloads`, `extra`, `pdf_html`, `media`, `dom`, `misc`, `addon` (own commits) | one smoke test per file through the mock (a `&str`, a `String`, a `SelectorBuf` reach the same call); `a_path_may_be_a_str_a_string_or_a_path` for the path commits. |
 | **4. The rest of the layer** | `src/api/cdp_page.rs` (16), `deferred.rs` (10), `html.rs` (4), `cdp_driver.rs` (3), `src/sb_cdp/browser.rs:1054`, `src/cli/commands.rs`, the MCP `Args` helper in `src/mcp/tool.rs` and its tools; the widened scan for other parameter names | MCP: `an_empty_selector_argument_is_refused_at_the_argument` per server (`cdp`, `driver`, `sb`); `select_page` with a `SelectorBuf`. `api_index.json` regenerated (the `api_index` test is the check). |

@@ -379,7 +379,7 @@ page. See [Browser extension](/ecosystem/browser-extension).
 ## How seleniumbase-rs reads a selector
 
 You pass one string and the library works out which kind it is. The rules are in
-`Selector::auto` (`src/utils/selectors.rs`), checked in this order:
+`SelectorRef::auto` (`src/utils/selectors.rs`), checked in this order:
 
 <Steps>
 
@@ -453,7 +453,7 @@ sb.click("link=Help").await?;
 ### Prefixes, the Selector enum and role selectors
 
 Every method that takes a selector reads a plain string and works out its kind
-from how it begins (`Selector::auto` in `src/utils/selectors.rs`):
+from how it begins (`SelectorRef::auto` in `src/utils/selectors.rs`):
 
 | The string begins with | Kind |
 |---|---|
@@ -463,7 +463,7 @@ from how it begins (`Selector::auto` in `src/utils/selectors.rs`):
 | Anything else | CSS |
 
 The prefixes are matched exactly, so `LINK=Home` is CSS. To state the kind
-yourself, use the `Selector` enum (`Css`, `XPath`, `LinkText`, `PartialLinkText`
+yourself, use the `SelectorRef` enum (`Css`, `XPath`, `LinkText`, `PartialLinkText`
 and `Id`; an `Id` needs no escaping, which helps with ids such as `:r1:`) or the
 owning type `SelectorBuf`, which every selector parameter takes (`sb.click(SelectorBuf::css("//not-xpath"))`, `Page::locator`). A method keeps the kind you state and does not read the text again; `"//x".parse::<SelectorBuf>()` is the strict form for text from outside, which refuses an empty selector.
 

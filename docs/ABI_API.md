@@ -8,7 +8,7 @@ guarantees that apply, and how to integrate the crate with foreign code.
 
 <Visibility for="agents">
 
-Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `Selector`, `Fingerprint`, `StealthPolicy`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. `evasion::providers::session_registry` is experimental.
+Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `SelectorRef`, `Fingerprint`, `StealthPolicy`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. `evasion::providers::session_registry` is experimental.
 
 </Visibility>
 
@@ -63,7 +63,7 @@ The most common types are re-exported from the crate root for convenience:
 |---|---|
 | `BaseCase` | yes |
 | `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession` | yes |
-| `Selector` | yes |
+| `SelectorRef` | yes |
 | `Fingerprint`, `StealthPolicy` | yes |
 | `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport` | yes |
 | `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry` | yes |

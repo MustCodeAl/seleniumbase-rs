@@ -14,7 +14,7 @@ use seleniumbase_rs::api::html_inspector::HtmlInspector;
 use seleniumbase_rs::evasion::behavior::{Behavior, Humanizer};
 use seleniumbase_rs::evasion::evasions::bootstrap_script;
 use seleniumbase_rs::sb_cdp::Point;
-use seleniumbase_rs::utils::selectors::Selector;
+use seleniumbase_rs::utils::selectors::SelectorRef;
 use seleniumbase_rs::{Fingerprint, OsType};
 
 /// Times `op`, `iterations` calls per batch, and prints the median batch.
@@ -93,7 +93,7 @@ fn main() {
     ];
     time("classify a CSS or XPath selector", 50_000, || {
         for s in &selectors {
-            black_box(Selector::auto(black_box(s)));
+            black_box(SelectorRef::auto(black_box(s)));
         }
     });
 
