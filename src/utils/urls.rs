@@ -105,6 +105,35 @@ pub fn normalize_page_url(url: &str) -> Result<String, SeleniumBaseError> {
     }
 }
 
+/// Returns `true` if two page URLs point to the same page, ignoring trailing slashes,
+/// casing on scheme/host, and query tracking parameters.
+#[must_use]
+pub fn is_same_page_url(current: &str, wanted: &str) -> bool {
+    fn trim_slash(s: &str) -> &str {
+        s.trim_end_matches('/')
+    }
+    if trim_slash(current) == trim_slash(wanted) {
+        return true;
+    }
+    let (Ok(u1), Ok(u2)) = (url::Url::parse(current), url::Url::parse(wanted)) else {
+        return false;
+    };
+    if u1.scheme() != u2.scheme()
+        || u1.host_str() != u2.host_str()
+        || u1.port() != u2.port()
+        || trim_slash(u1.path()) != trim_slash(u2.path())
+    {
+        return false;
+    }
+    if u1.query() == u2.query() {
+        return true;
+    }
+    match (u1.query(), u2.query()) {
+        (Some(q1), Some(q2)) => q1.split('&').next() == q2.split('&').next(),
+        _ => false,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -262,5 +291,33 @@ mod tests {
         assert!(!looks_like_a_page_url(""));
         // The prefix check must not split a multi-byte character.
         assert!(!looks_like_a_page_url("日本語日本語"));
+    }
+
+    #[test]
+    fn is_same_page_url_handles_trailing_slashes_and_canonicalization() {
+        assert!(is_same_page_url(
+            "https://example.com",
+            "https://example.com/"
+        ));
+        assert!(is_same_page_url(
+            "https://example.com/path",
+            "https://example.com/path/"
+        ));
+        assert!(is_same_page_url(
+            "https://example.com/path?a=1",
+            "https://example.com/path/?a=1"
+        ));
+        assert!(is_same_page_url(
+            "https://example.com/search?q=rust&src=hp",
+            "https://example.com/search?q=rust"
+        ));
+        assert!(!is_same_page_url(
+            "https://example.com/a",
+            "https://example.com/b"
+        ));
+        assert!(!is_same_page_url(
+            "https://example.com",
+            "http://example.com"
+        ));
     }
 }

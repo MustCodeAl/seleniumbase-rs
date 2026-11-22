@@ -80,8 +80,16 @@ pub const SHIFT_ESC_JS: &str = include_str!("recorder/js/shift_esc.js");
 /// `captcha` action instead, which the generators write as a comment.
 pub fn recorder_injection() -> String {
     format!(
-        "if (!document.__sbRecorderHooked) {{ document.__sbRecorderHooked = true; \
-         window.addEventListener('load', function () {{\n{RECORDER_JS}\n}}); }}"
+        "if (!document.__sbRecorderHooked) {{\n\
+         document.__sbRecorderHooked = true;\n\
+         var __sbInitRecorder = function () {{\n{RECORDER_JS}\n}};\n\
+         if (document.readyState === 'complete' || document.readyState === 'interactive') {{\n\
+             __sbInitRecorder();\n\
+         }} else {{\n\
+             window.addEventListener('load', __sbInitRecorder);\n\
+             document.addEventListener('DOMContentLoaded', __sbInitRecorder);\n\
+         }}\n\
+         }}"
     )
 }
 

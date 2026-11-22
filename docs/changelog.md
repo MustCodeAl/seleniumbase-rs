@@ -131,6 +131,21 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 ### Fixed
 
+- **Recorder action preservation across navigation and URL switches**: The recorder no longer obliterates
+  recorded actions when a tab navigates to a new origin or resets its action buffer. Previously, navigating to a
+  new URL wiped the tab's action cache because browser `sessionStorage` is origin-scoped; the recorder now tracks
+  origin transitions and stashes prior actions into the session stash across URL switches.
+- **SPA route changes in recorder**: The recorder script now listens to `history.pushState`, `history.replaceState`,
+  `popstate`, and `hashchange` events in addition to document load events, capturing client-side navigation in
+  single-page applications and re-binding listeners.
+- **Retrying assertions during page transitions**: `BaseCase::assert_title`, `assert_title_contains`, `assert_url`,
+  `assert_url_contains`, and `assert_link_text` now poll and retry up to `default_wait_secs()` rather than making
+  a fragile single-shot read during in-flight navigations.
+- **`open_if_not_url` and `goto_if_not_url` URL normalization and multi-window detection**: `open_if_not_url`
+  normalizes URLs (trailing slashes, query strings), polls up to 1.5 seconds for in-flight transitions from
+  preceding clicks to settle, and automatically switches to an already-open window if one is at the target URL.
+- **YAML support in `sbrs replay`**: `sbrs replay` now supports both `.yaml` / `.yml` and `.json` recording files
+  via `RecorderSession::load`.
 - **`sbrs-mcp install` under Homebrew** registers the link `PREFIX/bin/sbrs-mcp`, as `repair` and
   `upgrade` do, and no longer the versioned `Cellar` path that `brew upgrade` deletes (every client
   was then left with a program that was not there, which is what `repair` mended). A test runs a

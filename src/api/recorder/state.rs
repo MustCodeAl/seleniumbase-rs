@@ -38,6 +38,10 @@ pub(crate) struct RecorderState {
     /// The last actions seen on each tab (by window handle), so closing the
     /// browser does not lose them.
     pub cache: BTreeMap<String, Vec<RawAction>>,
+    /// The last origin seen on each tab (by window handle).
+    pub last_origins: BTreeMap<String, String>,
+    /// The last URL seen on each tab (by window handle).
+    pub last_urls: BTreeMap<String, String>,
     /// The windows that got the page script for their next documents.
     pub registered: HashSet<String>,
     /// How many windows the last look at the browser found.

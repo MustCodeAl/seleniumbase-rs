@@ -4728,7 +4728,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Replay { file } => {
-            let actions: Vec<RecordedAction> = RecorderSession::load_json(Path::new(&file))?;
+            let actions: Vec<RecordedAction> = RecorderSession::load(Path::new(&file))?;
             if actions.is_empty() {
                 return Err(format!("no actions found in '{file}'").into());
             }

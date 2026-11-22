@@ -276,6 +276,34 @@ impl BaseCase {
                 self.current_window_handle().await,
                 self.recorded_actions_on_active_tab().await,
             ) {
+                let current_origin = crate::api::recorder::origin_of(&url);
+                let prev_origin = self.recording.last_origins.get(&handle).cloned();
+                let origin_changed = prev_origin
+                    .as_ref()
+                    .is_some_and(|prev| prev != &current_origin);
+
+                let cached = self.recording.cache.get(&handle);
+                let actions_reset = cached.is_some_and(|c| {
+                    !c.is_empty()
+                        && (actions.len() < c.len()
+                            || (actions.len() == 1
+                                && actions[0].kind == "begin"
+                                && c.len() > 1))
+                });
+
+                if (origin_changed || actions_reset)
+                    && let Some(prev_actions) = self.recording.cache.remove(&handle)
+                    && !prev_actions.is_empty()
+                {
+                    let stash_origin = prev_origin.unwrap_or_else(|| current_origin.clone());
+                    self.recording.stash.extend(prev_actions);
+                    self.recording.stash_origins.push(stash_origin);
+                }
+
+                self.recording
+                    .last_origins
+                    .insert(handle.clone(), current_origin);
+                self.recording.last_urls.insert(handle.clone(), url);
                 self.recording.cache.insert(handle, actions);
             }
         }
@@ -453,6 +481,19 @@ impl BaseCase {
             };
             match live {
                 Some(tab) => {
+                    let cached = self.recording.cache.get(handle);
+                    let actions_reset = cached.is_some_and(|c| {
+                        !c.is_empty()
+                            && (tab.len() < c.len()
+                                || (tab.len() == 1 && tab[0].kind == "begin" && c.len() > 1))
+                    });
+                    if actions_reset
+                        && let (Some(c), Some(prev_origin)) =
+                            (cached, self.recording.last_origins.get(handle))
+                    {
+                        self.recording.stash.extend(c.clone());
+                        self.recording.stash_origins.push(prev_origin.clone());
+                    }
                     self.recording.cache.insert(handle.clone(), tab.clone());
                     actions.extend(tab);
                 }

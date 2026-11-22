@@ -955,23 +955,8 @@ pub(crate) fn without_final_return(expression: &str) -> String {
 }
 
 /// Whether the tab, at `current`, is already on `wanted`.
-///
-/// Both are put in the form the browser reports addresses in. A search
-/// engine's tracking parameters after the query (`?q=term&source=hp`) do not
-/// make it another page, which is how Python's `goto_if_not_url` sees it.
 fn is_same_page(current: &str, wanted: &str) -> bool {
-    let canonical =
-        |text: &str| url::Url::parse(text).map_or_else(|_| text.to_owned(), String::from);
-    let (current, wanted) = (canonical(current), canonical(wanted));
-    if current == wanted {
-        return true;
-    }
-    match (current.find("?q="), current.find('&')) {
-        (Some(query), Some(ampersand)) if query < ampersand => {
-            current.split('&').next() == Some(wanted.as_str())
-        }
-        _ => false,
-    }
+    crate::utils::urls::is_same_page_url(current, wanted)
 }
 
 /// Whether an error just means a navigation replaced the page mid-command.

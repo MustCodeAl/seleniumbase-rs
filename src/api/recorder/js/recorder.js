@@ -392,6 +392,38 @@ var reset_recorder_state = function() {
     return;
 };
 reset_recorder_state();
+var __sbLastRecordedHref = window.location.href;
+var __sbCheckUrlChange = function () {
+    if (window.location.href !== __sbLastRecordedHref) {
+        __sbLastRecordedHref = window.location.href;
+        var d_now = Date.now();
+        var w_orig = window.location.origin;
+        var w_href = window.location.href;
+        if (!document.recorded_actions) {
+            document.recorded_actions = [];
+        }
+        document.recorded_actions.push(['_url_', w_orig, w_href, d_now]);
+        saveRecordedActions();
+        new_tab_on_new_origin();
+    }
+};
+window.addEventListener('popstate', __sbCheckUrlChange, false);
+window.addEventListener('hashchange', __sbCheckUrlChange, false);
+if (typeof history !== 'undefined' && history.pushState && !history.__sbPushHooked) {
+    history.__sbPushHooked = true;
+    var __origPushState = history.pushState;
+    history.pushState = function () {
+        var ret = __origPushState.apply(this, arguments);
+        __sbCheckUrlChange();
+        return ret;
+    };
+    var __origReplaceState = history.replaceState;
+    history.replaceState = function () {
+        var ret = __origReplaceState.apply(this, arguments);
+        __sbCheckUrlChange();
+        return ret;
+    };
+}
 var reset_if_recorder_undefined = function() {
     if (typeof document.recorded_actions === 'undefined')
         reset_recorder_state();

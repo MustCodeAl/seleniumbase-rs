@@ -416,21 +416,33 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Asserts that the current page title equals `expected`.
+    /// Asserts that the current page title equals `expected`, waiting up to
+    /// the default timeout for it.
     pub async fn assert_title(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let title = self.title().await?;
-        if title != expected {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Expected title to be '{}', but got '{}'",
-                expected, title
-            )));
+        let timeout = std::time::Duration::from_secs(self.default_wait_secs());
+        let started = std::time::Instant::now();
+        let mut last_title = String::new();
+        loop {
+            if let Ok(title) = self.title().await {
+                if title == expected {
+                    self.demo_assert_success(
+                        &demo::braced_message("ASSERT TITLE", expected),
+                        Some(&SelectorBuf::css("html")),
+                    )
+                    .await;
+                    return Ok(());
+                }
+                last_title = title;
+            }
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
-        self.demo_assert_success(
-            &demo::braced_message("ASSERT TITLE", expected),
-            Some(&SelectorBuf::css("html")),
-        )
-        .await;
-        Ok(())
+        Err(SeleniumBaseError::AssertionFailed(format!(
+            "Expected title to be '{}', but got '{}'",
+            expected, last_title
+        )))
     }
 
     /// Waits until `document.readyState` is `complete`, for up to the default
@@ -1272,17 +1284,28 @@ impl BaseCase {
         self.session.current_url().await
     }
 
-    /// Executes the `assert_url_contains` action.
+    /// Executes the `assert_url_contains` action, waiting up to the default timeout.
     pub async fn assert_url_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let url = self.current_url().await?;
-        if url.contains(expected) {
-            let message = demo::braced_message("ASSERT URL CONTAINS", expected);
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
-                .await;
-            return Ok(());
+        let timeout = std::time::Duration::from_secs(self.default_wait_secs());
+        let started = std::time::Instant::now();
+        let mut last_url = String::new();
+        loop {
+            if let Ok(url) = self.current_url().await {
+                if url.contains(expected) {
+                    let message = demo::braced_message("ASSERT URL CONTAINS", expected);
+                    self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
+                        .await;
+                    return Ok(());
+                }
+                last_url = url;
+            }
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected URL to contain '{expected}', got '{url}'"
+            "expected URL to contain '{expected}', got '{last_url}'"
         )))
     }
 
@@ -1563,17 +1586,28 @@ impl BaseCase {
         self.wait_for_text_visible(text, css, timeout_secs).await
     }
 
-    /// Executes the `assert_title_contains` action.
+    /// Executes the `assert_title_contains` action, waiting up to the default timeout.
     pub async fn assert_title_contains(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let title = self.title().await?;
-        if title.contains(expected) {
-            let message = demo::braced_message("ASSERT TITLE CONTAINS", expected);
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
-                .await;
-            return Ok(());
+        let timeout = std::time::Duration::from_secs(self.default_wait_secs());
+        let started = std::time::Instant::now();
+        let mut last_title = String::new();
+        loop {
+            if let Ok(title) = self.title().await {
+                if title.contains(expected) {
+                    let message = demo::braced_message("ASSERT TITLE CONTAINS", expected);
+                    self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
+                        .await;
+                    return Ok(());
+                }
+                last_title = title;
+            }
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected title to contain '{expected}', got '{title}'"
+            "expected title to contain '{expected}', got '{last_title}'"
         )))
     }
 
@@ -2671,17 +2705,13 @@ impl BaseCase {
         }
     }
 
-    /// Executes the `assert_link_text` action.
+    /// Executes the `assert_link_text` action, waiting up to the default timeout.
     pub async fn assert_link_text(&self, link_text: &str) -> Result<(), SeleniumBaseError> {
-        if !self.is_link_text_visible(link_text).await? {
-            return Err(SeleniumBaseError::AssertionFailed(format!(
-                "Link text '{}' is not visible",
-                link_text
-            )));
-        }
+        let selector = SelectorBuf::link_text(link_text);
+        self.wait_for_element_visible(&selector, self.default_wait_secs())
+            .await?;
         let message = demo::braced_message("ASSERT LINK TEXT", link_text);
-        self.demo_assert_success(&message, Some(&SelectorBuf::link_text(link_text)))
-            .await;
+        self.demo_assert_success(&message, Some(&selector)).await;
         Ok(())
     }
 
@@ -3169,17 +3199,28 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Assert that the current URL exactly equals `expected`.
+    /// Assert that the current URL equals `expected`, waiting up to the default timeout.
     pub async fn assert_url(&self, expected: &str) -> Result<(), SeleniumBaseError> {
-        let url = self.current_url().await?;
-        if url == expected {
-            let message = demo::braced_message("ASSERT URL", expected);
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
-                .await;
-            return Ok(());
+        let timeout = std::time::Duration::from_secs(self.default_wait_secs());
+        let started = std::time::Instant::now();
+        let mut last_url = String::new();
+        loop {
+            if let Ok(url) = self.current_url().await {
+                if crate::utils::urls::is_same_page_url(&url, expected) {
+                    let message = demo::braced_message("ASSERT URL", expected);
+                    self.demo_assert_success(&message, Some(&SelectorBuf::css("html")))
+                        .await;
+                    return Ok(());
+                }
+                last_url = url;
+            }
+            if started.elapsed() >= timeout {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
         }
         Err(SeleniumBaseError::AssertionFailed(format!(
-            "expected URL '{expected}', got '{url}'"
+            "expected URL '{expected}', got '{last_url}'"
         )))
     }
 
@@ -3858,9 +3899,41 @@ impl BaseCase {
 
     /// Open `url` only if the current URL is not already `url`.
     pub async fn open_if_not_url(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
-        if self.current_url().await? != url {
-            self.open(url).await?;
+        let normalized = crate::utils::urls::normalize_page_url(url)?;
+        let started = std::time::Instant::now();
+        loop {
+            if self
+                .current_url()
+                .await
+                .is_ok_and(|curr| crate::utils::urls::is_same_page_url(&curr, &normalized))
+            {
+                return Ok(());
+            }
+            // If a previous action opened a new tab, check whether another open window is at the URL
+            if let Ok(driver) = self.session.webdriver()
+                && let Ok(handles) = driver.windows().await
+            {
+                for handle in handles {
+                    let matches_window = async {
+                        driver.switch_to_window(handle).await.ok()?;
+                        let u = driver.current_url().await.ok()?;
+                        if crate::utils::urls::is_same_page_url(u.as_str(), &normalized) {
+                            Some(())
+                        } else {
+                            None
+                        }
+                    };
+                    if matches_window.await.is_some() {
+                        return Ok(());
+                    }
+                }
+            }
+            if started.elapsed() >= std::time::Duration::from_millis(1500) {
+                break;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
+        self.open(&normalized).await?;
         Ok(())
     }
 
