@@ -14,7 +14,7 @@
 //! # async fn demo() -> Result<(), SeleniumBaseError> {
 //! let sb = BaseCase::new(BrowserConfig::builder().headless(false).build()?).await?;
 //! let mut qa = MasterQA::new(sb)?;
-//! qa.open("https://example.com").await?; // a `BaseCase` method, through `Deref`
+//! qa.case_mut().open("https://example.com").await?;
 //! qa.verify("Is the heading visible?").await?;
 //! qa.verify_default().await?; // asks "Does the page look good?"
 //! let (mut sb, report) = qa.finish(None).await?;
@@ -32,7 +32,6 @@
 //! Without a browser, [`MasterQaSession`] asks the same kind of question in the
 //! terminal and writes a Markdown report.
 
-use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
@@ -450,22 +449,6 @@ impl MasterQA {
 
     /// The mutable case the checks are made on.
     pub fn case_mut(&mut self) -> &mut BaseCase {
-        &mut self.sb
-    }
-}
-
-impl Deref for MasterQA {
-    type Target = BaseCase;
-
-    /// The case the checks are made on, so every `BaseCase` method works on a
-    /// `MasterQA`.
-    fn deref(&self) -> &BaseCase {
-        &self.sb
-    }
-}
-
-impl DerefMut for MasterQA {
-    fn deref_mut(&mut self) -> &mut BaseCase {
         &mut self.sb
     }
 }

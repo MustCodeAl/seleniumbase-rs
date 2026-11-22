@@ -16,7 +16,7 @@ use super::sync::locked;
 use super::types::{PageInfo, ScreenRect, Scroll, State};
 use crate::error::SeleniumBaseError;
 use crate::utilities::retry::{poll_until, RetryPolicy};
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 use crate::utils::urls::normalize_page_url;
 #[cfg(feature = "plugins")]
 use seleniumbase_rs_plugin::NavOrigin;
@@ -130,7 +130,7 @@ impl Page {
     /// again, so it keeps working when the page re-renders. See [`Locator`].
     /// Strings are classified like SeleniumBase does: `"#id"` is CSS,
     /// `"//div"` is XPath, `"link=Home"` is a link.
-    pub fn locator(&self, selector: impl Into<SelectorBuf>) -> Locator {
+    pub fn locator(&self, selector: impl Into<Selector>) -> Locator {
         Locator::new(self.clone(), selector.into())
     }
 

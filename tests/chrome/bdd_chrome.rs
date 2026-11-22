@@ -24,15 +24,16 @@ async fn page() -> SbCdpCase {
 
 #[given("I open a page titled {title:string}")]
 async fn open_a_page(page: &SbCdpCase, title: String) -> seleniumbase_rs::Result<()> {
-    page.goto(&format!(
-        "data:text/html,<title>{title}</title><h1>{title}</h1>"
-    ))
-    .await
+    page.page()
+        .goto(&format!(
+            "data:text/html,<title>{title}</title><h1>{title}</h1>"
+        ))
+        .await
 }
 
 #[then("the title is {title:string}")]
 async fn the_title_is(page: &SbCdpCase, title: String) -> seleniumbase_rs::Result<()> {
-    assert_eq!(page.title().await?, title);
+    assert_eq!(page.page().title().await?, title);
     Ok(())
 }
 

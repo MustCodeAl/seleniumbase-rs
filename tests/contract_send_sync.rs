@@ -15,7 +15,7 @@ fn the_public_handles_are_send_and_sync() {
     send_sync::<seleniumbase_rs::sb_cdp::Browser>();
     send_sync::<seleniumbase_rs::sb_cdp::Page>();
     send_sync::<seleniumbase_rs::sb_cdp::Locator>();
-    send_sync::<seleniumbase_rs::utils::selectors::SelectorBuf>();
+    send_sync::<seleniumbase_rs::utils::selectors::Selector>();
     send_sync::<seleniumbase_rs::utils::selectors::SelectorRef<'static>>();
     send_sync::<seleniumbase_rs::sb_cdp::BrowserPool>();
     send_sync::<seleniumbase_rs::sb_cdp::Lease>();

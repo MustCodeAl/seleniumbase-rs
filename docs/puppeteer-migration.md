@@ -207,8 +207,8 @@ await page.click('aria/Place order[role="button"]');
 ```rust,ignore Rust
 page.locator("#cart").click().await?;
 page.locator(r#"//button[@id="go"]"#).click().await?;
-page.locator(SelectorBuf::text("Checkout", TextMatching::Contains)).click().await?;
-page.locator(SelectorBuf::role("button", Some("Place order"), TextMatching::Exact)).click().await?;
+page.locator(Selector::text("Checkout", TextMatching::Contains)).click().await?;
+page.locator(Selector::role("button", Some("Place order"), TextMatching::Exact)).click().await?;
 ```
 
 </CodeGroup>
@@ -217,10 +217,10 @@ page.locator(SelectorBuf::role("button", Some("Place order"), TextMatching::Exac
 |---|---|
 | CSS | `page.locator("css")` |
 | `xpath/...`, `::-p-xpath(...)` | `page.locator("//xpath")` |
-| `text/...`, `::-p-text(...)` | `SelectorBuf::text(text, TextMatching::Contains)`: the innermost elements containing the text (case-insensitive here, case-sensitive in Puppeteer) |
-| `css ::-p-text(...)` (descendant) | `.locator(css).locator(SelectorBuf::text(...))` |
-| `css::-p-text(...)` (the element itself) | `.locator(css).locator(SelectorBuf::has_text(...))` |
-| `aria/Name`, `aria/Name[role="button"]`, `::-p-aria(...)` | `SelectorBuf::role(role, Some(name), TextMatching::Exact)`, the role approximation described in [Migrate Playwright Tests](/playwright-migration#the-getbyrole-approximation) |
+| `text/...`, `::-p-text(...)` | `Selector::text(text, TextMatching::Contains)`: the innermost elements containing the text (case-insensitive here, case-sensitive in Puppeteer) |
+| `css ::-p-text(...)` (descendant) | `.locator(css).locator(Selector::text(...))` |
+| `css::-p-text(...)` (the element itself) | `.locator(css).locator(Selector::has_text(...))` |
+| `aria/Name`, `aria/Name[role="button"]`, `::-p-aria(...)` | `Selector::role(role, Some(name), TextMatching::Exact)`, the role approximation described in [Migrate Playwright Tests](/playwright-migration#the-getbyrole-approximation) |
 | `pierce/...`, `>>>` | a `TODO`: the pure CDP engine's selectors do not enter shadow roots |
 
 ### Assertions
@@ -234,7 +234,7 @@ expect(rows).toBeGreaterThan(0);
 ```
 
 ```rust,ignore Rust
-page.locator("#status").locator(SelectorBuf::has_text("Ordered")).expect().to_exist().await?;
+page.locator("#status").locator(Selector::has_text("Ordered")).expect().to_exist().await?;
 assert_eq!(title, "Shop");
 assert!(rows > 0);
 ```
@@ -245,7 +245,7 @@ assert!(rows > 0);
 |---|---|
 | jest `expect(x).toBe(y)`, `toEqual`, `toStrictEqual`, `.not.toBe` | `assert_eq!(x, y)`, `assert_ne!` |
 | jest `toContain`, `toMatch(/plain/ or 'text')`, `toBeTruthy`, `toBeFalsy`, `toBeNull`, `toBeGreaterThan`, `toHaveLength` | `assert!(x.contains(...))`, `assert!(...)` |
-| expect-puppeteer `expect(page).toMatchElement(sel, { text })` | `page.locator(sel).locator(SelectorBuf::has_text(text)).expect().to_exist()` (`{ visible: true }`: `to_be_visible`) |
+| expect-puppeteer `expect(page).toMatchElement(sel, { text })` | `page.locator(sel).locator(Selector::has_text(text)).expect().to_exist()` (`{ visible: true }`: `to_be_visible`) |
 | `expect(page).toClick(sel, { text })`, `toFill(sel, value)`, `toSelect(sel, value)`, `toUploadFile(sel, path)` | the click, `fill`, `support::select_option`, `support::set_input_files` |
 | `expect(page).toMatchTextContent(text)` (and `toMatch`) | `page.locator("body").expect().to_contain_text(text)` |
 | node `assert(x)`, `assert.ok(x)`, `assert.equal`, `assert.strictEqual`, `assert.deepStrictEqual`, `assert.notEqual`, `assert.match` | `assert!`, `assert_eq!`, `assert_ne!` |

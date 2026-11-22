@@ -143,12 +143,12 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] naming the selector and the
     /// state it never reached.
-    async fn await_ready(&self, css: &SelectorBuf, ready: Ready) -> Result<(), SeleniumBaseError> { self.await_ready_within(css, ready, self.default_wait_secs())
+    async fn await_ready(&self, css: &Selector, ready: Ready) -> Result<(), SeleniumBaseError> { self.await_ready_within(css, ready, self.default_wait_secs())
         .await }
     
     /// [`await_ready`](Self::await_ready) for up to `timeout` seconds, for the
     /// calls that take a timeout of their own.
-    async fn await_ready_within(&self, css: &SelectorBuf, ready: Ready,
+    async fn await_ready_within(&self, css: &Selector, ready: Ready,
     timeout: u64,) -> Result<(), SeleniumBaseError> { self.check_time_limit()?;
     let selector = shadow_find::checked(css)?;
     let reached = match ready {
@@ -171,8 +171,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if the element is missing.
-    pub async fn fast_type(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn fast_type(&mut self, selector: impl Into<Selector>, text: &str) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let (body, enter) = match text.strip_suffix('\n') {
             Some(body) => (body, true),
             None => (text, false),
@@ -190,8 +190,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the page script fails.
-    pub async fn js_click_if_visible(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn js_click_if_visible(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         if self.is_element_visible(css).await? {
             self.js_click(css).await?;
         }
@@ -209,8 +209,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if the element is missing or the page script fails.
-    pub async fn gui_element_rect(&mut self, selector: impl Into<SelectorBuf>) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn gui_element_rect(&mut self, selector: impl Into<Selector>) -> Result<crate::sb_cdp::Rect, SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let element = self.find_element(css).await?;
         let rect = element.bounding_box().await?;
         let metrics = self
@@ -227,8 +227,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// See [`gui_element_rect`](Self::gui_element_rect).
-    pub async fn gui_element_center(&mut self, selector: impl Into<SelectorBuf>) -> Result<crate::sb_cdp::Point, SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn gui_element_center(&mut self, selector: impl Into<Selector>) -> Result<crate::sb_cdp::Point, SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let rect = self.gui_element_rect(css).await?;
         Ok(crate::sb_cdp::Point {
             x: rect.x + rect.width / 2.0,

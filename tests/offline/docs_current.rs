@@ -175,8 +175,8 @@ const GONE: &[(&str, &str)] = &[
     // `Element::as_webdriver_element`, which the pages may name.
     ("drivers::By", "a selector string"),
     ("drivers::{By, WebElement}", "seleniumbase_rs::Element"),
-    ("Selector::to_by", "a selector string, or SelectorBuf"),
-    ("Selector::auto_by", "a selector string, or SelectorBuf"),
+    ("Selector::to_by", "a selector string, or Selector"),
+    ("Selector::auto_by", "a selector string, or Selector"),
     // The cookie is one type of ours, the same in both engines (docs/design/cookie_type.md).
     ("drivers::Cookie", "seleniumbase_rs::Cookie"),
     ("thirtyfour::cookie::Cookie", "seleniumbase_rs::Cookie"),

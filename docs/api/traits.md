@@ -23,7 +23,7 @@ type; to keep an element handle, use `BaseCase::find_element` (an
 `Element`) or `Page::locator(..)`. Every method returns
 `seleniumbase_rs::Result<T>`. Selector strings are the same on both engines:
 CSS by default, XPath for `//...`, link text for `link=...` (see the
-[Selectors guide](/tutorials/selectors)). A selector parameter is `impl Into<SelectorBuf> + Send`: a string, or a `SelectorBuf` built with `css`, `xpath`, `link_text` or `partial_link_text` to skip the guess.
+[Selectors guide](/tutorials/selectors)). A selector parameter is `impl Into<Selector> + Send`: a string, or a `Selector` built with `css`, `xpath`, `link_text` or `partial_link_text` to skip the guess.
 
 ```rust,no_run
 use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi};
@@ -65,7 +65,7 @@ where
 ```
 
 The traits are not dyn compatible: a method with an `async fn` or an
-`impl Into<SelectorBuf>` argument cannot be called through a trait object, so
+`impl Into<Selector>` argument cannot be called through a trait object, so
 write `fn run(sb: &mut impl BrowserApi)` or a generic function, not
 `&mut dyn BrowserApi`. To hold either engine in one value, use an `enum` of your
 own over `BaseCase` and `sb_cdp::Page` that implements the traits by matching.
@@ -87,19 +87,19 @@ own over `BaseCase` and `sb_cdp::Page` that implements the traits by matching.
 
 | Method | `BaseCase` | `Page` |
 |---|---|---|
-| `click(&mut self, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Clicks the element. | `locator(selector).click()`. |
-| `double_click(&mut self, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Double-clicks it. | `locator(selector).double_click()`. |
-| `type_text(&mut self, selector: impl Into<SelectorBuf> + Send, text: &str) -> Result<()>` | Waits for the element to be visible, clears it and types. | Clears the field, then types one key at a time. |
-| `text(&mut self, selector: impl Into<SelectorBuf> + Send) -> Result<String>` | The element's visible text, after waiting for it to be present. | `locator(selector).text()`. |
-| `attribute(&mut self, selector: impl Into<SelectorBuf> + Send, attr: &str) -> Result<Option<String>>` | The attribute value, `None` when absent. | `locator(selector).attribute(attr)`. |
+| `click(&mut self, selector: impl Into<Selector> + Send) -> Result<()>` | Clicks the element. | `locator(selector).click()`. |
+| `double_click(&mut self, selector: impl Into<Selector> + Send) -> Result<()>` | Double-clicks it. | `locator(selector).double_click()`. |
+| `type_text(&mut self, selector: impl Into<Selector> + Send, text: &str) -> Result<()>` | Waits for the element to be visible, clears it and types. | Clears the field, then types one key at a time. |
+| `text(&mut self, selector: impl Into<Selector> + Send) -> Result<String>` | The element's visible text, after waiting for it to be present. | `locator(selector).text()`. |
+| `attribute(&mut self, selector: impl Into<Selector> + Send, attr: &str) -> Result<Option<String>>` | The attribute value, `None` when absent. | `locator(selector).attribute(attr)`. |
 
 ### AssertionApi
 
 | Method | `BaseCase` | `Page` |
 |---|---|---|
 | `assert_title(&mut self, expected: &str) -> Result<()>` | Fails with `AssertionFailed` unless the title equals `expected` exactly. | `expect().to_have_title(expected)`, which retries until the timeout. |
-| `assert_element(&self, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Fails unless the element is present in the DOM (visible or not). | `locator(selector).expect().to_exist()`. |
-| `assert_text(&mut self, expected: &str, selector: impl Into<SelectorBuf> + Send) -> Result<()>` | Fails unless the element's text contains `expected`. | `locator(selector).expect().to_contain_text(expected)`. |
+| `assert_element(&self, selector: impl Into<Selector> + Send) -> Result<()>` | Fails unless the element is present in the DOM (visible or not). | `locator(selector).expect().to_exist()`. |
+| `assert_text(&mut self, expected: &str, selector: impl Into<Selector> + Send) -> Result<()>` | Fails unless the element's text contains `expected`. | `locator(selector).expect().to_contain_text(expected)`. |
 | `assert_no_js_errors(&self) -> Result<()>` | Fails if the browser log holds a `SEVERE` entry (a few known CDN sources are ignored). | Fails if the document raised an uncaught script error; the message names the first. |
 
 <Note>

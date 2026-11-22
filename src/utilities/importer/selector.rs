@@ -2,7 +2,7 @@
 //! turned into the steps of a pure CDP [`Locator`](crate::sb_cdp::Locator).
 //!
 //! CSS and XPath pass through. Text, role and label selectors become the
-//! [`SelectorBuf`](crate::utils::selectors::SelectorBuf) helpers that
+//! [`Selector`](crate::utils::selectors::Selector) helpers that
 //! approximate them in XPath. What has no counterpart (shadow-root piercing,
 //! layout selectors such as `:near()`, regular expressions) is refused with a
 //! reason, which the translator turns into a `TODO`.
@@ -19,17 +19,17 @@ pub(super) enum Step {
     Css(String),
     /// An XPath expression.
     XPath(String),
-    /// `SelectorBuf::role(role, name, matching)`: `exact` is `TextMatching::Exact`.
+    /// `Selector::role(role, name, matching)`: `exact` is `TextMatching::Exact`.
     Role {
         role: String,
         name: Option<String>,
         exact: bool,
     },
-    /// `SelectorBuf::text(text, matching)`: `exact` is `TextMatching::Exact`.
+    /// `Selector::text(text, matching)`: `exact` is `TextMatching::Exact`.
     Text { text: String, exact: bool },
-    /// `SelectorBuf::label(text, matching)`: `exact` is `TextMatching::Exact`.
+    /// `Selector::label(text, matching)`: `exact` is `TextMatching::Exact`.
     Label { text: String, exact: bool },
-    /// `SelectorBuf::has_text(text)`: keep the matches whose text contains it.
+    /// `Selector::has_text(text)`: keep the matches whose text contains it.
     HasText(String),
     /// `.nth(n)`.
     Nth(usize),

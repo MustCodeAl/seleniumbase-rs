@@ -47,7 +47,7 @@ use serde_json::{json, Value};
 use crate::api::cdp_page::CdpNode;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Browser, Page};
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 
 /// A minimal CDP driver for a browser that is already running.
 ///
@@ -155,13 +155,10 @@ impl CdpDriver {
     ///
     /// Returns [`SeleniumBaseError::ElementNotFound`] if nothing matches, and
     /// [`SeleniumBaseError::InvalidSelector`] if the page rejects the selector.
-    pub async fn find(
-        &self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<CdpNode, SeleniumBaseError> {
+    pub async fn find(&self, selector: impl Into<Selector>) -> Result<CdpNode, SeleniumBaseError> {
         // `querySelector` reads CSS only: a selector of another kind is told so by
         // the page, as it always was.
-        let text = Into::<SelectorBuf>::into(selector).to_string();
+        let text = Into::<Selector>::into(selector).to_string();
         let selector = text.as_str();
         let expression = format!(
             "document.querySelector({})",
@@ -203,7 +200,7 @@ impl CdpDriver {
     /// Returns [`SeleniumBaseError::ElementNotFound`] or
     /// [`SeleniumBaseError::ElementNotInteractable`] if the element does not
     /// become ready in time.
-    pub async fn click(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn click(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
         self.page()?.locator(selector).click().await
     }
 
@@ -215,7 +212,7 @@ impl CdpDriver {
     /// See [`click`](Self::click).
     pub async fn type_text(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.page()?.locator(selector).type_text(text).await

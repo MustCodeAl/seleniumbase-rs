@@ -3,9 +3,10 @@
 //!
 //! A scenario is a test function that binds a feature file; its steps are
 //! `#[given]`, `#[when]` and `#[then]` functions that ask for the `sb`
-//! fixture and use the browser. [`sb`] gives a [`SbCase`], which derefs to a
-//! [`BaseCase`](crate::BaseCase); [`sb_cdp`] gives a [`SbCdpCase`], which derefs to a pure CDP
-//! [`Page`](crate::sb_cdp::Page). Both read the run configuration as the
+//! fixture and use the browser. [`sb`] gives a [`SbCase`], which exposes its
+//! [`BaseCase`](crate::BaseCase) through [`SbCase::case`] and [`SbCase::case_mut`];
+//! [`sb_cdp`] gives a [`SbCdpCase`], which exposes its pure CDP [`Page`](crate::sb_cdp::Page)
+//! through [`SbCdpCase::page`]. Both read the run configuration as the
 //! [`testing`](crate::testing) fixtures do (the settings file, `SB_SETTINGS_FILE`
 //! and the `SB_*` variables that `sbrs test` sets), and when the scenario is
 //! over, whatever its end, they close the browser after taking the evidence of
@@ -38,18 +39,18 @@
 //!
 //! #[given("the login page is displayed")]
 //! async fn login_page(sb: &mut SbCase) -> seleniumbase_rs::Result<()> {
-//!     sb.open("https://example.com/login").await?;
-//!     sb.breakpoint("Paused at the login page.").await
+//!     sb.case_mut().open("https://example.com/login").await?;
+//!     sb.case_mut().breakpoint("Paused at the login page.").await
 //! }
 //!
 //! #[when("I sign in as {user:string}")]
 //! async fn sign_in(sb: &mut SbCase, user: String) -> seleniumbase_rs::Result<()> {
-//!     sb.type_text("#user", &user).await
+//!     sb.case_mut().type_text("#user", &user).await
 //! }
 //!
 //! #[then("the title is {title:string}")]
 //! async fn title_is(sb: &mut SbCase, title: String) -> seleniumbase_rs::Result<()> {
-//!     sb.assert_title(&title).await
+//!     sb.case_mut().assert_title(&title).await
 //! }
 //! ```
 //!

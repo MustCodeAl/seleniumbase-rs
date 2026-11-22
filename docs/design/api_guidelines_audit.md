@@ -224,7 +224,7 @@ and partly 17; C-METHOD and C-DTOR-BLOCK moved to partly in the second; the thir
 | C-DEBUG-NONEMPTY | met | 0 | `Cookie` and `BrowserConfig` print fields and hide secrets. |
 | C-SEALED | not met | 6 | Six traits nobody should implement are open (F6); `crates/playwright` seals `PlaywrightTarget` correctly, the pattern to copy. |
 | C-STRUCT-PRIVATE | partly | 3 or more | `Cookie` 8, `BrowserConfig` 9 public fields; 70 `#[non_exhaustive]` for 547 structs and enums (F8). |
-| C-NEWTYPE-HIDE | met | 0 | `SelectorBuf`, `FrameRef`, `WindowRef` hide their representation. |
+| C-NEWTYPE-HIDE | met | 0 | `Selector`, `FrameRef`, `WindowRef` hide their representation. |
 | C-STRUCT-BOUNDS | not checked | n/a | No search can find derive bounds on generic structs. |
 | C-STABLE | partly | 4 | Public dependencies at 0.x: thirtyfour 0.38, rstest 0.28, rstest-bdd 0.6, the plugin crate 0.1 (F13). |
 | C-PERMISSIVE | met | 0 | MIT (`Cargo.toml:20`); `deny.toml` exists (not re-run). |
@@ -350,8 +350,8 @@ guide.
    trees by attributes in `src/lib.rs`; `[workspace.lints]` does not exist, so over 4,000 lines with `.unwrap()`,
    600 with `.expect(` and 160 with `panic!(` in `src` are unchecked and every count in this note that says
    "not counted" waits on it.
-2. **Selectors are `&str` in about 370 signatures (F9; C, M, G)** although `SelectorRef` and `SelectorBuf`
-   exist and `Page::locator` already takes `impl Into<SelectorBuf>`; the parameter is called `css`
+2. **Selectors are `&str` in about 370 signatures (F9; C, M, G)** although `SelectorRef` and `Selector`
+   exist and `Page::locator` already takes `impl Into<Selector>`; the parameter is called `css`
    even when it holds an XPath.
 3. **104 `get_` functions (F5; C, G)**, 78 on `BaseCase`, the one checklist item with a
    count in the hundreds. The owner reversed D2 on 2026-11-08: `BaseCase` drops the prefix
@@ -724,8 +724,8 @@ literal_string_with_formatting_args = "allow"
 ### F9. Strings, booleans and paths where a type fits (C-NEWTYPE, C-CUSTOM-TYPE, C-GENERIC; Google: flexible references, `Into`, enum over bool, named fields)
 
 * Selectors: 270 `css: &str` and 101 `selector: &str` parameters, although `SelectorRef` and
-  `SelectorBuf` exist (`src/utils/selectors.rs`) and `sb_cdp::Page::locator` already takes
-  `impl Into<SelectorBuf>` (`src/sb_cdp/page.rs:133`). The name `css` is also wrong when the
+  `Selector` exist (`src/utils/selectors.rs`) and `sb_cdp::Page::locator` already takes
+  `impl Into<Selector>` (`src/sb_cdp/page.rs:133`). The name `css` is also wrong when the
   string is an XPath.
 * Booleans: `uc: bool` where `DriverMode` exists (`src/api/recorder.rs:312,364`,
   `src/api/recorder/generate.rs:152`); `to_html(show_notes: bool, interval, end_marker: bool)`
@@ -749,7 +749,7 @@ literal_string_with_formatting_args = "allow"
 * Durations are right: 83 `timeout: Duration` against one `default_timeout: f64`
   (`src/mcp/webdriver.rs:593`).
 * Fix: `impl AsRef<Path>` for filesystem paths; enums for the booleans; for selectors, a lane of
-  its own that moves `BaseCase` to `impl Into<SelectorBuf>` the way `Page::locator` does (it is
+  its own that moves `BaseCase` to `impl Into<Selector>` the way `Page::locator` does (it is
   the largest change in this note: about 370 signatures).
 * Google (rules R6, R7): its table says `&str` for `&String`, `&[T]` for `&Vec<T>` and `Option<&T>`
   for `&Option<T>`. `src` has no `&Vec<` (0) and three `&Option<`, none public (a serde `serialize`
@@ -962,7 +962,7 @@ literal_string_with_formatting_args = "allow"
 * **Done (2026-11-21, lane 16), the traits' shape only:** `dyn BrowserApi`, `dyn ElementApi`, `dyn AssertionApi`
   and `dyn ScreenshotApi` occur in no checkout of this repository and in neither sibling repository
   (stealth, plugins); `ElementApi` and `AssertionApi` could not be `dyn` anyway, because their methods
-  take an `impl Into<SelectorBuf>` argument. All four traits are native: each method is declared
+  take an `impl Into<Selector>` argument. All four traits are native: each method is declared
   `fn name(..) -> impl Future<Output = ..> + Send` (the `Send` bound is stated, which `async fn` in a
   public trait cannot do, and rustc's `async_fn_in_trait` lint asks for) and the `impl` blocks for `BaseCase`
   and `Page` write `async fn`. `async_trait` stays a dependency: `plugins::observer` re-exports it as public API
@@ -1254,7 +1254,7 @@ or filled lanes 9, 14 and 15.
     taken: the canonical struct, `Skipped` out of the error type, after the thirtyfour driver-errors
     lane. Files: `src/error.rs` and every constructor call. Breaking, large.
 19. **Selector typing** (F9 selectors; C-NEWTYPE; M-STRONG-TYPES; G: the code-size caveat of
-    `Into`): `BaseCase` on `impl Into<SelectorBuf>`, each generic function kept to the conversion
+    `Into`): `BaseCase` on `impl Into<Selector>`, each generic function kept to the conversion
     and a call to a non-generic body. About 371 signatures (public or not); do it with
     `ast_grep_rewrite`. Breaking, large.
 20. **`panic` to `Result` for `driver()`** (F10; M-PANIC-ON-BUG; G: panic for bugs), after the

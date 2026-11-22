@@ -1858,7 +1858,7 @@ impl<'s> Translator<'s> {
                         .as_ref()
                         .map_or_else(|| "None".to_owned(), |n| format!("Some({})", rust_str(n)));
                     out.push_str(&format!(
-                        ".locator(SelectorBuf::role({}, {name}, {}))",
+                        ".locator(Selector::role({}, {name}, {}))",
                         rust_str(role),
                         text_matching(*exact)
                     ));
@@ -1866,7 +1866,7 @@ impl<'s> Translator<'s> {
                 Step::Text { text, exact } => {
                     self.needs.selector_buf = true;
                     out.push_str(&format!(
-                        ".locator(SelectorBuf::text({}, {}))",
+                        ".locator(Selector::text({}, {}))",
                         rust_str(text),
                         text_matching(*exact)
                     ));
@@ -1874,17 +1874,14 @@ impl<'s> Translator<'s> {
                 Step::Label { text, exact } => {
                     self.needs.selector_buf = true;
                     out.push_str(&format!(
-                        ".locator(SelectorBuf::label({}, {}))",
+                        ".locator(Selector::label({}, {}))",
                         rust_str(text),
                         text_matching(*exact)
                     ));
                 }
                 Step::HasText(text) => {
                     self.needs.selector_buf = true;
-                    out.push_str(&format!(
-                        ".locator(SelectorBuf::has_text({}))",
-                        rust_str(text)
-                    ));
+                    out.push_str(&format!(".locator(Selector::has_text({}))", rust_str(text)));
                 }
                 Step::Nth(n) => out.push_str(&format!(".nth({n})")),
                 Step::Last => out.push_str(".last()"),
@@ -1899,7 +1896,7 @@ impl<'s> Translator<'s> {
             rust_str(css)
         } else {
             self.needs.selector_buf = true;
-            format!("SelectorBuf::css({})", rust_str(css))
+            format!("Selector::css({})", rust_str(css))
         }
     }
 
@@ -1908,7 +1905,7 @@ impl<'s> Translator<'s> {
             rust_str(xpath)
         } else {
             self.needs.selector_buf = true;
-            format!("SelectorBuf::xpath({})", rust_str(xpath))
+            format!("Selector::xpath({})", rust_str(xpath))
         }
     }
 

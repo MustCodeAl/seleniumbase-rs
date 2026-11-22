@@ -414,7 +414,7 @@ impl BaseCase {
     /// Asserts that `selector` matches exactly `count` elements.
     pub async fn assert_element_count(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         count: usize,
     ) -> crate::Result<()> {
         let selector = selector.into();
@@ -1399,8 +1399,8 @@ should produce `SeleniumBaseError::InvalidConfig` with the field name.
 #[test]
 fn selector_parses_link_text() {
     assert_eq!(
-        SelectorBuf::from("link=Dashboard"),
-        SelectorBuf::link_text("Dashboard")
+        Selector::from("link=Dashboard"),
+        Selector::link_text("Dashboard")
     );
 }
 ```

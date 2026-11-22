@@ -25,9 +25,9 @@
 //! ```
 
 use crate::error::SeleniumBaseError;
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 
-use scraper::{ElementRef, Html, Selector};
+use scraper::{ElementRef, Html, Selector as ScraperSelector};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -64,7 +64,7 @@ impl BeautifulSoup {
     /// valid CSS selector.
     pub fn find(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<Option<SoupNode>, SeleniumBaseError> {
         let sel = parse_selector(&selector.into())?;
         Ok(self
@@ -82,7 +82,7 @@ impl BeautifulSoup {
     /// valid CSS selector.
     pub fn find_all(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<Vec<SoupNode>, SeleniumBaseError> {
         let sel = parse_selector(&selector.into())?;
         Ok(self
@@ -98,10 +98,7 @@ impl BeautifulSoup {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] if `selector` is not a
     /// valid CSS selector.
-    pub fn text(
-        &self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<Option<String>, SeleniumBaseError> {
+    pub fn text(&self, selector: impl Into<Selector>) -> Result<Option<String>, SeleniumBaseError> {
         Ok(self.find(selector)?.map(|e| e.text))
     }
 
@@ -113,7 +110,7 @@ impl BeautifulSoup {
     /// valid CSS selector.
     pub fn attribute(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         attr: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         Ok(self
@@ -123,14 +120,14 @@ impl BeautifulSoup {
 }
 
 /// Parses a CSS selector, naming it in the error.
-fn parse_selector(selector: &SelectorBuf) -> Result<Selector, SeleniumBaseError> {
+fn parse_selector(selector: &Selector) -> Result<ScraperSelector, SeleniumBaseError> {
     selector.check()?;
-    let SelectorBuf::Css(css) = selector else {
+    let Selector::Css(css) = selector else {
         return Err(SeleniumBaseError::InvalidSelector(format!(
             "'{selector}': a BeautifulSoup selector is CSS; XPath and link text need a browser"
         )));
     };
-    Selector::parse(css)
+    ScraperSelector::parse(css)
         .map_err(|e| SeleniumBaseError::InvalidSelector(format!("'{selector}': {e}")))
 }
 

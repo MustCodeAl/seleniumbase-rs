@@ -15,7 +15,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page, Permission};
-use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
+use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
 use serde_json::json;
 
 const FIXTURE: &str = r##"<!doctype html>
@@ -108,19 +108,19 @@ async fn text_selectors_find_any_element_and_contains_works_as_css() {
             .unwrap(),
         2
     );
-    let links = SelectorBuf::containing_text("Sign in", Some("a"));
+    let links = Selector::containing_text("Sign in", Some("a"));
     assert_eq!(page.locator(links).count().await.unwrap(), 2);
-    let help = SelectorBuf::containing_text("Sign in help", Some("a"));
+    let help = Selector::containing_text("Sign in help", Some("a"));
     assert_eq!(page.locator(help).count().await.unwrap(), 1);
 
     // Without a tag only the innermost element that holds the text matches, so
     // <html> and <body> do not.
-    let heading = page.locator(SelectorBuf::containing_text("Welcome", None));
+    let heading = page.locator(Selector::containing_text("Welcome", None));
     assert_eq!(heading.count().await.unwrap(), 1);
     assert_eq!(heading.info().await.unwrap().tag, "h1");
 
     // White space in the page and in the text counts as one space.
-    let note = SelectorBuf::containing_text("Plain note text", Some("span"));
+    let note = Selector::containing_text("Plain note text", Some("span"));
     assert_eq!(page.locator(note).count().await.unwrap(), 1);
 
     browser.close().await.unwrap();
@@ -166,12 +166,12 @@ async fn a_step_below_a_locator_finds_only_what_is_inside_it() {
 
     // The selectors that name a role, a text or a label start at the context node:
     // from the page that is the whole document, from the container only itself.
-    let role = SelectorBuf::role("button", Some("Save"), TextMatching::Contains);
+    let role = Selector::role("button", Some("Save"), TextMatching::Contains);
     assert_eq!(page.locator(role.clone()).count().await.unwrap(), 2);
     assert_eq!(panel.locator(role).count().await.unwrap(), 1);
     for selector in [
-        SelectorBuf::containing_text("Save", Some("button")),
-        SelectorBuf::text("Save", TextMatching::Contains),
+        Selector::containing_text("Save", Some("button")),
+        Selector::text("Save", TextMatching::Contains),
     ] {
         let name = selector.to_string();
         assert_eq!(
@@ -182,12 +182,12 @@ async fn a_step_below_a_locator_finds_only_what_is_inside_it() {
         assert_eq!(panel.locator(selector).count().await.unwrap(), 1, "{name}");
     }
     // The label names its field from anywhere in the document.
-    let nick = SelectorBuf::label("Nick", TextMatching::Contains);
+    let nick = Selector::label("Nick", TextMatching::Contains);
     assert_eq!(panel.locator(nick).count().await.unwrap(), 1);
     // Nothing in the <head> shows text: the <title> says "Parity".
-    let title = SelectorBuf::text("Parity", TextMatching::Contains);
+    let title = Selector::text("Parity", TextMatching::Contains);
     assert_eq!(page.locator(title).count().await.unwrap(), 0);
-    let heading = SelectorBuf::text("Welcome", TextMatching::Contains);
+    let heading = Selector::text("Welcome", TextMatching::Contains);
     assert_eq!(page.locator(heading).count().await.unwrap(), 1);
 
     // An XPath evaluated from the root of the document, whatever the container
@@ -201,11 +201,7 @@ async fn a_step_below_a_locator_finds_only_what_is_inside_it() {
         ("id('inside')", 1),
         (".//p | .//button", 2),
     ] {
-        let found = panel
-            .locator(SelectorBuf::xpath(xpath))
-            .count()
-            .await
-            .unwrap();
+        let found = panel.locator(Selector::xpath(xpath)).count().await.unwrap();
         assert_eq!(found, expected, "{xpath}");
     }
     // A path that starts at the context node may lead out of it.

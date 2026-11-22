@@ -20,7 +20,7 @@ impl BaseCase {
 
     /// The element `selector` names, once it is `ready`, and not before the
     /// case's timeout is out.
-    async fn shadow_element(&self, selector: &SelectorBuf, ready: Ready,) -> Result<Element, SeleniumBaseError> { self.await_ready(selector, ready).await?;
+    async fn shadow_element(&self, selector: &Selector, ready: Ready,) -> Result<Element, SeleniumBaseError> { self.await_ready(selector, ready).await?;
     self.session.find(shadow_find::checked(selector)?).await }
 
     /// Clicks an element inside one or more shadow roots, once it can be
@@ -31,8 +31,8 @@ impl BaseCase {
     ///
     /// [`SeleniumBaseError::WaitTimeout`] if the element is not clickable in
     /// the case's timeout.
-    pub async fn shadow_click(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let selector: &SelectorBuf = &selector.into();
+    pub async fn shadow_click(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let selector: &Selector = &selector.into();
         let element = self.shadow_element(selector, Ready::Clickable).await?;
         element.click().await?;
         Ok(())
@@ -46,8 +46,8 @@ impl BaseCase {
     ///
     /// [`SeleniumBaseError::WaitTimeout`] if the element is not displayed in
     /// the case's timeout.
-    pub async fn shadow_type(&self, selector: impl Into<SelectorBuf>, text: &str,) -> Result<(), SeleniumBaseError> {
-        let selector: &SelectorBuf = &selector.into();
+    pub async fn shadow_type(&self, selector: impl Into<Selector>, text: &str,) -> Result<(), SeleniumBaseError> {
+        let selector: &Selector = &selector.into();
         let element = self.shadow_element(selector, Ready::Visible).await?;
         element.clear().await?;
         element.send_keys(text).await?;
@@ -62,8 +62,8 @@ impl BaseCase {
     ///
     /// [`SeleniumBaseError::WaitTimeout`] if the element is not displayed in
     /// the case's timeout.
-    pub async fn shadow_get_text(&self, selector: impl Into<SelectorBuf>) -> Result<String, SeleniumBaseError> {
-        let selector: &SelectorBuf = &selector.into();
+    pub async fn shadow_get_text(&self, selector: impl Into<Selector>) -> Result<String, SeleniumBaseError> {
+        let selector: &Selector = &selector.into();
         let element = self.shadow_element(selector, Ready::Visible).await?;
         element.text().await
     }
@@ -77,8 +77,8 @@ impl BaseCase {
     ///
     /// [`SeleniumBaseError::WaitTimeout`] if there is no such element in the
     /// case's timeout.
-    pub async fn shadow_get_attribute(&self, selector: impl Into<SelectorBuf>, attribute: &str,) -> Result<Option<String>, SeleniumBaseError> {
-        let selector: &SelectorBuf = &selector.into();
+    pub async fn shadow_get_attribute(&self, selector: impl Into<Selector>, attribute: &str,) -> Result<Option<String>, SeleniumBaseError> {
+        let selector: &Selector = &selector.into();
         let element = self.shadow_element(selector, Ready::Present).await?;
         self.session.attribute_or_property(&element, attribute).await
     }
@@ -92,8 +92,8 @@ impl BaseCase {
     ///
     /// [`SeleniumBaseError::AssertionFailed`] if there is no such element
     /// when the timeout ends.
-    pub async fn assert_shadow_element(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let selector: &SelectorBuf = &selector.into();
+    pub async fn assert_shadow_element(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let selector: &Selector = &selector.into();
         self.assert_element_present(selector).await
     }
 
@@ -106,8 +106,8 @@ impl BaseCase {
     /// [`SeleniumBaseError::AssertionFailed`] if the element does not show
     /// the text when the timeout ends.
     pub async fn assert_shadow_text(&self,
-    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let selector: &SelectorBuf = &selector.into();
+    text: &str, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let selector: &Selector = &selector.into();
         self.assert_text(text, selector).await
     }
 }

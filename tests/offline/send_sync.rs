@@ -97,7 +97,6 @@ fn the_value_types_a_task_returns_are_send_and_sync() {
     value::<seleniumbase_rs::Cookie>();
     value::<seleniumbase_rs::SameSite>();
     value::<seleniumbase_rs::api::recorder::RecordedCommand>();
-    value::<seleniumbase_rs::utils::selectors::SelectorBuf>();
     value::<seleniumbase_rs::utils::selectors::Selector>();
     value::<seleniumbase_rs::utils::selectors::SelectorRef<'static>>();
     handle::<seleniumbase_rs::SeleniumBaseError>();

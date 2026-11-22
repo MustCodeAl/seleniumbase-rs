@@ -2110,7 +2110,7 @@ divergence = "Gives Ok(false) when the element is not visible in time or vanishe
 [cdp."click_link"]
 status = "composed"
 rust = "Locator::click"
-note = "`page.locator(SelectorBuf::partial_link_text(link_text)).click()` clicks the first link whose text contains `link_text`. The argument is link text, not a selector, so build the selector with `SelectorBuf::partial_link_text` (or `link_text` for an exact match) rather than passing the bare text."
+note = "`page.locator(Selector::partial_link_text(link_text)).click()` clicks the first link whose text contains `link_text`. The argument is link text, not a selector, so build the selector with `Selector::partial_link_text` (or `link_text` for an exact match) rather than passing the bare text."
 
 [cdp."click_nth_element"]
 status = "composed"
@@ -2182,12 +2182,12 @@ note = "`page.locator(selector).all_waiting()` waits up to the timeout for a fir
 [cdp."find_element"]
 status = "composed"
 rust = "Page::locator"
-note = "`page.locator(selector)` returns a Locator, the handle every element action goes through; CSS, XPath and `tag:contains(\"text\")` selectors work. Python also searches by text when the selector is plain text, which Rust does not guess: use `SelectorBuf::containing_text`. Python's `best_match` option is not offered."
+note = "`page.locator(selector)` returns a Locator, the handle every element action goes through; CSS, XPath and `tag:contains(\"text\")` selectors work. Python also searches by text when the selector is plain text, which Rust does not guess: use `Selector::containing_text`. Python's `best_match` option is not offered."
 
 [cdp."find_element_by_text"]
 status = "composed"
-rust = "SelectorBuf::containing_text"
-note = "`page.locator(SelectorBuf::containing_text(text, Some(\"button\")))` finds a tag element whose text contains the text, as Python's `tag:contains(\"text\")` does (that form also works as a selector string); with `None` for the tag it finds the innermost elements that hold the text. A `text=` prefix still means link text, as in SeleniumBase."
+rust = "Selector::containing_text"
+note = "`page.locator(Selector::containing_text(text, Some(\"button\")))` finds a tag element whose text contains the text, as Python's `tag:contains(\"text\")` does (that form also works as a selector string); with `None` for the tag it finds the innermost elements that hold the text. A `text=` prefix still means link text, as in SeleniumBase."
 
 [cdp."find_elements"]
 status = "composed"
@@ -2196,8 +2196,8 @@ note = "`page.locator(selector).all_waiting()` waits up to the timeout for a fir
 
 [cdp."find_elements_by_text"]
 status = "composed"
-rust = "SelectorBuf::containing_text"
-note = "`page.locator(SelectorBuf::containing_text(text, tag)).all()` gives one Locator per element that contains the text: the innermost ones when `tag` is None, every `tag` element otherwise."
+rust = "Selector::containing_text"
+note = "`page.locator(Selector::containing_text(text, tag)).all()` gives one Locator per element that contains the text: the innermost ones when `tag` is None, every `tag` element otherwise."
 
 [cdp."find_visible_elements"]
 status = "composed"

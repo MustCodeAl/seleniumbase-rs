@@ -234,8 +234,8 @@ impl BaseCase {
     }
 
     /// Alias for `property`.
-    pub async fn property_value(&mut self, selector: impl Into<SelectorBuf>, property: &str,) -> Result<Option<String>, SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn property_value(&mut self, selector: impl Into<Selector>, property: &str,) -> Result<Option<String>, SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.property(css, property).await
     }
 
@@ -247,8 +247,8 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::AssertionFailed`] if the element is not
     /// there when the timeout ends.
-    pub async fn assert_element_present(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn assert_element_present(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.check_time_limit()?;
         let timeout = self.default_wait_secs();
         poll_until_true(timeout, String::new(), || self.is_element_present(css))
@@ -313,8 +313,8 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::AssertionFailed`] if the text is still the
     /// text of the element when the timeout ends.
     pub async fn assert_exact_text_not_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    text: &str, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.check_time_limit()?;
         poll_until_true(
             self.default_wait_secs(),
@@ -331,8 +331,8 @@ impl BaseCase {
     }
 
     /// Asserts that `css` has non-empty visible text.
-    pub async fn assert_non_empty_text(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn assert_non_empty_text(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         if !self.is_non_empty_text_visible(css).await? {
             return Err(SeleniumBaseError::AssertionFailed(format!(
                 "Element '{}' did not have non-empty visible text",
@@ -359,8 +359,8 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element is still
     /// present after the timeout.
-    pub async fn wait_for_element_not_present(&self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn wait_for_element_not_present(&self, selector: impl Into<Selector>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         poll_until_true(
             self.effective_timeout(timeout_secs),
             format!("Element '{css}' was still present"),
@@ -378,8 +378,8 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the text is not visible
     /// after the timeout.
     pub async fn wait_for_exact_text_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    text: &str, selector: impl Into<Selector>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         poll_until_true(
             self.effective_timeout(timeout_secs),
             format!("Exact text '{text}' was not visible in '{css}'"),
@@ -397,8 +397,8 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the text is still visible
     /// after the timeout.
     pub async fn wait_for_exact_text_not_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    text: &str, selector: impl Into<Selector>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         poll_until_true(
             self.effective_timeout(timeout_secs),
             format!("Exact text '{text}' was still visible in '{css}'"),
@@ -413,8 +413,8 @@ impl BaseCase {
     ///
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the element has no visible
     /// text after the timeout.
-    pub async fn wait_for_non_empty_text(&self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn wait_for_non_empty_text(&self, selector: impl Into<Selector>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         poll_until_true(
             self.effective_timeout(timeout_secs),
             format!("Non-empty text was not visible in '{css}'"),
@@ -424,8 +424,8 @@ impl BaseCase {
     }
 
     /// Alias for `wait_for_non_empty_text`.
-    pub async fn wait_for_non_empty_text_visible(&self, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn wait_for_non_empty_text_visible(&self, selector: impl Into<Selector>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.wait_for_non_empty_text(css, timeout_secs).await
     }
 
@@ -439,8 +439,8 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the text is not visible
     /// after the timeout.
     pub async fn wait_for_text_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    text: &str, selector: impl Into<Selector>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         poll_until_true(
             self.effective_timeout(timeout_secs),
             format!("Text '{text}' was not visible in '{css}'"),
@@ -459,8 +459,8 @@ impl BaseCase {
     /// Returns [`SeleniumBaseError::WaitTimeout`] if the text is still visible
     /// after the timeout.
     pub async fn wait_for_text_not_visible(&self,
-    text: &str, selector: impl Into<SelectorBuf>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    text: &str, selector: impl Into<Selector>, timeout_secs: u64,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         poll_until_true(
             self.effective_timeout(timeout_secs),
             format!("Text '{text}' was still visible in '{css}'"),

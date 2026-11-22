@@ -97,15 +97,15 @@ test.describe('shop', () => {
 ```rust,ignore Rust
 use seleniumbase_rs::sb_cdp::Browser;
 use seleniumbase_rs::tokio;
-use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
+use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
 
 #[tokio::test]
 async fn shop_orders() -> Result<(), Box<dyn std::error::Error>> {
     let browser = Browser::launch(support::launch_options()?).await?;
     let page = browser.default_page().await?;
     page.goto("https://shop.test/").await?;
-    page.locator(SelectorBuf::label("Email", TextMatching::Contains)).fill("a@b.test").await?;
-    page.locator(SelectorBuf::role("button", Some("Place order"), TextMatching::Contains)).click().await?;
+    page.locator(Selector::label("Email", TextMatching::Contains)).fill("a@b.test").await?;
+    page.locator(Selector::role("button", Some("Place order"), TextMatching::Contains)).click().await?;
     page.locator("#status").expect().to_have_text("Ordered").await?;
     browser.close().await?;
     Ok(())
@@ -184,9 +184,9 @@ page.getByTestId('total');
 
 ```rust,ignore Rust
 page.locator("#cart");
-page.locator(SelectorBuf::text("Checkout", TextMatching::Exact));
-page.locator(SelectorBuf::label("Email", TextMatching::Contains));
-page.locator(SelectorBuf::role("button", Some("Go"), TextMatching::Contains));
+page.locator(Selector::text("Checkout", TextMatching::Exact));
+page.locator(Selector::label("Email", TextMatching::Contains));
+page.locator(Selector::role("button", Some("Go"), TextMatching::Contains));
 page.locator("ul > li").nth(2);
 page.locator(r#"[data-testid="total"]"#);
 ```
@@ -196,17 +196,17 @@ page.locator(r#"[data-testid="total"]"#);
 | Playwright | Rust |
 |---|---|
 | `locator(css)`, `css=`, `xpath=`, `//...` | `page.locator("css")`, `page.locator("//xpath")` |
-| `text=Foo` / `text="Foo"`, `"Foo"` | `SelectorBuf::text("Foo", TextMatching::Contains)` / `SelectorBuf::text("Foo", TextMatching::Exact)` |
+| `text=Foo` / `text="Foo"`, `"Foo"` | `Selector::text("Foo", TextMatching::Contains)` / `Selector::text("Foo", TextMatching::Exact)` |
 | `id=x`, `data-testid=x` | `[id="x"]`, `[data-testid="x"]` |
-| `css:has-text("x")`, `:text("x")` (at the end of a selector), `:visible` | `.locator(css).locator(SelectorBuf::has_text("x"))`, `.visible()` |
+| `css:has-text("x")`, `:text("x")` (at the end of a selector), `:visible` | `.locator(css).locator(Selector::has_text("x"))`, `.visible()` |
 | `a >> b`, `nth=N`, `locator(a).locator(b)` | `page.locator(a).locator(b)`, `.nth(N)` (`nth=-1` is `.last()`) |
-| `getByRole(role, { name, exact })` | `SelectorBuf::role(role, Some(name), matching)` (see below) |
-| `getByText(text, { exact })` | `SelectorBuf::text(text, matching)` |
-| `getByLabel(text, { exact })` | `SelectorBuf::label(text, matching)` |
+| `getByRole(role, { name, exact })` | `Selector::role(role, Some(name), matching)` (see below) |
+| `getByText(text, { exact })` | `Selector::text(text, matching)` |
+| `getByLabel(text, { exact })` | `Selector::label(text, matching)` |
 | `getByPlaceholder`, `getByAltText`, `getByTitle` | `[placeholder*="text" i]`, `[alt*=...]`, `[title*=...]` (`exact` makes it `[attr="text"]`) |
 | `getByTestId(id)` | `[data-testid="id"]` |
 | `.first()`, `.last()`, `.nth(i)` | `.first()`, `.last()`, `.nth(i)` |
-| `.filter({ hasText })` | `.locator(SelectorBuf::has_text(text))` |
+| `.filter({ hasText })` | `.locator(Selector::has_text(text))` |
 | `frameLocator(css).locator(css)` | `page.locator(frame).locator(css)`: the engine searches inside frames of any origin, `data:` and sandboxed frames and frames of another site included |
 
 The text matches follow Playwright: whitespace collapsed, and without `exact`
@@ -334,7 +334,7 @@ a `TODO`. `expect.soft` is converted as a normal expectation.
 ### The getByRole approximation
 
 The pure CDP engine has no accessibility-tree query, so `getByRole` becomes an
-XPath built by `SelectorBuf::role`. An element has the role when its `role`
+XPath built by `Selector::role`. An element has the role when its `role`
 attribute says so, or when it has no `role` attribute and is the native
 element for it:
 

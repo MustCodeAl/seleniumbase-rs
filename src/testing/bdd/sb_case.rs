@@ -1,6 +1,5 @@
 //! The WebDriver browser of one Gherkin scenario.
 
-use std::ops::{Deref, DerefMut};
 use std::path::PathBuf;
 
 use super::session::{Launch, Scenario};
@@ -89,19 +88,5 @@ impl std::fmt::Debug for SbCase {
         f.debug_struct("SbCase")
             .field("test_id", &self.test_id)
             .finish_non_exhaustive()
-    }
-}
-
-impl Deref for SbCase {
-    type Target = BaseCase;
-
-    fn deref(&self) -> &BaseCase {
-        self.scenario.case()
-    }
-}
-
-impl DerefMut for SbCase {
-    fn deref_mut(&mut self) -> &mut BaseCase {
-        self.scenario.case_mut()
     }
 }

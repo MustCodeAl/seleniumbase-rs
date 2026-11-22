@@ -61,7 +61,7 @@ Summary for AI exports: an alphabetical glossary of the terms used across the se
 
 <Badge color="blue">Engine</Badge>
 
-The browser's second view of a page for assistive technology: a filtered tree of nodes built from the DOM, each with a role, an accessible name and states. A screen reader reads it, not the pixels. The pure CDP engine has no query on it; `SelectorBuf::role` approximates one in XPath.
+The browser's second view of a page for assistive technology: a filtered tree of nodes built from the DOM, each with a role, an accessible name and states. A screen reader reads it, not the pixels. The pure CDP engine has no query on it; `Selector::role` approximates one in XPath.
 
 See [The accessibility tree](/concepts/mobile-and-accessibility#the-accessibility-tree).
 
@@ -1649,11 +1649,11 @@ The text that says which element you mean. `BaseCase` reads its start: `#` is an
 
 See [Selectors Guide](/tutorials/selectors).
 
-### SelectorBuf
+### Selector
 
 <Badge color="blue">Engine</Badge>
 
-The owned selector type, the twin of the borrowed `SelectorRef`. Every selector parameter of `BaseCase`, `CdpDriver` and the pure CDP engine takes `impl Into<SelectorBuf>`: a string is read as a selector once, or a `SelectorBuf` states the kind outright (`SelectorBuf::css` and `xpath`), and `containing_text` finds elements by their text. `"#a".parse::<SelectorBuf>()` is the strict form for text from outside, which refuses an empty selector.
+The owned selector type, the twin of the borrowed `SelectorRef`. Every selector parameter of `BaseCase`, `CdpDriver` and the pure CDP engine takes `impl Into<Selector>`: a string is read as a selector once, or a `Selector` states the kind outright (`Selector::css` and `xpath`), and `containing_text` finds elements by their text. `"#a".parse::<Selector>()` is the strict form for text from outside, which refuses an empty selector.
 
 See [Pure CDP](/tutorials/pure_cdp#locators).
 

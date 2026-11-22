@@ -71,7 +71,7 @@ impl BaseCase {
             FrameRef::Index(index) => {
                 let mut frames = self
                     .session
-                    .find_all(SelectorBuf::css("iframe, frame"))
+                    .find_all(Selector::css("iframe, frame"))
                     .await?;
                 let index = usize::from(*index);
                 if index >= frames.len() {
@@ -82,14 +82,14 @@ impl BaseCase {
             FrameRef::Locator(locator) => {
                 let mut found = None;
                 for attribute in ["id", "name"] {
-                    let lookup = SelectorBuf::css(frame_with_attribute(attribute, locator));
+                    let lookup = Selector::css(frame_with_attribute(attribute, locator));
                     if let Ok(element) = self.session.find(lookup).await {
                         found = Some(element);
                         break;
                     }
                 }
                 if found.is_none()
-                    && let Ok(element) = self.session.find(SelectorBuf::from(locator.as_str())).await
+                    && let Ok(element) = self.session.find(Selector::from(locator.as_str())).await
                     && (invisible || element.is_visible().await.unwrap_or(false))
                 {
                     found = Some(element);

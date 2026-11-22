@@ -11,7 +11,7 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Page, Permission};
-use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
+use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
 use serde_json::{json, Value};
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.
@@ -67,7 +67,7 @@ async fn a_role_selector_is_sent_to_the_page_as_a_path_from_the_context_node() {
 
     // The locator of a page and a step below another one send the same path:
     // `.//` is the descendants of the context node, which is the document for the page.
-    page.locator(SelectorBuf::role(
+    page.locator(Selector::role(
         "button",
         Some("Save"),
         TextMatching::Contains,
@@ -76,7 +76,7 @@ async fn a_role_selector_is_sent_to_the_page_as_a_path_from_the_context_node() {
     .await
     .unwrap();
     page.locator("form")
-        .locator(SelectorBuf::role(
+        .locator(Selector::role(
             "button",
             Some("Save"),
             TextMatching::Contains,
@@ -115,7 +115,7 @@ async fn an_xpath_with_a_branch_at_the_root_is_sent_to_the_page_to_stay_inside_i
     ];
     for xpath in rooted.iter().chain(inside.iter()) {
         page.locator("#panel")
-            .locator(SelectorBuf::xpath(*xpath))
+            .locator(Selector::xpath(*xpath))
             .count()
             .await
             .unwrap();
@@ -138,20 +138,20 @@ async fn an_xpath_with_a_branch_at_the_root_is_sent_to_the_page_to_stay_inside_i
 
 #[test]
 fn a_contains_selector_is_read_as_xpath_at_lookup_and_plain_css_stays_css() {
-    let written = SelectorBuf::from("span:contains(\"Championship\")");
+    let written = Selector::from("span:contains(\"Championship\")");
     // Construction keeps the text as written; the lookup form is the XPath.
-    assert_eq!(written, SelectorBuf::css("span:contains(\"Championship\")"));
+    assert_eq!(written, Selector::css("span:contains(\"Championship\")"));
     assert_eq!(
         written.lookup_form().into_owned(),
-        SelectorBuf::xpath(".//span[contains(., 'Championship')]")
+        Selector::xpath(".//span[contains(., 'Championship')]")
     );
     assert_eq!(
-        SelectorBuf::from("div.card > a"),
-        SelectorBuf::css("div.card > a")
+        Selector::from("div.card > a"),
+        Selector::css("div.card > a")
     );
     assert_eq!(
-        SelectorBuf::from("div.card > a").lookup_form().into_owned(),
-        SelectorBuf::css("div.card > a")
+        Selector::from("div.card > a").lookup_form().into_owned(),
+        Selector::css("div.card > a")
     );
 }
 
@@ -172,47 +172,47 @@ async fn a_locator_shows_the_selector_as_written_and_the_page_gets_xpath() {
 
 #[test]
 fn a_selector_buf_may_be_matched_by_another_crate_with_a_catch_all_arm() {
-    // `SelectorBuf` is `#[non_exhaustive]`: from here, outside the crate, a
+    // `Selector` is `#[non_exhaustive]`: from here, outside the crate, a
     // `match` needs the `_` arm, which is what lets a kind be added later.
-    let kind = |selector: &SelectorBuf| match selector {
-        SelectorBuf::Css(_) => "css",
-        SelectorBuf::XPath(_) => "xpath",
-        SelectorBuf::LinkText(_) | SelectorBuf::PartialLinkText(_) => "link",
+    let kind = |selector: &Selector| match selector {
+        Selector::Css(_) => "css",
+        Selector::XPath(_) => "xpath",
+        Selector::LinkText(_) | Selector::PartialLinkText(_) => "link",
         _ => "other",
     };
-    assert_eq!(kind(&SelectorBuf::from("#a")), "css");
-    assert_eq!(kind(&SelectorBuf::from("//a")), "xpath");
-    assert_eq!(kind(&SelectorBuf::from("link=a")), "link");
+    assert_eq!(kind(&Selector::from("#a")), "css");
+    assert_eq!(kind(&Selector::from("//a")), "xpath");
+    assert_eq!(kind(&Selector::from("link=a")), "link");
 }
 
 #[test]
 fn text_selectors_find_any_element_not_only_links() {
     assert_eq!(
-        SelectorBuf::containing_text("Sign in", Some("button")),
-        SelectorBuf::xpath(".//button[contains(normalize-space(.), 'Sign in')]")
+        Selector::containing_text("Sign in", Some("button")),
+        Selector::xpath(".//button[contains(normalize-space(.), 'Sign in')]")
     );
     // Without a tag the innermost element that holds the text is meant, so the
     // page's <html> and <body> do not match.
     assert_eq!(
-        SelectorBuf::containing_text("Sign in", None),
-        SelectorBuf::xpath(".//*[text()[contains(normalize-space(.), 'Sign in')]]")
+        Selector::containing_text("Sign in", None),
+        Selector::xpath(".//*[text()[contains(normalize-space(.), 'Sign in')]]")
     );
 }
 
 #[test]
 fn text_selectors_collapse_white_space_and_quote_awkward_text() {
     assert_eq!(
-        SelectorBuf::containing_text("Sign \n   in", Some("a")),
-        SelectorBuf::xpath(".//a[contains(normalize-space(.), 'Sign in')]")
+        Selector::containing_text("Sign \n   in", Some("a")),
+        Selector::xpath(".//a[contains(normalize-space(.), 'Sign in')]")
     );
     assert_eq!(
-        SelectorBuf::containing_text("it's", Some("p")),
-        SelectorBuf::xpath(".//p[contains(normalize-space(.), \"it's\")]")
+        Selector::containing_text("it's", Some("p")),
+        Selector::xpath(".//p[contains(normalize-space(.), \"it's\")]")
     );
     // A tag that is not a name cannot smuggle XPath in.
     assert_eq!(
-        SelectorBuf::containing_text("x", Some("a] | //b[")),
-        SelectorBuf::containing_text("x", None)
+        Selector::containing_text("x", Some("a] | //b[")),
+        Selector::containing_text("x", None)
     );
 }
 

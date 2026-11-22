@@ -26,7 +26,7 @@ use thirtyfour::prelude::{By, WebDriver, WebElement};
 use thirtyfour::RequestData;
 
 use crate::error::{driver_kind, DriverErrorKind, SeleniumBaseError};
-use crate::utils::selectors::{SelectorBuf, SelectorRef};
+use crate::utils::selectors::{Selector, SelectorRef};
 use crate::utils::shadow::{is_shadow_selector, shadow_chain};
 
 /// What the wire calls a CSS locator.
@@ -135,25 +135,25 @@ async fn last_root<'a>(
 ///
 /// A CSS selector that crosses a shadow root stays whole, for [`find`] and
 /// [`find_all`] to cut; one that cannot be cut is refused here, before anything
-/// waits. The rule is [`SelectorBuf::check`] and the one rewrite is
-/// [`SelectorBuf::lookup_form`] (`:contains(..)` becomes XPath), written once there.
+/// waits. The rule is [`Selector::check`] and the one rewrite is
+/// [`Selector::lookup_form`] (`:contains(..)` becomes XPath), written once there.
 ///
 /// # Errors
 ///
 /// [`SeleniumBaseError::InvalidSelector`] if the text is empty or blank, or if
 /// a CSS selector crosses a shadow root but cannot be cut.
-pub(crate) fn by_of(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
+pub(crate) fn by_of(selector: &Selector) -> Result<By, SeleniumBaseError> {
     selector.to_by()
 }
 
-/// `selector` as a [`SelectorBuf`], once it is known that [`by_of`] accepts
+/// `selector` as a [`Selector`], once it is known that [`by_of`] accepts
 /// it: for the waits, which look it up again and again and must refuse a
 /// selector that can never match at once, not after the timeout.
 ///
 /// # Errors
 ///
 /// As [`by_of`].
-pub(crate) fn checked(selector: impl Into<SelectorBuf>) -> Result<SelectorBuf, SeleniumBaseError> {
+pub(crate) fn checked(selector: impl Into<Selector>) -> Result<Selector, SeleniumBaseError> {
     let selector = selector.into();
     by_of(&selector)?;
     Ok(selector)
@@ -225,36 +225,33 @@ mod tests {
     }
 
     /// The `Debug` text of the locator `selector` becomes.
-    fn locator(selector: SelectorBuf) -> String {
+    fn locator(selector: Selector) -> String {
         format!("{:?}", by_of(&selector).unwrap())
     }
 
     #[test]
     fn a_selector_becomes_the_locator_of_its_kind() {
+        assert_eq!(locator(Selector::css("#a")), format!("{:?}", By::Css("#a")));
         assert_eq!(
-            locator(SelectorBuf::css("#a")),
-            format!("{:?}", By::Css("#a"))
-        );
-        assert_eq!(
-            locator(SelectorBuf::xpath("//a")),
+            locator(Selector::xpath("//a")),
             format!("{:?}", By::XPath("//a"))
         );
         assert_eq!(
-            locator(SelectorBuf::link_text("Go")),
+            locator(Selector::link_text("Go")),
             format!("{:?}", By::LinkText("Go"))
         );
         assert_eq!(
-            locator(SelectorBuf::partial_link_text("G")),
+            locator(Selector::partial_link_text("G")),
             format!("{:?}", By::PartialLinkText("G"))
         );
         // The kind was decided when the string became a selector; the one
         // rewrite is the lookup form, so `:contains(..)` is XPath here.
         assert_eq!(
-            locator(SelectorBuf::css("a:contains('x')")),
+            locator(Selector::css("a:contains('x')")),
             format!("{:?}", By::XPath(".//a[contains(., 'x')]"))
         );
         assert_eq!(
-            locator(SelectorBuf::from("app::shadow a")),
+            locator(Selector::from("app::shadow a")),
             format!("{:?}", By::Css("app::shadow a"))
         );
     }
@@ -262,11 +259,11 @@ mod tests {
     #[test]
     fn a_selector_that_can_never_match_is_refused_before_anything_is_looked_up() {
         for selector in [
-            SelectorBuf::css(""),
-            SelectorBuf::xpath(" "),
-            SelectorBuf::link_text(""),
-            SelectorBuf::partial_link_text("\t"),
-            SelectorBuf::css("app ::shadow"),
+            Selector::css(""),
+            Selector::xpath(" "),
+            Selector::link_text(""),
+            Selector::partial_link_text("\t"),
+            Selector::css("app ::shadow"),
         ] {
             assert!(
                 matches!(by_of(&selector), Err(SeleniumBaseError::InvalidSelector(_))),
@@ -274,6 +271,6 @@ mod tests {
             );
             assert!(checked(selector.clone()).is_err(), "{selector:?}");
         }
-        assert_eq!(checked("#a").unwrap(), SelectorBuf::css("#a"));
+        assert_eq!(checked("#a").unwrap(), Selector::css("#a"));
     }
 }

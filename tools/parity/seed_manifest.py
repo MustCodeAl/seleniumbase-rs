@@ -130,8 +130,8 @@ CDP_COMPOSED.update({
     # Finding and reading elements.
     "find_element": "Page::locator", "find_elements": "Locator::all_waiting",
     "find_all": "Locator::all_waiting", "find_visible_elements": "Locator::visible",
-    "find_element_by_text": "SelectorBuf::containing_text",
-    "find_elements_by_text": "SelectorBuf::containing_text",
+    "find_element_by_text": "Selector::containing_text",
+    "find_elements_by_text": "Selector::containing_text",
     "get_parent": "Locator::parent", "get_nested_element": "Locator::locator",
     "get_element_attribute": "Locator::attribute", "get_element_attributes": "Locator::info",
     "get_element_html": "Locator::html", "get_element_rect": "Locator::viewport_rect",

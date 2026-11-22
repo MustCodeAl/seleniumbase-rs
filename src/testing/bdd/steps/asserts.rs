@@ -23,7 +23,7 @@ sb_steps! {
     fn assert_text_in_element_selector_first as assert_text_in_element(
         sb, selector: String, text: String
     ) {
-        assert_text_in_element(sb, text, selector).await
+        sb.assert_text(&normalize_text(&text), &selector).await
     }
         "Text in {selector:string} should contain {text:string}";
 
@@ -42,7 +42,7 @@ sb_steps! {
     fn assert_exact_text_selector_first as assert_exact_text(
         sb, selector: String, text: String
     ) {
-        assert_exact_text(sb, text, selector).await
+        sb.assert_exact_text(&normalize_text(&text), &selector).await
     }
         "Text in {selector:string} should be {text:string}";
 
@@ -70,7 +70,7 @@ sb_steps! {
     fn wait_for_text_in_element_selector_first as wait_for_text_in_element(
         sb, selector: String, text: String
     ) {
-        wait_for_text_in_element(sb, text, selector).await
+        sb.wait_for_text(&normalize_text(&text), &selector, WAIT_SECONDS).await
     }
         "Wait for {selector:string} to have text {text:string}",
         "User waits for {selector:string} to have text {text:string}";
@@ -86,7 +86,7 @@ sb_steps! {
     fn wait_for_exact_text_in_element_selector_first as wait_for_exact_text_in_element(
         sb, selector: String, text: String
     ) {
-        wait_for_exact_text_in_element(sb, text, selector).await
+        sb.wait_for_exact_text(&normalize_text(&text), &selector, WAIT_SECONDS).await
     }
         "Wait for {selector:string} to have exact text {text:string}",
         "User waits for {selector:string} to have exact text {text:string}";

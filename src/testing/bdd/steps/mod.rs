@@ -102,8 +102,12 @@ macro_rules! sb_steps {
                 #[::rstest_bdd_macros::when($pat)]
                 #[::rstest_bdd_macros::then($pat)]
             )+
+            #[allow(unused_braces, reason = "nested block in macro expansion")]
             async fn $name($sb: &mut $crate::testing::bdd::SbCase $(, $arg: $ty)*)
-                -> $crate::Result<()> $body
+                -> $crate::Result<()> {
+                let $sb = $sb.case_mut();
+                $body
+            }
         )*
 
         /// The actions of this module and their patterns.

@@ -9,7 +9,7 @@ use crate::browser::element::Element;
 use crate::browser::shadow_find;
 use crate::error::SeleniumBaseError;
 use crate::utilities::retry::{poll_until, RetryPolicy};
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 
 use super::BrowserSession;
 
@@ -24,7 +24,7 @@ impl BrowserSession {
     /// selector if nothing matches in time.
     pub async fn wait_for_element(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         timeout_secs: u64,
     ) -> Result<Element, SeleniumBaseError> {
         self.ensure_started()?;
@@ -49,7 +49,7 @@ impl BrowserSession {
     /// selector if it is not visible in time.
     pub async fn wait_for_element_visible(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         timeout_secs: u64,
     ) -> Result<Element, SeleniumBaseError> {
         self.ensure_started()?;
@@ -79,7 +79,7 @@ impl BrowserSession {
     /// selector if it is not clickable in time.
     pub async fn wait_for_element_clickable(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         timeout_secs: u64,
     ) -> Result<Element, SeleniumBaseError> {
         self.ensure_started()?;
@@ -113,7 +113,7 @@ impl BrowserSession {
     /// selector if it is still there when the time is up.
     pub async fn wait_for_element_absent(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {
         self.ensure_started()?;
@@ -144,7 +144,7 @@ impl BrowserSession {
     /// text and the selector if the text does not appear in time.
     pub async fn wait_for_text(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         expected_substring: &str,
         timeout_secs: u64,
     ) -> Result<(), SeleniumBaseError> {

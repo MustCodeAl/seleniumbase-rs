@@ -12,7 +12,7 @@ use crate::browser::element::Element;
 use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Locator, Page};
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 
 use super::{BrowserSession, DialogWatch, PureDialogs};
 
@@ -271,7 +271,7 @@ impl BrowserSession {
     }
 
     /// The locator for `selector` on `page`.
-    pub(super) fn cdp_locator(&self, page: &Page, selector: SelectorBuf) -> Locator {
+    pub(super) fn cdp_locator(&self, page: &Page, selector: Selector) -> Locator {
         match self.frame_scope() {
             Some(frame) => frame.locator(selector),
             None => page.locator(selector),
@@ -353,7 +353,7 @@ impl BrowserSession {
     pub(super) async fn cdp_find(
         &self,
         page: &Page,
-        selector: SelectorBuf,
+        selector: Selector,
     ) -> Result<Element, SeleniumBaseError> {
         let locator = self.cdp_locator(page, selector.clone());
         if locator.exists().await? {
@@ -372,7 +372,7 @@ impl BrowserSession {
     pub(super) async fn cdp_find_all(
         &self,
         page: &Page,
-        selector: SelectorBuf,
+        selector: Selector,
     ) -> Result<Vec<Element>, SeleniumBaseError> {
         let locators = self.cdp_locator(page, selector.clone()).all().await?;
         Ok(locators

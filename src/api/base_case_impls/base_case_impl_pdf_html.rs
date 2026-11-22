@@ -147,7 +147,7 @@ impl BaseCase {
             // A direct CDP attachment has no driver log: the page's own errors.
             page.assert_no_js_errors().await?;
             let message = demo::label_message("ASSERT NO JS ERRORS");
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html"))).await;
+            self.demo_assert_success(&message, Some(&Selector::css("html"))).await;
             return Ok(());
         }
 
@@ -155,7 +155,7 @@ impl BaseCase {
         let errors = severe_js_errors(&entries);
         if errors.is_empty() {
             let message = demo::label_message("ASSERT NO JS ERRORS");
-            self.demo_assert_success(&message, Some(&SelectorBuf::css("html"))).await;
+            self.demo_assert_success(&message, Some(&Selector::css("html"))).await;
             return Ok(());
         }
         let listed = errors

@@ -165,7 +165,7 @@ impl BaseCase {
                 return Ok(by_name);
             }
         }
-        self.await_ready(&SelectorBuf::from(frame), Ready::Present).await?;
+        self.await_ready(&Selector::from(frame), Ready::Present).await?;
         Ok(frame.to_owned())
     }
 
@@ -280,8 +280,8 @@ impl BaseCase {
     }
 
     /// Removes all elements matching `css` from the DOM.
-    pub async fn remove_elements(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn remove_elements(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.remove());",
             quote(css.as_str())
@@ -291,8 +291,8 @@ impl BaseCase {
     }
 
     /// Hides all elements matching `css`.
-    pub async fn hide_elements(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn hide_elements(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.style.display = 'none');",
             quote(css.as_str())
@@ -302,8 +302,8 @@ impl BaseCase {
     }
 
     /// Shows all elements matching `css`.
-    pub async fn show_elements(&self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn show_elements(&self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.style.display = '');",
             quote(css.as_str())
@@ -313,8 +313,8 @@ impl BaseCase {
     }
 
     /// Removes `attribute` from all elements matching `css`.
-    pub async fn remove_attributes(&self, selector: impl Into<SelectorBuf>, attribute: &str,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn remove_attributes(&self, selector: impl Into<Selector>, attribute: &str,) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.removeAttribute({}));",
             quote(css.as_str()),
@@ -325,9 +325,9 @@ impl BaseCase {
     }
 
     /// Sets `attribute=value` on all elements matching `css`.
-    pub async fn set_attributes(&self, selector: impl Into<SelectorBuf>, attribute: &str,
+    pub async fn set_attributes(&self, selector: impl Into<Selector>, attribute: &str,
     value: &str,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+        let css: &Selector = &selector.into();
         let script = format!(
             "document.querySelectorAll({}).forEach(el => el.setAttribute({}, {}));",
             quote(css.as_str()),
@@ -339,9 +339,9 @@ impl BaseCase {
     }
 
     /// Alias for `set_attributes`.
-    pub async fn set_attribute_all(&self, selector: impl Into<SelectorBuf>, attribute: &str,
+    pub async fn set_attribute_all(&self, selector: impl Into<Selector>, attribute: &str,
     value: &str,) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+        let css: &Selector = &selector.into();
         self.set_attributes(css, attribute, value).await
     }
 
@@ -425,8 +425,8 @@ impl BaseCase {
     /// Sets the text of `css`: the `value` of an `<input>` or `<textarea>`,
     /// the `textContent` of any other element. The same as
     /// [`set_text`](Self::set_text), as it is in Python.
-    pub async fn set_text_content(&mut self, selector: impl Into<SelectorBuf>, text: &str) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn set_text_content(&mut self, selector: impl Into<Selector>, text: &str) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.set_text(css, text).await
     }
 
@@ -445,8 +445,8 @@ impl BaseCase {
 
     /// Returns the parent element of `css`, or `None` if there is none. The [`Element`]
     /// is called `<css> >> ..`, as [`Element::parent`] calls its result.
-    pub async fn parent(&mut self, selector: impl Into<SelectorBuf>) -> Result<Option<Element>, SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn parent(&mut self, selector: impl Into<Selector>) -> Result<Option<Element>, SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let script = format!(
             "return document.querySelector({})?.parentElement;",
             quote(css.as_str())
@@ -483,8 +483,8 @@ impl BaseCase {
     /// # Errors
     ///
     /// Returns an error if `css` is not a valid CSS selector.
-    pub async fn is_element_in_an_iframe(&self, selector: impl Into<SelectorBuf>) -> Result<bool, SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn is_element_in_an_iframe(&self, selector: impl Into<Selector>) -> Result<bool, SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         let script = element_in_iframe_script(css.as_str());
         match self.execute_script(&script).await? {
             Value::Bool(v) => Ok(v),

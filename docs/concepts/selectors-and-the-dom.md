@@ -413,8 +413,8 @@ fallback. `is_xpath_selector` and `is_link_text_selector` expose the checks.
 
 </Steps>
 
-For more than a string, every selector parameter (`BaseCase`, `CdpDriver`, the traits, the pure CDP engine) also takes a `SelectorBuf`. It has
-constructors for each kind (`SelectorBuf::css`, `xpath`, `link_text`,
+For more than a string, every selector parameter (`BaseCase`, `CdpDriver`, the traits, the pure CDP engine) also takes a `Selector`. It has
+constructors for each kind (`Selector::css`, `xpath`, `link_text`,
 `partial_link_text`) and for what people read (`containing_text`, `text`,
 `has_text`, `label` and `role`, which finds an element by its accessible role
 and name). `xpath_to_css` converts a simple XPath expression into CSS.
@@ -465,19 +465,19 @@ from how it begins (`SelectorRef::auto` in `src/utils/selectors.rs`):
 The prefixes are matched exactly, so `LINK=Home` is CSS. To state the kind
 yourself, use the `SelectorRef` enum (`Css`, `XPath`, `LinkText`, `PartialLinkText`
 and `Id`; an `Id` needs no escaping, which helps with ids such as `:r1:`) or the
-owning type `SelectorBuf`, which every selector parameter takes (`sb.click(SelectorBuf::css("//not-xpath"))`, `Page::locator`). A method keeps the kind you state and does not read the text again; `"//x".parse::<SelectorBuf>()` is the strict form for text from outside, which refuses an empty selector.
+owning type `Selector`, which every selector parameter takes (`sb.click(Selector::css("//not-xpath"))`, `Page::locator`). A method keeps the kind you state and does not read the text again; `"//x".parse::<Selector>()` is the strict form for text from outside, which refuses an empty selector.
 
-`SelectorBuf` also has constructors for the stable strategies above. They build
+`Selector` also has constructors for the stable strategies above. They build
 XPath for you, as approximations of Playwright's `getByText`, `getByLabel` and
 `getByRole`:
 
 | Constructor | Finds |
 |---|---|
-| `SelectorBuf::text(text, matching)` | The innermost elements that show the text, ignoring ASCII case unless `matching` is `TextMatching::Exact`; `input` buttons match by their value |
-| `SelectorBuf::label(text, matching)` | Form controls by their `label`, wrapping `label` or `aria-label` |
-| `SelectorBuf::role(role, name, matching)` | Elements with the ARIA role, set explicitly or implied by the tag (`button`, `a` with `href` for `link`, `h1` to `h6` for `heading`), and optionally an accessible name taken from `aria-label`, text, `value`, `title`, `alt` or a label |
-| `SelectorBuf::containing_text(text, tag)` | Elements of a tag whose text contains the text |
-| `SelectorBuf::has_text(text)` | Keeps the matches of a previous selector whose text contains the text |
+| `Selector::text(text, matching)` | The innermost elements that show the text, ignoring ASCII case unless `matching` is `TextMatching::Exact`; `input` buttons match by their value |
+| `Selector::label(text, matching)` | Form controls by their `label`, wrapping `label` or `aria-label` |
+| `Selector::role(role, name, matching)` | Elements with the ARIA role, set explicitly or implied by the tag (`button`, `a` with `href` for `link`, `h1` to `h6` for `heading`), and optionally an accessible name taken from `aria-label`, text, `value`, `title`, `alt` or a label |
+| `Selector::containing_text(text, tag)` | Elements of a tag whose text contains the text |
+| `Selector::has_text(text)` | Keeps the matches of a previous selector whose text contains the text |
 
 Their limits are written in their documentation: `aria-labelledby` is not
 followed, and roles that depend on context, hidden elements and states such as
@@ -485,7 +485,7 @@ followed, and roles that depend on context, hidden elements and states such as
 
 The XPath they build starts at the context node (`.//`), so a page gives every
 match of the document, and an `Element` or a step below another `Locator` gives
-the matches inside it: `panel.find(SelectorBuf::role("button", Some("Save"), TextMatching::Contains))`
+the matches inside it: `panel.find(Selector::role("button", Some("Save"), TextMatching::Contains))`
 does not find the Save button outside the panel. A label that names a control with
 `for` is still looked for in the whole document.
 
@@ -494,16 +494,16 @@ does not find the Save button outside the panel. A label that names a control wi
 <Tab title="Pure CDP engine" icon="bolt">
 
 ```rust,ignore src/main.rs
-use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
+use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
 
 // A test attribute: the most stable choice.
 page.locator("[data-testid='checkout']").click().await?;
 
 // By role and accessible name, whatever markup the framework made.
-page.locator(SelectorBuf::role("button", Some("Sign in"), TextMatching::Contains)).click().await?;
+page.locator(Selector::role("button", Some("Sign in"), TextMatching::Contains)).click().await?;
 
 // By the text a user reads.
-page.locator(SelectorBuf::text("Add to cart", TextMatching::Exact)).click().await?;
+page.locator(Selector::text("Add to cart", TextMatching::Exact)).click().await?;
 ```
 
 A `Locator` is lazy: it looks the element up again each time it acts, and waits

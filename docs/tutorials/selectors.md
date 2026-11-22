@@ -25,7 +25,7 @@ things you can do for test maintainability. This page also covers Web Components
 
 <Visibility for="agents">
 
-Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is an ID and `.` a class, a string that starts with `/`, `//`, `./`, `../`, `(` or an XPath axis is XPath, `link=` and `partial_link=` (and their short forms) match link text, and anything else is CSS. Prefixes are matched exactly. `SelectorRef::auto` detects the strategy and `SelectorBuf::css(..)` states it where a method takes `impl Into<SelectorBuf>`. The `::shadow` combinator moves the search into the shadow root of the element on its left, and can be chained for nested Web Components, as in `sb.click("app-shell::shadow nav-menu::shadow a[href='/settings']")`. Every method that takes a selector reads it (`click`, `type_text`, `text`, `attribute`, `assert_element`, `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`, `find_elements`, ...) and waits for the element. A selector must end on an element inside the last shadow root. The older `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_get_attribute`, `assert_shadow_element` and `assert_shadow_text` are the same lookups, and `find_element("host::shadow inner")` returns the element inside the root as an `Element`. The WebDriver engine reaches closed roots; the pure CDP engine (`page.locator`) reaches open roots only. A check can be written in three formats: direct API calls in Rust (`BaseCase`, or `Locator` on the pure CDP engine), `sbrs` CLI commands such as `open`, `smoke` and `deferred`, and JSON scenarios run with `sbrs run-scenario --file`. Use the direct API for production tests, the CLI or JSON scenarios for CI smoke checks, and JSON scenarios for non-developer authors.
+Summary for AI exports: `BaseCase` reads a selector string by its prefix. `#` is an ID and `.` a class, a string that starts with `/`, `//`, `./`, `../`, `(` or an XPath axis is XPath, `link=` and `partial_link=` (and their short forms) match link text, and anything else is CSS. Prefixes are matched exactly. `SelectorRef::auto` detects the strategy and `Selector::css(..)` states it where a method takes `impl Into<Selector>`. The `::shadow` combinator moves the search into the shadow root of the element on its left, and can be chained for nested Web Components, as in `sb.click("app-shell::shadow nav-menu::shadow a[href='/settings']")`. Every method that takes a selector reads it (`click`, `type_text`, `text`, `attribute`, `assert_element`, `assert_text`, `assert_exact_text`, `is_element_visible`, `wait_for_element_visible`, `find_elements`, ...) and waits for the element. A selector must end on an element inside the last shadow root. The older `shadow_click`, `shadow_type`, `shadow_get_text`, `shadow_get_attribute`, `assert_shadow_element` and `assert_shadow_text` are the same lookups, and `find_element("host::shadow inner")` returns the element inside the root as an `Element`. The WebDriver engine reaches closed roots; the pure CDP engine (`page.locator`) reaches open roots only. A check can be written in three formats: direct API calls in Rust (`BaseCase`, or `Locator` on the pure CDP engine), `sbrs` CLI commands such as `open`, `smoke` and `deferred`, and JSON scenarios run with `sbrs run-scenario --file`. Use the direct API for production tests, the CLI or JSON scenarios for CI smoke checks, and JSON scenarios for non-developer authors.
 
 </Visibility>
 
@@ -60,13 +60,13 @@ The prefixes are matched exactly and everything after one is the text, so
 
 </Warning>
 
-If you need to force a particular strategy, build the `SelectorBuf` yourself
+If you need to force a particular strategy, build the `Selector` yourself
 instead of relying on detection. It goes wherever a method takes a selector as
-`impl Into<SelectorBuf>`: the methods of `BaseCase`, `CdpDriver`, `Element` and `BrowserSession`, and
+`impl Into<Selector>`: the methods of `BaseCase`, `CdpDriver`, `Element` and `BrowserSession`, and
 `Page::locator` and `Locator::locator` on the pure CDP engine.
 
 ```rust
-use seleniumbase_rs::utils::selectors::{SelectorBuf, TextMatching};
+use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
 
 let row = sb.find_element("#cart .row").await?;
 
@@ -75,12 +75,12 @@ let remove = row.find("link=Remove").await?;
 
 // Or stated explicitly, where the guess would be wrong: `td[2]` is XPath for the
 // second cell, but nothing in the text says so, and a string is read as CSS then.
-let cell = row.find(SelectorBuf::xpath("td[2]")).await?;
+let cell = row.find(Selector::xpath("td[2]")).await?;
 
 // The selector builders start at the element too: of the two Save buttons of the page,
 // only the one inside the panel.
 let panel = sb.find_element("#panel").await?;
-let save = panel.find(SelectorBuf::role("button", Some("Save"), TextMatching::Contains)).await?;
+let save = panel.find(Selector::role("button", Some("Save"), TextMatching::Contains)).await?;
 ```
 
 From an element, `find` and `find_all` search inside it. An XPath that starts at the root of the
@@ -88,7 +88,7 @@ page (`//td`, `(//td)[1]`, `id('x')`) matches the whole page from any element, s
 with `InvalidSelector`: write `.//td` for the descendants of the element. So is a union with such
 a branch (`.//a | //b`, and the message names the branch), but not a `//` or a `|` inside a
 predicate or a string (`.//a[@title='x | //y']`). A `p:contains("x")` selector is read as
-`.//p[...]`, and the XPath of `SelectorBuf::role`, `text`, `label` and `containing_text` starts
+`.//p[...]`, and the XPath of `Selector::role`, `text`, `label` and `containing_text` starts
 with `.//` too, so they stay inside the element. An `<iframe>` element holds the frame, not the
 frame's document: switch to the frame with `switch_to_frame` and find from the page.
 

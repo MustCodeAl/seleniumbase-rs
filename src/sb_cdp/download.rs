@@ -70,7 +70,7 @@ mod plain_path_tests {
         );
     }
 }
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 
 #[cfg(test)]
 mod default_download_dir_tests {
@@ -364,7 +364,7 @@ impl Page {
     /// [`Locator::click`](super::Locator::click) if the element cannot be clicked.
     pub async fn download_by_click(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         dir: impl AsRef<Path>,
     ) -> Result<PathBuf, SeleniumBaseError> {
         let selector = selector.into();

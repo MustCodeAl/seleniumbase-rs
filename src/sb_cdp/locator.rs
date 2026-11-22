@@ -17,7 +17,7 @@ use super::trace;
 
 use super::types::{ElementInfo, OffsetFrom, Point, Rect, SelectBy, State};
 use crate::error::SeleniumBaseError;
-use crate::utils::selectors::{xpath_root_branch, SelectorBuf};
+use crate::utils::selectors::{xpath_root_branch, Selector};
 
 /// One step of a locator chain: find within the previous step's matches.
 ///
@@ -26,7 +26,7 @@ use crate::utils::selectors::{xpath_root_branch, SelectorBuf};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 struct Step {
     #[serde(serialize_with = "serialize_lookup_form")]
-    selector: SelectorBuf,
+    selector: Selector,
     visible: bool,
     nth: Option<usize>,
     last: bool,
@@ -38,19 +38,19 @@ struct Step {
 }
 
 /// Writes the form of `selector` the page looks it up with (see
-/// [`SelectorBuf::lookup_form`]): the step keeps the selector as written, for
+/// [`Selector::lookup_form`]): the step keeps the selector as written, for
 /// `Display` and error messages, and only the page gets the rewrite.
 fn serialize_lookup_form<S: serde::Serializer>(
-    selector: &SelectorBuf,
+    selector: &Selector,
     serializer: S,
 ) -> Result<S::Ok, S::Error> {
     Serialize::serialize(&*selector.lookup_form(), serializer)
 }
 
 impl Step {
-    fn new(selector: SelectorBuf) -> Self {
+    fn new(selector: Selector) -> Self {
         Self {
-            confine: matches!(&*selector.lookup_form(), SelectorBuf::XPath(xpath) if xpath_root_branch(xpath).is_some()),
+            confine: matches!(&*selector.lookup_form(), Selector::XPath(xpath) if xpath_root_branch(xpath).is_some()),
             selector,
             visible: false,
             nth: None,
@@ -140,7 +140,7 @@ impl fmt::Display for Locator {
 }
 
 impl Locator {
-    pub(crate) fn new(page: Page, selector: SelectorBuf) -> Self {
+    pub(crate) fn new(page: Page, selector: Selector) -> Self {
         let timeout = page.timeout();
         Self {
             page,
@@ -226,7 +226,7 @@ impl Locator {
     /// # }
     /// ```
     #[must_use]
-    pub fn locator(&self, selector: impl Into<SelectorBuf>) -> Self {
+    pub fn locator(&self, selector: impl Into<Selector>) -> Self {
         let mut next = self.clone();
         next.chain.push(Step::new(selector.into()));
         next
@@ -268,7 +268,7 @@ impl Locator {
     /// Moves to the parent of each match.
     #[must_use]
     pub fn parent(&self) -> Self {
-        self.locator(SelectorBuf::xpath(".."))
+        self.locator(Selector::xpath(".."))
     }
 
     fn narrowed(&self, change: impl FnOnce(&mut Step)) -> Self {

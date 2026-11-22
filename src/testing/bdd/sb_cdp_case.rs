@@ -125,11 +125,3 @@ impl std::fmt::Debug for SbCdpCase {
             .finish_non_exhaustive()
     }
 }
-
-impl std::ops::Deref for SbCdpCase {
-    type Target = Page;
-
-    fn deref(&self) -> &Page {
-        &self.scenario.case().page
-    }
-}

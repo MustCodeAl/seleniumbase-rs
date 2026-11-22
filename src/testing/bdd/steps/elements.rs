@@ -26,7 +26,7 @@ sb_steps! {
 
     /// `type_text` with the selector first.
     fn type_text_selector_first as type_text(sb, selector: String, text: String) {
-        type_text(sb, text, selector).await
+        sb.type_text(&selector, &normalize_text(&text)).await
     }
         "In {selector:string} type {text:string}", "Into {selector:string} type {text:string}",
         "Find {selector:string} and type {text:string}";
@@ -42,7 +42,7 @@ sb_steps! {
 
     /// `add_text` with the selector first.
     fn add_text_selector_first as add_text(sb, selector: String, text: String) {
-        add_text(sb, text, selector).await
+        sb.add_text(&selector, &normalize_text(&text)).await
     }
         "Into {selector:string} add {text:string}", "In {selector:string} add {text:string}";
 
@@ -116,7 +116,7 @@ sb_steps! {
     fn select_option_by_text_text_first as select_option_by_text(
         sb, text: String, selector: String
     ) {
-        select_option_by_text(sb, selector, text).await
+        sb.select_option_by_text(&selector, &normalize_text(&text)).await
     }
         "User selects {text:string} in {selector:string}";
 
@@ -187,7 +187,7 @@ sb_steps! {
 
     /// `choose_file` with the path first.
     fn choose_file_path_first as choose_file(sb, file_path: String, selector: String) {
-        choose_file(sb, selector, file_path).await
+        sb.choose_file(&selector, &file_path).await
     }
         "User chooses file {file_path:string} for {selector:string}";
 
@@ -247,7 +247,7 @@ sb_steps! {
 
     /// `press_keys` with the selector first.
     fn press_keys_selector_first as press_keys(sb, selector: String, text: String) {
-        press_keys(sb, text, selector).await
+        sb.press_keys(&selector, &normalize_text(&text)).await
     }
         "In {selector:string} press keys {text:string}",
         "Into {selector:string} press keys {text:string}",
@@ -274,7 +274,7 @@ sb_steps! {
 
     /// `enter_mfa_code` with the key first.
     fn enter_mfa_code_key_first as enter_mfa_code(sb, totp_key: String, selector: String) {
-        enter_mfa_code(sb, selector, totp_key).await
+        sb.enter_mfa_code(&selector, &totp_key).await
     }
         "Do MFA {totp_key:string} into {selector:string}",
         "Enter MFA code {totp_key:string} into {selector:string}",

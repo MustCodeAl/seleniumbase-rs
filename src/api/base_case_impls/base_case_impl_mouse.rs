@@ -103,20 +103,20 @@ impl BaseCase {
     }
 
     /// Alias for `hover`.
-    pub async fn hover_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn hover_element(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.hover(css).await
     }
 
     /// Alias for `hover`.
-    pub async fn hover_on_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn hover_on_element(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.hover(css).await
     }
 
     /// Alias for `hover`.
-    pub async fn hover_over_element(&mut self, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
-        let css: &SelectorBuf = &selector.into();
+    pub async fn hover_over_element(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
+        let css: &Selector = &selector.into();
         self.hover(css).await
     }
 
@@ -144,7 +144,7 @@ impl BaseCase {
     }
 
     /// The work of [`click_nth_visible_element`](Self::click_nth_visible_element).
-    pub(crate) async fn run_click_nth(&mut self, selector: &SelectorBuf, number: usize,
+    pub(crate) async fn run_click_nth(&mut self, selector: &Selector, number: usize,
     timeout: Option<Duration>,
     scroll: bool,) -> Result<(), SeleniumBaseError> { if number == 0 {
         return Err(SeleniumBaseError::InvalidConfig(
@@ -168,7 +168,7 @@ impl BaseCase {
 
     /// The work of the four `press_*_arrow` calls.
     pub(crate) async fn run_press_arrow(&self,
-    arrow: Arrow, selector: &SelectorBuf, times: u32,) -> Result<(), SeleniumBaseError> { if times < 1 {
+    arrow: Arrow, selector: &Selector, times: u32,) -> Result<(), SeleniumBaseError> { if times < 1 {
         return Ok(());
     }
     let seconds = self.wait_secs(None);
@@ -197,7 +197,7 @@ impl BaseCase {
 
     /// The work of [`hover_and_double_click`](Self::hover_and_double_click) and
     /// [`hover_and_js_click`](Self::hover_and_js_click).
-    pub(crate) async fn run_hover_and_click(&mut self, hover_selector: &SelectorBuf, click_selector: &SelectorBuf, kind: HoverClick,
+    pub(crate) async fn run_hover_and_click(&mut self, hover_selector: &Selector, click_selector: &Selector, kind: HoverClick,
     timeout: Option<Duration>,) -> Result<(), SeleniumBaseError> { let seconds = self.wait_secs(timeout);
     self.await_ready_within(hover_selector, Ready::Visible, seconds)
         .await?;
@@ -227,12 +227,12 @@ impl BaseCase {
     /// parent or the child before the click, [`SeleniumBaseError::ElementNotInteractable`]
     /// if the driver refuses the click, as when another element intercepts it, and
     /// [`SeleniumBaseError::WebDriver`] for any other failure of the driver.
-    pub async fn nested_click(&mut self, parent_selector: impl Into<SelectorBuf>, selector: impl Into<SelectorBuf>) -> Result<(), SeleniumBaseError> {
+    pub async fn nested_click(&mut self, parent_selector: impl Into<Selector>, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
             self.nested_click_selected(&parent_selector.into(), selector.into()).await
         }
     
         /// [`nested_click`](Self::nested_click) once both selectors are read.
-        async fn nested_click_selected(&mut self, parent_css: &SelectorBuf, selector: SelectorBuf) -> Result<(), SeleniumBaseError> { let css = &selector;
+        async fn nested_click_selected(&mut self, parent_css: &Selector, selector: Selector) -> Result<(), SeleniumBaseError> { let css = &selector;
         let parent = self.find_element(parent_css).await?;
         let tag = parent.tag().await?;
         if tag.eq_ignore_ascii_case("iframe") || tag.eq_ignore_ascii_case("frame") {

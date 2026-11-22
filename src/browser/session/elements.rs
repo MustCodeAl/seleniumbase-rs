@@ -3,7 +3,7 @@
 
 use crate::browser::element::Element;
 use crate::sb_cdp::SelectBy;
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 use serde_json::json;
 
 use crate::browser::shadow_find;
@@ -57,35 +57,26 @@ const GET_ATTRIBUTE: &str = "/* getAttribute */ \
 
 impl BrowserSession {
     /// Clicks the element `selector` finds.
-    pub async fn click(
-        &mut self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn click(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
         self.find(selector).await?.click().await
     }
 
     /// Clears and types `text` into the element `selector` finds.
     pub async fn type_text(
         &mut self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.find(selector).await?.type_text(text).await
     }
 
     /// Clears the value of the element `selector` finds.
-    pub async fn clear(
-        &mut self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn clear(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
         self.find(selector).await?.clear().await
     }
 
     /// Submits the form containing the element `selector` finds.
-    pub async fn submit(
-        &mut self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn submit(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
         self.find(selector).await?.submit().await
     }
 
@@ -93,26 +84,20 @@ impl BrowserSession {
     ///
     /// That is the value of an `<input>` or a `<textarea>`, whose rendered text is empty,
     /// and the text the driver renders for anything else: the same as [`Element::text`].
-    pub async fn text(
-        &self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<String, SeleniumBaseError> {
+    pub async fn text(&self, selector: impl Into<Selector>) -> Result<String, SeleniumBaseError> {
         let element = self.find(selector).await?;
         element.text().await
     }
 
     /// Hovers over the element `selector` finds.
-    pub async fn hover(
-        &mut self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<(), SeleniumBaseError> {
+    pub async fn hover(&mut self, selector: impl Into<Selector>) -> Result<(), SeleniumBaseError> {
         self.find(selector).await?.hover().await
     }
 
     /// Selects the option with visible text `text`.
     pub async fn select_option_by_text(
         &mut self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.find(selector)
@@ -124,7 +109,7 @@ impl BrowserSession {
     /// Selects the option whose `value` matches.
     pub async fn select_option_by_value(
         &mut self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         value: &str,
     ) -> Result<(), SeleniumBaseError> {
         self.find(selector)
@@ -136,8 +121,8 @@ impl BrowserSession {
     /// Drags the element `source` finds onto the element `target` finds.
     pub async fn drag_and_drop(
         &mut self,
-        source: impl Into<SelectorBuf>,
-        target: impl Into<SelectorBuf>,
+        source: impl Into<Selector>,
+        target: impl Into<Selector>,
     ) -> Result<(), SeleniumBaseError> {
         let source = self.find(source).await?;
         let target = self.find(target).await?;
@@ -153,10 +138,7 @@ impl BrowserSession {
     /// [`SeleniumBaseError::InvalidSelector`] for an empty selector, or one that
     /// crosses a shadow root and cannot be cut; [`SeleniumBaseError::ElementNotFound`],
     /// naming the selector, if nothing matches.
-    pub async fn find(
-        &self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<Element, SeleniumBaseError> {
+    pub async fn find(&self, selector: impl Into<Selector>) -> Result<Element, SeleniumBaseError> {
         if let Some(page) = self.pure_cdp_page() {
             return Box::pin(self.cdp_find(&page, selector.into())).await;
         }
@@ -179,7 +161,7 @@ impl BrowserSession {
     /// [`SeleniumBaseError::InvalidSelector`], as for [`find`](Self::find).
     pub async fn find_all(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<Vec<Element>, SeleniumBaseError> {
         if let Some(page) = self.pure_cdp_page() {
             return Box::pin(self.cdp_find_all(&page, selector.into())).await;
@@ -200,7 +182,7 @@ impl BrowserSession {
     /// WebDriver interaction: `element_present`.
     pub async fn element_present(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<bool, SeleniumBaseError> {
         let elements = self.find_all(selector).await?;
         Ok(!elements.is_empty())
@@ -209,7 +191,7 @@ impl BrowserSession {
     /// WebDriver interaction: `get_attribute`.
     pub async fn attribute(
         &mut self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         attribute_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         let element = self.find(selector).await?;
@@ -256,7 +238,7 @@ impl BrowserSession {
     /// WebDriver interaction: `get_property`.
     pub async fn property(
         &mut self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
         property_name: &str,
     ) -> Result<Option<String>, SeleniumBaseError> {
         self.find(selector).await?.property(property_name).await
@@ -265,7 +247,7 @@ impl BrowserSession {
     /// Double-clicks the element `selector` finds, once it is clickable.
     pub async fn double_click(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<(), SeleniumBaseError> {
         self.wait_for_element_clickable(selector, 10)
             .await?
@@ -276,7 +258,7 @@ impl BrowserSession {
     /// Right-clicks the element `selector` finds, once it is clickable.
     pub async fn context_click(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<(), SeleniumBaseError> {
         self.wait_for_element_clickable(selector, 10)
             .await?
@@ -287,7 +269,7 @@ impl BrowserSession {
     /// Returns `true` if the element `selector` finds is enabled.
     pub async fn is_enabled(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<bool, SeleniumBaseError> {
         self.find(selector).await?.is_enabled().await
     }
@@ -295,7 +277,7 @@ impl BrowserSession {
     /// Returns `true` if the element `selector` finds is selected.
     pub async fn is_selected(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<bool, SeleniumBaseError> {
         self.find(selector).await?.is_selected().await
     }
@@ -309,7 +291,7 @@ impl BrowserSession {
     /// match.
     pub async fn is_displayed(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<bool, SeleniumBaseError> {
         let selector = shadow_find::checked(selector)?;
         match self.find(selector).await {
@@ -321,7 +303,7 @@ impl BrowserSession {
     /// WebDriver interaction: `find_elements`.
     pub async fn find_elements(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<Vec<Element>, SeleniumBaseError> {
         self.find_all(selector).await
     }
@@ -400,7 +382,7 @@ mod tests {
         session.find("//div").await.unwrap_err();
         session.find("link=Home").await.unwrap_err();
         session
-            .find(SelectorBuf::css("//not-xpath"))
+            .find(Selector::css("//not-xpath"))
             .await
             .unwrap_err();
 
@@ -422,7 +404,7 @@ mod tests {
         let driver = page();
         let session = session(&driver).await;
 
-        // `Selector::Id` has no `SelectorBuf` variant: it is written as an attribute selector,
+        // `Selector::Id` has no `Selector` variant: it is written as an attribute selector,
         // which needs no escaping whatever characters the id holds.
         let found = session.find(SelectorRef::Id("a b")).await.unwrap();
 

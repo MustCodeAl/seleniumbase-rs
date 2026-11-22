@@ -12,7 +12,7 @@ use serde_json::{Map, Value};
 use super::host::Ctx;
 use super::schema::Schema;
 use crate::error::{closest_match, SeleniumBaseError};
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 
 /// The longest wait or pause a single call may ask for, in seconds.
 ///
@@ -176,10 +176,10 @@ impl From<SeleniumBaseError> for ToolError {
 #[derive(Debug, Clone, Default)]
 pub struct Args(Map<String, Value>);
 
-/// `text` if it is a selector no engine refuses (see [`SelectorBuf::check`]),
+/// `text` if it is a selector no engine refuses (see [`Selector::check`]),
 /// else an argument error naming `name`.
 fn checked_selector<'a>(name: &str, text: &'a str) -> Result<&'a str, ToolError> {
-    text.parse::<SelectorBuf>()
+    text.parse::<Selector>()
         .map_err(|error| ToolError::invalid(name, error.to_string()))?;
     Ok(text)
 }
@@ -218,17 +218,17 @@ impl Args {
             .ok_or_else(|| ToolError::invalid(name, "this argument is required"))
     }
 
-    /// A required selector, read the strict way (`SelectorBuf`'s `FromStr`), so
+    /// A required selector, read the strict way (`Selector`'s `FromStr`), so
     /// an empty selector, or CSS that ends on `::shadow`, is refused at the
     /// argument and not at first use. The wire stays a string.
     ///
     /// # Errors
     ///
     /// Returns [`ToolError::InvalidArgument`] if it is missing, not a string,
-    /// or refused by [`SelectorBuf::check`].
-    pub fn selector(&self, name: &str) -> Result<SelectorBuf, ToolError> {
+    /// or refused by [`Selector::check`].
+    pub fn selector(&self, name: &str) -> Result<Selector, ToolError> {
         self.str(name)?
-            .parse::<SelectorBuf>()
+            .parse::<Selector>()
             .map_err(|error| ToolError::invalid(name, error.to_string()))
     }
 
@@ -238,10 +238,10 @@ impl Args {
     /// # Errors
     ///
     /// Returns [`ToolError::InvalidArgument`] if it is present but not a string,
-    /// or refused by [`SelectorBuf::check`].
-    pub fn selector_or(&self, name: &str, default: &str) -> Result<SelectorBuf, ToolError> {
+    /// or refused by [`Selector::check`].
+    pub fn selector_or(&self, name: &str, default: &str) -> Result<Selector, ToolError> {
         self.str_or(name, default)?
-            .parse::<SelectorBuf>()
+            .parse::<Selector>()
             .map_err(|error| ToolError::invalid(name, error.to_string()))
     }
 

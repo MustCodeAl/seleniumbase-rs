@@ -67,8 +67,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 ### Breaking
 
 - **Breaking: the borrowed selector `Selector<'a>` is `SelectorRef<'a>`** (the crate root, the
-  `selector!` macro and `SelectorBuf::as_selector` follow). The name `Selector` is kept free for the
-  owned type, `SelectorBuf`, which takes it in the next release.
+  `selector!` macro and `Selector::as_selector` follow). The name `Selector` is kept free for the
+  owned type, `Selector`, which takes it in the next release.
 
 - **A `bool` parameter whose meaning is not clear at the call site is a two-variant enum, and a
   file name is an `impl AsRef<Path>`** (finding F9 of the API guidelines audit). The enums:
@@ -101,7 +101,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   of them that still carries `#[async_trait]` stops compiling, remove the attribute. Each method is
   declared `fn name(..) -> impl Future<Output = ..> + Send`, so the future is `Send` for code that
   is generic over a trait and `tokio::spawn` of a helper written over them compiles, as before.
-  The traits are not dyn compatible; none was used as `dyn` anywhere (the `impl Into<SelectorBuf>`
+  The traits are not dyn compatible; none was used as `dyn` anywhere (the `impl Into<Selector>`
   argument of `ElementApi` and `AssertionApi` had already ruled it out for those two), so take a
   generic or an `impl Trait` parameter instead of `&mut dyn BrowserApi`. `BaseCase` and
   `sb_cdp::Page` implement all four as before. See [the capability traits](/api/traits).
@@ -109,7 +109,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 - **More `bool` parameters are two-variant enums, and `GeneratedFile` is a struct** (the second
   batch of finding F9). `TextMatching::{Contains, Exact}` takes the `exact: bool` of
-  `SelectorBuf::text`, `label` and `role` (in `utils::selectors`; a Playwright or Puppeteer
+  `Selector::text`, `label` and `role` (in `utils::selectors`; a Playwright or Puppeteer
   import now writes `TextMatching::Exact` and imports it); `OldFiles::{Clear, Archive}` takes
   the `archive: bool` of `run_logs::reset_logs` and `reset_downloads` and the `archive_logs: bool`
   of `log_helper::log_folder_setup` and `archive_logs_if_set` (defined in `core::log_helper`,
@@ -189,19 +189,19 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 ### Breaking
 
 - **Breaking: every selector parameter of `BaseCase`, `CdpDriver`, `CdpPage`, `BeautifulSoup`, `DeferredAsserts` and the `ElementApi` and
-  `AssertionApi` traits is `impl Into<SelectorBuf>` (it was `css: &str`).** A string still works
-  (`sb.click("#id")`, a `String`, a `&String`), and so does a `SelectorBuf` built with `css`, `xpath`,
+  `AssertionApi` traits is `impl Into<Selector>` (it was `css: &str`).** A string still works
+  (`sb.click("#id")`, a `String`, a `&String`), and so does a `Selector` built with `css`, `xpath`,
   `link_text` or `partial_link_text` to skip the guess, which a method now keeps instead of reading
   the text again; `&&str` does not (it was an `&selector` where `selector: &str`). The parameter is
-  called `selector`. The internal helpers take `&SelectorBuf`, so a string is read as a selector
-  once per call. `SelectorBuf` gains `FromStr` (the strict form, which refuses an empty selector or
+  called `selector`. The internal helpers take `&Selector`, so a string is read as a selector
+  once per call. `Selector` gains `FromStr` (the strict form, which refuses an empty selector or
   CSS that ends on `::shadow`: for an MCP argument, the command line, a saved file),
   `Deserialize` (the mirror of `Serialize`: `{"kind": "css", "value": "a"}`), `as_str`, `check` (the one
-  place that rule is written) and `lookup_form`, `From<&SelectorBuf>`, and is `#[non_exhaustive]`, so a
+  place that rule is written) and `lookup_form`, `From<&Selector>`, and is `#[non_exhaustive]`, so a
   kind can be added without a major version. A `:contains()` selector now keeps the text it was
   written with (`Display`, the recorder and generated test code show it as written); the rewrite as
   XPath happens in `lookup_form`, when an engine looks the element up, and applies to
-  `SelectorBuf::css("p:contains('x')")` too, which the engines used to send to the browser as CSS.
+  `Selector::css("p:contains('x')")` too, which the engines used to send to the browser as CSS.
   The `link_text`, `partial_link_text` and `text=` prefixes display as `link=` and `partial_link=`.
   The MCP tools read the `selector` argument with `Args::selector`, so an empty selector is refused
   at the argument; the wire format of every tool is unchanged.
@@ -781,7 +781,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   `drivers::WebElement`, and so do `BrowserSession::find`, `find_all`, `find_elements` and the
   waits `wait_for_element`, `wait_for_element_visible` and `wait_for_element_clickable`. The 26
   `BrowserSession` methods that took a `drivers::By` (`click`, `type_text`, `find`, the waits,
-  `switch_to_frame`, ...) take `selector: impl Into<SelectorBuf>`: a `&str`, a `String` or a
+  `switch_to_frame`, ...) take `selector: impl Into<Selector>`: a `&str`, a `String` or a
   `Selector`, read by the rules of every other method. `BaseCase::get_shadow_root` is gone (a
   `host::shadow inner` selector reaches the same elements in every method, closed roots
   included) and so is `BaseCase::locator`, whose name belongs to the lazy `Page::locator`
@@ -1072,7 +1072,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   `.//td`; a `|` inside a string or a predicate is not a branch, and a group such as
   `(.//a | .//b)[1]` is read through), and they do not enter an `<iframe>` element's frame
   (switch to it with `switch_to_frame`). The role, text, label and containing-text selectors of
-  `SelectorBuf` start at the context node, so a search from an element can use them. It does not wait; a node the page replaced fails with `SeleniumBaseError::StaleElement`, which
+  `Selector` start at the context node, so a search from an element can use them. It does not wait; a node the page replaced fails with `SeleniumBaseError::StaleElement`, which
   now names the selector the element was found by (`#cart >> .row` for one found from another).
   An element from `BaseCase::get_parent` is called `<selector> >> ..` and one from
   `get_element_at_x_y` is called `element at (x, y)`, so a stale one says what it was.
@@ -1308,10 +1308,10 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   Python's reads `text_all`, the field's value. Any other element still gives its rendered text.
 
 - **The role, text, label and containing-text selectors work inside an element.**
-  `SelectorBuf::role`, `containing_text`, `text` and `label` wrote XPath that starts with `//`,
-  so `element.find(SelectorBuf::role("button", Some("Save"), false))` was refused. They write
+  `Selector::role`, `containing_text`, `text` and `label` wrote XPath that starts with `//`,
+  so `element.find(Selector::role("button", Some("Save"), false))` was refused. They write
   `.//` now: from a page the same elements match, and from an element only the ones inside it.
-  `SelectorBuf::text` leaves out the `<head>` with a test where it started at `//body`, which
+  `Selector::text` leaves out the `<head>` with a test where it started at `//body`, which
   finds nothing from inside an element. The label that names a control (`@id=//label[..]/@for`)
   stays absolute, since a label anywhere in the document names it. On the pure CDP engine a step
   below another locator no longer matches the locator's own element: the page script kept a
@@ -4645,7 +4645,7 @@ listed first under *Fixed*.
   input with a bounded hand-written parser whose text reaches the Rust only in
   escaped literals and comments (`utilities::importer`,
   `docs/playwright-migration.md`, `docs/puppeteer-migration.md`).
-  `SelectorBuf::role`, `text`, `label` and `has_text` approximate `getByRole`,
+  `Selector::role`, `text`, `label` and `has_text` approximate `getByRole`,
   `getByText`, `getByLabel` and `filter({ hasText })` in XPath.
 - **Pure CDP engine** (`sb_cdp`): `Browser`, `Page`, `Locator`, input, cookies,
   storage, window and emulation, retrying assertions, same-origin frames, CAPTCHA
@@ -4781,7 +4781,7 @@ listed first under *Fixed*.
   `composed`.
 - **Parity audit of the composed and not-applicable entries**, the Rust that
   came out of it:
-  - Text selectors: `SelectorBuf::containing_text(text, tag)`, and a CSS selector
+  - Text selectors: `Selector::containing_text(text, tag)`, and a CSS selector
     with SeleniumBase's `:contains("text")` runs as XPath in `Page::locator` and
     in the WebDriver `By` conversion.
   - `Page::goto_if_not_url`, `Page::active_element` and `active_element_css`;

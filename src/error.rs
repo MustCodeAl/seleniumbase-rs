@@ -1381,8 +1381,8 @@ fn io_hint(kind: std::io::ErrorKind) -> &'static str {
 }
 
 mod private {
-    pub trait Sealed {}
-    impl<T, E> Sealed for std::result::Result<T, E> {}
+    pub trait ResultTarget {}
+    impl<T, E> ResultTarget for std::result::Result<T, E> {}
 }
 
 /// Extension trait for attaching context to `Result<T, E>` without losing the
@@ -1390,7 +1390,9 @@ mod private {
 ///
 /// `E` is [`Error`](std::error::Error) + [`Send`] + [`Sync`] + `'static`, so the
 /// cause can be stored and moved onto another task.
-pub trait ResultExt<T, E>: private::Sealed + Sized {
+///
+/// This trait is sealed and cannot be implemented for types outside `seleniumbase-rs`.
+pub trait ResultExt<T, E>: private::ResultTarget + Sized {
     /// Map an error into [`SeleniumBaseError::Context`].
     ///
     /// The message is `{context}: {error}`. [`Error::source`](std::error::Error::source)

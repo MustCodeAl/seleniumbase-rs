@@ -8,7 +8,7 @@
 
 mod tests_selector_forms {
     use super::webdriver_support::{element, MockWebDriver, Reply};
-    use super::SelectorBuf;
+    use super::Selector;
     use serde_json::{json, Value};
 
     /// A page whose every lookup finds the element `a`, displayed and enabled.
@@ -29,12 +29,12 @@ mod tests_selector_forms {
         let mut sb = driver.base_case().await;
         sb.set_timeout(5).await.unwrap();
         let owned = String::from("#a");
-        let typed = SelectorBuf::css("#a");
+        let typed = Selector::css("#a");
 
         sb.click("#a").await.unwrap();
         sb.click(owned.clone()).await.unwrap();
         sb.click(&owned).await.unwrap();
-        sb.click(SelectorBuf::css("#a")).await.unwrap();
+        sb.click(Selector::css("#a")).await.unwrap();
         sb.click(&typed).await.unwrap();
 
         // Every form reaches the driver as the same lookup, and the same click.
@@ -55,7 +55,7 @@ mod tests_selector_forms {
 
         // The guess reads `//a` as XPath; the constructor says it is CSS, and
         // every lookup the method makes keeps that.
-        sb.click(SelectorBuf::css("//a")).await.unwrap();
+        sb.click(Selector::css("//a")).await.unwrap();
         for lookup in driver.requests("/element") {
             assert_eq!(lookup.body["using"], "css selector");
             assert_eq!(lookup.body["value"], "//a");
@@ -87,7 +87,7 @@ mod tests_selector_forms {
 /// driver must be sent the same requests every time.
 mod tests_selector_forms_by_file {
     use super::webdriver_support::{element, MockWebDriver, Reply};
-    use super::SelectorBuf;
+    use super::Selector;
     use crate::api::recorder::RecordedCommand;
     use serde_json::{json, Value};
 
@@ -115,7 +115,7 @@ mod tests_selector_forms_by_file {
     }
 
     /// Defines a test that runs `$call` once for each form of `$selector`
-    /// (`&str`, `String`, `SelectorBuf` and `&SelectorBuf`, all `#a`), each on a
+    /// (`&str`, `String`, `Selector` and `&Selector`, all `#a`), each on a
     /// page of its own, and checks that the four runs sent the same requests
     /// and that there was at least one.
     macro_rules! the_forms_reach_the_same_calls {
@@ -138,11 +138,11 @@ mod tests_selector_forms_by_file {
                             let _ = $call.await;
                         }
                         2 => {
-                            let $selector = SelectorBuf::css("#a");
+                            let $selector = Selector::css("#a");
                             let _ = $call.await;
                         }
                         _ => {
-                            let $selector = &SelectorBuf::css("#a");
+                            let $selector = &Selector::css("#a");
                             let _ = $call.await;
                         }
                     }
@@ -192,7 +192,7 @@ mod tests_selector_forms_by_file {
 
         sb.click("p:contains('x')").await.unwrap();
         sb.click("text=Home").await.unwrap();
-        sb.click(SelectorBuf::xpath("//a[@id='x']")).await.unwrap();
+        sb.click(Selector::xpath("//a[@id='x']")).await.unwrap();
 
         let recorded: Vec<RecordedCommand> = sb
             .recorder

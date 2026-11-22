@@ -106,7 +106,7 @@ async fn a_scenario_reports_by_itself_when_the_dashboard_is_on() {
         let case = SbCdpCase::launch_with_browser(Settings::load().unwrap(), logs.path(), mocked)
             .await
             .unwrap();
-        let _ = case.url().await;
+        let _ = case.page().url().await;
         let page = std::fs::read_to_string(root.join("dashboard.html")).unwrap();
         assert!(
             page.contains("a_scenario_reports_by_itself_when_the_dashboard_is_on"),

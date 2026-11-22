@@ -69,12 +69,12 @@ fn world() -> World {
 
 #[given("the shop page is open")]
 async fn shop_page_is_open(page: &SbCdpCase) {
-    assert_eq!(page.url().await.unwrap(), "https://shop.test/cart");
+    assert_eq!(page.page().url().await.unwrap(), "https://shop.test/cart");
 }
 
 #[when("I read the address of the page")]
 async fn read_the_address(page: &SbCdpCase, world: &mut World) {
-    world.address = page.url().await.unwrap();
+    world.address = page.page().url().await.unwrap();
 }
 
 #[then("the address is {address:string}")]

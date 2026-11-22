@@ -24,7 +24,7 @@
 //!
 //! Selectors are plain strings classified the way SeleniumBase classifies
 //! them: `"#id"` is CSS, `"//div"` is XPath, `"link=Home"` is a link. Use
-//! [`SelectorBuf`](crate::utils::selectors::SelectorBuf) to state the kind
+//! [`Selector`](crate::utils::selectors::Selector) to state the kind
 //! explicitly.
 //!
 //! # Examples

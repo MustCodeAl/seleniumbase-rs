@@ -33,7 +33,7 @@ pub struct TabHints {
     pub url: Option<String>,
 }
 
-mod sealed {
+mod private {
     use std::future::Future;
 
     use super::Attachment;
@@ -41,7 +41,7 @@ mod sealed {
 
     /// The one method a target answers. It is `Sync` because the future holds `&self`
     /// across its awaits, which keeps `PlaywrightSidecar::attach` `Send`.
-    pub trait Sealed: Sync {
+    pub trait TargetAttachment: Sync {
         /// The endpoint, the tab hints and the timeout of this target.
         fn attachment(&self) -> impl Future<Output = Result<Attachment, SeleniumBaseError>> + Send;
     }
@@ -50,12 +50,12 @@ mod sealed {
 /// A handle of this project that is on one tab of a Chromium: an [`sb_cdp::Page`] or a
 /// [`BaseCase`](seleniumbase_rs::BaseCase). [`PlaywrightSidecar::attach`] takes either.
 ///
-/// The trait is sealed: it is implemented for those two types and cannot be implemented
-/// elsewhere, because what a target must tell the sidecar is the crate's business.
+/// The trait is sealed and cannot be implemented for types outside this crate,
+/// because what a target must tell the sidecar is the crate's business.
 ///
 /// [`sb_cdp::Page`]: seleniumbase_rs::sb_cdp::Page
 /// [`PlaywrightSidecar::attach`]: crate::PlaywrightSidecar::attach
-pub trait PlaywrightTarget: sealed::Sealed {}
+pub trait PlaywrightTarget: private::TargetAttachment {}
 
 impl PlaywrightTarget for Page {}
 impl PlaywrightTarget for BaseCase {}
@@ -64,10 +64,10 @@ impl PlaywrightTarget for BaseCase {}
 pub(crate) async fn attachment_of<T: PlaywrightTarget + ?Sized>(
     target: &T,
 ) -> Result<Attachment, SeleniumBaseError> {
-    sealed::Sealed::attachment(target).await
+    private::TargetAttachment::attachment(target).await
 }
 
-impl sealed::Sealed for Page {
+impl private::TargetAttachment for Page {
     async fn attachment(&self) -> Result<Attachment, SeleniumBaseError> {
         Ok(Attachment {
             endpoint: self.browser().devtools_endpoint(),

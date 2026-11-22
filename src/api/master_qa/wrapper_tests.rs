@@ -212,7 +212,7 @@ async fn a_passed_check_waits_the_verify_delay_and_is_recorded() {
     let _root = Root::new().await;
     let driver = page_driver(vec!["Success!"], true, 0, "");
     let mut qa = MasterQA::new(case(&driver, false).await).unwrap();
-    qa.set_run_settings(
+    qa.case_mut().set_run_settings(
         RunSettings::builder()
             .verify_delay(Duration::from_millis(150))
             .build(),

@@ -24,7 +24,7 @@ use crate::browser::session::shown_text;
 use crate::browser::shadow_find;
 use crate::error::{DriverErrorKind, SeleniumBaseError};
 use crate::sb_cdp::{Key, Locator, Rect, SelectBy};
-use crate::utils::selectors::{xpath_root_branch, SelectorBuf, CHAIN_SEPARATOR};
+use crate::utils::selectors::{xpath_root_branch, Selector, CHAIN_SEPARATOR};
 
 use self::cdp::CdpElement;
 
@@ -74,7 +74,7 @@ struct DriverElement {
     /// How the element was found: the selector, or for an element found from
     /// another one the chain (`#cart >> .row`), as a `Locator` writes it. It
     /// names the element in errors, `Debug` and `Display`.
-    selector: SelectorBuf,
+    selector: Selector,
 }
 
 impl fmt::Debug for DriverElement {
@@ -95,7 +95,7 @@ impl fmt::Display for DriverElement {
 
 impl DriverElement {
     /// An element the session found with `selector`.
-    pub(crate) fn new(inner: WebElement, driver: WebDriver, selector: SelectorBuf) -> Self {
+    pub(crate) fn new(inner: WebElement, driver: WebDriver, selector: Selector) -> Self {
         Self {
             inner,
             driver,
@@ -134,7 +134,7 @@ impl DriverElement {
     /// `utils::selectors::is_lookup_selector`).
     pub(crate) fn named(self, name: String) -> Self {
         Self {
-            selector: SelectorBuf::css(name),
+            selector: Selector::css(name),
             ..self
         }
     }
@@ -561,8 +561,8 @@ impl DriverElement {
 /// where it came from.
 impl DriverElement {
     /// The name of what `selector` finds inside this element: the chain.
-    fn below(&self, selector: &SelectorBuf) -> SelectorBuf {
-        SelectorBuf::css(format!("{self}{CHAIN_SEPARATOR}{selector}"))
+    fn below(&self, selector: &Selector) -> Selector {
+        Selector::css(format!("{self}{CHAIN_SEPARATOR}{selector}"))
     }
 
     /// The locator for a search inside this element.
@@ -570,9 +570,9 @@ impl DriverElement {
     /// A selector that crosses a shadow root is cut and followed from the
     /// page, which an element cannot do from where it is: it is refused here
     /// with a hint, not left to the driver.
-    fn lookup(selector: &SelectorBuf) -> Result<By, SeleniumBaseError> {
+    fn lookup(selector: &Selector) -> Result<By, SeleniumBaseError> {
         let by = shadow_find::by_of(selector)?;
-        if let SelectorBuf::XPath(xpath) = &*selector.lookup_form()
+        if let Selector::XPath(xpath) = &*selector.lookup_form()
             && let Some(branch) = xpath_root_branch(xpath)
         {
             return Err(SeleniumBaseError::InvalidSelector(format!(
@@ -594,9 +594,9 @@ impl DriverElement {
 
     /// The first match of `selector` inside this element, looked for once.
     ///
-    /// `selector` is anything that converts to a [`SelectorBuf`]: a string,
+    /// `selector` is anything that converts to a [`Selector`]: a string,
     /// whose kind is read as everywhere else (`.remove`, `.//td`, `link=Edit`),
-    /// or a [`SelectorBuf`] that names its kind. Like
+    /// or a [`Selector`] that names its kind. Like
     /// [`Locator::locator`](crate::sb_cdp::Locator::locator), without the
     /// laziness.
     ///
@@ -625,7 +625,7 @@ impl DriverElement {
     /// [`SeleniumBaseError::StaleElement`] if this element went stale.
     pub async fn find(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<DriverElement, SeleniumBaseError> {
         let selector = selector.into();
         let by = Self::lookup(&selector)?;
@@ -645,7 +645,7 @@ impl DriverElement {
     /// As [`find`](Self::find), except that nothing matching is an empty list.
     pub async fn find_all(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<Vec<DriverElement>, SeleniumBaseError> {
         let selector = selector.into();
         let by = Self::lookup(&selector)?;
@@ -676,7 +676,7 @@ impl DriverElement {
             .parent()
             .await
             .map_err(|error| self.failed(error))?;
-        let name = self.below(&SelectorBuf::xpath(".."));
+        let name = self.below(&Selector::xpath(".."));
         Ok(Self::new(parent, self.driver.clone(), name))
     }
 }
@@ -797,14 +797,14 @@ fn mixed_engines() -> SeleniumBaseError {
 
 impl Element {
     /// An element the WebDriver session found with `selector`.
-    pub(crate) fn new(inner: WebElement, driver: WebDriver, selector: SelectorBuf) -> Self {
+    pub(crate) fn new(inner: WebElement, driver: WebDriver, selector: Selector) -> Self {
         DriverElement::new(inner, driver, selector).into()
     }
 
     /// An element the pure CDP engine's `locator` finds, named `selector`.
     pub(crate) fn cdp(
         locator: Locator,
-        selector: SelectorBuf,
+        selector: Selector,
         dialogs: Option<std::sync::Arc<crate::browser::session::DialogWatch>>,
     ) -> Self {
         CdpElement::new(locator, selector, dialogs).into()
@@ -1250,9 +1250,9 @@ impl Element {
 
     /// The first match of `selector` inside this element, looked for once.
     ///
-    /// `selector` is anything that converts to a [`SelectorBuf`]: a string,
+    /// `selector` is anything that converts to a [`Selector`]: a string,
     /// whose kind is read as everywhere else (`.remove`, `.//td`, `link=Edit`),
-    /// or a [`SelectorBuf`] that names its kind. Like
+    /// or a [`Selector`] that names its kind. Like
     /// [`Locator::locator`](crate::sb_cdp::Locator::locator), without the
     /// laziness.
     ///
@@ -1273,10 +1273,7 @@ impl Element {
     /// WebDriver XPath that starts at the root of the page, or one that
     /// crosses a shadow root, and [`SeleniumBaseError::StaleElement`] if this
     /// element went stale (WebDriver).
-    pub async fn find(
-        &self,
-        selector: impl Into<SelectorBuf>,
-    ) -> Result<Element, SeleniumBaseError> {
+    pub async fn find(&self, selector: impl Into<Selector>) -> Result<Element, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => element.find(selector).await.map(Self::from),
             Engine::Cdp(element) => Box::pin(element.find(selector.into()))
@@ -1292,7 +1289,7 @@ impl Element {
     /// As [`find`](Self::find), except that nothing matching is an empty list.
     pub async fn find_all(
         &self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<Vec<Element>, SeleniumBaseError> {
         match &self.engine {
             Engine::WebDriver(element) => Ok(element
@@ -1352,7 +1349,7 @@ mod tests {
             .find(By::Css(css))
             .await
             .expect("the mock finds #a");
-        let element = Element::new(inner, webdriver, SelectorBuf::css(css));
+        let element = Element::new(inner, webdriver, Selector::css(css));
         (session, element)
     }
 
@@ -1686,15 +1683,15 @@ mod tests {
         // Each selector with the branch the message names. A group holds a union
         // too, and the function `id()` searches the whole document, as `//` does.
         for (selector, branch) in [
-            (SelectorBuf::xpath(".//a | //b"), "//b"),
-            (SelectorBuf::xpath("./a|/html/body"), "/html/body"),
-            (SelectorBuf::xpath(".//a | (//b)[1]"), "(//b)[1]"),
-            (SelectorBuf::xpath("(.//a | //b)[1]"), "(.//a | //b)[1]"),
-            (SelectorBuf::xpath("((.//a) | ( //b))"), "((.//a) | ( //b))"),
-            (SelectorBuf::xpath(".//a[@x='|'] | //b"), "//b"),
-            (SelectorBuf::xpath("id('y')//b"), "id('y')//b"),
-            (SelectorBuf::xpath(".//a | id ( 'y' )"), "id ( 'y' )"),
-            (SelectorBuf::xpath("(//b)[1]"), "(//b)[1]"),
+            (Selector::xpath(".//a | //b"), "//b"),
+            (Selector::xpath("./a|/html/body"), "/html/body"),
+            (Selector::xpath(".//a | (//b)[1]"), "(//b)[1]"),
+            (Selector::xpath("(.//a | //b)[1]"), "(.//a | //b)[1]"),
+            (Selector::xpath("((.//a) | ( //b))"), "((.//a) | ( //b))"),
+            (Selector::xpath(".//a[@x='|'] | //b"), "//b"),
+            (Selector::xpath("id('y')//b"), "id('y')//b"),
+            (Selector::xpath(".//a | id ( 'y' )"), "id ( 'y' )"),
+            (Selector::xpath("(//b)[1]"), "(//b)[1]"),
         ] {
             for error in [
                 cart.find(selector.clone()).await.unwrap_err(),
@@ -1722,13 +1719,13 @@ mod tests {
         let driver = cart();
         let (_session, cart) = found(&driver, "#a").await;
         let selectors = [
-            SelectorBuf::role("button", Some("Save"), TextMatching::Contains),
-            SelectorBuf::role("", None, TextMatching::Exact),
-            SelectorBuf::containing_text("Save", Some("button")),
-            SelectorBuf::containing_text("Save", None),
-            SelectorBuf::text("Save", TextMatching::Contains),
-            SelectorBuf::label("Email", TextMatching::Contains),
-            SelectorBuf::has_text("Save"),
+            Selector::role("button", Some("Save"), TextMatching::Contains),
+            Selector::role("", None, TextMatching::Exact),
+            Selector::containing_text("Save", Some("button")),
+            Selector::containing_text("Save", None),
+            Selector::text("Save", TextMatching::Contains),
+            Selector::label("Email", TextMatching::Contains),
+            Selector::has_text("Save"),
         ];
 
         for selector in &selectors {

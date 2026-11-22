@@ -1,6 +1,6 @@
 //! Moving around: pages and history, frames, and windows and tabs.
 
-use crate::utils::selectors::SelectorBuf;
+use crate::utils::selectors::Selector;
 
 use crate::error::SeleniumBaseError;
 
@@ -84,7 +84,7 @@ impl BrowserSession {
     /// Switches context into the frame `selector` finds.
     pub async fn switch_to_frame(
         &mut self,
-        selector: impl Into<SelectorBuf>,
+        selector: impl Into<Selector>,
     ) -> Result<(), SeleniumBaseError> {
         let element = self.find(selector).await?;
         self.enter_frame_element(&element).await

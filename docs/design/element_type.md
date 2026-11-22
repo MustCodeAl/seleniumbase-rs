@@ -6,9 +6,9 @@ sidebarTitle: "An element type of our own"
 Status: implemented on `lane/element-type`, with every recommendation accepted. Written
 before the code (branch `lane/design-element`, from `90ca478e`), and kept as it was, so the
 text below describes the plan; two things turned out differently. The conversion of a
-`SelectorBuf` to a `By` is `shadow_find::by_of` (with `checked`, which the `BaseCase` sites call
+`Selector` to a `By` is `shadow_find::by_of` (with `checked`, which the `BaseCase` sites call
 where they called `SelectorRef::auto(css).to_by()?`), and the suspected bug of
-`From<&str> for SelectorBuf` (`:contains` turned into XPath before `::shadow` is looked for) does
+`From<&str> for Selector` (`:contains` turned into XPath before `::shadow` is looked for) does
 not occur: the CSS-to-XPath converter reads `::` as an empty pseudo-class name and refuses, so a
 shadow selector stays CSS (a test pins it).
 Every line number below is from that commit. What `thirtyfour` does was read on Context7
@@ -28,7 +28,7 @@ read as `.//p[...]`; an `<iframe>` element is not entered (its frame is a differ
 
 Three follow-up fixes came after (the `element-followups` lane): `BaseCase::get_text` gives a
 field's value (open question 11 below); a union is refused when any branch starts at the root
-(`.//a | //b`, `(.//a | //b)[1]`, a branch that calls `id()`); and the XPath of `SelectorBuf::role`,
+(`.//a | //b`, `(.//a | //b)[1]`, a branch that calls `id()`); and the XPath of `Selector::role`,
 `text`, `label` and `containing_text` starts with `.//`, so they work from an `Element`.
 
 
@@ -41,7 +41,7 @@ should follow this project's patterns. So:
 
 * the WebDriver engine returns an element type of its own, `seleniumbase_rs::Element`, whose
   methods carry the names of the pure CDP engine's `sb_cdp::Locator` where the idea is the same;
-* every method that takes a selector takes this crate's selector types (`&str`, `SelectorBuf`,
+* every method that takes a selector takes this crate's selector types (`&str`, `Selector`,
   `SelectorRef`), never a `By`;
 * the raw `thirtyfour` element stays reachable through one explicit escape hatch.
 
@@ -58,7 +58,7 @@ Breaking changes are fine (no users yet, no shims).
   `Debug` is written by hand.
 * **The 17 `BaseCase` methods and the 6 `BrowserSession` methods that return a `WebElement`
   return `Element`** (2 of the 17 go away, see open questions 2 and 3).
-* **The 26 `BrowserSession` methods that take a `By` take `selector: impl Into<SelectorBuf>`**,
+* **The 26 `BrowserSession` methods that take a `By` take `selector: impl Into<Selector>`**,
   as `Page::locator` (`src/sb_cdp/page.rs:133`) and `Locator::locator` (`locator.rs:212`) do.
   `SelectorRef::to_by` and `SelectorRef::auto_by` (`src/utils/selectors.rs:212`, `:226`) leave the
   public API.
@@ -208,14 +208,14 @@ and a `&WebElement` across an `.await` (`session/elements.rs:173-174`, `:196-199
 pub struct Element {
     inner: thirtyfour::WebElement,
     driver: thirtyfour::WebDriver, // scripts and action chains, as `Alert` holds one
-    selector: SelectorBuf,         // how it was found, for errors, Debug and Display
+    selector: Selector,         // how it was found, for errors, Debug and Display
 }
 ```
 
 * **What it wraps.** The `thirtyfour::WebElement`, the session's `WebDriver` (scripts such as
   the `getAttribute` atom, `session/elements.rs:18-54`, and the action chains need the driver;
   `Alert` holds one the same way, `switching.rs:380-383`), and the selector it was found by
-  (`SelectorBuf`; for `parent()` and `find()` results, the chain such as `#cart >> .row`, in the
+  (`Selector`; for `parent()` and `find()` results, the chain such as `#cart >> .row`, in the
   form `Locator`'s `Display` writes, `locator.rs:100-123`).
 * **Built only by the crate**: `pub(crate) fn new(inner, driver, selector)`, called by
   `BrowserSession::find`, `find_all` and the waits.
@@ -317,20 +317,20 @@ W3C shadow root can be searched, not clicked or read. Two choices:
 
 * `BaseCase` keeps `css: &str` (the crate's rule for the capability traits and `BaseCase`).
 * `BrowserSession`'s 26 methods and `Element::find` / `find_all` take
-  `selector: impl Into<SelectorBuf>`, the parameter `Page::locator` and `Locator::locator` take.
+  `selector: impl Into<Selector>`, the parameter `Page::locator` and `Locator::locator` take.
   `&str`, `String`, `&String` and `SelectorRef` all convert (`selectors.rs:587-623`), so the kind is
   decided once, by the rules `SelectorRef::auto` documents. The parameter is renamed from `locator`
   to `selector`, since `Locator` means the lazy CDP type.
-* One crate-private conversion, `SelectorBuf` to `By`, lives in `src/browser/` and replaces the
+* One crate-private conversion, `Selector` to `By`, lives in `src/browser/` and replaces the
   public `to_by`. It keeps `to_by`'s two checks: an empty selector is
   `SeleniumBaseError::InvalidSelector` (`selectors.rs:249-251`), and a selector that crosses a
   shadow root is cut, or refused, before anything waits (`:231-234`).
 * **A difference found while reading:** `to_by` checks for a shadow-root selector before it
-  turns `:contains(..)` into XPath (`selectors.rs:231-241`), but `From<&str> for SelectorBuf`
+  turns `:contains(..)` into XPath (`selectors.rs:231-241`), but `From<&str> for Selector`
   turns `:contains(..)` into XPath without looking for `::shadow` first (`:603-609`). A selector
   such as `app::shadow a:contains("Go")` would become XPath and lose its shadow root. Step 4
   gives `From<&str>` `to_by`'s order, with a test that fails first.
-* `SelectorRef::Id` has no `SelectorBuf` variant; `From<SelectorRef>` writes it as `[id="..."]`
+* `SelectorRef::Id` has no `Selector` variant; `From<SelectorRef>` writes it as `[id="..."]`
   (`selectors.rs:594`), where `to_by` sent `By::Id` (`:244`). Step 4 checks with a mock that the
   driver receives a working CSS lookup.
 * `SelectorRef::to_by` and `SelectorRef::auto_by` become `pub(crate)` (their unit tests stay), and
@@ -353,8 +353,8 @@ W3C shadow root can be searched, not clicked or read. Two choices:
 * **`BrowserSession` callers**: about 64 in `src/api/`. Each `let by = SelectorRef::auto(css).to_by()?;`
   plus `self.session.m(by, ..)` becomes `self.session.m(css, ..)`; `By::LinkText(text)`
   (`base_case_impl_extra.rs:511`, `:523`, `:1665`, `:1688`; `base_case.rs:1026`) becomes
-  `SelectorBuf::link_text(text)`, `By::PartialLinkText` likewise, and `By::Css(..)`
-  (`_extra.rs:651`, `:1058`) becomes `SelectorBuf::css(..)`. One `tokensave_ast_grep_rewrite`
+  `Selector::link_text(text)`, `By::PartialLinkText` likewise, and `By::Css(..)`
+  (`_extra.rs:651`, `:1058`) becomes `Selector::css(..)`. One `tokensave_ast_grep_rewrite`
   per shape. Internal code that needs the raw element (scripts' `to_json`, `SelectElement`, the
   action chains, `enter_frame`) uses `as_webdriver_element()` or a `pub(crate)` raw lookup kept
   in `shadow_find`.
@@ -417,7 +417,7 @@ helper (`:762`) builds the element reference a mock lookup answers with.
    becomes `StaleElement { selector }`. Tests: a mock answering `stale element reference` gives
    that error with the chain as the selector; `find_all` with no match is empty.
 4. **`refactor(browser): BrowserSession takes selectors and returns Element`.** The 26 methods,
-   the crate-private `SelectorBuf` to `By` conversion, `From<&str>`'s shadow-before-`:contains`
+   the crate-private `Selector` to `By` conversion, `From<&str>`'s shadow-before-`:contains`
    order (red test first), `SelectorRef::to_by`/`auto_by` made `pub(crate)`, `waits.rs` and
    `sb_cdp_attach.rs` tests updated. The internal `BaseCase` sites are rewritten in this commit
    so it compiles.

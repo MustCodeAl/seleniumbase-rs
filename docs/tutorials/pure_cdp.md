@@ -94,10 +94,10 @@ match. The check runs just before the action, as its own step, so an element
 added between the two is not seen. No match at all waits and fails as usual.
 
 Selectors are classified the way SeleniumBase does it: `"#id"` is CSS, `"//div"`
-is XPath, `"link=Home"` is a link. Use `SelectorBuf::css`/`xpath` to be explicit.
+is XPath, `"link=Home"` is a link. Use `Selector::css`/`xpath` to be explicit.
 A CSS selector may use SeleniumBase's `button:contains("Sign in")`, which runs as
 XPath. To find any element by its text, use
-`SelectorBuf::containing_text("Sign in", Some("button"))` (with `None` for the
+`Selector::containing_text("Sign in", Some("button"))` (with `None` for the
 tag, the innermost elements holding the text); a `text=` prefix means link text.
 A CSS selector may cross shadow roots with `::shadow`, as in
 `"my-app::shadow .form::shadow input"`: the first piece is searched in the page
