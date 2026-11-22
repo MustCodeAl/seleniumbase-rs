@@ -71,6 +71,17 @@ impl SbCase {
     pub fn test_id(&self) -> &str {
         &self.test_id
     }
+
+    /// The case the steps run on.
+    #[must_use]
+    pub fn case(&self) -> &BaseCase {
+        self.scenario.case()
+    }
+
+    /// The mutable case the steps run on.
+    pub fn case_mut(&mut self) -> &mut BaseCase {
+        self.scenario.case_mut()
+    }
 }
 
 impl std::fmt::Debug for SbCase {

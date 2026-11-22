@@ -15,10 +15,17 @@
 //! # }
 //! ```
 
+mod private {
+    pub trait Sealed<Item> {}
+    impl<T: PartialEq> Sealed<T> for [T] {}
+    impl<T: PartialEq, const N: usize> Sealed<T> for [T; N] {}
+    impl<T: PartialEq> Sealed<T> for Vec<T> {}
+}
+
 /// A container that an item can be in: the elements of a slice, an array or a
 /// [`Vec`], or the text of a [`str`] or a [`String`] (a substring, or a
 /// character).
-pub trait Contains<Item> {
+pub trait Contains<Item>: private::Sealed<Item> {
     /// Whether `item` is in `self`.
     fn holds(&self, item: &Item) -> bool;
 }
@@ -44,6 +51,7 @@ impl<T: PartialEq> Contains<T> for Vec<T> {
 /// Makes a string type contain strings and characters.
 macro_rules! text_contains {
     ($($container:ty),+) => {$(
+        impl<'a> private::Sealed<&'a str> for $container {}
         impl<'a> Contains<&'a str> for $container {
             fn holds(&self, item: &&'a str) -> bool {
                 let text: &str = self.as_ref();
@@ -51,6 +59,7 @@ macro_rules! text_contains {
             }
         }
 
+        impl private::Sealed<String> for $container {}
         impl Contains<String> for $container {
             fn holds(&self, item: &String) -> bool {
                 let text: &str = self.as_ref();
@@ -58,6 +67,7 @@ macro_rules! text_contains {
             }
         }
 
+        impl<'a> private::Sealed<&'a String> for $container {}
         impl<'a> Contains<&'a String> for $container {
             fn holds(&self, item: &&'a String) -> bool {
                 let text: &str = self.as_ref();
@@ -65,6 +75,7 @@ macro_rules! text_contains {
             }
         }
 
+        impl private::Sealed<char> for $container {}
         impl Contains<char> for $container {
             fn holds(&self, item: &char) -> bool {
                 let text: &str = self.as_ref();

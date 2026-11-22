@@ -441,6 +441,17 @@ impl MasterQA {
             tokio::time::sleep(RESULTS_PAGE_POLL).await;
         }
     }
+
+    /// The case the checks are made on.
+    #[must_use]
+    pub fn case(&self) -> &BaseCase {
+        &self.sb
+    }
+
+    /// The mutable case the checks are made on.
+    pub fn case_mut(&mut self) -> &mut BaseCase {
+        &mut self.sb
+    }
 }
 
 impl Deref for MasterQA {

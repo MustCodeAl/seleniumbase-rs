@@ -1380,12 +1380,17 @@ fn io_hint(kind: std::io::ErrorKind) -> &'static str {
     }
 }
 
+mod private {
+    pub trait Sealed {}
+    impl<T, E> Sealed for std::result::Result<T, E> {}
+}
+
 /// Extension trait for attaching context to `Result<T, E>` without losing the
 /// original error source.
 ///
 /// `E` is [`Error`](std::error::Error) + [`Send`] + [`Sync`] + `'static`, so the
 /// cause can be stored and moved onto another task.
-pub trait ResultExt<T, E>: Sized {
+pub trait ResultExt<T, E>: private::Sealed + Sized {
     /// Map an error into [`SeleniumBaseError::Context`].
     ///
     /// The message is `{context}: {error}`. [`Error::source`](std::error::Error::source)

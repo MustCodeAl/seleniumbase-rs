@@ -110,6 +110,12 @@ impl SbCdpCase {
     pub fn browser(&self) -> &Browser {
         &self.scenario.case().browser
     }
+
+    /// The CDP page the steps run on.
+    #[must_use]
+    pub fn page(&self) -> &Page {
+        &self.scenario.case().page
+    }
 }
 
 impl std::fmt::Debug for SbCdpCase {
