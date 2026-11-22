@@ -52,7 +52,7 @@ use scraper::{ElementRef, Html, Selector};
 use crate::SeleniumBaseError;
 
 /// Importance of an inspection issue.
-#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Clone, Copy, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub enum InspectionSeverity {
     /// A problem that should not reach production.
     Warning,
@@ -99,6 +99,7 @@ impl InspectionResult {
 }
 
 /// Static HTML inspector backed by an HTML5 parser and CSS selectors.
+#[derive(Clone, Copy, Debug, Default)]
 pub struct HtmlInspector;
 
 impl HtmlInspector {

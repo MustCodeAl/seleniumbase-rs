@@ -133,7 +133,7 @@ const NO_POSITION: &str = "the source position of this pause is not known";
 static TURN: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 /// Why the test is paused; it names the banner.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum PromptKind {
     /// A `breakpoint()` call in the test (`[BREAKPOINT]`).
     Breakpoint,
@@ -169,7 +169,7 @@ impl PromptKind {
 }
 
 /// How a pause ended.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum PromptOutcome {
     /// Go on with the test: `c`, `continue`, or the end of the input.
     Continue,

@@ -75,6 +75,7 @@ pub fn fallback_line(style: MessageStyle, message: &str) -> String {
 /// # }
 /// ```
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct PostMessage<'a> {
     pub(crate) sb: &'a BaseCase,
     pub(crate) message: &'a str,

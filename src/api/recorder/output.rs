@@ -29,7 +29,7 @@ use crate::{DriverMode, SeleniumBaseError};
 pub const RECORDINGS_FOLDER: &str = "recordings";
 
 /// What the code file of a recording holds.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum RecordingFormat {
     /// An rstest test that asks for the `sb` fixture (the default).
     #[default]

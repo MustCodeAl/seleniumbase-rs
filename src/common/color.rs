@@ -154,7 +154,7 @@ pub fn sanitize(text: &str) -> String {
 
 /// One of the sixteen ANSI colours, named as colorama names them
 /// (`Fore.LIGHTRED_EX` is [`Color::LightRed`]).
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Color {
     /// ANSI 30.
     Black,

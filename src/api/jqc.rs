@@ -278,7 +278,7 @@ impl FromStr for JqcColor {
 /// [`FromStr`] follows Python's `set_jqc_theme`: a whole number is a percent up
 /// to 100 and pixels above (`52` is `52%`, `450` is `450px`), and anything else
 /// must end in `%` or `px` after a positive number.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct JqcWidth(String);
 
 impl JqcWidth {
@@ -751,6 +751,7 @@ enum Kind {
 }
 
 /// Everything one call needs, before it runs.
+#[derive(Debug)]
 struct Request<'a> {
     kind: Kind,
     message: &'a str,
@@ -873,6 +874,7 @@ macro_rules! option_methods {
 /// The call of [`BaseCase::jqc_button_input`]: await it to get the text of
 /// the button that was clicked.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct JqcButtonInput<'a> {
     sb: &'a BaseCase,
     request: Request<'a>,
@@ -912,6 +914,7 @@ impl<'a> IntoFuture for JqcButtonInput<'a> {
 /// The call of [`BaseCase::jqc_text_input`]: await it to get the text typed
 /// into the dialog's input.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct JqcTextInput<'a> {
     sb: &'a BaseCase,
     request: Request<'a>,
@@ -953,6 +956,7 @@ impl<'a> IntoFuture for JqcTextInput<'a> {
 /// The call of [`BaseCase::jqc_form_inputs`]: await it to get the text of
 /// the input and the text of the button that was clicked.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct JqcFormInputs<'a> {
     sb: &'a BaseCase,
     request: Request<'a>,

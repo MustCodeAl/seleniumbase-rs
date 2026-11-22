@@ -95,7 +95,7 @@ pub type IdSource = Arc<dyn Fn() -> String + Send + Sync>;
 ///
 /// Allure tells a test that failed a check (`failed`) from one that could not
 /// run to its end (`broken`).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum AllureStatus {
     /// The test passed.

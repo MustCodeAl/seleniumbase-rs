@@ -227,7 +227,7 @@ impl ReportSettings {
 /// by [`recent`](Self::recent) joins a run that is not finished and changed in
 /// the last two minutes, which is the best that can be done on a platform where
 /// a process cannot tell which process started it.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct RunKey(Option<String>);
 
 impl RunKey {
@@ -649,6 +649,16 @@ impl std::ops::Deref for TestRun {
 impl fmt::Debug for TestRun {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("TestRun")
+            .field("root", &self.root)
+            .field("key", &self.key)
+            .field("settings", &self.settings)
+            .finish_non_exhaustive()
+    }
+}
+
+impl fmt::Debug for RunState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("RunState")
             .field("root", &self.root)
             .field("key", &self.key)
             .field("settings", &self.settings)

@@ -68,7 +68,7 @@ impl Sources<'static> {
 const CHROMEDRIVER_NAMES: [&str; 2] = ["chromedriver", "chromedriver.exe"];
 
 /// A program that Chrome for Testing publishes.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Artifact {
     /// The driver.
     Chromedriver,

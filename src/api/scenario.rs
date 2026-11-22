@@ -137,7 +137,7 @@ impl Scenario {
 ///
 /// The JSON `action` field is the variant's name in snake case, and the
 /// variant's fields are the step's other keys.
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(tag = "action", rename_all = "snake_case")]
 pub enum ScenarioStep {
     /// Navigate to a URL.

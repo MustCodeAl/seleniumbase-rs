@@ -54,7 +54,7 @@ pub const TIMEOUT_VAR: &str = "SB_SHUTDOWN_TIMEOUT_SECS";
 pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// A request to stop.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Signal {
     /// SIGINT, or Ctrl-C.

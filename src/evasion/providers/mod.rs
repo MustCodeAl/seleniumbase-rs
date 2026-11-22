@@ -192,6 +192,14 @@ pub struct EvasionRegistry {
     providers: Vec<Box<dyn EvasionProvider>>,
 }
 
+impl std::fmt::Debug for EvasionRegistry {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EvasionRegistry")
+            .field("providers", &self.provider_names())
+            .finish()
+    }
+}
+
 impl EvasionRegistry {
     /// Creates an empty registry.
     pub fn empty() -> Self {

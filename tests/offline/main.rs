@@ -71,6 +71,8 @@ mod sb_fixture;
 mod sb_fixture_plugins;
 mod sb_reports;
 mod sb_reports_env;
+mod send_sync;
+
 mod settings_layers;
 mod settings_pins;
 

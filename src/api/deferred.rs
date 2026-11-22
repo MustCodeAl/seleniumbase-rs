@@ -55,7 +55,7 @@ use crate::error::SeleniumBaseError;
 use crate::utils::selectors::SelectorBuf;
 
 /// A single deferred assertion.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DeferredAssert {
     /// Assert that the selected element exists and is visible.
     Element(SelectorBuf),

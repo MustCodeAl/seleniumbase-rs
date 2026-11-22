@@ -105,7 +105,7 @@ pub struct Request {
 }
 
 /// How a request was answered.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Outcome {
     /// Failed before it reached the network.

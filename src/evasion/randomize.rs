@@ -43,7 +43,7 @@ pub const CURRENT_STABLE_MAJOR: u32 = 157;
 pub const PRESET_CHROMIUM_MAJOR: u32 = CHROMIUM_MAJORS[CHROMIUM_MAJORS.len() - 1];
 
 /// Where a row of [`KNOWN_FULL_VERSIONS`] comes from.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum FullVersionSource {
     /// Read from `navigator.userAgentData.getHighEntropyValues` of the branded
     /// Google Chrome installed on the Mac the table was written on, by the

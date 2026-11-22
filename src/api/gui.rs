@@ -164,6 +164,12 @@ pub struct Gui {
     enigo: Enigo,
 }
 
+impl std::fmt::Debug for Gui {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Gui").finish_non_exhaustive()
+    }
+}
+
 impl Gui {
     /// Create a new `Gui` with default `enigo` settings.
     ///

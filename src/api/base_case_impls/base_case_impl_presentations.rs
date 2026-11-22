@@ -13,7 +13,7 @@ fn missing_presentation(name: &str) -> SeleniumBaseError {
 
 /// The name, file, notes and interval of `save_presentation` and
 /// `begin_presentation`: they take the same keyword arguments.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Debug, Default)]
 struct PresentationOptions<'a> {
     name: Option<&'a str>,
     filename: Option<&'a str>,
@@ -189,6 +189,7 @@ impl BaseCase {
 
 /// The call builder of [`BaseCase::create_presentation`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct CreatePresentation<'a> {
     sb: &'a mut BaseCase,
     name: Option<&'a str>,
@@ -234,6 +235,7 @@ impl<'a> std::future::IntoFuture for CreatePresentation<'a> {
 
 /// The call builder of [`BaseCase::add_slide`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct AddSlide<'a> {
     sb: &'a mut BaseCase,
     slide: Slide,
@@ -310,6 +312,7 @@ impl<'a> std::future::IntoFuture for AddSlide<'a> {
 
 /// The call builder of [`BaseCase::save_presentation`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct SavePresentation<'a> {
     sb: &'a BaseCase,
     options: PresentationOptions<'a>,
@@ -358,6 +361,7 @@ impl<'a> std::future::IntoFuture for SavePresentation<'a> {
 
 /// The call builder of [`BaseCase::begin_presentation`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct BeginPresentation<'a> {
     sb: &'a mut BaseCase,
     options: PresentationOptions<'a>,

@@ -109,6 +109,7 @@ pub(crate) struct OffsetOptions {
 /// [`BaseCase::hover_and_js_click`]. The one keyword is
 /// [`timeout`](Self::timeout), how long to wait for each element.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct HoverAndClick<'a> {
     sb: &'a mut BaseCase,
     hover_selector: &'a str,
@@ -173,6 +174,7 @@ impl<'a> IntoFuture for HoverAndClick<'a> {
 /// starts at 1, so a call written for the old 0-based count fails instead of
 /// clicking the wrong element.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct ClickNth<'a> {
     sb: &'a mut BaseCase,
     selector: &'a str,
@@ -231,6 +233,7 @@ impl<'a> IntoFuture for ClickNth<'a> {
 /// The keywords are [`selector`](Self::selector) and [`times`](Self::times);
 /// 0 times does nothing.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct PressArrow<'a> {
     sb: &'a BaseCase,
     arrow: Arrow,
@@ -280,6 +283,7 @@ impl<'a> IntoFuture for PressArrow<'a> {
 /// It comes from [`BaseCase::scroll_down`] and [`BaseCase::scroll_up`]. The
 /// one keyword is [`amount`](Self::amount), a percentage (default 25).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct Scroll<'a> {
     sb: &'a BaseCase,
     up: bool,
@@ -318,6 +322,7 @@ impl<'a> IntoFuture for Scroll<'a> {
 /// It comes from [`BaseCase::drag_and_drop_with_offset`]. The one keyword is
 /// [`timeout`](Self::timeout).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct DragByOffset<'a> {
     sb: &'a mut BaseCase,
     selector: &'a str,
@@ -373,6 +378,7 @@ impl<'a> IntoFuture for DragByOffset<'a> {
 /// [`value`](Self::value) (without one, the attribute only has to exist) and
 /// [`timeout`](Self::timeout) (default: the case's timeout).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct WaitForAttribute<'a> {
     sb: &'a mut BaseCase,
     selector: &'a str,
@@ -445,6 +451,7 @@ impl<'a> IntoFuture for WaitForAttribute<'a> {
 /// [`timeout`](Self::timeout), how long to wait (default: the case's timeout,
 /// see [`BaseCase::set_timeout`]).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct WaitForElement<'a> {
     sb: &'a BaseCase,
     selector: &'a str,
@@ -492,6 +499,7 @@ impl<'a> IntoFuture for WaitForElement<'a> {
 /// [`attribute`](Self::attribute) (`"text"` by default, or `"value"` or
 /// `"index"`) and [`timeout`](Self::timeout) (default: the case's timeout).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct GetSelectOptions<'a> {
     sb: &'a mut BaseCase,
     selector: &'a str,
@@ -552,6 +560,7 @@ impl<'a> IntoFuture for GetSelectOptions<'a> {
 /// demo mode), [`timeout`](Self::timeout), [`center`](Self::center) and
 /// [`scroll`](Self::scroll) (default on).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct ClickWithOffset<'a> {
     sb: &'a mut BaseCase,
     selector: &'a str,
@@ -637,6 +646,7 @@ impl<'a> IntoFuture for ClickWithOffset<'a> {
 /// It comes from [`BaseCase::open_new_tab`] and [`BaseCase::open_new_window`].
 /// The one keyword is [`switch_to`](Self::switch_to).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct OpenNewTab<'a> {
     sb: &'a mut BaseCase,
     switch_to: bool,
@@ -677,6 +687,7 @@ impl<'a> IntoFuture for OpenNewTab<'a> {
 /// `expiry` is dropped, so it lasts for the browser session. A `domain` that
 /// is not part of the page's origin becomes the origin's host, as in Python.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct AddCookie<'a> {
     sb: &'a BaseCase,
     cookie: &'a Cookie,
@@ -718,6 +729,7 @@ impl<'a> IntoFuture for AddCookie<'a> {
 /// [`destination_folder`](Self::destination_folder). The call fails if the
 /// server does not answer with a success status.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct DownloadFile<'a> {
     sb: &'a BaseCase,
     file_url: &'a str,
@@ -761,6 +773,7 @@ impl<'a> IntoFuture for DownloadFile<'a> {
 /// It comes from [`BaseCase::save_file_as`]. The one keyword is
 /// [`destination_folder`](Self::destination_folder).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct SaveFileAs<'a> {
     sb: &'a BaseCase,
     file_url: &'a str,

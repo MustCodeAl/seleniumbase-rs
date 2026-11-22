@@ -48,6 +48,9 @@
 //! test may still be using. The failure-log registry, the shutdown registry
 //! and the reused-session table are process-wide as well.
 
+// Every public type has `Debug` (C-DEBUG, M-PUBLIC-DEBUG); the gate builds with `-D warnings`.
+#![warn(missing_debug_implementations)]
+
 /// The version of Python SeleniumBase whose API this crate tracks.
 ///
 /// Kept in step with `parity/upstream.toml`; see `docs/UPSTREAM_SYNC.md`.

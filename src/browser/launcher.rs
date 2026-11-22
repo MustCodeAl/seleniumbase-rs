@@ -44,6 +44,15 @@ pub struct DriverProcess {
     _guard: OrphanGuard,
 }
 
+impl std::fmt::Debug for DriverProcess {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DriverProcess")
+            .field("url", &self.url)
+            .field("pid", &self.pid)
+            .finish_non_exhaustive()
+    }
+}
+
 impl DriverProcess {
     /// The operating system's id of the driver process.
     #[must_use]
@@ -396,7 +405,7 @@ async fn chromedriver_on_hand(existing: &Path, browser: Option<u32>) -> Option<P
 }
 
 /// The program that automates a browser.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum DriverProgram {
     /// `chromedriver`, for Chrome and every browser built on it that does not
     /// ship a driver of its own.

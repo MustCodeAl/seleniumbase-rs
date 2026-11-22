@@ -178,6 +178,7 @@ impl fmt::Display for WindowRef {
 /// It comes from [`BaseCase::switch_to_frame`]. The keywords are
 /// [`timeout`](Self::timeout) and [`invisible`](Self::invisible).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct SwitchToFrame<'a> {
     sb: &'a mut BaseCase,
     frame: FrameRef,
@@ -235,6 +236,7 @@ impl<'a> IntoFuture for SwitchToFrame<'a> {
 /// [`timeout`](Self::timeout). Nothing happens until [`run`](Self::run) is
 /// awaited.
 #[must_use = "nothing happens until `run` is called with the steps to do in the frame"]
+#[derive(Debug)]
 pub struct FrameSwitch<'a> {
     sb: &'a mut BaseCase,
     frame: FrameRef,
@@ -297,6 +299,7 @@ impl<'a> FrameSwitch<'a> {
 /// It comes from [`BaseCase::switch_to_window`]. The one keyword is
 /// [`timeout`](Self::timeout).
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct SwitchToWindow<'a> {
     sb: &'a BaseCase,
     window: WindowRef,
@@ -341,6 +344,7 @@ impl<'a> IntoFuture for SwitchToWindow<'a> {
 /// It comes from [`BaseCase::switch_to_alert`]. The one keyword is
 /// [`timeout`](Self::timeout). Awaiting it gives the [`Alert`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct SwitchToAlert<'a> {
     sb: &'a BaseCase,
     timeout: Option<Duration>,

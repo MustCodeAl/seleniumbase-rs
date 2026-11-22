@@ -385,6 +385,7 @@ pub(crate) fn bracketed_message(label: &str, text: &str) -> String {
 /// about 0.2 s. An element that does not become visible within the timeout is the
 /// usual wait error.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct Highlight<'a> {
     pub(crate) sb: &'a BaseCase,
     pub(crate) selector: SelectorBuf,
@@ -441,6 +442,7 @@ impl<'a> IntoFuture for Highlight<'a> {
 /// that), and click it. From [`BaseCase::highlight_click`]; the keywords are those
 /// of [`Highlight`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct HighlightClick<'a> {
     pub(crate) sb: &'a mut BaseCase,
     pub(crate) selector: SelectorBuf,
@@ -503,6 +505,7 @@ impl<'a> IntoFuture for HighlightClick<'a> {
 /// field, highlight it (not in demo mode), and replace its text with `text`.
 /// From [`BaseCase::highlight_type`] and [`BaseCase::highlight_update_text`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct HighlightType<'a> {
     pub(crate) sb: &'a mut BaseCase,
     pub(crate) selector: SelectorBuf,
@@ -571,6 +574,7 @@ impl<'a> IntoFuture for HighlightType<'a> {
 /// the element when it is visible, and do nothing, with no error, when it is
 /// not. From [`BaseCase::highlight_if_visible`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct HighlightIfVisible<'a> {
     pub(crate) sb: &'a BaseCase,
     pub(crate) selector: SelectorBuf,
@@ -618,6 +622,7 @@ impl<'a> IntoFuture for HighlightIfVisible<'a> {
 /// highlight every visible element the selector matches, one after the other,
 /// up to `limit` of them (0 is all). From [`BaseCase::highlight_elements`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct HighlightElements<'a> {
     pub(crate) sb: &'a BaseCase,
     pub(crate) selector: SelectorBuf,
@@ -678,6 +683,7 @@ impl<'a> IntoFuture for HighlightElements<'a> {
 /// during the flash). A colour that is not hex is an
 /// [`InvalidConfig`](SeleniumBaseError::InvalidConfig) error.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct Flash<'a> {
     pub(crate) sb: &'a BaseCase,
     pub(crate) selector: SelectorBuf,

@@ -8,7 +8,7 @@ use crate::utilities::importer::pyconv;
 use crate::utils::selectors::is_xpath_selector;
 
 /// Python API family used by the input file.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum PythonSource {
     /// Detect the API family from imports and calls.
     #[default]
@@ -36,7 +36,7 @@ impl Default for ImportOptions {
 }
 
 /// Diagnostic severity emitted during conversion.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum ImportSeverity {
     Warning,
     Error,

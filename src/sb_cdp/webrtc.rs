@@ -98,7 +98,7 @@ const PROBE: &str = r"(async () => {
 })()";
 
 /// What produced an ICE candidate.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum CandidateKind {
     /// An address of one of this machine's interfaces.
@@ -112,7 +112,7 @@ pub enum CandidateKind {
 }
 
 /// What an ICE candidate's address reveals.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum AddressKind {
     /// A `.local` name standing in for a private address.

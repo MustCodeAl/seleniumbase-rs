@@ -463,6 +463,7 @@ impl BaseCase {
 
 /// The call builder of [`BaseCase::create_tour`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct CreateTour<'a> {
     sb: &'a mut BaseCase,
     name: Option<&'a str>,
@@ -499,6 +500,7 @@ impl<'a> std::future::IntoFuture for CreateTour<'a> {
 
 /// The call builder of [`BaseCase::create_shepherd_tour`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct CreateShepherdTour<'a> {
     sb: &'a mut BaseCase,
     name: Option<&'a str>,
@@ -536,6 +538,7 @@ impl<'a> std::future::IntoFuture for CreateShepherdTour<'a> {
 /// looks: [`BaseCase::create_bootstrap_tour`], [`BaseCase::create_driverjs_tour`],
 /// [`BaseCase::create_hopscotch_tour`] and [`BaseCase::create_introjs_tour`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct CreateLibraryTour<'a> {
     sb: &'a mut BaseCase,
     name: Option<&'a str>,
@@ -565,6 +568,7 @@ impl<'a> std::future::IntoFuture for CreateLibraryTour<'a> {
 
 /// The call builder of [`BaseCase::add_tour_step`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct AddTourStep<'a> {
     sb: &'a mut BaseCase,
     message: &'a str,
@@ -650,6 +654,7 @@ impl<'a> std::future::IntoFuture for AddTourStep<'a> {
 
 /// The call builder of [`BaseCase::play_tour`] and [`BaseCase::start_tour`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct PlayTour<'a> {
     sb: &'a BaseCase,
     name: Option<&'a str>,
@@ -683,6 +688,7 @@ impl<'a> std::future::IntoFuture for PlayTour<'a> {
 
 /// The call builder of [`BaseCase::export_tour`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct ExportTour<'a> {
     sb: &'a BaseCase,
     name: Option<&'a str>,

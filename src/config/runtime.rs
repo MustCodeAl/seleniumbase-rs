@@ -37,7 +37,7 @@ pub struct RuntimeConfig {
 }
 
 /// Supported log output formats.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, Hash, PartialEq)]
 pub enum LogFormat {
     /// Human-readable colored output.
     #[default]

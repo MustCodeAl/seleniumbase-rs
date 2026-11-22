@@ -11,6 +11,7 @@ use tokio_tungstenite::tungstenite::Message;
 use crate::error::SeleniumBaseError;
 
 /// Intercepts CDP `Fetch.requestPaused` events and mutates request headers.
+#[derive(Debug)]
 pub struct CdpReactor {
     handle: Option<JoinHandle<()>>,
 }

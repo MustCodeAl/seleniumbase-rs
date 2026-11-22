@@ -17,7 +17,7 @@ use serde_json::{json, Value};
 use thirtyfour::cookie::{Cookie as WebDriverCookie, SameSite as WebDriverSameSite};
 
 /// The `SameSite` attribute of a cookie.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum SameSite {
     /// Sent only for same-site requests.

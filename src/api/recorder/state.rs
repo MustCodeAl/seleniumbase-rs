@@ -7,7 +7,7 @@ use super::RawAction;
 
 /// Why [`BaseCase::wait_for_recorder_end`](crate::BaseCase::wait_for_recorder_end)
 /// returned.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum RecorderEnd {
     /// The person pressed SHIFT+ESC in the browser (`mkrec --ee`).
     ShiftEsc,

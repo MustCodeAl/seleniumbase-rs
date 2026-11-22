@@ -21,7 +21,7 @@ const KEY_DELAY: Duration = Duration::from_millis(8);
 const DRAG_STEPS: u32 = 5;
 
 /// A mouse button.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum Button {
     /// The primary button.

@@ -71,7 +71,7 @@ pub use super::settings::{
 pub use super::spoof::Spoof;
 
 /// Browser persona requested by a profile.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum BrowserType {
@@ -88,7 +88,7 @@ pub enum BrowserType {
 }
 
 /// Operating-system persona.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum OsType {
@@ -132,7 +132,7 @@ impl OsType {
 }
 
 /// QUIC mode.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum QuicMode {
@@ -145,7 +145,7 @@ pub enum QuicMode {
 }
 
 /// WebRTC IP-handling policy.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
 #[non_exhaustive]
 pub enum WebRtcPolicy {

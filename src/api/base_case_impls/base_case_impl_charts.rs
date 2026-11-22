@@ -193,6 +193,7 @@ impl BaseCase {
 /// The call builder of [`BaseCase::create_pie_chart`] and the other
 /// `create_*_chart` methods.
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct CreateChart<'a> {
     sb: &'a mut BaseCase,
     chart_type: ChartType,
@@ -300,6 +301,7 @@ impl<'a> std::future::IntoFuture for CreateChart<'a> {
 
 /// The call builder of [`BaseCase::add_series_to_chart`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct AddSeries<'a> {
     sb: &'a mut BaseCase,
     data_name: Option<&'a str>,
@@ -340,6 +342,7 @@ impl<'a> std::future::IntoFuture for AddSeries<'a> {
 
 /// The call builder of [`BaseCase::add_data_point`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct AddDataPoint<'a> {
     sb: &'a mut BaseCase,
     label: &'a str,
@@ -390,6 +393,7 @@ impl<'a> std::future::IntoFuture for AddDataPoint<'a> {
 
 /// The call builder of [`BaseCase::save_chart`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct SaveChart<'a> {
     sb: &'a BaseCase,
     chart_name: Option<&'a str>,
@@ -436,6 +440,7 @@ impl<'a> std::future::IntoFuture for SaveChart<'a> {
 
 /// The call builder of [`BaseCase::display_chart`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct DisplayChart<'a> {
     sb: &'a mut BaseCase,
     chart_name: Option<&'a str>,
@@ -501,6 +506,7 @@ impl<'a> std::future::IntoFuture for DisplayChart<'a> {
 
 /// The call builder of [`BaseCase::extract_chart`].
 #[must_use = "nothing happens until the call is awaited"]
+#[derive(Debug)]
 pub struct ExtractChart<'a> {
     sb: &'a BaseCase,
     chart_name: Option<&'a str>,

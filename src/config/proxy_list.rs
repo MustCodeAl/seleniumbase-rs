@@ -152,7 +152,7 @@ pub enum RotationStrategy {
 
 /// What happened to a request through a proxy, as [`ProxyList::report`]
 /// records it.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum ProxyOutcome {
     /// The request went through.

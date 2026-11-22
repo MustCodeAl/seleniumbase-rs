@@ -141,7 +141,7 @@ fn filtered(cookies: Vec<Cookie>, filter: Option<&str>) -> Result<Vec<Cookie>, S
 // ----------------------------------------------------------------------
 
 /// Which web storage area.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[non_exhaustive]
 pub enum StorageArea {
     /// `localStorage`, which persists across sessions.
@@ -246,7 +246,7 @@ impl Storage {
 // ----------------------------------------------------------------------
 
 /// How a window is shown.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 #[non_exhaustive]
 pub enum WindowState {

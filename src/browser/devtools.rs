@@ -19,6 +19,12 @@ pub struct CdpClient {
     cdp: Cdp,
 }
 
+impl std::fmt::Debug for CdpClient {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CdpClient").finish_non_exhaustive()
+    }
+}
+
 impl CdpClient {
     /// The client of `driver`'s session.
     pub(crate) fn new(driver: &WebDriver) -> Self {

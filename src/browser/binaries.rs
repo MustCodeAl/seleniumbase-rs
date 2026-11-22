@@ -26,7 +26,7 @@ pub const CHROME_HEADLESS_SHELL_DIR: &str = "chs";
 pub const CHROMIUM_DIR: &str = "chromium";
 
 /// An operating system whose install locations are known.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Platform {
     /// macOS.
     MacOs,

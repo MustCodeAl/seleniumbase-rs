@@ -40,7 +40,7 @@ use crate::error::SeleniumBaseError;
 pub const DEFAULT_HUB_PORT: u16 = 4444;
 
 /// The URL scheme of a Grid.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub enum Scheme {
     /// Plain HTTP.
     Http,

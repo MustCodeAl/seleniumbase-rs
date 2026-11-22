@@ -45,7 +45,7 @@ pub const DEFAULT_NODE_PORT: u16 = 5555;
 const POLL: Duration = Duration::from_millis(50);
 
 /// Which part of a Grid to run.
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum GridRole {
     /// The hub, which tests connect to.
