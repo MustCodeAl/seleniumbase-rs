@@ -233,6 +233,20 @@ impl Color {
     }
 }
 
+impl std::str::FromStr for Color {
+    type Err = SeleniumBaseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::from_string(s)
+    }
+}
+
+impl std::fmt::Display for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.rgba())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

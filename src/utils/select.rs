@@ -29,6 +29,12 @@ pub struct Select<'a> {
     element: &'a Element,
 }
 
+impl<'a> From<&'a Element> for Select<'a> {
+    fn from(element: &'a Element) -> Self {
+        Self::new(element)
+    }
+}
+
 impl<'a> Select<'a> {
     /// Wraps an `<select>` element.
     #[must_use]
