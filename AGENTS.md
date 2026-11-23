@@ -25,7 +25,8 @@ and depends on this crate's public API.
 
 1. `CLAUDE.md`: the module map, the commands, what has bitten before.
 2. The file you are about to change, and the tests next to it.
-3. `parity/api.toml` if you add or change a public API.
+3. `parity/api.toml` (and `docs/parity.md` / https://mustcodeal-seleniumbase-rs.docs7.io/parity) before adding or changing any public API. Python `get_*` methods are already mapped to idiomatic Rust methods without `get_`.
+4. `docs/design/api_guidelines_audit.md`: the crate's strict Rust API rules (C-GETTER, C-CONV, C-CTOR, C-COMMON-TRAITS).
 
 ## Commands
 
@@ -71,6 +72,9 @@ cargo check --features turso --all-targets
   terminal; every command works in any terminal.
 - **Check external APIs against their documentation**, not memory (crates,
   protocols, browser flags).
+- **Follow strict Rust API Guidelines and parity mappings:**
+  - **No `get_` getters:** Never add a `get_` prefix to getters on `BaseCase`, `Element`, `Page`, or any other type (Rule R3 / C-GETTER / Decision D2). A getter is `foo()` or `foo_mut()`, never `get_foo()`. Python SeleniumBase getters (`get_text`, `get_title`, `get_current_url`, `get_cookies`, `get_attribute`, etc.) are mapped to Rust methods without `get_` (`text`, `title`, `current_url`, `cookies`, `attribute`, etc.). Check `parity/api.toml` and `docs/parity.md` (or https://mustcodeal-seleniumbase-rs.docs7.io/parity) first — Python methods are already tracked and mapped to their idiomatic Rust equivalents. Never add redundant `get_*` aliases that violate Rust API conventions.
+  - **Standard conversions & traits:** `as_` for cheap borrow, `to_` for costly conversion, `into_` for consuming (C-CONV). Value types must implement standard traits: `FromStr`, `Display`, `Debug`, `Clone`, `PartialEq`, `Eq`, `Hash` (C-COMMON-TRAITS, C-CONV-TRAITS). Constructors are `new()`, `try_new()` for fallible (C-CTOR).
 - **Match the neighbours:** `thiserror` errors in the library, no `unwrap()`
   outside tests, a doc comment on every public item, `tracing` instead of
   `println!`. `src/mcp` and `src/sb_cdp` use the pedantic lint set: an `#[allow]`
