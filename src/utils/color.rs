@@ -28,6 +28,23 @@ pub struct Color {
     alpha: f64,
 }
 
+impl Eq for Color {}
+
+impl std::hash::Hash for Color {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.red.hash(state);
+        self.green.hash(state);
+        self.blue.hash(state);
+        self.alpha.to_bits().hash(state);
+    }
+}
+
+impl Default for Color {
+    fn default() -> Self {
+        Self::new(0, 0, 0, 1.0)
+    }
+}
+
 impl Color {
     /// Creates a new Color with `red`, `green`, `blue` (0..=255) and `alpha` (0.0..=1.0).
     #[must_use]
@@ -238,6 +255,22 @@ impl std::str::FromStr for Color {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         Self::from_string(s)
+    }
+}
+
+impl TryFrom<&str> for Color {
+    type Error = SeleniumBaseError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::from_string(s)
+    }
+}
+
+impl TryFrom<String> for Color {
+    type Error = SeleniumBaseError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::from_string(&s)
     }
 }
 

@@ -230,7 +230,7 @@ impl BaseCase {
     /// or checkbox/iframe inputs) and clicks using the native OS GUI pointer.
     pub async fn uc_gui_click_captcha(&mut self) -> Result<(), SeleniumBaseError> {
         if let Some(page) = self.session.pure_cdp_page() {
-            let _ = page.gui_click_captcha().await?;
+            page.gui_click_captcha().await?;
             return Ok(());
         }
         for sel in [
@@ -241,9 +241,8 @@ impl BaseCase {
             "iframe[src*='cloudflare']",
             "input[type='checkbox']",
         ] {
-            if self.is_element_visible(sel).await.unwrap_or(false) {
+            if self.is_element_visible(sel).await? {
                 self.gui_click_element(sel).await?;
-                tokio::time::sleep(Duration::from_millis(1500)).await;
                 return Ok(());
             }
         }
