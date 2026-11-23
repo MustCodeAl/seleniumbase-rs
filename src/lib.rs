@@ -63,6 +63,8 @@ pub mod browser;
 pub mod cli;
 pub mod common;
 pub mod config;
+pub mod crawler;
+pub mod extract;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module (it held for
 // the cookie type while it lived in `sb_cdp`).
 #[warn(
@@ -249,6 +251,8 @@ pub use config::{LogFormat, RuntimeConfig};
 #[doc(inline)]
 pub use cookie::{Cookie, SameSite};
 #[doc(inline)]
+pub use crawler::{CrawlItem, Crawler, CrawlerBuilder};
+#[doc(inline)]
 pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseError};
 #[doc(inline)]
 pub use evasion::capture::CapturedFingerprint;
@@ -272,6 +276,10 @@ pub use evasion::{
     engine_spoofing_args, find_system_chrome, find_system_chrome_with, ChromeBinaryPatcher,
     ChromedriverPatcher, EnginePatch,
 };
+#[doc(inline)]
+pub use extract::{extract_json_ld, extract_json_ld_raw, PageMetadata, TableData};
+#[doc(inline)]
+pub use sb_cdp::ResilientLocator;
 #[doc(inline)]
 pub use sb_cdp::{Key, SelectBy};
 #[doc(inline)]

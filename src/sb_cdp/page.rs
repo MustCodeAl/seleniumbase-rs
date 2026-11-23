@@ -134,6 +134,19 @@ impl Page {
         Locator::new(self.clone(), selector.into())
     }
 
+    /// Returns a self-healing [`ResilientLocator`](super::ResilientLocator) that tries candidate selectors in order.
+    ///
+    /// If the primary selector fails to resolve, subsequent candidates are tried
+    /// and the successful selector is automatically cached for subsequent actions.
+    #[must_use]
+    pub fn resilient_locator(
+        &self,
+        candidates: &[impl Into<Selector> + Clone],
+    ) -> super::ResilientLocator {
+        let selector_list: Vec<Selector> = candidates.iter().map(|s| s.clone().into()).collect();
+        super::ResilientLocator::new(self.clone(), selector_list)
+    }
+
     // ------------------------------------------------------------------
     // Protocol access
     // ------------------------------------------------------------------
@@ -641,6 +654,43 @@ impl Page {
     /// Returns [`SeleniumBaseError::CdpDriver`] if the page cannot be queried.
     pub async fn content(&self) -> Result<String, SeleniumBaseError> {
         self.string_of("document.documentElement.outerHTML").await
+    }
+
+    /// Extracts structured metadata (SEO, `OpenGraph`, Twitter Cards, canonical URL)
+    /// from the current page's HTML `<head>`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if the page HTML cannot be queried.
+    pub async fn metadata(&self) -> Result<crate::extract::PageMetadata, SeleniumBaseError> {
+        let html = self.content().await?;
+        Ok(crate::extract::PageMetadata::from_html(&html))
+    }
+
+    /// Extracts and deserializes Schema.org JSON-LD structured data from `<script type="application/ld+json">` tags.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if the page HTML cannot be queried or deserialization fails.
+    pub async fn json_ld<T: serde::de::DeserializeOwned>(
+        &self,
+    ) -> Result<Vec<T>, SeleniumBaseError> {
+        let html = self.content().await?;
+        crate::extract::extract_json_ld(&html)
+    }
+
+    /// Extracts an HTML `<table>` matching `selector` into structured headers and rows.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if the element is not found or is not a valid table.
+    pub async fn table(
+        &self,
+        selector: impl Into<Selector>,
+    ) -> Result<crate::extract::TableData, SeleniumBaseError> {
+        let loc = self.locator(selector);
+        let html = loc.html().await?;
+        crate::extract::TableData::from_html(&html)
     }
 
     /// A CSS selector for the element that has keyboard focus: the shortest one

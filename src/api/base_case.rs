@@ -4386,6 +4386,7 @@ include!("base_case_impls/base_case_impl_recorder.rs");
 include!("base_case_impls/base_case_impl_fingerprint.rs");
 include!("base_case_impls/base_case_impl_debug.rs");
 include!("base_case_impls/base_case_impl_test_data.rs");
+include!("base_case_impls/base_case_impl_extract.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]

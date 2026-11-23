@@ -100,6 +100,7 @@ pub(crate) mod plugin_hooks;
 mod plugin_network;
 mod pool;
 mod proxy_auth;
+pub mod resilient;
 mod session_store;
 mod state;
 pub(crate) mod sync;
@@ -157,6 +158,8 @@ pub(crate) use page::without_final_return;
 pub use page::Page;
 #[doc(inline)]
 pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
+#[doc(inline)]
+pub use resilient::ResilientLocator;
 #[doc(inline)]
 pub use session_store::{Session, SessionBuilder, SessionStore};
 #[doc(inline)]

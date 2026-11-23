@@ -10,6 +10,14 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **High-Throughput Concurrent Crawler Pipeline (`seleniumbase_rs::crawler`)**:
+  - Tokio-native asynchronous web crawling engine (`CrawlerBuilder`, `Crawler`) featuring bounded concurrency, token-bucket rate limiting, automatic exponential backoff retries, per-page CDP context isolation, and structured result aggregation (`CrawlItem<T>`).
+- **Type-Safe Structured Data Extraction (`seleniumbase_rs::extract`)**:
+  - `PageMetadata`: Zero-overhead parsing of SEO metadata, `OpenGraph` tags, Twitter Cards, canonical URL, and custom meta properties directly into strongly typed models via `sb.metadata()` and `page.metadata()`.
+  - `extract_json_ld<T: DeserializeOwned>()`: Direct deserialization of Schema.org JSON-LD scripts (including nested `@graph` arrays) into typed Rust structs via `sb.json_ld::<T>()` and `page.json_ld::<T>()`.
+  - `TableData`: Automated HTML table parsing extracting structured columns and rows, with `.to_records::<T: DeserializeOwned>()` mapping rows directly into typed structs without manual DOM traversal.
+- **Resilient / Auto-Healing Locators (`ResilientLocator`)**:
+  - Fallback locator cascade resolving selector drift dynamically: prioritizes candidate selectors, automatically selects the first matching element in the DOM, caches the working selector in-memory for instant subsequent lookups, and emits structured `tracing::warn!` diagnostics on drift. Accessible via `page.resilient_locator(&[sel1, sel2, ...])`.
 - **SeleniumBase Method Parity & UC Helpers**:
   - Implemented `r#type(selector, text)`, `uc_open(url)`, `uc_open_with_tab(url)`, and `skip(reason)` aliases on `BaseCase`, strictly adhering to Rust API naming guidelines (C-GETTER) without unidiomatic `get_` prefixes (e.g. `text`, `title`, `current_url`, `page_source`, `attribute`, `property`, `cookies`, `value`, etc.).
   - Added zero-argument `uc_gui_click_captcha()` with automated candidate detection (`.cf-turnstile`, `#challenge-stage`, Turnstile iframes, checkbox) and CDP `Page::gui_click_captcha` delegation, plus `uc_gui_press_keys(keys)`.
