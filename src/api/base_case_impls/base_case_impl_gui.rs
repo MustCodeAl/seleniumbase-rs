@@ -218,6 +218,38 @@ impl BaseCase {
         self.gui_press_key(key)
     }
 
+    /// UC alias for [`gui_press_keys`].
+    pub fn uc_gui_press_keys(&self, keys: &[&str]) -> Result<(), SeleniumBaseError> {
+        self.gui_press_keys(keys)
+    }
+
+    /// Solves or clicks an interactive challenge / CAPTCHA (such as Cloudflare Turnstile).
+    ///
+    /// If pure CDP is available, delegates to [`Page::gui_click_captcha`].
+    /// Otherwise locates standard challenge candidate elements (`.cf-turnstile`, `#challenge-stage`,
+    /// or checkbox/iframe inputs) and clicks using the native OS GUI pointer.
+    pub async fn uc_gui_click_captcha(&mut self) -> Result<(), SeleniumBaseError> {
+        if let Some(page) = self.session.pure_cdp_page() {
+            let _ = page.gui_click_captcha().await?;
+            return Ok(());
+        }
+        for sel in [
+            ".cf-turnstile",
+            "#challenge-stage",
+            "iframe[src*='turnstile']",
+            "iframe[src*='challenge']",
+            "iframe[src*='cloudflare']",
+            "input[type='checkbox']",
+        ] {
+            if self.is_element_visible(sel).await.unwrap_or(false) {
+                self.gui_click_element(sel).await?;
+                tokio::time::sleep(Duration::from_millis(1500)).await;
+                return Ok(());
+            }
+        }
+        Ok(())
+    }
+
     /// Best-effort CAPTCHA handler: waits for the element matching `css` to be
     /// visible, then clicks it using native mouse input.
     ///
