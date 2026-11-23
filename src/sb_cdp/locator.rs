@@ -716,6 +716,16 @@ impl Locator {
         crate::extract::TableData::from_html(&html)
     }
 
+    /// Converts this element's HTML subtree into clean, LLM-ready Markdown.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if the element is not found.
+    pub async fn markdown(&self) -> Result<String, SeleniumBaseError> {
+        let html = self.html().await?;
+        Ok(crate::extract::html_to_markdown(&html))
+    }
+
     /// The value of attribute `name`, or `None` if the element lacks it.
     ///
     /// # Errors

@@ -91,7 +91,7 @@ variables:
   # the languages that analyzer has always covered (here the JavaScript, Python, TypeScript and
   # Ruby ones).
   GITLAB_ADVANCED_SAST_ENABLED: "true"
-  RUST_VERSION: "1.99"
+  RUST_VERSION: "1.100"
   # The feature set of "Build and check" in CLAUDE.md and CONTRIBUTING.md.
   FEATURES: "mcp-server test-util testing bdd"
   # The command line package has no `testing` or `bdd` feature.
@@ -348,3 +348,23 @@ chrome:
         --skip cli_fingerprint
       run playwright mise exec -- cargo test -p seleniumbase-rs-playwright --test playwright_chrome -- --ignored --test-threads=1
       exit $status
+
+release:binaries:
+  stage: test
+  extends: .rust
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - if: $CI_PIPELINE_SOURCE == "web"
+  script:
+    - mise exec -- cargo build --release --locked --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features "$CLI_FEATURES,pdf,plugins-builtin"
+    - mkdir -p dist
+    - cp target/release/sbrs target/release/sbrs-mcp dist/
+    - tar -czf dist/seleniumbase-rs-${CI_COMMIT_TAG:-v0.9.1}-x86_64-unknown-linux-gnu.tar.gz -C dist sbrs sbrs-mcp
+    - cd dist && sha256sum * > SHA256SUMS
+  artifacts:
+    name: "seleniumbase-rs-binaries-${CI_COMMIT_TAG:-v0.9.1}"
+    when: always
+    expire_in: 4 weeks
+    paths:
+      - dist/
+

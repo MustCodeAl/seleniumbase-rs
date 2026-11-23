@@ -1,6 +1,7 @@
 //! Builder for configuring concurrent [`Crawler`](super::Crawler) instances.
 
 use super::engine::Crawler;
+use super::spider::{Spider, SpiderConfig};
 use crate::error::SeleniumBaseError;
 use std::time::Duration;
 
@@ -17,6 +18,8 @@ use std::time::Duration;
 ///     .rate_limit_per_sec(10)
 ///     .retry_attempts(3)
 ///     .timeout(Duration::from_secs(20))
+///     .user_agent("MyCrawler")
+///     .respect_robots_txt(true)
 ///     .build()
 ///     .unwrap();
 /// ```
@@ -26,6 +29,8 @@ pub struct CrawlerBuilder {
     pub(crate) rate_limit_per_sec: u32,
     pub(crate) retry_attempts: usize,
     pub(crate) timeout: Duration,
+    pub(crate) user_agent: Option<String>,
+    pub(crate) respect_robots_txt: bool,
 }
 
 impl Default for CrawlerBuilder {
@@ -35,6 +40,8 @@ impl Default for CrawlerBuilder {
             rate_limit_per_sec: 0,
             retry_attempts: 2,
             timeout: Duration::from_secs(30),
+            user_agent: None,
+            respect_robots_txt: true,
         }
     }
 }
@@ -82,6 +89,28 @@ impl CrawlerBuilder {
         self
     }
 
+    /// Sets the User-Agent string used for crawl requests and robots.txt checking.
+    #[must_use]
+    pub fn user_agent(mut self, ua: impl Into<String>) -> Self {
+        self.user_agent = Some(ua.into());
+        self
+    }
+
+    /// Configures whether robots.txt rules are automatically checked and respected.
+    ///
+    /// Defaults to `true`.
+    #[must_use]
+    pub fn respect_robots_txt(mut self, respect: bool) -> Self {
+        self.respect_robots_txt = respect;
+        self
+    }
+
+    /// Creates a [`Spider`] with the given configuration.
+    #[must_use]
+    pub fn spider(self, config: SpiderConfig) -> Spider {
+        Spider::new(config)
+    }
+
     /// Validates configuration and constructs a [`Crawler`](super::Crawler).
     ///
     /// # Errors
@@ -109,6 +138,16 @@ mod tests {
         assert_eq!(crawler.concurrency(), 4);
         assert_eq!(crawler.rate_limit_per_sec(), 0);
         assert_eq!(crawler.retry_attempts(), 2);
+        assert!(crawler.respect_robots_txt());
+        assert_eq!(crawler.user_agent(), None);
+
+        let custom = CrawlerBuilder::default()
+            .user_agent("CustomBot")
+            .respect_robots_txt(false)
+            .build()
+            .unwrap();
+        assert_eq!(custom.user_agent(), Some("CustomBot"));
+        assert!(!custom.respect_robots_txt());
 
         let invalid = CrawlerBuilder::default().concurrency(0).build();
         assert!(invalid.is_err());

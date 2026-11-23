@@ -14,6 +14,7 @@
 //!   and the phone emulation;
 //! * `plugins`: browser plugins (feature `plugins`).
 
+mod bidi;
 mod browser_session;
 mod capabilities;
 mod cdp;
@@ -31,6 +32,7 @@ mod plugins;
 mod pure_cdp;
 mod waits;
 
+pub use bidi::{BidiNetworkEvent, DEFAULT_BIDI_BUFFER_SIZE};
 pub use browser_session::BrowserSession;
 
 #[cfg(feature = "plugins")]

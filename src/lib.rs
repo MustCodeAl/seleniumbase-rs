@@ -244,6 +244,8 @@ pub use browser::reuse::shutdown_reused_sessions;
 #[doc(inline)]
 pub use browser::session::BrowserSession;
 #[doc(inline)]
+pub use browser::session::{BidiNetworkEvent, DEFAULT_BIDI_BUFFER_SIZE};
+#[doc(inline)]
 pub use common::tls::install_tls_provider;
 #[doc(inline)]
 pub use config::settings::{Settings, SettingsOverrides};
@@ -252,7 +254,9 @@ pub use config::{LogFormat, RuntimeConfig};
 #[doc(inline)]
 pub use cookie::{Cookie, SameSite};
 #[doc(inline)]
-pub use crawler::{CrawlItem, Crawler, CrawlerBuilder};
+pub use crawler::{
+    CrawlItem, Crawler, CrawlerBuilder, RobotsPolicy, Spider, SpiderConfig, SpiderConfigBuilder,
+};
 #[doc(inline)]
 pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseError};
 #[doc(inline)]

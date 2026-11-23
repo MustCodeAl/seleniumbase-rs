@@ -3,15 +3,19 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
-use tokio::sync::oneshot;
+use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
+use tokio::sync::{mpsc, oneshot};
 use tokio::task::{JoinHandle, JoinSet};
 
 use super::client::{CdpEvent, Events};
+use super::sync::locked;
 use super::Page;
 use crate::error::SeleniumBaseError;
 
@@ -217,6 +221,170 @@ impl Page {
             page: self.clone(),
         })
     }
+
+    /// Starts streaming this tab's network entries directly to disk in JSON Lines (JSONL) format.
+    ///
+    /// Network entries are written with buffered I/O as they complete and released from RAM,
+    /// preventing memory bloat on large or long-running browser capture sessions.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] if creating the file at `path` fails, or
+    /// [`SeleniumBaseError::CdpDriver`] if enabling network capture fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+    ///
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let browser = Browser::launch(LaunchOptions::default()).await?;
+    /// let page = browser.default_page().await?;
+    /// let capture = page.stream_to_jsonl("network.jsonl").await?;
+    /// page.goto("https://example.com").await?;
+    /// let stats = capture.finish().await?;
+    /// println!("Streamed {} entries", stats.entries_count);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn stream_to_jsonl(
+        &self,
+        path: impl AsRef<Path>,
+    ) -> Result<HarCapture, SeleniumBaseError> {
+        self.stream_to_jsonl_with(path, HarOptions::default()).await
+    }
+
+    /// Starts streaming this tab's network entries to `path` in JSON Lines format with custom options.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] if creating the file at `path` fails, or
+    /// [`SeleniumBaseError::CdpDriver`] if enabling network capture fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, HarOptions, LaunchOptions};
+    ///
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let browser = Browser::launch(LaunchOptions::default()).await?;
+    /// let page = browser.default_page().await?;
+    /// let opts = HarOptions::new().content(true);
+    /// let capture = page.stream_to_jsonl_with("network.jsonl", opts).await?;
+    /// page.goto("https://example.com").await?;
+    /// capture.finish().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn stream_to_jsonl_with(
+        &self,
+        path: impl AsRef<Path>,
+        options: HarOptions,
+    ) -> Result<HarCapture, SeleniumBaseError> {
+        let writer = HarStreamWriter::from_path(path).await?.jsonl();
+        self.start_har_stream_with(writer, options).await
+    }
+
+    /// Starts streaming network entries to the given [`HarStreamWriter`].
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if enabling network capture fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, HarStreamWriter, LaunchOptions, SharedBuffer};
+    ///
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let browser = Browser::launch(LaunchOptions::default()).await?;
+    /// let page = browser.default_page().await?;
+    /// let buffer = SharedBuffer::new();
+    /// let writer = HarStreamWriter::from_writer(buffer.clone());
+    /// let capture = page.start_har_stream(writer).await?;
+    /// page.goto("https://example.com").await?;
+    /// capture.finish().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn start_har_stream(
+        &self,
+        writer: HarStreamWriter,
+    ) -> Result<HarCapture, SeleniumBaseError> {
+        self.start_har_stream_with(writer, HarOptions::default())
+            .await
+    }
+
+    /// Starts streaming network entries to the given [`HarStreamWriter`] with custom options.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if enabling network capture fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, HarOptions, HarStreamWriter, LaunchOptions};
+    ///
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let browser = Browser::launch(LaunchOptions::default()).await?;
+    /// let page = browser.default_page().await?;
+    /// let writer = HarStreamWriter::from_path("capture.har").await?.har_chunks();
+    /// let capture = page.start_har_stream_with(writer, HarOptions::default()).await?;
+    /// page.goto("https://example.com").await?;
+    /// capture.finish().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn start_har_stream_with(
+        &self,
+        writer: HarStreamWriter,
+        options: HarOptions,
+    ) -> Result<HarCapture, SeleniumBaseError> {
+        let events = self.browser().events();
+        self.execute("Network.enable", json!({})).await?;
+        let _ = self
+            .execute("Target.setAutoAttach", attach_iframes(true))
+            .await;
+        let (stop, stopped) = oneshot::channel();
+        let (attach_tx, attach_rx) = mpsc::channel(16);
+        let shared_entries = Arc::new(AtomicU64::new(0));
+        let shared_bytes = Arc::new(AtomicU64::new(0));
+
+        let task = tokio::spawn(record_stream(
+            events,
+            stopped,
+            attach_rx,
+            self.clone(),
+            options,
+            self.id().to_owned(),
+            self.session_id().to_owned(),
+            Some(writer),
+            Arc::clone(&shared_entries),
+            Arc::clone(&shared_bytes),
+        ));
+
+        Ok(HarCapture {
+            stop: Some(stop),
+            attach_tx: Some(attach_tx),
+            task: Some(task),
+            entries_count: shared_entries,
+            bytes_written: shared_bytes,
+            page: self.clone(),
+        })
+    }
+
+    /// Attaches a streaming writer to capture this tab's network traffic. Same as [`start_har_stream`](Self::start_har_stream).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if enabling network capture fails.
+    pub async fn attach_har_writer(
+        &self,
+        writer: HarStreamWriter,
+    ) -> Result<HarCapture, SeleniumBaseError> {
+        self.start_har_stream(writer).await
+    }
 }
 
 impl HarRecorder {
@@ -259,6 +427,1047 @@ impl Drop for HarRecorder {
             }
         }
     }
+}
+
+/// The serialization format used by a [`HarStreamWriter`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
+#[non_exhaustive]
+pub enum HarStreamFormat {
+    /// Each line is a single JSON-serialized [`HarEntry`] (JSON Lines format).
+    #[default]
+    JsonLines,
+    /// Chunks of standard HAR 1.2 JSON, starting with header metadata, appending
+    /// serialized entries separated by commas, and closed with a trailing footer.
+    HarChunks,
+    /// Raw incoming CDP network events as JSON Lines.
+    RawEvents,
+}
+
+impl std::fmt::Display for HarStreamFormat {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::JsonLines => write!(f, "jsonl"),
+            Self::HarChunks => write!(f, "har-chunks"),
+            Self::RawEvents => write!(f, "raw-events"),
+        }
+    }
+}
+
+impl std::str::FromStr for HarStreamFormat {
+    type Err = SeleniumBaseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_ascii_lowercase().as_str() {
+            "jsonl" | "jsonlines" | "json_lines" => Ok(Self::JsonLines),
+            "har" | "harchunks" | "har_chunks" | "har-chunks" => Ok(Self::HarChunks),
+            "raw" | "raw_events" | "raw-events" => Ok(Self::RawEvents),
+            _ => Err(SeleniumBaseError::parse(
+                s,
+                "expected 'jsonl', 'har-chunks', or 'raw-events'",
+            )),
+        }
+    }
+}
+
+/// Statistics recorded by a [`HarCapture`] or [`HarStreamWriter`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+#[non_exhaustive]
+pub struct HarStreamStats {
+    /// The number of entries successfully written to the stream.
+    pub entries_count: u64,
+    /// Total bytes written to the underlying writer.
+    pub bytes_written: u64,
+}
+
+impl std::fmt::Display for HarStreamStats {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{} entries, {} bytes written",
+            self.entries_count, self.bytes_written
+        )
+    }
+}
+
+/// A cloneable in-memory buffer implementing [`AsyncWrite`] for capturing
+/// streamed HAR or JSONL output without touching the filesystem.
+///
+/// # Examples
+///
+/// ```
+/// use seleniumbase_rs::sb_cdp::SharedBuffer;
+///
+/// let buffer = SharedBuffer::new();
+/// assert_eq!(buffer.to_vec().len(), 0);
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct SharedBuffer(Arc<std::sync::Mutex<Vec<u8>>>);
+
+impl SharedBuffer {
+    /// Creates a new empty shared buffer.
+    #[must_use]
+    pub fn new() -> Self {
+        Self(Arc::new(std::sync::Mutex::new(Vec::new())))
+    }
+
+    /// Returns a copy of the bytes written to the buffer so far.
+    #[must_use]
+    pub fn to_vec(&self) -> Vec<u8> {
+        locked(&self.0).clone()
+    }
+
+    /// Returns the bytes written so far as a UTF-8 string (lossy decoded).
+    #[must_use]
+    pub fn to_string_lossy(&self) -> String {
+        String::from_utf8_lossy(&self.to_vec()).into_owned()
+    }
+}
+
+impl AsyncWrite for SharedBuffer {
+    fn poll_write(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+        buf: &[u8],
+    ) -> std::task::Poll<Result<usize, std::io::Error>> {
+        let mut guard = locked(&self.0);
+        guard.extend_from_slice(buf);
+        std::task::Poll::Ready(Ok(buf.len()))
+    }
+
+    fn poll_flush(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+
+    fn poll_shutdown(
+        self: std::pin::Pin<&mut Self>,
+        _cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), std::io::Error>> {
+        std::task::Poll::Ready(Ok(()))
+    }
+}
+
+/// A buffered asynchronous writer for streaming network entries or raw CDP events
+/// directly to disk or an arbitrary async writer without buffering full capture lists in RAM.
+pub struct HarStreamWriter {
+    writer: Box<dyn AsyncWrite + Send + Unpin + 'static>,
+    format: HarStreamFormat,
+    entries_count: u64,
+    bytes_written: u64,
+    header_written: bool,
+}
+
+impl std::fmt::Debug for HarStreamWriter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("HarStreamWriter")
+            .field("format", &self.format)
+            .field("entries_count", &self.entries_count)
+            .field("bytes_written", &self.bytes_written)
+            .field("header_written", &self.header_written)
+            .finish_non_exhaustive()
+    }
+}
+
+impl HarStreamWriter {
+    /// Creates a streaming writer writing to the provided [`AsyncWrite`] sink
+    /// wrapped in a [`BufWriter`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::sb_cdp::{HarStreamWriter, SharedBuffer};
+    ///
+    /// let buffer = SharedBuffer::new();
+    /// let writer = HarStreamWriter::from_writer(buffer);
+    /// assert_eq!(writer.entries_count(), 0);
+    /// ```
+    #[must_use]
+    pub fn from_writer<W>(writer: W) -> Self
+    where
+        W: AsyncWrite + Send + Unpin + 'static,
+    {
+        Self {
+            writer: Box::new(BufWriter::new(writer)),
+            format: HarStreamFormat::JsonLines,
+            entries_count: 0,
+            bytes_written: 0,
+            header_written: false,
+        }
+    }
+
+    /// Alias for [`from_writer`](Self::from_writer).
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seleniumbase_rs::sb_cdp::{HarStreamWriter, SharedBuffer};
+    ///
+    /// let writer = HarStreamWriter::new(SharedBuffer::new());
+    /// assert_eq!(writer.entries_count(), 0);
+    /// ```
+    #[must_use]
+    pub fn new<W>(writer: W) -> Self
+    where
+        W: AsyncWrite + Send + Unpin + 'static,
+    {
+        Self::from_writer(writer)
+    }
+
+    /// Creates a streaming writer writing directly to a file at `path`.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] if creating the file fails.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::HarStreamWriter;
+    ///
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let writer = HarStreamWriter::from_path("capture.jsonl").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn from_path(path: impl AsRef<Path>) -> Result<Self, SeleniumBaseError> {
+        let path = path.as_ref();
+        let file = tokio::fs::File::create(path).await.map_err(|error| {
+            SeleniumBaseError::Io(std::io::Error::new(
+                error.kind(),
+                format!("cannot create HAR stream file {}: {error}", path.display()),
+            ))
+        })?;
+        Ok(Self::from_writer(file))
+    }
+
+    /// Sets the output format ([`HarStreamFormat::JsonLines`] by default).
+    #[must_use]
+    pub fn format(mut self, format: HarStreamFormat) -> Self {
+        self.format = format;
+        self
+    }
+
+    /// Configures the writer to output in JSON Lines format.
+    #[must_use]
+    pub fn jsonl(self) -> Self {
+        self.format(HarStreamFormat::JsonLines)
+    }
+
+    /// Configures the writer to output in chunked standard HAR format.
+    #[must_use]
+    pub fn har_chunks(self) -> Self {
+        self.format(HarStreamFormat::HarChunks)
+    }
+
+    /// Configures the writer to output raw CDP network events as JSON Lines.
+    #[must_use]
+    pub fn raw_events(self) -> Self {
+        self.format(HarStreamFormat::RawEvents)
+    }
+
+    /// The format currently configured for this writer.
+    #[must_use]
+    pub fn stream_format(&self) -> HarStreamFormat {
+        self.format
+    }
+
+    /// The number of entries successfully written so far.
+    #[must_use]
+    pub fn entries_count(&self) -> u64 {
+        self.entries_count
+    }
+
+    /// The number of bytes written so far.
+    #[must_use]
+    pub fn bytes_written(&self) -> u64 {
+        self.bytes_written
+    }
+
+    /// Returns the current statistics.
+    #[must_use]
+    pub fn stats(&self) -> HarStreamStats {
+        HarStreamStats {
+            entries_count: self.entries_count,
+            bytes_written: self.bytes_written,
+        }
+    }
+
+    /// Writes a single completed [`HarEntry`] to the underlying stream.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] if an I/O error occurs, or
+    /// [`SeleniumBaseError::Json`] if serialization fails.
+    pub async fn write_entry(&mut self, entry: &HarEntry) -> Result<(), SeleniumBaseError> {
+        match self.format {
+            HarStreamFormat::JsonLines | HarStreamFormat::RawEvents => {
+                let mut line = serde_json::to_string(entry)?;
+                line.push('\n');
+                self.write_all_bytes(line.as_bytes()).await?;
+                self.entries_count += 1;
+            }
+            HarStreamFormat::HarChunks => {
+                if self.header_written {
+                    self.write_all_bytes(b",\n").await?;
+                } else {
+                    let header = format!(
+                        "{{\"log\":{{\"version\":\"1.2\",\"creator\":{{\"name\":\"seleniumbase-rs\",\"version\":\"{}\"}},\"pages\":[],\"entries\":[",
+                        env!("CARGO_PKG_VERSION")
+                    );
+                    self.write_all_bytes(header.as_bytes()).await?;
+                    self.header_written = true;
+                }
+                let chunk = serde_json::to_string(entry)?;
+                self.write_all_bytes(chunk.as_bytes()).await?;
+                self.entries_count += 1;
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes a raw CDP network event to the stream (when in [`HarStreamFormat::RawEvents`] mode).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] or [`SeleniumBaseError::Json`] on failure.
+    pub async fn write_raw_event(&mut self, event: &CdpEvent) -> Result<(), SeleniumBaseError> {
+        if self.format == HarStreamFormat::RawEvents {
+            let raw = json!({
+                "method": &event.method,
+                "params": &event.params,
+                "sessionId": &event.session_id,
+            });
+            let mut line = serde_json::to_string(&raw)?;
+            line.push('\n');
+            self.write_all_bytes(line.as_bytes()).await?;
+        }
+        Ok(())
+    }
+
+    async fn write_all_bytes(&mut self, bytes: &[u8]) -> Result<(), SeleniumBaseError> {
+        self.writer
+            .write_all(bytes)
+            .await
+            .map_err(SeleniumBaseError::Io)?;
+        self.bytes_written += bytes.len() as u64;
+        Ok(())
+    }
+
+    /// Flushes any buffered bytes in the underlying writer.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] on flush failure.
+    pub async fn flush(&mut self) -> Result<(), SeleniumBaseError> {
+        self.writer.flush().await.map_err(SeleniumBaseError::Io)
+    }
+
+    /// Flushes any buffered bytes and writes the closing JSON footer if needed.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Io`] on write or flush failure.
+    pub async fn finish(&mut self) -> Result<HarStreamStats, SeleniumBaseError> {
+        if self.format == HarStreamFormat::HarChunks {
+            if self.header_written {
+                self.write_all_bytes(b"\n]}}\n").await?;
+            } else {
+                let empty = format!(
+                    "{{\"log\":{{\"version\":\"1.2\",\"creator\":{{\"name\":\"seleniumbase-rs\",\"version\":\"{}\"}},\"pages\":[],\"entries\":[]}}}}\n",
+                    env!("CARGO_PKG_VERSION")
+                );
+                self.write_all_bytes(empty.as_bytes()).await?;
+                self.header_written = true;
+            }
+        }
+        self.writer.flush().await.map_err(SeleniumBaseError::Io)?;
+        Ok(self.stats())
+    }
+}
+
+/// An in-progress streaming capture of one tab's network traffic.
+///
+/// Unlike [`HarRecorder`], which buffers up to [`MAX_ENTRIES`] in memory until
+/// completed, [`HarCapture`] continuously streams completed network entries to
+/// one or more [`HarStreamWriter`] sinks using buffered I/O, releasing request memory
+/// as soon as each entry finishes.
+#[derive(Debug)]
+pub struct HarCapture {
+    stop: Option<oneshot::Sender<()>>,
+    attach_tx: Option<mpsc::Sender<HarStreamWriter>>,
+    task: Option<JoinHandle<Result<HarStreamStats, SeleniumBaseError>>>,
+    entries_count: Arc<AtomicU64>,
+    bytes_written: Arc<AtomicU64>,
+    page: Page,
+}
+
+impl HarCapture {
+    /// Attaches an additional streaming writer to this in-progress capture session.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the streaming task has already stopped.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, HarStreamWriter, LaunchOptions, SharedBuffer};
+    ///
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let browser = Browser::launch(LaunchOptions::default()).await?;
+    /// let page = browser.default_page().await?;
+    /// let capture = page.stream_to_jsonl("traffic.jsonl").await?;
+    /// let mem_sink = SharedBuffer::new();
+    /// capture.attach_writer(HarStreamWriter::from_writer(mem_sink)).await?;
+    /// page.goto("https://example.com").await?;
+    /// capture.finish().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn attach_writer(&self, writer: HarStreamWriter) -> Result<(), SeleniumBaseError> {
+        if let Some(tx) = &self.attach_tx {
+            tx.send(writer).await.map_err(|err| {
+                SeleniumBaseError::cdp_driver(format!(
+                    "the HAR streaming capture task has already stopped: {err}"
+                ))
+            })?;
+            Ok(())
+        } else {
+            Err(SeleniumBaseError::cdp_driver(
+                "the capture cannot accept more writers",
+            ))
+        }
+    }
+
+    /// The number of entries successfully streamed to disk or sinks so far.
+    #[must_use]
+    pub fn entries_streamed(&self) -> u64 {
+        self.entries_count.load(Ordering::Relaxed)
+    }
+
+    /// Total bytes written across all attached writers so far.
+    #[must_use]
+    pub fn bytes_written(&self) -> u64 {
+        self.bytes_written.load(Ordering::Relaxed)
+    }
+
+    /// Returns current streaming statistics.
+    #[must_use]
+    pub fn stats(&self) -> HarStreamStats {
+        HarStreamStats {
+            entries_count: self.entries_streamed(),
+            bytes_written: self.bytes_written(),
+        }
+    }
+
+    /// Stops streaming, flushes all attached writers, and returns final statistics.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::CdpDriver`] if the recording task encountered an error.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
+    ///
+    /// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    /// let browser = Browser::launch(LaunchOptions::default()).await?;
+    /// let page = browser.default_page().await?;
+    /// let capture = page.stream_to_jsonl("traffic.jsonl").await?;
+    /// page.goto("https://example.com").await?;
+    /// let stats = capture.finish().await?;
+    /// println!("Captured {} requests", stats.entries_count);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn finish(mut self) -> Result<HarStreamStats, SeleniumBaseError> {
+        if let Some(stop) = self.stop.take() {
+            let _ = stop.send(());
+        }
+        self.attach_tx.take();
+        let task = self.task.take().ok_or_else(|| {
+            SeleniumBaseError::cdp_driver("the HAR streaming capture already ended")
+        })?;
+        task.await.map_err(|error| {
+            SeleniumBaseError::cdp_driver(format!("the HAR streaming capture stopped: {error}"))
+        })?
+    }
+}
+
+impl Drop for HarCapture {
+    fn drop(&mut self) {
+        if let Some(task) = self.task.take() {
+            task.abort();
+            if let Ok(runtime) = tokio::runtime::Handle::try_current() {
+                let page = self.page.clone();
+                runtime.spawn(async move {
+                    let _ = page
+                        .execute("Target.setAutoAttach", attach_iframes(false))
+                        .await;
+                });
+            }
+        }
+    }
+}
+
+/// Convenience function to stream a page's network entries directly to `path` in JSON Lines format.
+///
+/// Same as [`Page::stream_to_jsonl`].
+///
+/// # Errors
+///
+/// Returns [`SeleniumBaseError::Io`] if creating the file at `path` fails, or
+/// [`SeleniumBaseError::CdpDriver`] if enabling network capture fails.
+///
+/// # Examples
+///
+/// ```no_run
+/// use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, stream_to_jsonl};
+///
+/// # async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+/// let browser = Browser::launch(LaunchOptions::default()).await?;
+/// let page = browser.default_page().await?;
+/// let capture = stream_to_jsonl(&page, "dump.jsonl").await?;
+/// page.goto("https://example.com").await?;
+/// capture.finish().await?;
+/// # Ok(())
+/// # }
+/// ```
+pub async fn stream_to_jsonl(
+    page: &Page,
+    path: impl AsRef<Path>,
+) -> Result<HarCapture, SeleniumBaseError> {
+    page.stream_to_jsonl(path).await
+}
+
+/// In-flight state for zero-copy streaming capture.
+///
+/// Keeps ONLY actively pending requests in memory (`in_flight`), emitting and
+/// freeing each entry as soon as its response / body finishes.
+#[derive(Debug)]
+struct StreamRecordingState {
+    main_frame: String,
+    page_session: String,
+    sessions: HashSet<String>,
+    options: HarOptions,
+    in_flight: HashMap<String, VecDeque<EntryState>>,
+    early_request_extra: HashMap<String, Value>,
+    pending_response_extra: HashMap<String, VecDeque<Value>>,
+    pages: Vec<PageState>,
+    clock: Option<(f64, f64)>,
+    missed: u64,
+}
+
+impl StreamRecordingState {
+    fn new(main_frame: String, page_session: String, options: HarOptions) -> Self {
+        Self {
+            main_frame,
+            sessions: HashSet::from([page_session.clone()]),
+            page_session,
+            options,
+            in_flight: HashMap::new(),
+            early_request_extra: HashMap::new(),
+            pending_response_extra: HashMap::new(),
+            pages: Vec::new(),
+            clock: None,
+            missed: 0,
+        }
+    }
+
+    fn wall_at(&self, timestamp: f64) -> f64 {
+        match self.clock {
+            Some((at, wall)) => wall + (timestamp - at),
+            None => SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0.0, |since| since.as_secs_f64()),
+        }
+    }
+
+    fn entry_mut(&mut self, id: &str) -> Option<&mut EntryState> {
+        self.in_flight.get_mut(id)?.back_mut()
+    }
+
+    fn request_will_be_sent(&mut self, params: &Value) -> (Option<HarEntry>, Option<String>) {
+        let Some(id) = params["requestId"].as_str() else {
+            return (None, None);
+        };
+        let timestamp = params["timestamp"].as_f64().unwrap_or(0.0);
+        let wall = match params["wallTime"].as_f64() {
+            Some(wall) => {
+                self.clock = Some((timestamp, wall));
+                wall
+            }
+            None => self.wall_at(timestamp),
+        };
+
+        let mut completed_hop = None;
+        if let Some(redirect) = params.get("redirectResponse").filter(|r| r.is_object()) {
+            if let Some(entry) = self.entry_mut(id) {
+                entry.response = Some(redirect.clone());
+                entry.response_has_extra = params["redirectHasExtraInfo"].as_bool();
+                entry.response_at = Some(timestamp);
+                entry.finished_at = Some(timestamp);
+            }
+            self.give_response_extra(id);
+            if let Some(queue) = self.in_flight.get_mut(id) {
+                let waits_extra = queue.front().is_some_and(|e| {
+                    e.response_has_extra == Some(true) && e.response_extra.is_none()
+                });
+                if !waits_extra && let Some(finished) = queue.pop_front() {
+                    completed_hop = Some(har_entry(&finished));
+                }
+            }
+        } else {
+            self.in_flight.remove(id);
+            if params["type"] == "Document"
+                && params["frameId"].as_str() == Some(self.main_frame.as_str())
+                && params["loaderId"].as_str() == Some(id)
+            {
+                self.pages.push(PageState {
+                    url: params["request"]["url"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .to_owned(),
+                    started_wall: wall,
+                    started: timestamp,
+                    content_loaded: None,
+                    loaded: None,
+                });
+            }
+        }
+
+        let new_entry = EntryState {
+            page: self.pages.len().checked_sub(1),
+            started_wall: wall,
+            issued: timestamp,
+            request: params["request"].clone(),
+            request_extra: self.early_request_extra.remove(id),
+            resource_type: params["type"].as_str().map(str::to_ascii_lowercase),
+            response: None,
+            response_extra: None,
+            response_has_extra: None,
+            response_at: None,
+            finished_at: None,
+            encoded_length: None,
+            data_length: 0,
+            error: None,
+            content: ContentState::default(),
+        };
+        self.in_flight
+            .entry(id.to_owned())
+            .or_default()
+            .push_back(new_entry);
+        self.give_response_extra(id);
+        (completed_hop, Some(id.to_owned()))
+    }
+
+    fn request_extra(&mut self, params: &Value) {
+        let Some(id) = params["requestId"].as_str() else {
+            return;
+        };
+        let extra = params["headers"].clone();
+        match self.entry_mut(id) {
+            Some(entry) if entry.request_extra.is_none() => entry.request_extra = Some(extra),
+            _ => {
+                self.early_request_extra.insert(id.to_owned(), extra);
+            }
+        }
+    }
+
+    fn response_received(&mut self, params: &Value) {
+        let Some(id) = params["requestId"].as_str() else {
+            return;
+        };
+        if let Some(entry) = self.entry_mut(id) {
+            entry.response = Some(params["response"].clone());
+            entry.response_has_extra = params["hasExtraInfo"].as_bool();
+            entry.response_at = params["timestamp"].as_f64();
+            if let Some(kind) = params["type"].as_str() {
+                entry.resource_type = Some(kind.to_ascii_lowercase());
+            }
+        }
+        self.give_response_extra(id);
+    }
+
+    fn response_extra(&mut self, params: &Value) -> Option<HarEntry> {
+        let id = params["requestId"].as_str()?;
+        self.pending_response_extra
+            .entry(id.to_owned())
+            .or_default()
+            .push_back(params.clone());
+        self.give_response_extra(id);
+
+        let queue = self.in_flight.get_mut(id)?;
+        if queue.len() > 1 && queue.front().is_some_and(|e| e.finished_at.is_some()) {
+            let finished = queue.pop_front()?;
+            return Some(har_entry(&finished));
+        }
+        None
+    }
+
+    fn give_response_extra(&mut self, id: &str) {
+        let (Some(queue), Some(hops)) = (
+            self.pending_response_extra.get_mut(id),
+            self.in_flight.get_mut(id),
+        ) else {
+            return;
+        };
+        while let Some(extra) = queue.front() {
+            let waiting = hops.iter_mut().find(|entry| awaits_extra(entry, extra));
+            let Some(entry) = waiting else {
+                break;
+            };
+            entry.response_extra = queue.pop_front();
+        }
+        if queue.is_empty() {
+            self.pending_response_extra.remove(id);
+        }
+    }
+
+    fn loading_finished(&mut self, params: &Value) -> Result<Option<HarEntry>, String> {
+        let Some(id) = params["requestId"].as_str() else {
+            return Ok(None);
+        };
+        let Some(queue) = self.in_flight.get_mut(id) else {
+            return Ok(None);
+        };
+        let Some(entry) = queue.back_mut() else {
+            return Ok(None);
+        };
+        entry.finished_at = params["timestamp"].as_f64().or(entry.finished_at);
+        entry.encoded_length = params["encodedDataLength"].as_f64();
+
+        let options = self.options;
+        if options.content && entry.response.is_some() {
+            let limit = u64::try_from(options.max_content_bytes).unwrap_or(u64::MAX);
+            if entry.data_length > limit {
+                entry.content.comment =
+                    Some(too_large(entry.data_length, options.max_content_bytes));
+            } else {
+                return Err(id.to_owned());
+            }
+        }
+
+        let entry = queue.pop_back().map(|e| har_entry(&e));
+        if queue.is_empty() {
+            self.in_flight.remove(id);
+        }
+        Ok(entry)
+    }
+
+    fn loading_failed(&mut self, params: &Value) -> Option<HarEntry> {
+        let id = params["requestId"].as_str()?;
+        let queue = self.in_flight.get_mut(id)?;
+        let mut entry = queue.pop_back()?;
+        let timestamp = params["timestamp"].as_f64();
+        entry.finished_at = timestamp.or(entry.finished_at);
+        let mut error = params["errorText"].as_str().unwrap_or("failed").to_owned();
+        if params["canceled"].as_bool() == Some(true) {
+            error.push_str(" (canceled)");
+        }
+        if let Some(reason) = params["blockedReason"].as_str() {
+            error = format!("{error} (blocked: {reason})");
+        }
+        entry.error = Some(error);
+        if queue.is_empty() {
+            self.in_flight.remove(id);
+        }
+        Some(har_entry(&entry))
+    }
+
+    fn set_content_and_finish(
+        &mut self,
+        id: &str,
+        body: Result<Value, SeleniumBaseError>,
+    ) -> Option<HarEntry> {
+        let limit = self.options.max_content_bytes;
+        let queue = self.in_flight.get_mut(id)?;
+        let mut entry = queue.pop_back()?;
+        match body {
+            Ok(body) => {
+                let text = body["body"].as_str().unwrap_or_default();
+                let base64 = body["base64Encoded"].as_bool() == Some(true);
+                let size = if base64 {
+                    decoded_len(text)
+                } else {
+                    text.len()
+                };
+                let bytes = u64::try_from(size).unwrap_or(u64::MAX);
+                if size > limit {
+                    entry.content.comment = Some(too_large(bytes, limit));
+                } else {
+                    entry.content = ContentState {
+                        text: Some(text.to_owned()),
+                        encoding: base64.then(|| "base64".to_owned()),
+                        size: Some(bytes),
+                        comment: None,
+                    };
+                }
+            }
+            Err(error) => {
+                entry.content.comment = Some(format!("content not recorded: {error}"));
+            }
+        }
+        if queue.is_empty() {
+            self.in_flight.remove(id);
+        }
+        Some(har_entry(&entry))
+    }
+
+    fn drain_remaining(&mut self) -> Vec<HarEntry> {
+        let mut entries = Vec::new();
+        for (_, queue) in self.in_flight.drain() {
+            for entry in queue {
+                entries.push(har_entry(&entry));
+            }
+        }
+        entries
+    }
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal streaming recorder helper"
+)]
+async fn record_stream(
+    mut events: Events,
+    mut stop: oneshot::Receiver<()>,
+    mut attach_rx: mpsc::Receiver<HarStreamWriter>,
+    page: Page,
+    options: HarOptions,
+    main_frame: String,
+    page_session: String,
+    initial_writer: Option<HarStreamWriter>,
+    shared_entries: Arc<AtomicU64>,
+    shared_bytes: Arc<AtomicU64>,
+) -> Result<HarStreamStats, SeleniumBaseError> {
+    let mut writers: Vec<HarStreamWriter> = initial_writer.into_iter().collect();
+    let mut state = StreamRecordingState::new(main_frame, page_session, options);
+    let mut bodies: JoinSet<(String, Result<Value, SeleniumBaseError>)> = JoinSet::new();
+    let mut iframes = JoinSet::new();
+
+    loop {
+        tokio::select! {
+            biased;
+            Some(new_writer) = attach_rx.recv() => {
+                writers.push(new_writer);
+            }
+            Some(fetched) = bodies.join_next() => {
+                if let Ok((id, body)) = fetched
+                    && let Some(entry) = state.set_content_and_finish(&id, body)
+                {
+                    emit_stream_entry(&entry, &mut writers, &shared_entries, &shared_bytes).await?;
+                }
+            }
+            event = events.next() => {
+                let Some(event) = event else { break };
+                if events.missed() > state.missed {
+                    state.missed = events.missed();
+                    attach_iframes_again(&page).await;
+                }
+                emit_stream_raw(&event, &mut writers).await?;
+                handle_stream_event(
+                    &event,
+                    &mut state,
+                    &page,
+                    &mut writers,
+                    &mut bodies,
+                    &mut iframes,
+                    &shared_entries,
+                    &shared_bytes,
+                ).await?;
+            }
+            _ = &mut stop => break,
+        }
+    }
+
+    finalize_stream(
+        state,
+        page,
+        bodies,
+        iframes,
+        writers,
+        shared_entries,
+        shared_bytes,
+    )
+    .await
+}
+
+#[allow(
+    clippy::too_many_arguments,
+    reason = "internal streaming recorder helper"
+)]
+async fn handle_stream_event(
+    event: &CdpEvent,
+    state: &mut StreamRecordingState,
+    page: &Page,
+    writers: &mut [HarStreamWriter],
+    bodies: &mut JoinSet<(String, Result<Value, SeleniumBaseError>)>,
+    iframes: &mut JoinSet<()>,
+    shared_entries: &AtomicU64,
+    shared_bytes: &AtomicU64,
+) -> Result<(), SeleniumBaseError> {
+    let Some(session) = event.session_id.as_deref() else {
+        return Ok(());
+    };
+    if !state.sessions.contains(session) {
+        return Ok(());
+    }
+    let params = &event.params;
+    let timestamp = params["timestamp"].as_f64();
+    let own = session == state.page_session;
+
+    match event.method.as_str() {
+        "Network.requestWillBeSent" => {
+            let (completed, _) = state.request_will_be_sent(params);
+            if let Some(entry) = completed {
+                emit_stream_entry(&entry, writers, shared_entries, shared_bytes).await?;
+            }
+        }
+        "Network.requestWillBeSentExtraInfo" => state.request_extra(params),
+        "Network.responseReceived" => state.response_received(params),
+        "Network.responseReceivedExtraInfo" => {
+            if let Some(entry) = state.response_extra(params) {
+                emit_stream_entry(&entry, writers, shared_entries, shared_bytes).await?;
+            }
+        }
+        "Network.dataReceived" => {
+            if let Some(id) = params["requestId"].as_str()
+                && let Some(entry) = state.entry_mut(id)
+            {
+                entry.data_length += params["dataLength"].as_u64().unwrap_or(0);
+            }
+        }
+        "Network.loadingFinished" => match state.loading_finished(params) {
+            Ok(Some(entry)) => {
+                emit_stream_entry(&entry, writers, shared_entries, shared_bytes).await?;
+            }
+            Err(id) => {
+                let page_clone = page.clone();
+                let session_str = session.to_owned();
+                bodies.spawn(async move {
+                    let res = fetch_stream_body(page_clone, session_str, id.clone()).await;
+                    (id, res)
+                });
+            }
+            Ok(None) => {}
+        },
+        "Network.loadingFailed" => {
+            if let Some(entry) = state.loading_failed(params) {
+                emit_stream_entry(&entry, writers, shared_entries, shared_bytes).await?;
+            }
+        }
+        "Page.domContentEventFired" if own => {
+            if let (Some(page), Some(at)) = (state.pages.last_mut(), timestamp) {
+                page.content_loaded.get_or_insert(at);
+            }
+        }
+        "Page.loadEventFired" if own => {
+            if let (Some(page), Some(at)) = (state.pages.last_mut(), timestamp) {
+                page.loaded.get_or_insert(at);
+            }
+        }
+        "Target.attachedToTarget" => {
+            if let Some(attached) = params["sessionId"].as_str() {
+                if params["targetInfo"]["type"] == "iframe" {
+                    state.sessions.insert(attached.to_owned());
+                    let page_c = page.clone();
+                    let att = attached.to_owned();
+                    iframes.spawn(async move {
+                        record_iframe(page_c, att).await;
+                    });
+                } else if params["waitingForDebugger"] == true {
+                    let page_c = page.clone();
+                    let att = attached.to_owned();
+                    iframes.spawn(async move {
+                        let_run(page_c, att).await;
+                    });
+                }
+            }
+        }
+        "Target.detachedFromTarget" => {
+            if let Some(iframe) = params["sessionId"].as_str()
+                && iframe != state.page_session
+            {
+                state.sessions.remove(iframe);
+            }
+        }
+        _ => {}
+    }
+    Ok(())
+}
+
+async fn finalize_stream(
+    mut state: StreamRecordingState,
+    page: Page,
+    mut bodies: JoinSet<(String, Result<Value, SeleniumBaseError>)>,
+    mut iframes: JoinSet<()>,
+    mut writers: Vec<HarStreamWriter>,
+    shared_entries: Arc<AtomicU64>,
+    shared_bytes: Arc<AtomicU64>,
+) -> Result<HarStreamStats, SeleniumBaseError> {
+    while iframes.join_next().await.is_some() {}
+    while let Some(fetched) = bodies.join_next().await {
+        if let Ok((id, body)) = fetched
+            && let Some(entry) = state.set_content_and_finish(&id, body)
+        {
+            emit_stream_entry(&entry, &mut writers, &shared_entries, &shared_bytes).await?;
+        }
+    }
+    for entry in state.drain_remaining() {
+        emit_stream_entry(&entry, &mut writers, &shared_entries, &shared_bytes).await?;
+    }
+    let _ = page
+        .execute("Target.setAutoAttach", attach_iframes(false))
+        .await;
+
+    let mut total_stats = HarStreamStats::default();
+    for writer in &mut writers {
+        let writer_stats = writer.finish().await?;
+        total_stats.entries_count = total_stats.entries_count.max(writer_stats.entries_count);
+        total_stats.bytes_written += writer_stats.bytes_written;
+    }
+    shared_entries.store(total_stats.entries_count, Ordering::Relaxed);
+    shared_bytes.store(total_stats.bytes_written, Ordering::Relaxed);
+    Ok(total_stats)
+}
+
+async fn fetch_stream_body(
+    page: Page,
+    session: String,
+    request_id: String,
+) -> Result<Value, SeleniumBaseError> {
+    let params = json!({ "requestId": request_id });
+    send_to(&page, &session, "Network.getResponseBody", params).await
+}
+
+async fn emit_stream_entry(
+    entry: &HarEntry,
+    writers: &mut [HarStreamWriter],
+    shared_entries: &AtomicU64,
+    shared_bytes: &AtomicU64,
+) -> Result<(), SeleniumBaseError> {
+    let mut total_bytes = 0;
+    for writer in writers.iter_mut() {
+        writer.write_entry(entry).await?;
+        total_bytes += writer.bytes_written();
+    }
+    shared_entries.fetch_add(1, Ordering::Relaxed);
+    shared_bytes.store(total_bytes, Ordering::Relaxed);
+    Ok(())
+}
+
+async fn emit_stream_raw(
+    event: &CdpEvent,
+    writers: &mut [HarStreamWriter],
+) -> Result<(), SeleniumBaseError> {
+    for writer in writers.iter_mut() {
+        writer.write_raw_event(event).await?;
+    }
+    Ok(())
 }
 
 /// Takes in events until told to stop (or the connection closes), then waits
@@ -1655,5 +2864,267 @@ mod tests {
             recording.pages.is_empty(),
             "no page for a dropped navigation"
         );
+    }
+
+    fn sample_har_entry(url: &str) -> HarEntry {
+        HarEntry {
+            pageref: Some("page_1".to_owned()),
+            started_date_time: "2026-11-23T12:00:00.000Z".to_owned(),
+            time: 42.0,
+            request: HarRequest {
+                method: "GET".to_owned(),
+                url: url.to_owned(),
+                http_version: "HTTP/1.1".to_owned(),
+                cookies: Vec::new(),
+                headers: Vec::new(),
+                query_string: Vec::new(),
+                post_data: None,
+                headers_size: -1,
+                body_size: 0,
+                comment: None,
+            },
+            response: HarResponse {
+                status: 200,
+                status_text: "OK".to_owned(),
+                http_version: "HTTP/1.1".to_owned(),
+                cookies: Vec::new(),
+                headers: Vec::new(),
+                content: HarContent {
+                    size: 13,
+                    compression: None,
+                    mime_type: "text/plain".to_owned(),
+                    text: Some("Hello, world!".to_owned()),
+                    encoding: None,
+                    comment: None,
+                },
+                redirect_url: String::new(),
+                headers_size: -1,
+                body_size: -1,
+                comment: None,
+                transfer_size: Some(13),
+                error: None,
+            },
+            cache: HarCache::default(),
+            timings: HarTimings {
+                blocked: 0.0,
+                dns: -1.0,
+                connect: -1.0,
+                send: 1.0,
+                wait: 20.0,
+                receive: 21.0,
+                ssl: -1.0,
+                comment: None,
+            },
+            server_ip_address: Some("127.0.0.1".to_owned()),
+            connection: Some("1".to_owned()),
+            comment: None,
+            resource_type: Some("document".to_owned()),
+        }
+    }
+
+    #[tokio::test]
+    async fn streaming_writer_jsonl_outputs_valid_lines() {
+        let buffer = SharedBuffer::new();
+        let mut writer = HarStreamWriter::from_writer(buffer.clone()).jsonl();
+        assert_eq!(writer.stream_format(), HarStreamFormat::JsonLines);
+
+        let entry1 = sample_har_entry("https://example.com/api/1");
+        let entry2 = sample_har_entry("https://example.com/api/2");
+        writer.write_entry(&entry1).await.expect("write entry 1");
+        writer.write_entry(&entry2).await.expect("write entry 2");
+        let stats = writer.finish().await.expect("finish writer");
+
+        assert_eq!(stats.entries_count, 2);
+        assert!(stats.bytes_written > 0);
+
+        let output = buffer.to_string_lossy();
+        let lines: Vec<&str> = output.lines().collect();
+        assert_eq!(lines.len(), 2);
+
+        let parsed1: HarEntry = serde_json::from_str(lines[0]).expect("parse line 1");
+        let parsed2: HarEntry = serde_json::from_str(lines[1]).expect("parse line 2");
+        assert_eq!(parsed1.request.url, "https://example.com/api/1");
+        assert_eq!(parsed2.request.url, "https://example.com/api/2");
+    }
+
+    #[tokio::test]
+    async fn streaming_writer_har_chunks_outputs_valid_har() {
+        let buffer = SharedBuffer::new();
+        let mut writer = HarStreamWriter::from_writer(buffer.clone()).har_chunks();
+        assert_eq!(writer.stream_format(), HarStreamFormat::HarChunks);
+
+        let entry1 = sample_har_entry("https://example.com/item/a");
+        let entry2 = sample_har_entry("https://example.com/item/b");
+        writer.write_entry(&entry1).await.expect("write entry 1");
+        writer.write_entry(&entry2).await.expect("write entry 2");
+        let stats = writer.finish().await.expect("finish writer");
+
+        assert_eq!(stats.entries_count, 2);
+
+        let output = buffer.to_string_lossy();
+        let har: Har = serde_json::from_str(&output).expect("parse complete HAR");
+        assert_eq!(har.log.version, "1.2");
+        assert_eq!(har.log.creator.name, "seleniumbase-rs");
+        assert_eq!(har.log.entries.len(), 2);
+        assert_eq!(har.log.entries[0].request.url, "https://example.com/item/a");
+        assert_eq!(har.log.entries[1].request.url, "https://example.com/item/b");
+    }
+
+    #[tokio::test]
+    async fn streaming_writer_from_path_writes_file() {
+        let dir = tempfile::tempdir().expect("temp dir");
+        let file_path = dir.path().join("stream.jsonl");
+
+        let mut writer = HarStreamWriter::from_path(&file_path)
+            .await
+            .expect("from_path");
+        let entry = sample_har_entry("https://example.com/file");
+        writer.write_entry(&entry).await.expect("write_entry");
+        let stats = writer.finish().await.expect("finish");
+
+        assert_eq!(stats.entries_count, 1);
+        let content = std::fs::read_to_string(&file_path).expect("read file");
+        assert!(content.contains("https://example.com/file"));
+    }
+
+    #[test]
+    fn stream_recording_state_emits_without_buffering() {
+        let mut state = StreamRecordingState::new("T1".into(), "S1".into(), HarOptions::new());
+
+        for i in 0u32..50 {
+            let id = format!("REQ_{i}");
+            let req_params = json!({
+                "requestId": id,
+                "timestamp": 10.0 + f64::from(i),
+                "wallTime": 1_700_000_000.0 + f64::from(i),
+                "type": "XHR",
+                "request": {
+                    "url": format!("https://example.com/data/{i}"),
+                    "method": "GET",
+                    "headers": {}
+                }
+            });
+            let (hop, _) = state.request_will_be_sent(&req_params);
+            assert!(hop.is_none());
+            // Exactly 1 entry in flight
+            assert_eq!(state.in_flight.len(), 1);
+
+            let resp_params = json!({
+                "requestId": id,
+                "timestamp": 10.5 + f64::from(i),
+                "type": "XHR",
+                "hasExtraInfo": false,
+                "response": {
+                    "status": 200,
+                    "statusText": "OK",
+                    "headers": {},
+                    "mimeType": "application/json"
+                }
+            });
+            state.response_received(&resp_params);
+
+            let finish_params = json!({
+                "requestId": id,
+                "timestamp": 11.0 + f64::from(i),
+                "encodedDataLength": 100.0
+            });
+            let finished_entry = state
+                .loading_finished(&finish_params)
+                .expect("loading_finished should succeed");
+            let entry = finished_entry.expect("entry must be completed");
+            assert_eq!(entry.request.url, format!("https://example.com/data/{i}"));
+
+            // Zero entries remaining in flight!
+            assert!(
+                state.in_flight.is_empty(),
+                "in_flight must be empty after request finishes, preventing memory bloat"
+            );
+        }
+    }
+
+    #[test]
+    fn stream_recording_state_handles_redirects() {
+        let mut state = StreamRecordingState::new("T1".into(), "S1".into(), HarOptions::new());
+        let id = "REDIR_1";
+
+        // Hop 1
+        let req1 = json!({
+            "requestId": id,
+            "timestamp": 1.0,
+            "wallTime": 1_700_000_000.0,
+            "type": "Document",
+            "request": { "url": "https://example.com/old", "method": "GET", "headers": {} }
+        });
+        let (completed, _) = state.request_will_be_sent(&req1);
+        assert!(completed.is_none());
+
+        // Hop 2 with redirectResponse
+        let req2 = json!({
+            "requestId": id,
+            "timestamp": 1.5,
+            "redirectHasExtraInfo": false,
+            "redirectResponse": {
+                "status": 302,
+                "statusText": "Found",
+                "headers": { "Location": "https://example.com/new" },
+                "mimeType": "text/html"
+            },
+            "type": "Document",
+            "request": { "url": "https://example.com/new", "method": "GET", "headers": {} }
+        });
+        let (hop1, _) = state.request_will_be_sent(&req2);
+        let hop1 = hop1.expect("hop 1 must be emitted on redirect");
+        assert_eq!(hop1.request.url, "https://example.com/old");
+        assert_eq!(hop1.response.status, 302);
+
+        // Hop 2 finishes
+        let finish_params = json!({
+            "requestId": id,
+            "timestamp": 2.0,
+            "encodedDataLength": 500.0
+        });
+        let resp2 = json!({
+            "requestId": id,
+            "timestamp": 1.8,
+            "hasExtraInfo": false,
+            "response": { "status": 200, "statusText": "OK", "headers": {}, "mimeType": "text/html" }
+        });
+        state.response_received(&resp2);
+        let hop2 = state
+            .loading_finished(&finish_params)
+            .expect("loading_finished")
+            .expect("hop 2");
+        assert_eq!(hop2.request.url, "https://example.com/new");
+        assert_eq!(hop2.response.status, 200);
+
+        assert!(state.in_flight.is_empty());
+    }
+
+    #[test]
+    fn format_display_and_from_str() {
+        use std::str::FromStr;
+        assert_eq!(HarStreamFormat::JsonLines.to_string(), "jsonl");
+        assert_eq!(HarStreamFormat::HarChunks.to_string(), "har-chunks");
+        assert_eq!(HarStreamFormat::RawEvents.to_string(), "raw-events");
+
+        assert_eq!(
+            HarStreamFormat::from_str("jsonl").unwrap(),
+            HarStreamFormat::JsonLines
+        );
+        assert_eq!(
+            HarStreamFormat::from_str("har").unwrap(),
+            HarStreamFormat::HarChunks
+        );
+        assert_eq!(
+            HarStreamFormat::from_str("raw").unwrap(),
+            HarStreamFormat::RawEvents
+        );
+        assert!(HarStreamFormat::from_str("invalid").is_err());
+
+        let stats = HarStreamStats {
+            entries_count: 5,
+            bytes_written: 1024,
+        };
+        assert_eq!(stats.to_string(), "5 entries, 1024 bytes written");
     }
 }

@@ -20,6 +20,7 @@ mod driver_repair_macos;
 mod fingerprint_companion;
 mod fingerprint_randomized;
 mod grid_server_ended;
+mod human_timing;
 mod install_addon_firefox;
 mod library_manifest;
 mod mcp_cdp;

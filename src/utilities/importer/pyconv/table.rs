@@ -342,6 +342,11 @@ pub(super) static TABLE: &[Call] = &[
         &[s("selector"), BY, TIMEOUT, omit("delay"), omit("scroll")],
     ),
     act(
+        &["human_click", "uc_click"],
+        "human_click",
+        &[s("selector"), BY, TIMEOUT],
+    ),
+    act(
         &["double_click"],
         "double_click",
         &[s("selector"), BY, TIMEOUT],
@@ -401,6 +406,13 @@ pub(super) static TABLE: &[Call] = &[
         "type_text",
         &[s("selector"), s("text"), BY, TIMEOUT, omit("retry")],
     ),
+    act(
+        &["human_type", "uc_type"],
+        "human_type",
+        &[s("selector"), s("text"), BY, TIMEOUT],
+    ),
+    get(&["markdown", "get_markdown"], "markdown", &[], Ret::Str),
+    act(&["fill_form"], "fill_form", &[s("data")]),
     act(
         &["add_text", "send_keys"],
         "add_text",

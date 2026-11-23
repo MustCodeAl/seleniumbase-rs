@@ -31,9 +31,11 @@ fn main() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
 ```
 
 To play a plan out on a page, use `page.human(behavior)` from the Pure CDP
-engine (see [Pure CDP](/tutorials/pure_cdp#human-paced-input)). `BaseCase::human_type`
-uses the same typing model, taking its pace from `Fingerprint::humanize()` when the
-configuration has a fingerprint.
+engine (see [Pure CDP](/tutorials/pure_cdp#human-paced-input)). On `BaseCase`,
+`sb.human_click(selector)` and `sb.human_type(selector, text)` dispatch
+human-like Bézier cursor movements and natural Gaussian keystroke pacing (50-120ms
+intervals with natural jitter), taking their pace from `Fingerprint::humanize()`
+when the configuration has a fingerprint.
 
 `Behavior::from_config(fingerprint.humanize())` turns a fingerprint's
 `HumanizeConfig` (its minimum and maximum keystroke delay) into the matching

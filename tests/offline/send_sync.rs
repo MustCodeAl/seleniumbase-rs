@@ -84,6 +84,7 @@ fn the_pure_cdp_values_are_send_and_sync() {
     handle::<sb_cdp::PoolOptionsBuilder>();
     value::<sb_cdp::PoolStats>();
     value::<sb_cdp::ContextOptions>();
+    handle::<sb_cdp::ContextOptionsBuilder>();
     value::<sb_cdp::Point>();
     value::<sb_cdp::Rect>();
     value::<sb_cdp::PageInfo>();

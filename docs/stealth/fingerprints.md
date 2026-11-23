@@ -428,3 +428,32 @@ conditions), for the values the fingerprint holds:
 * Optionally (`native_spoofing`), fewer properties replaced in JavaScript, and a
   patched Chrome binary for WebDriver sessions
 
+## Per-lease Context Fingerprints in BrowserPool
+
+When managing high-throughput browser fleets with `BrowserPool`, restarting browser processes to rotate fingerprints introduces unacceptable latency.
+
+Instead, configure per-lease fingerprints using `ContextOptions::default().fingerprint(fp)`:
+
+```rust
+use seleniumbase_rs::evasion::Fingerprint;
+use seleniumbase_rs::sb_cdp::{BrowserPool, ContextOptions, LaunchOptions, PoolOptions};
+
+let pool = BrowserPool::new(
+    LaunchOptions::builder().headless(true).build()?,
+    PoolOptions::default(),
+);
+
+// Lease 1: Random desktop identity
+let fp1 = Fingerprint::random();
+let options1 = ContextOptions::default().fingerprint(fp1);
+let lease1 = pool.acquire_with(&options1).await?;
+
+// Lease 2: Distinct identity running concurrently in the same browser process
+let fp2 = Fingerprint::random();
+let options2 = ContextOptions::default().fingerprint(fp2);
+let lease2 = pool.acquire_with(&options2).await?;
+```
+
+Each lease executes inside an isolated browser context with its own cookies, storage, and spoofed device identity.
+
+

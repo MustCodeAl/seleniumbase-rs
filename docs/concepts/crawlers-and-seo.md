@@ -530,6 +530,19 @@ Search Console.
 
 </Note>
 
+## High-Throughput Concurrent Crawling in seleniumbase-rs
+
+Modern enterprise web crawling requires concurrent execution across isolated browser contexts, strict RFC 9309 `robots.txt` compliance, XML sitemap extraction, and breadth-first link graph discovery.
+
+`seleniumbase-rs` natively provides:
+
+- **`Crawler` & `CrawlerBuilder`**: Bounded concurrency over pooled headless browser leases ([`BrowserPool`](/tutorials/pure_cdp)), token-bucket rate limiting, and exponential retry backoff.
+- **`RobotsPolicy`**: RFC 9309 compliant `robots.txt` parser supporting User-agent specific matching, longest-rule precedence (`Allow` vs `Disallow`), `Crawl-delay`, and automatic `robots.txt` fetching.
+- **`sitemap`**: Fast parsing and HTTP retrieval of standard XML sitemaps and sitemap indexes without heavy external XML libraries.
+- **`Spider`**: Breadth-first graph crawler managing visited URL sets, depth boundaries (`max_depth`), domain fencing, and regex URL path filters.
+
+See the [Autonomous Web Crawling Tutorial](/tutorials/crawler) for end-to-end implementation examples.
+
 ## Where to go next
 
 <Columns cols={2}>

@@ -693,6 +693,69 @@ impl Page {
         crate::extract::TableData::from_html(&html)
     }
 
+    /// Converts the current page HTML into clean, LLM-ready Markdown.
+    ///
+    /// Automatically strips navigation, footers, scripts, and non-content elements.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if reading page content fails.
+    pub async fn markdown(&self) -> Result<String, SeleniumBaseError> {
+        let html = self.content().await?;
+        Ok(crate::extract::html_to_markdown(&html))
+    }
+
+    /// Automatically fills in form inputs matching the fields of a serializable struct.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if form serialization or element interaction fails.
+    pub async fn fill_form<T: serde::Serialize>(
+        &self,
+        form_data: &T,
+    ) -> Result<(), SeleniumBaseError> {
+        let data = crate::extract::FormData::from_serializable(form_data)?;
+        for (field, value) in data.iter() {
+            let sel = format!("input[name='{field}'], input[id='{field}'], textarea[name='{field}'], select[name='{field}']");
+            let loc = self.locator(&sel);
+            if let Ok(true) = loc.is_visible().await {
+                let _ = loc.fill(value).await;
+            }
+        }
+        Ok(())
+    }
+
+    /// Types text into `selector` simulating natural human typing cadence.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if the locator fails to click or press.
+    pub async fn human_type(&self, selector: &str, text: &str) -> Result<(), SeleniumBaseError> {
+        let loc = self.locator(selector);
+        loc.click().await?;
+        for (i, ch) in text.chars().enumerate() {
+            let ch_str = ch.to_string();
+            loc.send_keys(&ch_str).await?;
+            let jitter_ms = 40 + ((i * 31 + ch as usize) % 65);
+            tokio::time::sleep(tokio::time::Duration::from_millis(jitter_ms as u64)).await;
+        }
+        Ok(())
+    }
+
+    /// Clicks an element matched by `selector` with natural human dwell timing.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if hovering or clicking the element fails.
+    pub async fn human_click(&self, selector: &str) -> Result<(), SeleniumBaseError> {
+        let loc = self.locator(selector);
+        loc.hover().await?;
+        tokio::time::sleep(tokio::time::Duration::from_millis(70)).await;
+        loc.click().await?;
+        tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
+        Ok(())
+    }
+
     /// A CSS selector for the element that has keyboard focus: the shortest one
     /// that finds it, such as `input#email`, or `body` when nothing is focused.
     ///

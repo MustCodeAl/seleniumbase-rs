@@ -490,3 +490,24 @@ fn pool_options_reject_nonsense() {
         (3, 5, 15)
     );
 }
+
+#[test_log::test(tokio::test)]
+async fn pool_acquire_with_fingerprint_applies_identity() {
+    use seleniumbase_rs::sb_cdp::ContextOptions;
+    use seleniumbase_rs::Fingerprint;
+
+    let fleet = Fleet::default();
+    let pool = pool(&fleet, options(1, 1));
+    let fp = Fingerprint::windows_desktop();
+    let opts = ContextOptions::builder().fingerprint(&fp).build().unwrap();
+
+    let lease = pool.acquire_with(opts).await.unwrap();
+    assert_eq!(lease.fingerprint(), Some(&fp));
+    assert_eq!(lease.context().fingerprint(), Some(&fp));
+
+    let page2 = lease.new_page().await.unwrap();
+    assert_eq!(lease.context().fingerprint(), Some(&fp));
+    drop(page2);
+
+    lease.release().await;
+}

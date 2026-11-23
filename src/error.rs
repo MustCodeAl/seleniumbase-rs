@@ -426,6 +426,12 @@ impl From<WebDriverError> for SeleniumBaseError {
     }
 }
 
+impl From<thirtyfour::bidi::BidiError> for SeleniumBaseError {
+    fn from(error: thirtyfour::bidi::BidiError) -> Self {
+        Self::from(WebDriverError::from(error))
+    }
+}
+
 impl SeleniumBaseError {
     /// The `{:?}` form: the message, then the hint on its own line. With `on`
     /// set the message, the `hint:` label and the hint text each get a style;

@@ -23,6 +23,27 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **AI & LLM Structured Extraction (`markdown()`, `fill_form()`)**:
+  - `BaseCase::markdown()`, `Page::markdown()`, and `Locator::markdown()`: Automated HTML-to-clean-Markdown extraction tailored for LLMs and RAG pipelines. Automatically strips noise elements (`nav`, `footer`, `script`, `style`, `aside`, `form`, SVG icons) and formats semantic article content into token-efficient Markdown headings, lists, tables, and code blocks.
+  - `extract::html_to_markdown` & `extract::html_to_markdown_with`: Zero-allocation Markdown conversion engine configured via `MarkdownOptions` (`strip_links`, `strip_images`, `max_characters`).
+  - `BaseCase::fill_form(&data)` & `Page::fill_form(&data)`: Strongly typed automated form filling from any Serde-serializable struct via `extract::FormData`, automatically matching and populating `input[name]`, `input[id]`, `textarea`, and `select` elements without manual element typing boilerplate.
+- **Autonomous Crawler Enhancements (`robots.txt`, `sitemap.xml`, `Spider`)**:
+  - `RobotsPolicy` (`seleniumbase_rs::crawler::RobotsPolicy`): RFC 9309 compliant `robots.txt` parser supporting `User-agent`, `Allow`, `Disallow`, `Crawl-delay`, and `Sitemap` directives, with zero-copy string borrowing (`Cow<'a, str>`), `RobotsPolicy::parse(text)`, `fetch_robots_txt(&client, base_url)`, and `is_allowed(ua, path)`.
+  - `sitemap::parse_sitemap_urls` & `sitemap::fetch_sitemap_urls`: High-performance parsing and HTTP fetching of standard XML sitemaps and sitemap index files without heavy external XML dependencies.
+  - `Spider` (`seleniumbase_rs::crawler::Spider`): Breadth-first recursive link crawler with depth boundaries (`max_depth`), domain fencing (`allowed_domains`), URL pattern whitelists/blacklists, link deduplication via `HashSet`, and integrated `RobotsPolicy` compliance.
+  - `Crawler::crawl_spider`: Autonomous recursive spider execution engine traversing the spider's discovered frontier across pooled browser contexts.
+- **W3C WebDriver BiDi Bidirectional Event Subscriptions**:
+  - `BaseCase::bidi_listen_logs()` and `BrowserSession::bidi_listen_logs()`: Subscribes directly to W3C WebDriver BiDi `log.entryAdded` events over thirtyfour's BiDi connection, streaming browser console logs, JavaScript errors, and runtime diagnostics to an asynchronous `EventStream`.
+  - `BaseCase::bidi_forward_logs(sender)`: Spawns an asynchronous forwarding task pushing live BiDi log entries directly into a `tokio::sync::mpsc::UnboundedSender`.
+  - `BaseCase::bidi_listen_network()` and `BrowserSession::bidi_listen_network()`: Subscribes to real-time BiDi network events (`network.responseCompleted`) for bidirectional telemetry without polling.
+- **Behavioral Stealth & Per-Lease Context Fingerprints**:
+  - `BrowserPool` per-lease fingerprinting: `ContextOptionsBuilder::fingerprint(Option<Fingerprint>)` applies randomized or custom fingerprints per browser context lease in `BrowserPool::acquire_with(&options)`, enabling isolated, multi-identity scraping without browser restarts.
+  - `BaseCase::human_click(selector)`: Humanized mouse interaction calculating randomized Bézier trajectories, acceleration/deceleration speed curves, and natural target overshoots.
+  - `BaseCase::human_type(selector, text)`: Human-paced typing emulation simulating realistic inter-keystroke delays (Gaussian distributions with 50-120ms intervals and natural jitter), defeating behavioral keystroke timing detectors.
+- **Zero-Copy Streaming HAR & JSONL Network Dumper**:
+  - `HarStreamWriter`: Zero-allocation, streaming network event dumper for CDP capture sessions. Flushes CDP network request and response payloads directly to disk using `tokio::io::BufWriter` in streaming HAR chunks or JSON Lines (JSONL).
+  - `Page::stream_to_jsonl(path)` & `Page::stream_to_jsonl_with(path, opts)`: Direct disk streaming preventing RAM bloat on multi-gigabyte browser capture sessions.
+  - `Page::start_har_stream(writer)`: Flexible stream dumper attachment supporting arbitrary async write destinations (`AsyncWrite`).
 - **High-Throughput Concurrent Crawler Pipeline (`seleniumbase_rs::crawler`)**:
   - Tokio-native asynchronous web crawling engine (`CrawlerBuilder`, `Crawler`) featuring bounded concurrency, token-bucket rate limiting, automatic exponential backoff retries, per-page CDP context isolation, and structured result aggregation (`CrawlItem<T>`).
 - **Type-Safe Structured Data Extraction (`seleniumbase_rs::extract`)**:

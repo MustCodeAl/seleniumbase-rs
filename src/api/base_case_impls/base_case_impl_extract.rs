@@ -83,4 +83,32 @@ impl BaseCase {
         let html = el.html().await?;
         TableData::from_html(&html)
     }
+
+    /// Converts the current page HTML into clean, LLM-ready Markdown.
+    ///
+    /// Automatically strips navigation, footers, scripts, and non-content elements.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if reading the page source fails.
+    pub async fn markdown(&self) -> Result<String, SeleniumBaseError> {
+        let source = self.page_source().await?;
+        Ok(crate::extract::html_to_markdown(&source))
+    }
+
+    /// Automatically fills in form inputs matching the fields of a serializable struct.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if form serialization or element interaction fails.
+    pub async fn fill_form<T: serde::Serialize>(&mut self, form_data: &T) -> Result<(), SeleniumBaseError> {
+        let data = crate::extract::FormData::from_serializable(form_data)?;
+        for (field, value) in data.iter() {
+            let sel = format!("input[name='{field}'], input[id='{field}'], textarea[name='{field}'], select[name='{field}']");
+            if let Ok(el) = self.find_element(&sel).await {
+                let _ = el.send_keys(value).await;
+            }
+        }
+        Ok(())
+    }
 }

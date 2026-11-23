@@ -93,6 +93,11 @@ static CDP_TABLE: &[CdpCall] = &[
     unit(&["maximize_window"], &[], "page.window().maximize().await?"),
     unit(&["click"], ON, "page.locator({0}).click().await?"),
     unit(
+        &["human_click", "uc_click"],
+        ON,
+        "page.human_click({0}).await?",
+    ),
+    unit(
         &["double_click"],
         ON,
         "page.locator({0}).double_click().await?",
@@ -120,6 +125,13 @@ static CDP_TABLE: &[CdpCall] = &[
         &[s("selector"), s("text"), BY, TIMEOUT, omit("retry")],
         "page.locator({0}).type_text({1}).await?",
     ),
+    unit(
+        &["human_type", "uc_type"],
+        &[s("selector"), s("text"), BY, TIMEOUT],
+        "page.human_type({0}, {1}).await?",
+    ),
+    value(&["markdown", "get_markdown"], &[], "page.markdown().await?", Ty::String),
+    unit(&["fill_form"], &[s("data")], "page.fill_form({0}).await?"),
     unit(
         &["add_text", "send_keys", "press_keys"],
         &[s("selector"), s("text"), BY, TIMEOUT],

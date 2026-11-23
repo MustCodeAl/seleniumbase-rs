@@ -120,16 +120,19 @@ pub use channel::{CdpInbox, CdpRequest, CdpTransport, TransportError};
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
-pub use context::{BrowserContext, ContextOptions, ContextRoute};
+pub use context::{
+    BrowserContext, ContextOptions, ContextOptionsBuilder, ContextRoute, IntoFingerprint,
+};
 #[doc(inline)]
 pub use endpoint::{DevToolsEndpoint, CHROME_DEVTOOLS_MCP_VERSION, PLAYWRIGHT_MCP_VERSION};
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
 #[doc(inline)]
 pub use har::{
-    Har, HarCache, HarContent, HarCookie, HarCreator, HarEntry, HarLog, HarNameValue, HarOptions,
-    HarPage, HarPageTimings, HarPostData, HarRecorder, HarRequest, HarResponse, HarTimings,
-    DEFAULT_MAX_CONTENT_BYTES, MAX_CONTENT_BYTES,
+    stream_to_jsonl, Har, HarCache, HarCapture, HarContent, HarCookie, HarCreator, HarEntry,
+    HarLog, HarNameValue, HarOptions, HarPage, HarPageTimings, HarPostData, HarRecorder,
+    HarRequest, HarResponse, HarStreamFormat, HarStreamStats, HarStreamWriter, HarTimings,
+    SharedBuffer, DEFAULT_MAX_CONTENT_BYTES, MAX_CONTENT_BYTES,
 };
 #[doc(inline)]
 pub use human::Human;

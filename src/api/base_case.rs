@@ -3000,69 +3000,6 @@ impl BaseCase {
         Ok(())
     }
 
-    /// Types `text` character by character at a human rhythm.
-    ///
-    /// Intervals are Gaussian with pauses at word and sentence boundaries (see
-    /// [`evasion::behavior`](crate::evasion::behavior)). The pace comes from the
-    /// fingerprint's [`HumanizeConfig`](crate::evasion::HumanizeConfig) when the
-    /// configuration has one, and is a typical typist's otherwise. For pointer
-    /// paths as well as typing, use [`sb_cdp::Page::human`](crate::sb_cdp::Page::human).
-    pub async fn human_type(
-        &mut self,
-        selector: impl Into<Selector>,
-        text: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        self.human_type_inner(&selector.into(), text).await
-    }
-
-    async fn human_type_inner(
-        &mut self,
-        css: &Selector,
-        text: &str,
-    ) -> Result<(), SeleniumBaseError> {
-        use crate::evasion::behavior::{Behavior, Humanizer, KeyAction};
-
-        let selector = shadow_find::checked(css)?;
-        self.record_selector("human_type", css, Some(text));
-        let elem = self.session.find(selector).await?;
-        elem.click().await?; // Focus the field
-
-        let behavior = self
-            .config
-            .fingerprint
-            .as_ref()
-            .map_or_else(Behavior::default, |fp| Behavior::from_config(fp.humanize()));
-        for key in Humanizer::new(behavior).typing_plan(text) {
-            tokio::time::sleep(key.wait).await;
-            // Typos are off here, so only characters are planned.
-            if let KeyAction::Type(c) = key.action {
-                elem.send_keys(&c.to_string()).await?;
-            }
-        }
-        Ok(())
-    }
-
-    /// Executes the `human_click` action, adding a random pre-click delay.
-    pub async fn human_click(
-        &mut self,
-        selector: impl Into<Selector>,
-    ) -> Result<(), SeleniumBaseError> {
-        self.human_click_inner(&selector.into()).await
-    }
-
-    async fn human_click_inner(&mut self, css: &Selector) -> Result<(), SeleniumBaseError> {
-        let selector = shadow_find::checked(css)?;
-        self.record_selector("human_click", css, None);
-        let elem = self.session.find(selector).await?;
-
-        let mut rng = rand::rng();
-        let pre_delay = rng.random_range(100..=300);
-        tokio::time::sleep(Duration::from_millis(pre_delay)).await;
-
-        elem.click().await?;
-        Ok(())
-    }
-
     /// Executes the `smooth_scroll_to` action.
     pub async fn smooth_scroll_to(
         &mut self,
@@ -3086,7 +3023,8 @@ impl BaseCase {
         &mut self,
         selector: impl Into<Selector>,
     ) -> Result<(), SeleniumBaseError> {
-        self.human_click_inner(&selector.into()).await
+        let sel = selector.into();
+        self.human_click(sel.as_str()).await
     }
 
     /// Executes the `uc_type` action (alias for human_type, often used in UC mode stealth).
@@ -3095,7 +3033,8 @@ impl BaseCase {
         selector: impl Into<Selector>,
         text: &str,
     ) -> Result<(), SeleniumBaseError> {
-        self.human_type_inner(&selector.into(), text).await
+        let sel = selector.into();
+        self.human_type(sel.as_str(), text).await
     }
 
     /// Opens `url` in UC mode after reconnecting the session.
@@ -4398,6 +4337,8 @@ include!("base_case_impls/base_case_impl_fingerprint.rs");
 include!("base_case_impls/base_case_impl_debug.rs");
 include!("base_case_impls/base_case_impl_test_data.rs");
 include!("base_case_impls/base_case_impl_extract.rs");
+include!("base_case_impls/base_case_impl_bidi.rs");
+include!("base_case_impls/base_case_impl_actions.rs");
 #[cfg(test)]
 include!("base_case_impls/base_case_impl_driver_tests.rs");
 #[cfg(test)]

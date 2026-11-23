@@ -757,6 +757,7 @@
                         "icon": "robot",
                         "pages": [
                           "concepts/webdriver",
+                          "concepts/bidi",
                           "concepts/cdp",
                           "concepts/devtools-protocol",
                           "concepts/mcp",
@@ -770,7 +771,8 @@
                         "icon": "sitemap",
                         "pages": [
                           "concepts/selectors-and-the-dom",
-                          "concepts/javascript-and-events"
+                          "concepts/javascript-and-events",
+                          "concepts/ai-web-extraction"
                         ]
                       },
                       {
@@ -778,6 +780,7 @@
                         "icon": "network-wired",
                         "pages": [
                           "concepts/network",
+                          "concepts/streaming-network-capture",
                           "concepts/bundling-and-caching"
                         ]
                       },
