@@ -514,15 +514,12 @@ pub(super) fn parse_request(request: &Value, resource_type: &Value) -> Request {
         url: request["url"].as_str().unwrap_or_default().to_owned(),
         method: request["method"].as_str().unwrap_or("GET").to_owned(),
         resource_type: ResourceType::from_protocol(resource_type.as_str().unwrap_or_default()),
-        headers: request["headers"]
-            .as_object()
-            .map(|headers| {
-                headers
-                    .iter()
-                    .filter_map(|(name, value)| Some((name.clone(), value.as_str()?.to_owned())))
-                    .collect()
-            })
-            .unwrap_or_default(),
+        headers: request["headers"].as_object().map_or_default(|headers| {
+            headers
+                .iter()
+                .filter_map(|(name, value)| Some((name.clone(), value.as_str()?.to_owned())))
+                .collect()
+        }),
     }
 }
 

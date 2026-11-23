@@ -679,8 +679,7 @@ fn filter_patterns(filter: &RequestFilter, response: bool) -> Vec<Pattern> {
 fn mime_of(headers: &Value) -> String {
     header_value(headers, "content-type")
         .and_then(|value| value.split(';').next())
-        .map(|mime| mime.trim().to_ascii_lowercase())
-        .unwrap_or_default()
+        .map_or_default(|mime| mime.trim().to_ascii_lowercase())
 }
 
 /// The `Content-Length` of the response, when it states one.

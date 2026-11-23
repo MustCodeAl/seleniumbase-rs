@@ -858,20 +858,17 @@ impl Browser {
             return Ok(vec![self.channel_page_info().await?]);
         }
         let response = self.execute("Target.getTargets", json!({})).await?;
-        Ok(response["targetInfos"]
-            .as_array()
-            .map(|infos| {
-                infos
-                    .iter()
-                    .filter(|info| info["type"] == "page")
-                    .map(|info| PageInfo {
-                        id: info["targetId"].as_str().unwrap_or_default().to_owned(),
-                        url: info["url"].as_str().unwrap_or_default().to_owned(),
-                        title: info["title"].as_str().unwrap_or_default().to_owned(),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default())
+        Ok(response["targetInfos"].as_array().map_or_default(|infos| {
+            infos
+                .iter()
+                .filter(|info| info["type"] == "page")
+                .map(|info| PageInfo {
+                    id: info["targetId"].as_str().unwrap_or_default().to_owned(),
+                    url: info["url"].as_str().unwrap_or_default().to_owned(),
+                    title: info["title"].as_str().unwrap_or_default().to_owned(),
+                })
+                .collect()
+        }))
     }
 
     /// Returns a handle to every open tab, attaching to and preparing each.

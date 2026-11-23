@@ -679,8 +679,7 @@ impl Locator {
             .await?;
         Ok(value
             .as_array()
-            .map(|items| items.iter().map(parse_info).collect())
-            .unwrap_or_default())
+            .map_or_default(|items| items.iter().map(parse_info).collect()))
     }
 
     /// The rendered text of the first match, or the value of an `<input>` or
@@ -1289,17 +1288,12 @@ fn parse_info(value: &Value) -> ElementInfo {
         tag: value["tag"].as_str().unwrap_or_default().to_owned(),
         text: value["text"].as_str().unwrap_or_default().to_owned(),
         html: value["html"].as_str().unwrap_or_default().to_owned(),
-        attributes: value["attributes"]
-            .as_object()
-            .map(|attrs| {
-                attrs
-                    .iter()
-                    .map(|(name, value)| {
-                        (name.clone(), value.as_str().unwrap_or_default().to_owned())
-                    })
-                    .collect()
-            })
-            .unwrap_or_default(),
+        attributes: value["attributes"].as_object().map_or_default(|attrs| {
+            attrs
+                .iter()
+                .map(|(name, value)| (name.clone(), value.as_str().unwrap_or_default().to_owned()))
+                .collect()
+        }),
         rect: Rect {
             x: rect["x"].as_f64().unwrap_or_default(),
             y: rect["y"].as_f64().unwrap_or_default(),

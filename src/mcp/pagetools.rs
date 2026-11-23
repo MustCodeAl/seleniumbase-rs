@@ -556,14 +556,11 @@ fn node_data(node: &Map<String, Value>) -> Value {
 /// Numbers the refs of a snapshot, stores them for the next call, and draws
 /// the snapshot.
 fn snapshot_output<S: Send + 'static>(ctx: &Ctx<S>, page: &Value, outline: bool) -> Output {
-    let mut nodes: Vec<Map<String, Value>> = page["nodes"]
-        .as_array()
-        .map(|list| {
-            list.iter()
-                .filter_map(|node| node.as_object().cloned())
-                .collect()
-        })
-        .unwrap_or_default();
+    let mut nodes: Vec<Map<String, Value>> = page["nodes"].as_array().map_or_default(|list| {
+        list.iter()
+            .filter_map(|node| node.as_object().cloned())
+            .collect()
+    });
     let mut entries = Vec::new();
     for node in &mut nodes {
         let selector = str_field(node, "selector").to_owned();

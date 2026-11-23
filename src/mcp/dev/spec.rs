@@ -660,8 +660,7 @@ fn flag_of(node: &Node) -> Flag {
     let value_node = node.child("arg");
     let mut conflicts: Vec<String> = node
         .prop_text("conflicts")
-        .map(|list| list.split_whitespace().map(str::to_owned).collect())
-        .unwrap_or_default();
+        .map_or_default(|list| list.split_whitespace().map(str::to_owned).collect());
     for child in node.children_named("conflicts") {
         conflicts.extend(child.args.iter().filter_map(Value::text).map(str::to_owned));
     }

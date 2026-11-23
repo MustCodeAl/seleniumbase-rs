@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
-use serde_json::{json, Value};
+use serde_json::Value;
 use tokio::net::TcpStream;
 use tokio::sync::{broadcast, oneshot, Mutex};
 use tokio::task::JoinHandle;
@@ -373,6 +373,15 @@ impl Client {
     }
 }
 
+#[derive(serde::Serialize)]
+struct OutboundCdpCommand<'a> {
+    id: u64,
+    method: &'a str,
+    params: &'a Value,
+    #[serde(skip_serializing_if = "Option::is_none", rename = "sessionId")]
+    session_id: Option<&'a str>,
+}
+
 impl WsLink {
     /// Registers a command and returns its id, the frame to write, and the
     /// receiver its response will arrive on.
@@ -385,13 +394,22 @@ impl WsLink {
         session_id: Option<&str>,
     ) -> (u64, Message, Reply) {
         let id = self.next_id.fetch_add(1, Ordering::SeqCst);
-        let mut payload = json!({ "id": id, "method": method, "params": params });
-        if let Some(session_id) = session_id {
-            payload["sessionId"] = Value::String(session_id.to_owned());
-        }
+        let cmd = OutboundCdpCommand {
+            id,
+            method,
+            params,
+            session_id,
+        };
+        let frame = match serde_json::to_string(&cmd) {
+            Ok(json_text) => Message::Text(json_text.into()),
+            Err(err) => {
+                tracing::error!("failed to serialize CDP command: {err}");
+                Message::Text(format!(r#"{{"id":{id},"method":"{method}"}}"#).into())
+            }
+        };
         let (tx, rx) = oneshot::channel();
         locked(&self.pending).insert(id, tx);
-        (id, Message::Text(payload.to_string().into()), rx)
+        (id, frame, rx)
     }
 
     async fn send(
@@ -564,6 +582,7 @@ pub(super) fn dispatch(value: &Value, pending: &Pending, events: &broadcast::Sen
 #[cfg(test)]
 mod tests {
     use super::*;
+    use serde_json::json;
 
     /// An endpoint that takes the connection but never answers the handshake
     /// ends the connect with an error naming it, instead of hanging the

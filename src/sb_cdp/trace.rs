@@ -814,8 +814,7 @@ impl TraceState {
         let file = TraceFile {
             version: 1,
             started_at: jiff::Timestamp::from_millisecond(self.started_wall_ms)
-                .map(|time| time.to_string())
-                .unwrap_or_default(),
+                .map_or_default(|time| time.to_string()),
             duration_ms,
             actions: &actions,
             console: &console,

@@ -573,20 +573,17 @@ impl McpClient {
             .request("resources/read", self.service.read_resource(params))
             .await?;
         let answer = to_value(&answer).unwrap_or(Value::Null);
-        Ok(answer["contents"]
-            .as_array()
-            .map(|contents| {
-                contents
-                    .iter()
-                    .map(|item| ResourceContent {
-                        uri: text_of(item, "uri").unwrap_or_default(),
-                        mime_type: text_of(item, "mimeType"),
-                        text: text_of(item, "text"),
-                        blob: text_of(item, "blob").and_then(|b64| decode(&b64)),
-                    })
-                    .collect()
-            })
-            .unwrap_or_default())
+        Ok(answer["contents"].as_array().map_or_default(|contents| {
+            contents
+                .iter()
+                .map(|item| ResourceContent {
+                    uri: text_of(item, "uri").unwrap_or_default(),
+                    mime_type: text_of(item, "mimeType"),
+                    text: text_of(item, "text"),
+                    blob: text_of(item, "blob").and_then(|b64| decode(&b64)),
+                })
+                .collect()
+        }))
     }
 
     /// Every prompt of the server.
@@ -606,19 +603,16 @@ impl McpClient {
                 name: text_of(&prompt, "name").unwrap_or_default(),
                 title: text_of(&prompt, "title"),
                 description: text_of(&prompt, "description"),
-                arguments: prompt["arguments"]
-                    .as_array()
-                    .map(|arguments| {
-                        arguments
-                            .iter()
-                            .map(|argument| PromptArgSummary {
-                                name: text_of(argument, "name").unwrap_or_default(),
-                                description: text_of(argument, "description"),
-                                required: argument["required"].as_bool().unwrap_or(false),
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default(),
+                arguments: prompt["arguments"].as_array().map_or_default(|arguments| {
+                    arguments
+                        .iter()
+                        .map(|argument| PromptArgSummary {
+                            name: text_of(argument, "name").unwrap_or_default(),
+                            description: text_of(argument, "description"),
+                            required: argument["required"].as_bool().unwrap_or(false),
+                        })
+                        .collect()
+                }),
             })
             .collect())
     }
@@ -642,20 +636,17 @@ impl McpClient {
         let answer = to_value(&answer).unwrap_or(Value::Null);
         Ok(PromptOutcome {
             description: text_of(&answer, "description"),
-            messages: answer["messages"]
-                .as_array()
-                .map(|messages| {
-                    messages
-                        .iter()
-                        .map(|message| {
-                            (
-                                text_of(message, "role").unwrap_or_default(),
-                                block_text(&message["content"]),
-                            )
-                        })
-                        .collect()
-                })
-                .unwrap_or_default(),
+            messages: answer["messages"].as_array().map_or_default(|messages| {
+                messages
+                    .iter()
+                    .map(|message| {
+                        (
+                            text_of(message, "role").unwrap_or_default(),
+                            block_text(&message["content"]),
+                        )
+                    })
+                    .collect()
+            }),
         })
     }
 
@@ -728,10 +719,7 @@ fn block_text(block: &Value) -> String {
 
 /// A `CallToolResult`, as the JSON the protocol puts on the wire, read into a [`CallOutcome`].
 fn outcome(result: &Value) -> CallOutcome {
-    let blocks = result["content"]
-        .as_array()
-        .map(Vec::as_slice)
-        .unwrap_or_default();
+    let blocks = result["content"].as_array().map_or_default(Vec::as_slice);
     let images = blocks
         .iter()
         .filter(|block| block["type"] == "image")

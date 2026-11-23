@@ -897,8 +897,7 @@ fn whole(value: f64) -> i64 {
 /// Seconds since the Unix epoch as an ISO 8601 time with milliseconds.
 fn iso_time(wall: f64) -> String {
     jiff::Timestamp::from_millisecond(whole(wall * 1000.0))
-        .map(|time| time.strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
-        .unwrap_or_default()
+        .map_or_default(|time| time.strftime("%Y-%m-%dT%H:%M:%S%.3fZ").to_string())
 }
 
 fn har_entry(entry: &EntryState) -> HarEntry {
@@ -953,14 +952,12 @@ fn har_request(entry: &EntryState, protocol: Option<&str>) -> HarRequest {
             Some(HarCookie::new(name, value))
         })
         .collect();
-    let query_string = url::Url::parse(&url)
-        .map(|parsed| {
-            parsed
-                .query_pairs()
-                .map(|(name, value)| HarNameValue::new(&name, &value))
-                .collect()
-        })
-        .unwrap_or_default();
+    let query_string = url::Url::parse(&url).map_or_default(|parsed| {
+        parsed
+            .query_pairs()
+            .map(|(name, value)| HarNameValue::new(&name, &value))
+            .collect()
+    });
     let body = post_body(request);
     let body_size = match &body {
         Some(body) if body.complete => i64::try_from(body.size).unwrap_or(i64::MAX),

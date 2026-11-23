@@ -50,6 +50,7 @@
 
 // Every public type has `Debug` (C-DEBUG, M-PUBLIC-DEBUG); the gate builds with `-D warnings`.
 #![warn(missing_debug_implementations)]
+#![allow(clippy::map_unwrap_or)]
 
 /// The version of Python SeleniumBase whose API this crate tracks.
 ///
@@ -277,7 +278,9 @@ pub use evasion::{
     ChromedriverPatcher, EnginePatch,
 };
 #[doc(inline)]
-pub use extract::{extract_json_ld, extract_json_ld_raw, PageMetadata, TableData};
+pub use extract::{
+    extract_json_ld, extract_json_ld_raw, PageArena, PageMetadata, TableData, TableDataArena,
+};
 #[doc(inline)]
 pub use sb_cdp::ResilientLocator;
 #[doc(inline)]

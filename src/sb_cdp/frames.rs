@@ -125,15 +125,12 @@ impl Page {
         let steps = self
             .eval_in(scope, label, &format!("__sbcdp.blockedSteps({chain})"))
             .await?;
-        Ok(steps
-            .as_array()
-            .map(|steps| {
-                steps
-                    .iter()
-                    .filter_map(|step| step.as_u64().and_then(|n| usize::try_from(n).ok()))
-                    .collect()
-            })
-            .unwrap_or_default())
+        Ok(steps.as_array().map_or_default(|steps| {
+            steps
+                .iter()
+                .filter_map(|step| step.as_u64().and_then(|n| usize::try_from(n).ok()))
+                .collect()
+        }))
     }
 
     /// The remote object of the `index`-th frame element the helper in `scope`

@@ -41,8 +41,7 @@ impl Cookies {
             .await?;
         Ok(response["cookies"]
             .as_array()
-            .map(|cookies| cookies.iter().map(Cookie::from_protocol).collect())
-            .unwrap_or_default())
+            .map_or_default(|cookies| cookies.iter().map(Cookie::from_protocol).collect()))
     }
 
     /// Adds or replaces cookies.
