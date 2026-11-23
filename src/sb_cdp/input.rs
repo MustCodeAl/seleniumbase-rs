@@ -248,6 +248,74 @@ pub enum Key {
     PageUp,
     /// Page Down.
     PageDown,
+    /// Insert.
+    Insert,
+    /// Space.
+    Space,
+    /// Pause.
+    Pause,
+    /// Shift.
+    Shift,
+    /// Control.
+    Control,
+    /// Alt / Option.
+    Alt,
+    /// Meta / Command / Windows key.
+    Meta,
+    /// Function key F1.
+    F1,
+    /// Function key F2.
+    F2,
+    /// Function key F3.
+    F3,
+    /// Function key F4.
+    F4,
+    /// Function key F5.
+    F5,
+    /// Function key F6.
+    F6,
+    /// Function key F7.
+    F7,
+    /// Function key F8.
+    F8,
+    /// Function key F9.
+    F9,
+    /// Function key F10.
+    F10,
+    /// Function key F11.
+    F11,
+    /// Function key F12.
+    F12,
+    /// Numpad 0.
+    NumPad0,
+    /// Numpad 1.
+    NumPad1,
+    /// Numpad 2.
+    NumPad2,
+    /// Numpad 3.
+    NumPad3,
+    /// Numpad 4.
+    NumPad4,
+    /// Numpad 5.
+    NumPad5,
+    /// Numpad 6.
+    NumPad6,
+    /// Numpad 7.
+    NumPad7,
+    /// Numpad 8.
+    NumPad8,
+    /// Numpad 9.
+    NumPad9,
+    /// Numpad Multiply (*).
+    Multiply,
+    /// Numpad Add (+).
+    Add,
+    /// Numpad Subtract (-).
+    Subtract,
+    /// Numpad Decimal (.).
+    Decimal,
+    /// Numpad Divide (/).
+    Divide,
 }
 
 impl Key {
@@ -267,6 +335,40 @@ impl Key {
             Self::End => ("End", "End", 35),
             Self::PageUp => ("PageUp", "PageUp", 33),
             Self::PageDown => ("PageDown", "PageDown", 34),
+            Self::Insert => ("Insert", "Insert", 45),
+            Self::Space => (" ", "Space", 32),
+            Self::Pause => ("Pause", "Pause", 19),
+            Self::Shift => ("Shift", "ShiftLeft", 16),
+            Self::Control => ("Control", "ControlLeft", 17),
+            Self::Alt => ("Alt", "AltLeft", 18),
+            Self::Meta => ("Meta", "MetaLeft", 91),
+            Self::F1 => ("F1", "F1", 112),
+            Self::F2 => ("F2", "F2", 113),
+            Self::F3 => ("F3", "F3", 114),
+            Self::F4 => ("F4", "F4", 115),
+            Self::F5 => ("F5", "F5", 116),
+            Self::F6 => ("F6", "F6", 117),
+            Self::F7 => ("F7", "F7", 118),
+            Self::F8 => ("F8", "F8", 119),
+            Self::F9 => ("F9", "F9", 120),
+            Self::F10 => ("F10", "F10", 121),
+            Self::F11 => ("F11", "F11", 122),
+            Self::F12 => ("F12", "F12", 123),
+            Self::NumPad0 => ("0", "Numpad0", 96),
+            Self::NumPad1 => ("1", "Numpad1", 97),
+            Self::NumPad2 => ("2", "Numpad2", 98),
+            Self::NumPad3 => ("3", "Numpad3", 99),
+            Self::NumPad4 => ("4", "Numpad4", 100),
+            Self::NumPad5 => ("5", "Numpad5", 101),
+            Self::NumPad6 => ("6", "Numpad6", 102),
+            Self::NumPad7 => ("7", "Numpad7", 103),
+            Self::NumPad8 => ("8", "Numpad8", 104),
+            Self::NumPad9 => ("9", "Numpad9", 105),
+            Self::Multiply => ("*", "NumpadMultiply", 106),
+            Self::Add => ("+", "NumpadAdd", 107),
+            Self::Subtract => ("-", "NumpadSubtract", 109),
+            Self::Decimal => (".", "NumpadDecimal", 110),
+            Self::Divide => ("/", "NumpadDivide", 111),
         }
     }
 }
@@ -355,6 +457,9 @@ impl Keyboard {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
     pub async fn type_char(&self, ch: char) -> Result<(), SeleniumBaseError> {
+        if let Some(key) = crate::utils::keys::Keys::to_key(ch) {
+            return self.press(key).await;
+        }
         match ch {
             '\n' | '\r' => self.press(Key::Enter).await,
             '\t' => self.press(Key::Tab).await,

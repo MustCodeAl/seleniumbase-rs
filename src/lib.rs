@@ -225,6 +225,8 @@ pub use api::run_settings::{PauseKind, RunSettings, RunSettingsBuilder};
 #[doc(inline)]
 pub use api::runner::{run_browser_test, run_cdp_test};
 #[doc(inline)]
+pub use api::switching::Alert;
+#[doc(inline)]
 pub use api::tour::TourTheme;
 #[doc(inline)]
 pub use api::traits::{AssertionApi, BrowserApi, ElementApi, ScreenshotApi};
@@ -283,5 +285,11 @@ pub use utilities::python_importer::{
 };
 #[doc(inline)]
 pub use utilities::retry::RetryPolicy;
+#[doc(inline)]
+pub use utils::color::Color;
+#[doc(inline)]
+pub use utils::keys::Keys;
+#[doc(inline)]
+pub use utils::select::Select;
 #[doc(inline)]
 pub use utils::selectors::{By, Selector, SelectorRef};

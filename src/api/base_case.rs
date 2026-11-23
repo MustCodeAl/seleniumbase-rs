@@ -1058,6 +1058,11 @@ impl BaseCase {
         Ok(())
     }
 
+    /// Alias of [`go_back`](Self::go_back) (Python Selenium `driver.back()`).
+    pub async fn back(&self) -> Result<(), SeleniumBaseError> {
+        self.go_back().await
+    }
+
     /// Navigates forward in browser history.
     pub async fn go_forward(&self) -> Result<(), SeleniumBaseError> {
         self.session.forward().await?;
@@ -1065,6 +1070,11 @@ impl BaseCase {
         self.demo_pause(PauseKind::Full).await;
         self.arm_esc_end().await;
         Ok(())
+    }
+
+    /// Alias of [`go_forward`](Self::go_forward) (Python Selenium `driver.forward()`).
+    pub async fn forward(&self) -> Result<(), SeleniumBaseError> {
+        self.go_forward().await
     }
 
     /// Clicks the element selected by `css`.
