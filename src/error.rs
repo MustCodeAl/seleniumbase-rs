@@ -1099,6 +1099,9 @@ fn guess_strategy(selector: &str) -> &'static str {
         SelectorRef::PartialLinkText(_) => "partial link text",
         SelectorRef::XPath(_) => "xpath",
         SelectorRef::Id(_) => "id",
+        SelectorRef::Name(_) => "name",
+        SelectorRef::TagName(_) => "tag name",
+        SelectorRef::ClassName(_) => "class name",
         SelectorRef::Css(_) => "css selector",
     }
 }

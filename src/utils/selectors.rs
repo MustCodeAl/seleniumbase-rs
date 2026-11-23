@@ -36,10 +36,144 @@
 use std::borrow::Cow;
 use std::str::FromStr;
 
-use thirtyfour::By;
+use thirtyfour::By as WebDriverBy;
 
 use crate::error::SeleniumBaseError;
 use crate::utils::shadow::{is_shadow_selector, shadow_chain};
+
+/// The 8 locator strategies defined by W3C WebDriver and Selenium.
+///
+/// Matches Python Selenium's `selenium.webdriver.common.by.By` constants:
+/// ```python
+/// class By:
+///     ID = "id"
+///     NAME = "name"
+///     XPATH = "xpath"
+///     LINK_TEXT = "link text"
+///     PARTIAL_LINK_TEXT = "partial link text"
+///     TAG_NAME = "tag name"
+///     CLASS_NAME = "class name"
+///     CSS_SELECTOR = "css selector"
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+pub enum By {
+    /// Select an element by id (`"id"`).
+    #[serde(rename = "id")]
+    Id,
+    /// Select an element by name attribute (`"name"`).
+    #[serde(rename = "name")]
+    Name,
+    /// Select an element by XPath expression (`"xpath"`).
+    #[serde(rename = "xpath")]
+    XPath,
+    /// Select a link by exact text (`"link text"`).
+    #[serde(rename = "link text")]
+    LinkText,
+    /// Select a link by partial text (`"partial link text"`).
+    #[serde(rename = "partial link text")]
+    PartialLinkText,
+    /// Select an element by tag name (`"tag name"`).
+    #[serde(rename = "tag name")]
+    TagName,
+    /// Select an element by class name (`"class name"`).
+    #[serde(rename = "class name")]
+    ClassName,
+    /// Select an element by CSS selector (`"css selector"`).
+    #[serde(rename = "css selector")]
+    Css,
+}
+
+impl By {
+    /// The string constant for ID (`"id"`).
+    pub const ID: &'static str = "id";
+    /// The string constant for NAME (`"name"`).
+    pub const NAME: &'static str = "name";
+    /// The string constant for XPATH (`"xpath"`).
+    pub const XPATH: &'static str = "xpath";
+    /// The string constant for LINK_TEXT (`"link text"`).
+    pub const LINK_TEXT: &'static str = "link text";
+    /// The string constant for PARTIAL_LINK_TEXT (`"partial link text"`).
+    pub const PARTIAL_LINK_TEXT: &'static str = "partial link text";
+    /// The string constant for TAG_NAME (`"tag name"`).
+    pub const TAG_NAME: &'static str = "tag name";
+    /// The string constant for CLASS_NAME (`"class name"`).
+    pub const CLASS_NAME: &'static str = "class name";
+    /// The string constant for CSS_SELECTOR (`"css selector"`).
+    pub const CSS_SELECTOR: &'static str = "css selector";
+
+    /// Returns the canonical Selenium strategy name.
+    #[must_use]
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Id => Self::ID,
+            Self::Name => Self::NAME,
+            Self::XPath => Self::XPATH,
+            Self::LinkText => Self::LINK_TEXT,
+            Self::PartialLinkText => Self::PARTIAL_LINK_TEXT,
+            Self::TagName => Self::TAG_NAME,
+            Self::ClassName => Self::CLASS_NAME,
+            Self::Css => Self::CSS_SELECTOR,
+        }
+    }
+
+    /// Builds an owned [`Selector`] using this strategy and the given value.
+    #[must_use]
+    pub fn selector(self, value: impl Into<String>) -> Selector {
+        match self {
+            Self::Id => Selector::Id(value.into()),
+            Self::Name => Selector::Name(value.into()),
+            Self::XPath => Selector::XPath(value.into()),
+            Self::LinkText => Selector::LinkText(value.into()),
+            Self::PartialLinkText => Selector::PartialLinkText(value.into()),
+            Self::TagName => Selector::TagName(value.into()),
+            Self::ClassName => Selector::ClassName(value.into()),
+            Self::Css => Selector::Css(value.into()),
+        }
+    }
+
+    /// Builds a borrowed [`SelectorRef`] using this strategy and the given value.
+    #[must_use]
+    pub const fn selector_ref<'a>(self, value: &'a str) -> SelectorRef<'a> {
+        match self {
+            Self::Id => SelectorRef::Id(value),
+            Self::Name => SelectorRef::Name(value),
+            Self::XPath => SelectorRef::XPath(value),
+            Self::LinkText => SelectorRef::LinkText(value),
+            Self::PartialLinkText => SelectorRef::PartialLinkText(value),
+            Self::TagName => SelectorRef::TagName(value),
+            Self::ClassName => SelectorRef::ClassName(value),
+            Self::Css => SelectorRef::Css(value),
+        }
+    }
+}
+
+impl std::fmt::Display for By {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
+impl std::str::FromStr for By {
+    type Err = SeleniumBaseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "id" => Ok(Self::Id),
+            "name" => Ok(Self::Name),
+            "xpath" => Ok(Self::XPath),
+            "link text" | "link_text" | "link" => Ok(Self::LinkText),
+            "partial link text" | "partial_link_text" | "partial link" | "partial_link" => {
+                Ok(Self::PartialLinkText)
+            }
+            "tag name" | "tag_name" | "tag" => Ok(Self::TagName),
+            "class name" | "class_name" | "class" => Ok(Self::ClassName),
+            "css selector" | "css_selector" | "css" => Ok(Self::Css),
+            other => Err(SeleniumBaseError::InvalidSelector(format!(
+                "unknown locator strategy: '{other}'"
+            ))),
+        }
+    }
+}
 
 /// A selector that borrows its text, with its kind decided.
 ///
@@ -47,17 +181,23 @@ use crate::utils::shadow::{is_shadow_selector, shadow_chain};
 /// yourself to skip the guess.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SelectorRef<'a> {
-    /// A link whose text is exactly this.
+    /// A link whose text is exactly this (`By::LINK_TEXT`).
     LinkText(&'a str),
-    /// A link whose text contains this.
+    /// A link whose text contains this (`By::PARTIAL_LINK_TEXT`).
     PartialLinkText(&'a str),
-    /// A CSS selector.
+    /// A CSS selector (`By::CSS_SELECTOR`).
     Css(&'a str),
-    /// An XPath expression.
+    /// An XPath expression (`By::XPATH`).
     XPath(&'a str),
-    /// An element id. Unlike `Css("#id")` it needs no escaping, whatever
+    /// An element id (`By::ID`). Unlike `Css("#id")` it needs no escaping, whatever
     /// characters the id contains.
     Id(&'a str),
+    /// An element name attribute (`By::NAME`).
+    Name(&'a str),
+    /// An element tag name (`By::TAG_NAME`).
+    TagName(&'a str),
+    /// An element class name (`By::CLASS_NAME`).
+    ClassName(&'a str),
 }
 
 /// XPath axis names that may introduce an expression, per the XPath
@@ -248,13 +388,109 @@ impl<'a> SelectorRef<'a> {
         Self::Css(selector)
     }
 
+    /// Creates an ID selector (`By::ID`).
+    #[must_use]
+    pub const fn id(id: &'a str) -> Self {
+        Self::Id(id)
+    }
+
+    /// Creates a Name selector (`By::NAME`).
+    #[must_use]
+    pub const fn name(name: &'a str) -> Self {
+        Self::Name(name)
+    }
+
+    /// Creates an XPath selector (`By::XPATH`).
+    #[must_use]
+    pub const fn xpath(expression: &'a str) -> Self {
+        Self::XPath(expression)
+    }
+
+    /// Creates a Link Text selector (`By::LINK_TEXT`).
+    #[must_use]
+    pub const fn link_text(text: &'a str) -> Self {
+        Self::LinkText(text)
+    }
+
+    /// Creates a Partial Link Text selector (`By::PARTIAL_LINK_TEXT`).
+    #[must_use]
+    pub const fn partial_link_text(text: &'a str) -> Self {
+        Self::PartialLinkText(text)
+    }
+
+    /// Creates a Tag Name selector (`By::TAG_NAME`).
+    #[must_use]
+    pub const fn tag_name(tag: &'a str) -> Self {
+        Self::TagName(tag)
+    }
+
+    /// Alias for [`tag_name`](Self::tag_name).
+    #[must_use]
+    pub const fn tag(tag: &'a str) -> Self {
+        Self::tag_name(tag)
+    }
+
+    /// Creates a Class Name selector (`By::CLASS_NAME`).
+    #[must_use]
+    pub const fn class_name(class: &'a str) -> Self {
+        Self::ClassName(class)
+    }
+
+    /// Alias for [`class_name`](Self::class_name).
+    #[must_use]
+    pub const fn class(class: &'a str) -> Self {
+        Self::class_name(class)
+    }
+
+    /// Creates a CSS selector (`By::CSS_SELECTOR`).
+    #[must_use]
+    pub const fn css(selector: &'a str) -> Self {
+        Self::Css(selector)
+    }
+
+    /// Returns the locator strategy of this selector.
+    #[must_use]
+    pub const fn by(&self) -> By {
+        match self {
+            Self::Id(_) => By::Id,
+            Self::Name(_) => By::Name,
+            Self::XPath(_) => By::XPath,
+            Self::LinkText(_) => By::LinkText,
+            Self::PartialLinkText(_) => By::PartialLinkText,
+            Self::TagName(_) => By::TagName,
+            Self::ClassName(_) => By::ClassName,
+            Self::Css(_) => By::Css,
+        }
+    }
+
+    /// Returns the canonical Selenium strategy string (`"id"`, `"name"`, `"xpath"`, `"link text"`, `"partial link text"`, `"tag name"`, `"class name"`, `"css selector"`).
+    #[must_use]
+    pub const fn strategy_name(&self) -> &'static str {
+        self.by().as_str()
+    }
+
+    /// The text of the selector, without the prefix that names its kind.
+    #[must_use]
+    pub const fn as_str(self) -> &'a str {
+        match self {
+            Self::Css(value)
+            | Self::XPath(value)
+            | Self::LinkText(value)
+            | Self::PartialLinkText(value)
+            | Self::Id(value)
+            | Self::Name(value)
+            | Self::TagName(value)
+            | Self::ClassName(value) => value,
+        }
+    }
+
     /// Converts an auto-detected selector straight into a `By` locator.
     ///
     /// # Errors
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] when `selector` is empty
     /// or contains only whitespace.
-    pub(crate) fn auto_by(selector: &'a str) -> Result<By, SeleniumBaseError> {
+    pub(crate) fn auto_by(selector: &'a str) -> Result<WebDriverBy, SeleniumBaseError> {
         Self::auto(selector).to_by()
     }
 
@@ -268,11 +504,23 @@ impl<'a> SelectorRef<'a> {
     ///
     /// Returns [`SeleniumBaseError::InvalidSelector`] when the text is empty
     /// or contains only whitespace.
-    pub(crate) fn to_by(self) -> Result<By, SeleniumBaseError> {
+    pub(crate) fn to_by(self) -> Result<WebDriverBy, SeleniumBaseError> {
         match self {
             // An id needs no escaping, so it keeps the locator that names it.
-            Self::Id(value) if !value.trim().is_empty() => Ok(By::Id(value.to_owned())),
+            Self::Id(value) if !value.trim().is_empty() => Ok(WebDriverBy::Id(value.to_owned())),
             Self::Id(_) => Err(empty_selector()),
+            Self::Name(value) if !value.trim().is_empty() => {
+                Ok(WebDriverBy::Name(value.to_owned()))
+            }
+            Self::Name(_) => Err(empty_selector()),
+            Self::TagName(value) if !value.trim().is_empty() => {
+                Ok(WebDriverBy::Tag(value.to_owned()))
+            }
+            Self::TagName(_) => Err(empty_selector()),
+            Self::ClassName(value) if !value.trim().is_empty() => {
+                Ok(WebDriverBy::ClassName(value.to_owned()))
+            }
+            Self::ClassName(_) => Err(empty_selector()),
             // The rule and the rewrite are `Selector`'s, once for every engine.
             other => Selector::from(other).to_by(),
         }
@@ -324,40 +572,105 @@ impl<'a> SelectorRef<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(tag = "kind", content = "value", rename_all = "snake_case")]
 pub enum Selector {
-    /// A CSS selector.
+    /// A CSS selector (`By::CSS_SELECTOR`).
     Css(String),
-    /// An XPath expression.
+    /// An XPath expression (`By::XPATH`).
     #[serde(rename = "xpath")]
     XPath(String),
-    /// A link whose text is exactly this.
+    /// A link whose text is exactly this (`By::LINK_TEXT`).
     LinkText(String),
-    /// A link whose text contains this.
+    /// A link whose text contains this (`By::PARTIAL_LINK_TEXT`).
     PartialLinkText(String),
+    /// An element id (`By::ID`).
+    Id(String),
+    /// An element name attribute (`By::NAME`).
+    Name(String),
+    /// An element tag name (`By::TAG_NAME`).
+    TagName(String),
+    /// An element class name (`By::CLASS_NAME`).
+    ClassName(String),
 }
 
 impl Selector {
-    /// Creates a CSS selector, taken literally with no detection.
+    /// Creates a CSS selector (`By::CSS_SELECTOR`), taken literally with no detection.
     #[must_use]
     pub fn css(selector: impl Into<String>) -> Self {
         Self::Css(selector.into())
     }
 
-    /// Creates an XPath selector, taken literally with no detection.
+    /// Creates an XPath selector (`By::XPATH`), taken literally with no detection.
     #[must_use]
     pub fn xpath(expression: impl Into<String>) -> Self {
         Self::XPath(expression.into())
     }
 
-    /// Creates a selector for a link with exactly this text.
+    /// Creates an ID selector (`By::ID`).
+    #[must_use]
+    pub fn id(id: impl Into<String>) -> Self {
+        Self::Id(id.into())
+    }
+
+    /// Creates a Name selector (`By::NAME`).
+    #[must_use]
+    pub fn name(name: impl Into<String>) -> Self {
+        Self::Name(name.into())
+    }
+
+    /// Creates a selector for a link with exactly this text (`By::LINK_TEXT`).
     #[must_use]
     pub fn link_text(text: impl Into<String>) -> Self {
         Self::LinkText(text.into())
     }
 
-    /// Creates a selector for a link whose text contains this.
+    /// Creates a selector for a link whose text contains this (`By::PARTIAL_LINK_TEXT`).
     #[must_use]
     pub fn partial_link_text(text: impl Into<String>) -> Self {
         Self::PartialLinkText(text.into())
+    }
+
+    /// Creates a Tag Name selector (`By::TAG_NAME`).
+    #[must_use]
+    pub fn tag_name(tag: impl Into<String>) -> Self {
+        Self::TagName(tag.into())
+    }
+
+    /// Alias for [`tag_name`](Self::tag_name).
+    #[must_use]
+    pub fn tag(tag: impl Into<String>) -> Self {
+        Self::tag_name(tag)
+    }
+
+    /// Creates a Class Name selector (`By::CLASS_NAME`).
+    #[must_use]
+    pub fn class_name(class: impl Into<String>) -> Self {
+        Self::ClassName(class.into())
+    }
+
+    /// Alias for [`class_name`](Self::class_name).
+    #[must_use]
+    pub fn class(class: impl Into<String>) -> Self {
+        Self::class_name(class)
+    }
+
+    /// Returns the locator strategy of this selector.
+    #[must_use]
+    pub const fn by(&self) -> By {
+        match self {
+            Self::Id(_) => By::Id,
+            Self::Name(_) => By::Name,
+            Self::XPath(_) => By::XPath,
+            Self::LinkText(_) => By::LinkText,
+            Self::PartialLinkText(_) => By::PartialLinkText,
+            Self::TagName(_) => By::TagName,
+            Self::ClassName(_) => By::ClassName,
+            Self::Css(_) => By::Css,
+        }
+    }
+
+    /// Returns the canonical Selenium strategy string (`"id"`, `"name"`, `"xpath"`, `"link text"`, `"partial link text"`, `"tag name"`, `"class name"`, `"css selector"`).
+    #[must_use]
+    pub const fn strategy_name(&self) -> &'static str {
+        self.by().as_str()
     }
 
     /// The text of the selector, without the prefix that names its kind:
@@ -375,7 +688,11 @@ impl Selector {
             Self::Css(value)
             | Self::XPath(value)
             | Self::LinkText(value)
-            | Self::PartialLinkText(value) => value,
+            | Self::PartialLinkText(value)
+            | Self::Id(value)
+            | Self::Name(value)
+            | Self::TagName(value)
+            | Self::ClassName(value) => value,
         }
     }
 
@@ -443,9 +760,14 @@ impl Selector {
                 contains_to_xpath(css)
                     .map_or(Cow::Borrowed(self), |xpath| Cow::Owned(Self::XPath(xpath)))
             }
-            Self::Css(_) | Self::XPath(_) | Self::LinkText(_) | Self::PartialLinkText(_) => {
-                Cow::Borrowed(self)
-            }
+            Self::Css(_)
+            | Self::XPath(_)
+            | Self::LinkText(_)
+            | Self::PartialLinkText(_)
+            | Self::Id(_)
+            | Self::Name(_)
+            | Self::TagName(_)
+            | Self::ClassName(_) => Cow::Borrowed(self),
         }
     }
 
@@ -458,13 +780,17 @@ impl Selector {
     /// # Errors
     ///
     /// As [`check`](Self::check).
-    pub(crate) fn to_by(&self) -> Result<By, SeleniumBaseError> {
+    pub(crate) fn to_by(&self) -> Result<WebDriverBy, SeleniumBaseError> {
         self.check()?;
         Ok(match &*self.lookup_form() {
-            Self::Css(value) => By::Css(value.clone()),
-            Self::XPath(value) => By::XPath(value.clone()),
-            Self::LinkText(value) => By::LinkText(value.clone()),
-            Self::PartialLinkText(value) => By::PartialLinkText(value.clone()),
+            Self::Css(value) => WebDriverBy::Css(value.clone()),
+            Self::XPath(value) => WebDriverBy::XPath(value.clone()),
+            Self::LinkText(value) => WebDriverBy::LinkText(value.clone()),
+            Self::PartialLinkText(value) => WebDriverBy::PartialLinkText(value.clone()),
+            Self::Id(value) => WebDriverBy::Id(value.clone()),
+            Self::Name(value) => WebDriverBy::Name(value.clone()),
+            Self::TagName(value) => WebDriverBy::Tag(value.clone()),
+            Self::ClassName(value) => WebDriverBy::ClassName(value.clone()),
         })
     }
 
@@ -525,6 +851,10 @@ impl Selector {
             Self::XPath(value) => SelectorRef::XPath(value),
             Self::LinkText(value) => SelectorRef::LinkText(value),
             Self::PartialLinkText(value) => SelectorRef::PartialLinkText(value),
+            Self::Id(value) => SelectorRef::Id(value),
+            Self::Name(value) => SelectorRef::Name(value),
+            Self::TagName(value) => SelectorRef::TagName(value),
+            Self::ClassName(value) => SelectorRef::ClassName(value),
         }
     }
 
@@ -785,7 +1115,10 @@ impl From<SelectorRef<'_>> for Selector {
             SelectorRef::XPath(value) => Self::XPath(value.to_owned()),
             SelectorRef::LinkText(value) => Self::LinkText(value.to_owned()),
             SelectorRef::PartialLinkText(value) => Self::PartialLinkText(value.to_owned()),
-            SelectorRef::Id(value) => Self::Css(format!("[id={}]", css_quoted(value, '"'))),
+            SelectorRef::Id(value) => Self::Id(value.to_owned()),
+            SelectorRef::Name(value) => Self::Name(value.to_owned()),
+            SelectorRef::TagName(value) => Self::TagName(value.to_owned()),
+            SelectorRef::ClassName(value) => Self::ClassName(value.to_owned()),
         }
     }
 }
@@ -845,6 +1178,56 @@ impl std::fmt::Display for Selector {
             Self::Css(value) | Self::XPath(value) => f.write_str(value),
             Self::LinkText(value) => write!(f, "link={value}"),
             Self::PartialLinkText(value) => write!(f, "partial_link={value}"),
+            Self::Id(value) => write!(f, "id={value}"),
+            Self::Name(value) => write!(f, "name={value}"),
+            Self::TagName(value) => write!(f, "tag={value}"),
+            Self::ClassName(value) => write!(f, "class={value}"),
+        }
+    }
+}
+
+impl std::fmt::Display for SelectorRef<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Css(value) | Self::XPath(value) => f.write_str(value),
+            Self::LinkText(value) => write!(f, "link={value}"),
+            Self::PartialLinkText(value) => write!(f, "partial_link={value}"),
+            Self::Id(value) => write!(f, "id={value}"),
+            Self::Name(value) => write!(f, "name={value}"),
+            Self::TagName(value) => write!(f, "tag={value}"),
+            Self::ClassName(value) => write!(f, "class={value}"),
+        }
+    }
+}
+
+impl<S: Into<String>> From<(By, S)> for Selector {
+    fn from((by, val): (By, S)) -> Self {
+        by.selector(val)
+    }
+}
+
+impl<'a> From<(By, &'a str)> for SelectorRef<'a> {
+    fn from((by, val): (By, &'a str)) -> Self {
+        by.selector_ref(val)
+    }
+}
+
+impl<'a> From<(&'a str, &'a str)> for SelectorRef<'a> {
+    fn from((by_str, val): (&'a str, &'a str)) -> Self {
+        if let Ok(by) = by_str.parse::<By>() {
+            by.selector_ref(val)
+        } else {
+            Self::auto(val)
+        }
+    }
+}
+
+impl<S: Into<String>> From<(&str, S)> for Selector {
+    fn from((by_str, val): (&str, S)) -> Self {
+        if let Ok(by) = by_str.parse::<By>() {
+            by.selector(val)
+        } else {
+            Self::from(format!("{by_str}={}", val.into()))
         }
     }
 }
@@ -1337,7 +1720,7 @@ mod tests_xpath_branches {
 mod tests {
     use super::*;
 
-    fn variant_name(by: By) -> String {
+    fn variant_name(by: WebDriverBy) -> String {
         format!("{by:?}")
     }
 
@@ -1349,6 +1732,9 @@ mod tests {
             SelectorRef::LinkText(v) => ("link", v.to_owned()),
             SelectorRef::PartialLinkText(v) => ("partial", v.to_owned()),
             SelectorRef::Id(v) => ("id", v.to_owned()),
+            SelectorRef::Name(v) => ("name", v.to_owned()),
+            SelectorRef::TagName(v) => ("tag", v.to_owned()),
+            SelectorRef::ClassName(v) => ("class", v.to_owned()),
         }
     }
 
@@ -1368,6 +1754,143 @@ mod tests {
     fn id_selector_to_by() {
         let by = SelectorRef::Id("user").to_by().unwrap();
         assert!(variant_name(by).contains("Id"));
+    }
+
+    #[test]
+    fn name_selector_to_by() {
+        let by = SelectorRef::Name("username").to_by().unwrap();
+        assert_eq!(
+            format!("{by:?}"),
+            format!("{:?}", WebDriverBy::Name("username".to_owned()))
+        );
+    }
+
+    #[test]
+    fn tag_name_selector_to_by() {
+        let by = SelectorRef::TagName("input").to_by().unwrap();
+        assert_eq!(
+            format!("{by:?}"),
+            format!("{:?}", WebDriverBy::Tag("input".to_owned()))
+        );
+    }
+
+    #[test]
+    fn class_name_selector_to_by() {
+        let by = SelectorRef::ClassName("btn").to_by().unwrap();
+        assert_eq!(
+            format!("{by:?}"),
+            format!("{:?}", WebDriverBy::ClassName("btn".to_owned()))
+        );
+    }
+
+    #[test]
+    fn by_constants_and_enum() {
+        assert_eq!(By::ID, "id");
+        assert_eq!(By::NAME, "name");
+        assert_eq!(By::XPATH, "xpath");
+        assert_eq!(By::LINK_TEXT, "link text");
+        assert_eq!(By::PARTIAL_LINK_TEXT, "partial link text");
+        assert_eq!(By::TAG_NAME, "tag name");
+        assert_eq!(By::CLASS_NAME, "class name");
+        assert_eq!(By::CSS_SELECTOR, "css selector");
+
+        assert_eq!(By::Id.as_str(), "id");
+        assert_eq!(By::Name.as_str(), "name");
+        assert_eq!(By::XPath.as_str(), "xpath");
+        assert_eq!(By::LinkText.as_str(), "link text");
+        assert_eq!(By::PartialLinkText.as_str(), "partial link text");
+        assert_eq!(By::TagName.as_str(), "tag name");
+        assert_eq!(By::ClassName.as_str(), "class name");
+        assert_eq!(By::Css.as_str(), "css selector");
+
+        assert_eq!("id".parse::<By>().unwrap(), By::Id);
+        assert_eq!("name".parse::<By>().unwrap(), By::Name);
+        assert_eq!("xpath".parse::<By>().unwrap(), By::XPath);
+        assert_eq!("link text".parse::<By>().unwrap(), By::LinkText);
+        assert_eq!(
+            "partial link text".parse::<By>().unwrap(),
+            By::PartialLinkText
+        );
+        assert_eq!("tag name".parse::<By>().unwrap(), By::TagName);
+        assert_eq!("class name".parse::<By>().unwrap(), By::ClassName);
+        assert_eq!("css selector".parse::<By>().unwrap(), By::Css);
+    }
+
+    #[test]
+    fn tuple_conversions() {
+        assert_eq!(
+            Selector::from((By::Id, "submit")),
+            Selector::Id("submit".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::ID, "submit")),
+            Selector::Id("submit".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::Name, "q")),
+            Selector::Name("q".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::NAME, "q")),
+            Selector::Name("q".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::XPath, "//div")),
+            Selector::XPath("//div".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::XPATH, "//div")),
+            Selector::XPath("//div".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::LinkText, "Home")),
+            Selector::LinkText("Home".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::LINK_TEXT, "Home")),
+            Selector::LinkText("Home".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::PartialLinkText, "Hom")),
+            Selector::PartialLinkText("Hom".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::PARTIAL_LINK_TEXT, "Hom")),
+            Selector::PartialLinkText("Hom".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::TagName, "button")),
+            Selector::TagName("button".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::TAG_NAME, "button")),
+            Selector::TagName("button".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::ClassName, "active")),
+            Selector::ClassName("active".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::CLASS_NAME, "active")),
+            Selector::ClassName("active".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::Css, ".btn")),
+            Selector::Css(".btn".to_owned())
+        );
+        assert_eq!(
+            Selector::from((By::CSS_SELECTOR, ".btn")),
+            Selector::Css(".btn".to_owned())
+        );
+
+        assert_eq!(
+            SelectorRef::from((By::Id, "submit")),
+            SelectorRef::Id("submit")
+        );
+        assert_eq!(
+            SelectorRef::from((By::ID, "submit")),
+            SelectorRef::Id("submit")
+        );
     }
 
     #[test]
@@ -1394,7 +1917,9 @@ mod tests {
             .unwrap();
         assert_eq!(
             variant_name(by),
-            variant_name(By::XPath(".//button[contains(., 'Go on')]".to_owned()))
+            variant_name(WebDriverBy::XPath(
+                ".//button[contains(., 'Go on')]".to_owned()
+            ))
         );
     }
 
@@ -1460,6 +1985,9 @@ mod tests {
             SelectorRef::Css(""),
             SelectorRef::XPath(" \t"),
             SelectorRef::Id(""),
+            SelectorRef::Name(""),
+            SelectorRef::TagName(" \t"),
+            SelectorRef::ClassName(""),
             SelectorRef::LinkText(" "),
             SelectorRef::PartialLinkText(""),
         ] {
@@ -1705,12 +2233,16 @@ mod tests {
             Selector::xpath("//a"),
             Selector::link_text("Hi"),
             Selector::partial_link_text("Hi"),
+            Selector::id("usr"),
+            Selector::name("field"),
+            Selector::tag_name("button"),
+            Selector::class_name("btn"),
             Selector::css("p:contains('x')"),
         ] {
             let json = serde_json::to_string(&buf).unwrap();
             assert_eq!(serde_json::from_str::<Selector>(&json).unwrap(), buf);
         }
-        assert!(serde_json::from_str::<Selector>(r#"{"kind":"id","value":"a"}"#).is_err());
+        assert!(serde_json::from_str::<Selector>(r#"{"kind":"unknown","value":"a"}"#).is_err());
         assert!(serde_json::from_str::<Selector>("\"#a\"").is_err());
     }
 
@@ -1841,14 +2373,23 @@ mod tests {
     #[test]
     fn a_selector_becomes_the_locator_of_its_lookup_form() {
         let by = |selector: Selector| format!("{:?}", selector.to_by().unwrap());
-        assert_eq!(by(Selector::css("#a")), format!("{:?}", By::Css("#a")));
+        assert_eq!(
+            by(Selector::css("#a")),
+            format!("{:?}", WebDriverBy::Css("#a".to_owned()))
+        );
         assert_eq!(
             by(Selector::from("button:contains(\"Go on\")")),
-            format!("{:?}", By::XPath(".//button[contains(., 'Go on')]"))
+            format!(
+                "{:?}",
+                WebDriverBy::XPath(".//button[contains(., 'Go on')]".to_owned())
+            )
         );
         assert_eq!(
             by(Selector::css("button:contains(\"Go on\")")),
-            format!("{:?}", By::XPath(".//button[contains(., 'Go on')]"))
+            format!(
+                "{:?}",
+                WebDriverBy::XPath(".//button[contains(., 'Go on')]".to_owned())
+            )
         );
         assert!(Selector::css("").to_by().is_err());
         assert!(Selector::css("app ::shadow").to_by().is_err());
@@ -1862,6 +2403,10 @@ mod tests {
             SelectorRef::XPath("//a"),
             SelectorRef::LinkText("Go"),
             SelectorRef::PartialLinkText("G"),
+            SelectorRef::Id("user"),
+            SelectorRef::Name("username"),
+            SelectorRef::TagName("input"),
+            SelectorRef::ClassName("btn"),
         ] {
             assert_eq!(Selector::from(selector).as_selector(), selector);
         }
@@ -1876,18 +2421,22 @@ mod tests {
             Selector::partial_link_text("Hi").to_string(),
             "partial_link=Hi"
         );
+        assert_eq!(Selector::id("usr").to_string(), "id=usr");
+        assert_eq!(Selector::name("field").to_string(), "name=field");
+        assert_eq!(Selector::tag_name("button").to_string(), "tag=button");
+        assert_eq!(Selector::class_name("active").to_string(), "class=active");
     }
 
     #[test]
     fn an_id_becomes_an_attribute_selector_that_no_id_can_break() {
-        let id = |value| Selector::from(SelectorRef::Id(value));
+        let id = |value| format!("[id={}]", css_quoted(value, '"'));
 
-        assert_eq!(id("user"), Selector::css("[id=\"user\"]"));
-        assert_eq!(id("a\"b"), Selector::css("[id=\"a\\\"b\"]"));
+        assert_eq!(id("user"), "[id=\"user\"]");
+        assert_eq!(id("a\"b"), "[id=\"a\\\"b\"]");
         // A trailing backslash must not escape the closing quote.
-        assert_eq!(id("a\\"), Selector::css("[id=\"a\\\\\"]"));
-        assert_eq!(id("x\ny"), Selector::css("[id=\"x\\a y\"]"));
-        assert_eq!(id("日本語"), Selector::css("[id=\"日本語\"]"));
+        assert_eq!(id("a\\"), "[id=\"a\\\\\"]");
+        assert_eq!(id("x\ny"), "[id=\"x\\a y\"]");
+        assert_eq!(id("日本語"), "[id=\"日本語\"]");
     }
 
     #[test]

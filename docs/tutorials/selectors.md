@@ -65,14 +65,24 @@ instead of relying on detection. It goes wherever a method takes a selector as
 `impl Into<Selector>`: the methods of `BaseCase`, `CdpDriver`, `Element` and `BrowserSession`, and
 `Page::locator` and `Locator::locator` on the pure CDP engine.
 
-### `Selector` and `SelectorRef`
+### `Selector`, `SelectorRef`, and `By`
 
-`seleniumbase-rs` provides two selector types:
-- **`Selector`**: The owned selector enum (`Css`, `XPath`, `LinkText`, `PartialLinkText`). It implements `Serialize`, `Deserialize`, `From<&str>`, and `FromStr`.
-- **`SelectorRef<'a>`**: The zero-copy borrowed enum (`Css(&'a str)`, `XPath(&'a str)`, `LinkText(&'a str)`, `PartialLinkText(&'a str)`, `Id(&'a str)`).
+`seleniumbase-rs` supports all 8 standard W3C WebDriver / Selenium locator strategies through `By`, `Selector`, and `SelectorRef`:
+- **`By`**: The standard locator strategy enum (`Id`, `Name`, `XPath`, `LinkText`, `PartialLinkText`, `TagName`, `ClassName`, `Css`). Matches Python Selenium's `By` class with exact string constants:
+  - `By::ID = "id"`
+  - `By::NAME = "name"`
+  - `By::XPATH = "xpath"`
+  - `By::LINK_TEXT = "link text"`
+  - `By::PARTIAL_LINK_TEXT = "partial link text"`
+  - `By::TAG_NAME = "tag name"`
+  - `By::CLASS_NAME = "class name"`
+  - `By::CSS_SELECTOR = "css selector"`
+- **`Selector`**: The owned selector enum (`Id`, `Name`, `XPath`, `LinkText`, `PartialLinkText`, `TagName`, `ClassName`, `Css`). It implements `Serialize`, `Deserialize`, `From<&str>`, `FromStr`, `From<(By, S)>`, and `From<(&str, S)>`.
+- **`SelectorRef<'a>`**: The zero-copy borrowed enum (`Id(&'a str)`, `Name(&'a str)`, `XPath(&'a str)`, `LinkText(&'a str)`, `PartialLinkText(&'a str)`, `TagName(&'a str)`, `ClassName(&'a str)`, `Css(&'a str)`).
 
 ```rust
-use seleniumbase_rs::utils::selectors::{Selector, SelectorRef, TextMatching};
+use seleniumbase_rs::{By, Selector, SelectorRef};
+use seleniumbase_rs::utils::selectors::TextMatching;
 
 let row = sb.find_element("#cart .row").await?;
 
@@ -80,9 +90,26 @@ let row = sb.find_element("#cart .row").await?;
 let remove = row.find("link=Remove").await?;
 
 // Explicit constructors: skip guessing when a string looks like CSS but is XPath.
+let user = row.find(Selector::id("username")).await?;
+let email = row.find(Selector::name("email")).await?;
+let btn = row.find(Selector::tag_name("button")).await?;
+let active = row.find(Selector::class_name("active")).await?;
 let cell = row.find(Selector::xpath("td[2]")).await?;
 let link = row.find(Selector::link_text("Sign in")).await?;
 let partial = row.find(Selector::partial_link_text("Sign")).await?;
+
+// Tuple locator syntax (By enum or By string constants):
+let submit1 = row.find((By::Id, "submit")).await?;
+let submit2 = row.find((By::ID, "submit")).await?;
+let search = row.find((By::NAME, "q")).await?;
+let header = row.find((By::TAG_NAME, "h1")).await?;
+
+// Compile-time macro syntax:
+let s1 = selector!(id, "username");
+let s2 = selector!(name, "q");
+let s3 = selector!(tag, "button");
+let s4 = selector!(class, "btn-primary");
+let s5 = selector!(link, "Log in");
 
 // Semantic role, text, and label constructors:
 let save_btn = row.find(Selector::role("button", Some("Save"), TextMatching::Contains)).await?;

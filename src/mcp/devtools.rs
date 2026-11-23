@@ -81,7 +81,10 @@ pub(crate) fn tagged(selector: &str) -> Value {
         SelectorRef::XPath(value) => ("xpath", value.to_owned()),
         SelectorRef::LinkText(value) => ("link_text", value.to_owned()),
         SelectorRef::PartialLinkText(value) => ("partial_link_text", value.to_owned()),
-        SelectorRef::Id(value) => ("css", format!("[id={}]", Value::from(value))),
+        SelectorRef::Id(value) => ("id", value.to_owned()),
+        SelectorRef::Name(value) => ("name", value.to_owned()),
+        SelectorRef::TagName(value) => ("tag_name", value.to_owned()),
+        SelectorRef::ClassName(value) => ("class_name", value.to_owned()),
     };
     json!({ "kind": kind, "value": value })
 }

@@ -341,6 +341,9 @@ impl BaseCase {
             SelectorRef::Css(css) => Ok(css.to_owned()),
             SelectorRef::XPath(xpath) => self.convert_xpath_to_css(xpath),
             SelectorRef::Id(id) => Ok(format!("[id='{}']", id.replace('\\', "\\\\").replace('\'', "\\'"))),
+            SelectorRef::Name(name) => Ok(format!("[name='{}']", name.replace('\\', "\\\\").replace('\'', "\\'"))),
+            SelectorRef::TagName(tag) => Ok(tag.to_owned()),
+            SelectorRef::ClassName(class) => Ok(format!(".{class}")),
             SelectorRef::LinkText(_) | SelectorRef::PartialLinkText(_) => {
                 Err(SeleniumBaseError::InvalidSelector(format!(
                     "'{selector}' selects a link by its text, which has no CSS equivalent"

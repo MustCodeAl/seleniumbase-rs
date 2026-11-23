@@ -284,4 +284,4 @@ pub use utilities::python_importer::{
 #[doc(inline)]
 pub use utilities::retry::RetryPolicy;
 #[doc(inline)]
-pub use utils::selectors::{Selector, SelectorRef};
+pub use utils::selectors::{By, Selector, SelectorRef};

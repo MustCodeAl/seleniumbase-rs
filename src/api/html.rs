@@ -122,12 +122,19 @@ impl BeautifulSoup {
 /// Parses a CSS selector, naming it in the error.
 fn parse_selector(selector: &Selector) -> Result<ScraperSelector, SeleniumBaseError> {
     selector.check()?;
-    let Selector::Css(css) = selector else {
-        return Err(SeleniumBaseError::InvalidSelector(format!(
-            "'{selector}': a BeautifulSoup selector is CSS; XPath and link text need a browser"
-        )));
+    let css = match selector {
+        Selector::Css(css) => css.clone(),
+        Selector::Id(id) => format!("[id='{id}']"),
+        Selector::Name(name) => format!("[name='{name}']"),
+        Selector::TagName(tag) => tag.clone(),
+        Selector::ClassName(class) => format!(".{class}"),
+        Selector::XPath(_) | Selector::LinkText(_) | Selector::PartialLinkText(_) => {
+            return Err(SeleniumBaseError::InvalidSelector(format!(
+                "'{selector}': a BeautifulSoup selector is CSS; XPath and link text need a browser"
+            )));
+        }
     };
-    ScraperSelector::parse(css)
+    ScraperSelector::parse(&css)
         .map_err(|e| SeleniumBaseError::InvalidSelector(format!("'{selector}': {e}")))
 }
 

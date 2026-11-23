@@ -10,6 +10,7 @@ work, `docs/parity.md` the per-API status).
 
 ### Added
 
+- **Complete 8 Locator Strategy Types and By Namespace**: Added full support for the 8 standard W3C WebDriver / Selenium locator strategies (`By::ID = "id"`, `By::NAME = "name"`, `By::XPATH = "xpath"`, `By::LINK_TEXT = "link text"`, `By::PARTIAL_LINK_TEXT = "partial link text"`, `By::TAG_NAME = "tag name"`, `By::CLASS_NAME = "class name"`, `By::CSS_SELECTOR = "css selector"`). Added `By` enum and associated constants, tuple conversions `(By, value)` and `(&str, value)` on `Selector` and `SelectorRef`, native pure CDP DOM resolution in `helper.js` for ID, name, tag name, and class name, compile-time `selector!` macro expansions (`id`, `name`, `tag`, `class`, etc.), and re-exported `By` at crate root.
 - **Upstream Sync to 4.56.5 & Parity Hardening**: Bumped upstream SeleniumBase pin to 4.56.5 (`UPSTREAM_SELENIUMBASE_VERSION = "4.56.5"`, commit `c5b23d06eb8d5f35df8bfd32158fe2ec3fc8da6e`), implemented `BaseCase::assert_element_absent(selector)`, and re-verified full parity across `parity/api.toml`, `parity/upstream-api.json`, and `docs/parity.md`.
 - **Super Stealth Typing Parity (SeleniumBase 4.58)**: Added automatic ShiftLeft keydown (virtual keycode 16, modifier 8) + lowercase `unmodifiedText` + ShiftLeft keyup emulation for uppercase characters in `sb_cdp::input` (`type_char` and `type_text`), matching real human typing events on modern anti-bot detectors.
 - **Documentation Centralization & Deepening**: Centralized and updated documentation across all 5 workspace repositories in `docs/`:

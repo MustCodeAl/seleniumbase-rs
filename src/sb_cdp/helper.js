@@ -97,6 +97,19 @@
         return cssQuery(selector.value, root);
       case "xpath":
         return xpath(selector.value, root, confine);
+      case "id": {
+        if (root.getElementById) {
+          const el = root.getElementById(selector.value);
+          return el ? [el] : [];
+        }
+        return Array.from(root.querySelectorAll(`[id="${CSS.escape(selector.value)}"]`));
+      }
+      case "name":
+        return Array.from(root.querySelectorAll(`[name="${CSS.escape(selector.value)}"]`));
+      case "tag_name":
+        return Array.from(root.getElementsByTagName(selector.value));
+      case "class_name":
+        return Array.from(root.getElementsByClassName(selector.value));
       case "link_text": {
         const wanted = selector.value.trim();
         return Array.from(root.querySelectorAll("a"))

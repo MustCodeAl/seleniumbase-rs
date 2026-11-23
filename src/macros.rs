@@ -16,9 +16,12 @@
 /// assert_eq!(s, SelectorRef::auto("#login"));
 ///
 /// let s = selector!(xpath, "//button[text()='Go']");
+/// let s = selector!(id, "username");
+/// let s = selector!(name, "email");
+/// let s = selector!(tag, "button");
+/// let s = selector!(class, "btn-primary");
 /// let s = selector!(link, "Click here");
 /// let s = selector!(partial_link, "here");
-/// let s = selector!(id, "username");
 /// ```
 #[macro_export]
 macro_rules! selector {
@@ -31,10 +34,31 @@ macro_rules! selector {
     (id, $value:expr) => {
         $crate::SelectorRef::Id($value)
     };
+    (name, $value:expr) => {
+        $crate::SelectorRef::Name($value)
+    };
+    (tag, $value:expr) => {
+        $crate::SelectorRef::TagName($value)
+    };
+    (tag_name, $value:expr) => {
+        $crate::SelectorRef::TagName($value)
+    };
+    (class, $value:expr) => {
+        $crate::SelectorRef::ClassName($value)
+    };
+    (class_name, $value:expr) => {
+        $crate::SelectorRef::ClassName($value)
+    };
     (link, $value:expr) => {
         $crate::SelectorRef::LinkText($value)
     };
+    (link_text, $value:expr) => {
+        $crate::SelectorRef::LinkText($value)
+    };
     (partial_link, $value:expr) => {
+        $crate::SelectorRef::PartialLinkText($value)
+    };
+    (partial_link_text, $value:expr) => {
         $crate::SelectorRef::PartialLinkText($value)
     };
 }

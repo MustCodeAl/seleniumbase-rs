@@ -301,6 +301,10 @@ pub(crate) fn strategy_word(selector: &Selector) -> &'static str {
         Selector::XPath(_) => "XPATH",
         Selector::LinkText(_) => "LINK TEXT",
         Selector::PartialLinkText(_) => "PARTIAL LINK TEXT",
+        Selector::Id(_) => "ID",
+        Selector::Name(_) => "NAME",
+        Selector::TagName(_) => "TAG NAME",
+        Selector::ClassName(_) => "CLASS NAME",
         Selector::Css(_) => "CSS SELECTOR",
     }
 }
