@@ -60,6 +60,7 @@ pub(super) fn unused_settings(config: &BrowserConfig) -> Vec<&'static str> {
         reuse_class: _,
         crumbs: _,
         auto_start_driver: _,
+        bidi,
     } = &config.session;
     let mut unused = Vec::new();
     let mut note = |used_by_webdriver: bool, name: &'static str| {
@@ -67,6 +68,7 @@ pub(super) fn unused_settings(config: &BrowserConfig) -> Vec<&'static str> {
             unused.push(name);
         }
     };
+    note(*bidi, "bidi");
     note(page_load_strategy.is_some(), "page_load_strategy");
     note(!capabilities.is_empty(), "capabilities");
     note(driver_version.is_some(), "driver_version");

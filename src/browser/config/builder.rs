@@ -595,6 +595,12 @@ impl BrowserConfigBuilder {
         self
     }
 
+    /// Whether to enable the W3C WebDriver BiDi bidirectional protocol (`webSocketUrl: true`).
+    pub fn bidi(mut self, enabled: bool) -> Self {
+        self.config.session.bidi = enabled;
+        self
+    }
+
     /// The size of the browser window (`--window-size`, `size`).
     pub fn window_size(mut self, size: WindowSize) -> Self {
         self.config.browser.window_size = Some(size);

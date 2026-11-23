@@ -148,6 +148,9 @@ pub struct SessionSettings {
     /// Firefox arguments and preferences (`--firefox-arg`, `--firefox-pref`).
     #[serde(skip_serializing_if = "FirefoxOptions::is_empty")]
     pub firefox: FirefoxOptions,
+    /// Whether to enable the W3C WebDriver BiDi bidirectional protocol (`webSocketUrl: true`).
+    #[serde(default)]
+    pub bidi: bool,
     /// Whether to log DevTools Protocol events (`--log-cdp-events`).
     #[serde(skip_serializing_if = "CdpEventCapture::is_off")]
     pub cdp_events: CdpEventCapture,
@@ -195,6 +198,7 @@ impl Default for SessionSettings {
             capabilities: CapabilityOverrides::default(),
             extension_archives: Vec::new(),
             firefox: FirefoxOptions::default(),
+            bidi: false,
             cdp_events: CdpEventCapture::default(),
             reuse: false,
             reuse_class: None,

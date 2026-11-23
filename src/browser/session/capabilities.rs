@@ -97,6 +97,9 @@ fn apply_generic_capabilities(
     if let Some(strategy) = config.session.page_load_strategy {
         caps.set_page_load_strategy(strategy.into())?;
     }
+    if config.session.bidi {
+        caps.enable_bidi()?;
+    }
     Ok(())
 }
 

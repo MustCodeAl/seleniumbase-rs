@@ -6,6 +6,19 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
+## [0.9.1] - 2026-11-22
+
+### Added
+
+- **W3C WebDriver BiDi Bidirectional Protocol Support**:
+  - Added full WebDriver BiDi support via thirtyfour: `config.session.bidi` setting, `BrowserConfigBuilder::bidi(bool)`, `BrowserSession::bidi()`, and `BaseCase::bidi()`.
+  - Re-exported `BiDi` directly at `seleniumbase_rs::BiDi`.
+- **Zero-Allocation Data Extraction Optimizations**:
+  - Migrated `TableData`, `PageMetadata`, and `extract_json_ld` to statically pre-compiled selectors (`std::sync::LazyLock`), eliminating per-call selector compilation.
+  - Replaced intermediate `Vec<&str>` allocations and multiple string copies with single-pass chunk streaming and pre-allocated collection capacities.
+- **Toolchain Bump to Rust 1.100**:
+  - Updated MSRV to Rust 1.100 across workspace manifests, toolchain configurations, and companion projects in preparation for stable `std::alloc::Allocator` arena architectures.
+
 ## [Unreleased]
 
 ### Added

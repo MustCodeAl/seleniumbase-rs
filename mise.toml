@@ -13,7 +13,7 @@
 # The crate's rust-version; the msrv CI job and the Dockerfile move with it.
 # clippy and rustfmt come from rust-toolchain.toml: a tool option such as
 # `components` here would make mise ask for trust (see the note below).
-rust = "1.99"
+rust = "1.100"
 # tools/parity scripts, run as `python3 -I`. The crate itself needs no Python.
 python = "3.14"
 # `npx`, for the Docs7 preview (docs/building.md).

@@ -104,6 +104,16 @@ impl BrowserSession {
         }
     }
 
+    /// Returns the WebDriver BiDi handle for bidirectional browser interaction.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if the WebDriver session is not active or BiDi connection fails.
+    pub async fn bidi(&self) -> Result<thirtyfour::bidi::BiDi, SeleniumBaseError> {
+        let driver = self.webdriver()?;
+        driver.bidi().await.map_err(Into::into)
+    }
+
     /// The WebDriver session id (Python's `driver.session_id`), or `None` for
     /// a session that is not connected.
     #[must_use]

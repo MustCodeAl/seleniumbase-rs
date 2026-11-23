@@ -14,9 +14,9 @@ resolver = "2"
 
 # Shared by both packages, so the command line always has the library's version.
 [workspace.package]
-version = "0.9.0"
+version = "0.9.1"
 edition = "2024"
-rust-version = "1.99"
+rust-version = "1.100"
 license = "MIT"
 repository = "https://github.com/MustCodeAl/seleniumbase-rs"
 
@@ -122,7 +122,7 @@ serde_json = "1.0"
 thiserror = "2.0"
 # Without the defaults `component` (derive macros) and `manager` (thirtyfour's own
 # driver downloader): this crate has its own, and SelectElement needs neither.
-thirtyfour = { version = "0.38", default-features = false, features = ["reqwest", "cdp"] }
+thirtyfour = { version = "0.38", default-features = false, features = ["reqwest", "cdp", "bidi"] }
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "process", "net", "io-util", "fs"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt", "json"] }

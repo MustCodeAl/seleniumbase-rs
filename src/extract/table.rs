@@ -3,8 +3,27 @@
 use scraper::{Html, Selector as ScraperSelector};
 use serde::de::DeserializeOwned;
 use serde_json::{Map, Value};
+use std::sync::LazyLock;
 
 use crate::error::SeleniumBaseError;
+
+static TABLE_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("table").expect("valid table selector"));
+static TH_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("th").expect("valid th selector"));
+static TR_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("tr").expect("valid tr selector"));
+static TD_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("td").expect("valid td selector"));
+
+#[inline]
+fn element_text(element: &scraper::ElementRef) -> String {
+    let mut text = String::new();
+    for chunk in element.text() {
+        text.push_str(chunk);
+    }
+    text.trim().to_string()
+}
 
 /// Structured HTML table data.
 ///
@@ -87,11 +106,8 @@ impl TableData {
     /// Returns [`SeleniumBaseError::InvalidConfig`] if no `<table>` element is present.
     pub fn from_html(html_text: &str) -> Result<Self, SeleniumBaseError> {
         let fragment = Html::parse_fragment(html_text);
-        let table_sel = ScraperSelector::parse("table").map_err(|e| {
-            SeleniumBaseError::InvalidSelector(format!("failed to parse table selector: {e:?}"))
-        })?;
 
-        let Some(table_elem) = fragment.select(&table_sel).next() else {
+        let Some(table_elem) = fragment.select(&TABLE_SEL).next() else {
             return Err(SeleniumBaseError::InvalidConfig(
                 "no <table> element found in provided HTML".to_string(),
             ));
@@ -101,26 +117,18 @@ impl TableData {
         let mut rows = Vec::new();
 
         // 1. Try finding <th> in <thead> or first <tr>
-        if let Ok(th_sel) = ScraperSelector::parse("th") {
-            for th in table_elem.select(&th_sel) {
-                let text = th.text().collect::<Vec<_>>().join("").trim().to_string();
-                headers.push(text);
-            }
+        for th in table_elem.select(&TH_SEL) {
+            headers.push(element_text(&th));
         }
 
         // 2. Extract rows
-        if let Ok(tr_sel) = ScraperSelector::parse("tr")
-            && let Ok(td_sel) = ScraperSelector::parse("td")
-        {
-            for tr in table_elem.select(&tr_sel) {
-                let mut row = Vec::new();
-                for td in tr.select(&td_sel) {
-                    let text = td.text().collect::<Vec<_>>().join("").trim().to_string();
-                    row.push(text);
-                }
-                if !row.is_empty() {
-                    rows.push(row);
-                }
+        for tr in table_elem.select(&TR_SEL) {
+            let mut row = Vec::new();
+            for td in tr.select(&TD_SEL) {
+                row.push(element_text(&td));
+            }
+            if !row.is_empty() {
+                rows.push(row);
             }
         }
 
@@ -136,7 +144,7 @@ impl TableData {
         let mut records = Vec::with_capacity(self.rows.len());
 
         for row in &self.rows {
-            let mut map = Map::new();
+            let mut map = Map::with_capacity(self.headers.len());
             for (idx, header) in self.headers.iter().enumerate() {
                 if let Some(cell) = row.get(idx) {
                     map.insert(header.clone(), Value::String(cell.clone()));

@@ -1,7 +1,30 @@
 //! Page metadata and SEO / `OpenGraph` / Twitter Card extraction.
 
-use scraper::{Html, Selector as ScraperSelector};
 use std::collections::BTreeMap;
+use std::sync::LazyLock;
+
+use scraper::{Html, Selector as ScraperSelector};
+
+static TITLE_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("title").expect("valid title selector"));
+static HTML_LANG_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("html[lang]").expect("valid html lang selector"));
+static CANONICAL_SEL: LazyLock<ScraperSelector> = LazyLock::new(|| {
+    ScraperSelector::parse("link[rel='canonical']").expect("valid canonical selector")
+});
+static FAVICON_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("link[rel~='icon']").expect("valid favicon selector"));
+static META_SEL: LazyLock<ScraperSelector> =
+    LazyLock::new(|| ScraperSelector::parse("meta").expect("valid meta selector"));
+
+#[inline]
+fn element_text(element: &scraper::ElementRef) -> String {
+    let mut text = String::new();
+    for chunk in element.text() {
+        text.push_str(chunk);
+    }
+    text.trim().to_string()
+}
 
 /// Structured metadata extracted from HTML `<head>` tags.
 ///
@@ -85,93 +108,81 @@ impl PageMetadata {
         let mut meta = Self::default();
 
         // Title
-        if let Ok(title_sel) = ScraperSelector::parse("title")
-            && let Some(title_elem) = document.select(&title_sel).next()
-        {
-            let text = title_elem
-                .text()
-                .collect::<Vec<_>>()
-                .join("")
-                .trim()
-                .to_string();
+        if let Some(title_elem) = document.select(&TITLE_SEL).next() {
+            let text = element_text(&title_elem);
             if !text.is_empty() {
                 meta.title = Some(text);
             }
         }
 
         // HTML lang attribute
-        if let Ok(html_sel) = ScraperSelector::parse("html[lang]")
-            && let Some(html_elem) = document.select(&html_sel).next()
+        if let Some(html_elem) = document.select(&HTML_LANG_SEL).next()
             && let Some(lang) = html_elem.value().attr("lang")
         {
             meta.language = Some(lang.trim().to_string());
         }
 
         // Canonical link
-        if let Ok(canon_sel) = ScraperSelector::parse("link[rel='canonical']")
-            && let Some(canon_elem) = document.select(&canon_sel).next()
+        if let Some(canon_elem) = document.select(&CANONICAL_SEL).next()
             && let Some(href) = canon_elem.value().attr("href")
         {
             meta.canonical_url = Some(href.trim().to_string());
         }
 
         // Favicon link
-        if let Ok(icon_sel) = ScraperSelector::parse("link[rel~='icon']")
-            && let Some(icon_elem) = document.select(&icon_sel).next()
+        if let Some(icon_elem) = document.select(&FAVICON_SEL).next()
             && let Some(href) = icon_elem.value().attr("href")
         {
             meta.favicon = Some(href.trim().to_string());
         }
 
         // Meta tags
-        if let Ok(meta_sel) = ScraperSelector::parse("meta") {
-            for element in document.select(&meta_sel) {
-                let val = element.value();
+        for element in document.select(&META_SEL) {
+            let val = element.value();
 
-                if let Some(cs) = val.attr("charset") {
-                    meta.charset = Some(cs.trim().to_string());
-                }
+            if let Some(cs) = val.attr("charset") {
+                meta.charset = Some(cs.trim().to_string());
+            }
 
-                let key = val
-                    .attr("name")
-                    .or_else(|| val.attr("property"))
-                    .or_else(|| val.attr("http-equiv"));
-                let content = val.attr("content");
+            let key = val
+                .attr("name")
+                .or_else(|| val.attr("property"))
+                .or_else(|| val.attr("http-equiv"));
+            let content = val.attr("content");
 
-                if let (Some(k), Some(c)) = (key, content) {
-                    let k_lower = k.trim().to_ascii_lowercase();
-                    let content_trimmed = c.trim().to_string();
+            if let (Some(k), Some(c)) = (key, content) {
+                let k_lower = k.trim().to_ascii_lowercase();
+                let content_trimmed = c.trim().to_string();
 
-                    match k_lower.as_str() {
-                        "description" => meta.description = Some(content_trimmed.clone()),
-                        "keywords" => {
-                            meta.keywords = content_trimmed
-                                .split(',')
-                                .map(|s| s.trim().to_string())
-                                .filter(|s| !s.is_empty())
-                                .collect();
-                        }
-                        "author" => meta.author = Some(content_trimmed.clone()),
-                        "content-language" if meta.language.is_none() => {
-                            meta.language = Some(content_trimmed.clone());
-                        }
-                        "og:title" => meta.og_title = Some(content_trimmed.clone()),
-                        "og:description" => meta.og_description = Some(content_trimmed.clone()),
-                        "og:image" => meta.og_image = Some(content_trimmed.clone()),
-                        "og:url" => meta.og_url = Some(content_trimmed.clone()),
-                        "og:type" => meta.og_type = Some(content_trimmed.clone()),
-                        "og:site_name" => meta.og_site_name = Some(content_trimmed.clone()),
-                        "twitter:card" => meta.twitter_card = Some(content_trimmed.clone()),
-                        "twitter:title" => meta.twitter_title = Some(content_trimmed.clone()),
-                        "twitter:description" => {
-                            meta.twitter_description = Some(content_trimmed.clone())
-                        }
-                        "twitter:image" => meta.twitter_image = Some(content_trimmed.clone()),
-                        _ => {}
+                match k_lower.as_str() {
+                    "description" => meta.description = Some(content_trimmed.clone()),
+                    "keywords" => {
+                        meta.keywords = content_trimmed
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
                     }
-
-                    meta.custom.insert(k.trim().to_string(), content_trimmed);
+                    "author" => meta.author = Some(content_trimmed.clone()),
+                    "content-language" if meta.language.is_none() => {
+                        meta.language = Some(content_trimmed.clone());
+                    }
+                    "og:title" => meta.og_title = Some(content_trimmed.clone()),
+                    "og:description" => meta.og_description = Some(content_trimmed.clone()),
+                    "og:image" => meta.og_image = Some(content_trimmed.clone()),
+                    "og:url" => meta.og_url = Some(content_trimmed.clone()),
+                    "og:type" => meta.og_type = Some(content_trimmed.clone()),
+                    "og:site_name" => meta.og_site_name = Some(content_trimmed.clone()),
+                    "twitter:card" => meta.twitter_card = Some(content_trimmed.clone()),
+                    "twitter:title" => meta.twitter_title = Some(content_trimmed.clone()),
+                    "twitter:description" => {
+                        meta.twitter_description = Some(content_trimmed.clone())
+                    }
+                    "twitter:image" => meta.twitter_image = Some(content_trimmed.clone()),
+                    _ => {}
                 }
+
+                meta.custom.insert(k.trim().to_string(), content_trimmed);
             }
         }
 

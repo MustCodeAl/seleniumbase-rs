@@ -10,7 +10,7 @@ below.
 ## What this is
 
 `seleniumbase-rs` is a Rust port of Python SeleniumBase 4.55.2 and of its MCP
-server (crate `seleniumbase-rs`, MIT, Rust 1.99, not on crates.io). Two engines:
+server (crate `seleniumbase-rs`, MIT, Rust 1.100, not on crates.io). Two engines:
 WebDriver (`src/browser`, `src/api`, built on `thirtyfour`) and a pure CDP engine
 (`src/sb_cdp`). Stealth lives in `src/evasion`; MCP servers in `src/mcp`. The
 library has no binary: the CLI (`sbrs`, `sbrs-mcp`) is the workspace package

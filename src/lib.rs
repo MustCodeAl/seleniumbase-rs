@@ -283,6 +283,8 @@ pub use sb_cdp::ResilientLocator;
 #[doc(inline)]
 pub use sb_cdp::{Key, SelectBy};
 #[doc(inline)]
+pub use thirtyfour::bidi::BiDi;
+#[doc(inline)]
 pub use tracing_util::{
     init_tracing, init_tracing_from_runtime, init_tracing_json, init_tracing_json_with_filter,
     init_tracing_with_filter,

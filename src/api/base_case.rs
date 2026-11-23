@@ -2818,6 +2818,17 @@ impl BaseCase {
         self.session.session_id()
     }
 
+    /// Returns the WebDriver BiDi handle for bidirectional browser interaction (W3C BiDi).
+    ///
+    /// Requires WebDriver BiDi to be enabled in session capabilities (e.g. `config.session.bidi = true` or `webSocketUrl: true`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError`] if no driver session is active or the BiDi connection fails.
+    pub async fn bidi(&self) -> Result<thirtyfour::bidi::BiDi, SeleniumBaseError> {
+        self.session.bidi().await
+    }
+
     /// Records a command that acts on `selector`, in the text the user wrote
     /// (`Display`), so a `p:contains("x")` selector is recorded as written.
     pub(crate) fn record_selector(&self, name: &str, selector: &Selector, value: Option<&str>) {

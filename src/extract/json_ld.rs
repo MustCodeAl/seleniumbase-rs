@@ -1,10 +1,26 @@
 //! JSON-LD (Schema.org) structured data extraction.
 
+use std::sync::LazyLock;
+
 use scraper::{Html, Selector as ScraperSelector};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 use crate::error::SeleniumBaseError;
+
+static JSON_LD_SEL: LazyLock<ScraperSelector> = LazyLock::new(|| {
+    ScraperSelector::parse("script[type='application/ld+json']")
+        .expect("valid JSON-LD script selector")
+});
+
+#[inline]
+fn element_text(element: &scraper::ElementRef) -> String {
+    let mut text = String::new();
+    for chunk in element.text() {
+        text.push_str(chunk);
+    }
+    text.trim().to_string()
+}
 
 /// Extracts all raw JSON-LD blocks from `<script type="application/ld+json">` elements.
 ///
@@ -35,18 +51,13 @@ pub fn extract_json_ld_raw(html_text: &str) -> Vec<Value> {
     let document = Html::parse_document(html_text);
     let mut results = Vec::new();
 
-    let Ok(selector) = ScraperSelector::parse("script[type='application/ld+json']") else {
-        return results;
-    };
-
-    for element in document.select(&selector) {
-        let raw_text = element.text().collect::<Vec<_>>().join("");
-        let trimmed = raw_text.trim();
+    for element in document.select(&JSON_LD_SEL) {
+        let trimmed = element_text(&element);
         if trimmed.is_empty() {
             continue;
         }
 
-        if let Ok(parsed) = serde_json::from_str::<Value>(trimmed) {
+        if let Ok(parsed) = serde_json::from_str::<Value>(&trimmed) {
             flatten_json_ld_item(parsed, &mut results);
         }
     }
