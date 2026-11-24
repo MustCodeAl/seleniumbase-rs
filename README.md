@@ -8,7 +8,7 @@
 [![Rust 1.99](https://img.shields.io/badge/rust-1.99-orange?logo=rust)](./rust-toolchain.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](./docs/platforms.md)
-[![Parity](https://img.shields.io/badge/SeleniumBase%204.55.2-parity%20tracked-brightgreen)](./docs/parity.md)
+[![Parity](https://img.shields.io/badge/SeleniumBase%204.58.3-parity%20tracked-brightgreen)](./docs/parity.md)
 
 [Quick start](#quick-start) · [Install](#installation) · [Docs](./docs/README.md) · [Examples](#examples) · [Status](#project-status)
 
@@ -612,7 +612,7 @@ comments for manual review.
 
 ## Project status
 
-**Parity.** Every API of Python SeleniumBase 4.55.2 and its MCP server has a
+**Parity.** Every API of Python SeleniumBase 4.58.3 and its MCP server has a
 recorded status in [docs/parity.md](./docs/parity.md):
 
 | Implemented | Composed from other calls | Not applicable (with the reason) | Still planned |

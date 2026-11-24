@@ -6555,8 +6555,8 @@
     ]
   },
   "seleniumbase": {
-    "commit": "c5b23d06eb8d5f35df8bfd32158fe2ec3fc8da6e",
-    "version": "4.56.5"
+    "commit": "e5df9be35f492b45663ea4342805218d8a7c2936",
+    "version": "4.58.3"
   },
   "seleniumbase_mcp": {
     "commit": "cecbdc68f84b88d482a0de34de329a6b6a6cef0a"

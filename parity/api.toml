@@ -767,11 +767,6 @@ rust = "BaseCase::downloaded_files"
 status = "implemented"
 rust = "BaseCase::downloads_folder"
 
-[basecase."get_endpoint_url"]
-status = "composed"
-rust = "BaseCase::devtools_endpoint"
-note = "BaseCase::devtools_endpoint answers the address chromedriver reported."
-
 [basecase."get_element"]
 status = "implemented"
 rust = "BaseCase::element"
@@ -993,10 +988,6 @@ rust = "BaseCase::goto_if_not_url"
 [basecase."goto_start_page"]
 status = "implemented"
 rust = "BaseCase::goto_start_page"
-
-[basecase."gui_click_element"]
-status = "implemented"
-rust = "BaseCase::gui_click_element"
 
 [basecase."has_exception"]
 status = "not-applicable"
@@ -1353,10 +1344,6 @@ rust = "BaseCase::process_delayed_asserts"
 status = "implemented"
 rust = "BaseCase::quit_extra_driver"
 divergence = "Takes the DriverId get_new_driver returned, where Python takes the driver (or None for the active one); the default browser is refused, and quitting the active extra browser falls back to the default one."
-
-[basecase."reconnect"]
-status = "implemented"
-rust = "BaseCase::reconnect"
 
 [basecase."refresh"]
 status = "implemented"
@@ -1801,18 +1788,6 @@ rust = "BaseCase::unselect_if_selected"
 [basecase."update_text"]
 status = "implemented"
 rust = "BaseCase::update_text"
-
-[basecase."uc_gui_click_captcha"]
-status = "implemented"
-rust = "BaseCase::uc_gui_click_captcha"
-
-[basecase."uc_gui_handle_captcha"]
-status = "implemented"
-rust = "BaseCase::uc_gui_handle_captcha"
-
-[basecase."uc_gui_press_keys"]
-status = "implemented"
-rust = "BaseCase::uc_gui_press_keys"
 
 [basecase."visit"]
 status = "implemented"

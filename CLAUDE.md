@@ -31,7 +31,7 @@ fix a line here when the code stops matching it. Human contributors want
 
 ## What this is
 
-A Rust port of Python SeleniumBase (tracks 4.55.2; `parity/api.toml` records the
+A Rust port of Python SeleniumBase (tracks 4.58.3; `parity/api.toml` records the
 status of every Python API, `parity/upstream.toml` the upstream version,
 `docs/UPSTREAM_SYNC.md` the process). Crate `seleniumbase-rs`, MIT, edition 2024,
 `rust-version = "1.100"` (the newest stable; the `msrv` CI job and the

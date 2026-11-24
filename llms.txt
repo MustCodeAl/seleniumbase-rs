@@ -1,6 +1,6 @@
 # seleniumbase-rs
 
-> A Rust port of Python SeleniumBase 4.55.2 and its MCP server: a `BaseCase` test API over WebDriver, a pure Chrome DevTools Protocol engine with no driver, stealth and fingerprinting, a browser pool, request interception, and MCP servers that let AI agents drive, debug and write browser tests. Young (0.1.0, not on crates.io); most behaviour is verified against a mock or unit tests rather than a real browser.
+> A Rust port of Python SeleniumBase 4.58.3 and its MCP server: a `BaseCase` test API over WebDriver, a pure Chrome DevTools Protocol engine with no driver, stealth and fingerprinting, a browser pool, request interception, and MCP servers that let AI agents drive, debug and write browser tests. Young (0.1.0, not on crates.io); most behaviour is verified against a mock or unit tests rather than a real browser.
 
 Start here if you are an AI agent working in the repository or using the crate.
 

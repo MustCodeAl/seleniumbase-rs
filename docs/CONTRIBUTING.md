@@ -689,7 +689,7 @@ at 60 minutes, raise the timeout under Settings, CI/CD, General pipelines.
 
 ## Parity with Python SeleniumBase
 
-The project's goal is that every API of Python SeleniumBase 4.55.2 (and of its
+The project's goal is that every API of Python SeleniumBase 4.58.3 (and of its
 MCP server) exists here or has a stated reason why not.
 
 - `parity/api.toml` records one entry per upstream API with a `status`:

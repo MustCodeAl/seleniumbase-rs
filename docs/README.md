@@ -410,7 +410,7 @@ Keep [CLI Usage](/tutorials/cli_usage) and
 
 ## Current status
 
-Every API of Python SeleniumBase 4.55.2 has a recorded status in the
+Every API of Python SeleniumBase 4.58.3 has a recorded status in the
 [parity table](/parity). Development happens on
 [MustCodeAl/seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs),
 and releases are tagged there.
