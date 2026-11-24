@@ -66,6 +66,7 @@ mod info;
 
 mod plugin_catalog;
 mod plugin_flags;
+mod plugin_scaffold;
 mod proxy;
 mod recorder_flags;
 
@@ -304,6 +305,12 @@ enum PluginCommand {
     /// status 2 and lists the plugins that have a task when the name is not one of them.
     #[usage(example = "sbrs plugin run crawler --input crawl.json --out found.jsonl")]
     Run(PluginRunArgs),
+    /// Create a new seleniumbase-rs plugin project scaffold.
+    ///
+    /// Generates a complete, modular Rust crate configured with templates, backends,
+    /// CI environments, and tailored AI agent instructions.
+    #[usage(example = "sbrs plugin new my-plugin --template library")]
+    New(PluginNewArgs),
     // The task of a plugin as a command of its own (`sbrs plugin crawler --input crawl.json`):
     // the plugins that have a task depend on the build, so the words are met by the catalog of
     // `plugin_catalog.rs`, which makes them `plugin run`. (Plain comments, not docs.)
@@ -333,6 +340,44 @@ struct PluginRunArgs {
     /// Write the results to this file, one JSON value per line (default: standard output).
     #[usage(long, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
     out: Option<PathBuf>,
+}
+
+// The arguments of `plugin new`. (Plain comments, not docs: a doc comment on this struct would
+// be help text.)
+#[derive(Debug, usage::Args)]
+struct PluginNewArgs {
+    /// The name of the new plugin to create.
+    name: String,
+    /// Template style (e.g. "library", "cli").
+    #[usage(long, default = "library", value_hint = usage::ValueHint::Other)]
+    template: String,
+    /// Backend foundation (e.g. "cdp", "webdriver").
+    #[usage(long, value_hint = usage::ValueHint::Other)]
+    backend: Option<String>,
+    /// Architectural focus (e.g. "general", "cli", "scraping").
+    #[usage(long, default = "general", value_hint = usage::ValueHint::Other)]
+    focus: String,
+    /// Target integrations (e.g. "mcp", "ci").
+    #[usage(long, value_hint = usage::ValueHint::Other)]
+    integrations: Option<String>,
+    /// Enable headless mode by default.
+    #[usage(long, bool_value)]
+    headless: bool,
+    /// Development environment configuration (e.g. "cargo", "mise", "docker", "gitlab-ci", "github-actions").
+    #[usage(long = "dev-env", default = "cargo", value_hint = usage::ValueHint::Other)]
+    dev_env: String,
+    /// AI agent rule file to generate (e.g. "none", "cursor", "claude-code", "gemini", "antigravity", "codex").
+    #[usage(long = "ai-agent", default = "none", value_hint = usage::ValueHint::Other)]
+    ai_agent: String,
+    /// Primary IDE for quick start instructions (e.g. "cursor", "vscode", "zed", "clion", "neovim", "helix").
+    #[usage(long, default = "cursor", value_hint = usage::ValueHint::Other)]
+    ide: String,
+    /// Target execution environment (e.g. "local", "docker", "cloud").
+    #[usage(long = "target-env", default = "local", value_hint = usage::ValueHint::Other)]
+    target_env: String,
+    /// Destination directory for the scaffolded plugin (defaults to plugin name).
+    #[usage(long = "out-dir", value_name = "DIR", value_hint = usage::ValueHint::DirPath)]
+    out_dir: Option<PathBuf>,
 }
 
 // The `trace` command: it holds only its own subcommands. (Plain comments, not docs: a doc
@@ -3445,6 +3490,7 @@ async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn s
         PluginCommand::List => plugin_cmd::list(choice.selection()),
         PluginCommand::Info(info) => plugin_cmd::info(&info.name, choice.selection())?,
         PluginCommand::Run(run) => return run_plugin_task(run, args).await,
+        PluginCommand::New(new_args) => return run_plugin_new(new_args),
         // `parse_command_line` has turned these words into `plugin run` or refused them.
         PluginCommand::External(words) => {
             let name = words
@@ -3458,6 +3504,27 @@ async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn s
         }
     };
     std::io::stdout().lock().write_all(text.as_bytes())?;
+    Ok(())
+}
+
+fn run_plugin_new(args: &PluginNewArgs) -> Result<(), Box<dyn std::error::Error>> {
+    let opts = plugin_scaffold::PluginScaffoldOptions {
+        name: args.name.clone(),
+        template: args.template.clone(),
+        backend: args.backend.clone(),
+        focus: args.focus.clone(),
+        integrations: args.integrations.clone(),
+        headless: args.headless,
+        dev_env: args.dev_env.clone(),
+        ai_agent: args.ai_agent.clone(),
+        ide: args.ide.clone(),
+        target_env: args.target_env.clone(),
+        out_dir: args.out_dir.clone(),
+    };
+    let result = plugin_scaffold::scaffold_plugin(&opts)?;
+    std::io::stdout()
+        .lock()
+        .write_all(result.instructions.as_bytes())?;
     Ok(())
 }
 
@@ -5180,6 +5247,34 @@ mod plugin_cli_tests {
             panic!("not plugin info");
         };
         assert_eq!(info.name, "shield");
+    }
+
+    #[test]
+    fn the_plugin_command_supports_new() {
+        let cli = parse(&[
+            "sbrs",
+            "plugin",
+            "new",
+            "sample-plugin",
+            "--template",
+            "library",
+            "--dev-env",
+            "mise",
+            "--ai-agent",
+            "cursor",
+            "--headless",
+        ]);
+        let Commands::Plugin(PluginArgs {
+            command: PluginCommand::New(new_args),
+        }) = cli.command
+        else {
+            panic!("not plugin new");
+        };
+        assert_eq!(new_args.name, "sample-plugin");
+        assert_eq!(new_args.template, "library");
+        assert_eq!(new_args.dev_env, "mise");
+        assert_eq!(new_args.ai_agent, "cursor");
+        assert!(new_args.headless);
     }
 
     #[test]

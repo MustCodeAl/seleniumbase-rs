@@ -1,6 +1,6 @@
 name sbrs
 bin sbrs
-version "0.9.0 (seleniumbase-rs)"
+version "0.9.1 (seleniumbase-rs)"
 about "SeleniumBaseRust CLI"
 long_about "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper."
 logo #"""
@@ -634,10 +634,10 @@ flagset test-options {
         }
     }
 }
-flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" global=#true env=SB_WEBDRIVER_URL {
+flag --webdriver help="WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)" global=#true {
     arg <URL>
 }
-flag --browser help="Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)" global=#true env=SB_BROWSER {
+flag --browser help="Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)" global=#true {
     arg <BROWSER> {
         choices {
             choice chrome
@@ -664,16 +664,16 @@ flag --cdp help="Enable Chrome DevTools Protocol mode (SB_MODE=cdp)" global=#tru
 flag --uc help="Enable undetected-chromedriver style evasions (SB_MODE=uc)" global=#true bool_value=#true {
     alias --undetected --undetectable hide=#true
 }
-flag --user-agent help="Override the default user agent string (SB_USER_AGENT)" global=#true env=SB_USER_AGENT {
+flag --user-agent help="Override the default user agent string (SB_USER_AGENT)" global=#true {
     arg <USER_AGENT>
 }
-flag "-a --agent" help="Alias for --user-agent (SB_USER_AGENT)" global=#true env=SB_USER_AGENT {
+flag "-a --agent" help="Alias for --user-agent (SB_USER_AGENT)" global=#true {
     arg <AGENT>
 }
-flag --locale help="Locale string for the browser context (SB_LOCALE)" global=#true env=SB_LOCALE {
+flag --locale help="Locale string for the browser context (SB_LOCALE)" global=#true {
     arg <LOCALE>
 }
-flag "--start-page --url --start_page" help="Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)" global=#true env=SB_START_PAGE {
+flag "--start-page --url --start_page" help="Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)" global=#true {
     long_help #"""
 Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --url and --start_page)
 
@@ -691,21 +691,21 @@ Python's `--save-screenshot`. A command that acts on the page (click, type, ...)
 flag --ad-block help="Refuse the requests of ad and tracker hosts (SB_AD_BLOCK; Chromium WebDriver sessions)" global=#true bool_value=#true {
     alias --adblock --block-ads hide=#true
 }
-flag --proxy help="Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list" global=#true env=SB_PROXY {
+flag --proxy help="Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name from the list" global=#true {
     alias --proxy-server --proxy-string hide=#true
     arg <PROXY>
 }
-flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)" global=#true env=SB_PROXY_LIST {
+flag --proxy-list help="File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)" global=#true {
     arg <FILE>
 }
-flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)" global=#true env=SB_PROXY_PAC_URL {
+flag --proxy-pac-url help="URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)" global=#true {
     alias --pac-url hide=#true
     arg <PROXY_PAC_URL>
 }
-flag --user-data-dir help="Path to a persistent browser user-data directory (SB_USER_DATA_DIR)" global=#true env=SB_USER_DATA_DIR {
+flag --user-data-dir help="Path to a persistent browser user-data directory (SB_USER_DATA_DIR)" global=#true {
     arg <USER_DATA_DIR>
 }
-flag --extension-dir help="Path to an unpacked extension directory (SB_EXTENSION_DIR)" global=#true env=SB_EXTENSION_DIR {
+flag --extension-dir help="Path to an unpacked extension directory (SB_EXTENSION_DIR)" global=#true {
     arg <EXTENSION_DIR>
 }
 flag "--reuse-session --reuse_session --rs" help="Share browsers among the tests of the run (SB_REUSE_SESSION)" global=#true bool_value=#true
@@ -715,11 +715,11 @@ flag --mobile help="Use a mobile device emulation profile (SB_MOBILE)" global=#t
 }
 flag "--esc-end --esc_end --ee" help="End the current test when ESC is pressed in the browser (SB_ESC_END)" global=#true bool_value=#true
 flag "--rec-sb-cdp --rec_sb_cdp" help="Write recordings as pure CDP code (SB_REC_SB_CDP; sb_cdp Page and Locator calls)" global=#true bool_value=#true
-flag "-c --config" help="Path to a TOML/JSON settings file (SB_SETTINGS_FILE)" global=#true env=SB_SETTINGS_FILE {
+flag "-c --config" help="Path to a TOML/JSON settings file (SB_SETTINGS_FILE)" global=#true {
     alias --settings-file --settings hide=#true
     arg <CONFIG>
 }
-flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)" global=#true env=SB_FINGERPRINT {
+flag --fingerprint help="Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)" global=#true {
     long_help #"""
 Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
 
@@ -2614,6 +2614,53 @@ Only plugins that offer a task can be run, and the named plugin is turned on for
         complete file type=path
         complete name run="sbrs __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
         example "sbrs plugin run crawler --input crawl.json --out found.jsonl"
+    }
+    cmd new help="Create a new seleniumbase-rs plugin project scaffold." {
+        long_help #"""
+Create a new seleniumbase-rs plugin project scaffold.
+
+Generates a complete, modular Rust crate configured with templates, backends, CI environments, and tailored AI agent instructions.
+"""#
+        flag --template help="Template style (e.g. \"library\", \"cli\")." default=library {
+            arg <TEMPLATE>
+        }
+        flag --backend help="Backend foundation (e.g. \"cdp\", \"webdriver\")." {
+            arg <BACKEND>
+        }
+        flag --focus help="Architectural focus (e.g. \"general\", \"cli\", \"scraping\")." default=general {
+            arg <FOCUS>
+        }
+        flag --integrations help="Target integrations (e.g. \"mcp\", \"ci\")." {
+            arg <INTEGRATIONS>
+        }
+        flag --headless help="Enable headless mode by default." bool_value=#true
+        flag --dev-env help="Development environment configuration (e.g. \"cargo\", \"mise\", \"docker\", \"gitlab-ci\", \"github-actions\")." default=cargo {
+            arg <DEV_ENV>
+        }
+        flag --ai-agent help="AI agent rule file to generate (e.g. \"none\", \"cursor\", \"claude-code\", \"gemini\", \"antigravity\", \"codex\")." default=none {
+            arg <AI_AGENT>
+        }
+        flag --ide help="Primary IDE for quick start instructions (e.g. \"cursor\", \"vscode\", \"zed\", \"clion\", \"neovim\", \"helix\")." default=cursor {
+            arg <IDE>
+        }
+        flag --target-env help="Target execution environment (e.g. \"local\", \"docker\", \"cloud\")." default=local {
+            arg <TARGET_ENV>
+        }
+        flag --out-dir help="Destination directory for the scaffolded plugin (defaults to plugin name)." {
+            arg <DIR>
+        }
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <NAME> help="The name of the new plugin to create."
+        complete template type=none
+        complete backend type=none
+        complete focus type=none
+        complete integrations type=none
+        complete dev_env type=none
+        complete ai_agent type=none
+        complete ide type=none
+        complete target_env type=none
+        complete dir type=dir
+        example "sbrs plugin new my-plugin --template library"
     }
     example "sbrs plugin list"
 }

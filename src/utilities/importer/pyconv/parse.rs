@@ -9,7 +9,7 @@
 use std::collections::HashSet;
 
 use super::ast::{
-    Arg, BinOp, ClassDef, Expr, FPart, FuncDef, Handler, Param, Stmt, StmtKind, UnOp,
+    Arg, BinOp, ClassDef, Expr, FPart, FuncDef, Handler, MatchCase, Param, Stmt, StmtKind, UnOp,
 };
 use crate::utilities::importer::lexer::{tokenize, Comment, Dialect, LexError, Tok, Token};
 
@@ -310,6 +310,13 @@ impl Parser<'_> {
             "with" => Some(self.with_stmt(col)?),
             "def" => Some(StmtKind::FuncDef(self.func_def(col, Vec::new())?)),
             "class" => Some(self.class_def(col)?),
+            "match"
+                if self
+                    .peek_at(1)
+                    .is_some_and(|t| !matches!(t.tok, Tok::Punct("=" | "("))) =>
+            {
+                Some(self.match_stmt(col)?)
+            }
             "@" => Some(self.decorated(col)?),
             "async" if ["def", "with", "for"].iter().any(|w| self.is_kw_at(1, w)) => {
                 self.pos += 1;
@@ -532,6 +539,47 @@ impl Parser<'_> {
         let body = self.suite(col)?;
         let orelse = self.else_clause(col)?;
         Ok(StmtKind::While { test, body, orelse })
+    }
+
+    fn match_stmt(&mut self, col: usize) -> PResult<StmtKind> {
+        self.pos += 1;
+        let subject = self.expr()?;
+        self.expect_punct(":")?;
+        let Some(token) = self.peek() else {
+            return Ok(StmtKind::Match {
+                subject,
+                cases: Vec::new(),
+            });
+        };
+        if token.col <= col {
+            return Err("expected an indented block for match".to_owned());
+        }
+        let block_col = token.col;
+        let mut cases = Vec::new();
+        while self.at_clause(block_col, "case") {
+            self.pos += 1;
+            let from = self.pos;
+            let mut pattern = self.or_test()?;
+            if self.is_kw("as") && !self.at_line_end() {
+                self.pos += 1;
+                let name = self.expect_name()?;
+                let pat_source = self.source_since(from);
+                pattern = Expr::Other(format!("{name} @ {pat_source}"));
+            }
+            let guard = if self.is_kw("if") && !self.at_line_end() {
+                self.pos += 1;
+                Some(self.expr()?)
+            } else {
+                None
+            };
+            let body = self.suite(block_col)?;
+            cases.push(MatchCase {
+                pattern,
+                guard,
+                body,
+            });
+        }
+        Ok(StmtKind::Match { subject, cases })
     }
 
     fn for_stmt(&mut self, col: usize) -> PResult<StmtKind> {

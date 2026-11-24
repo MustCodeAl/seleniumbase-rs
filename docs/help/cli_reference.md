@@ -10,7 +10,7 @@ Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by `SB_UP
 
 </Info>
 
-<Badge>sbrs 0.9.0 (seleniumbase-rs)</Badge>
+<Badge>sbrs 0.9.1 (seleniumbase-rs)</Badge>
 
 A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.
 
@@ -107,6 +107,7 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs plugin`](#sbrs-plugin) | List the built-in plugins, or show what one declares. |
 | [`sbrs plugin info`](#sbrs-plugin-info) | Show what one plugin declares and what it may do. |
 | [`sbrs plugin list`](#sbrs-plugin-list) | List the built-in plugins of this build, and whether they are on. |
+| [`sbrs plugin new`](#sbrs-plugin-new) | Create a new seleniumbase-rs plugin project scaffold. |
 | [`sbrs plugin run`](#sbrs-plugin-run) | Run the task of a plugin on a browser it starts, and write its results as JSON lines. |
 | [`sbrs print`](#sbrs-print) | Print a file, with a line number in front of every line if you ask for it. |
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
@@ -152,8 +153,6 @@ Each applies to every command and goes before the command or after it, but not b
 
 WebDriver server URL (default: SB_WEBDRIVER_URL, else http://localhost:4444)
 
-Environment: `SB_WEBDRIVER_URL`
-
 </ParamField>
 
 <ParamField query="--browser <BROWSER>" type="string">
@@ -161,8 +160,6 @@ Environment: `SB_WEBDRIVER_URL`
 Browser engine to launch (SB_BROWSER; default: chrome, or the config file's)
 
 One of: `chrome`, `chromium`, `edge`, `firefox`, `brave`, `comet`, `opera`, `safari`, `ie`, `cft`, `chs`
-
-Environment: `SB_BROWSER`
 
 </ParamField>
 
@@ -200,8 +197,6 @@ Also: `--undetected`, `--undetectable`
 
 Override the default user agent string (SB_USER_AGENT)
 
-Environment: `SB_USER_AGENT`
-
 </ParamField>
 
 <ParamField query="--agent <AGENT>" type="string">
@@ -210,15 +205,11 @@ Alias for --user-agent (SB_USER_AGENT)
 
 Also: `-a`
 
-Environment: `SB_USER_AGENT`
-
 </ParamField>
 
 <ParamField query="--locale <LOCALE>" type="string">
 
 Locale string for the browser context (SB_LOCALE)
-
-Environment: `SB_LOCALE`
 
 </ParamField>
 
@@ -229,8 +220,6 @@ Page the browser opens first, Python's --start-page (SB_START_PAGE; aliases --ur
 Every command starts its own browser and closes it at the end, so a command that acts on a page (get-text, click, screenshot, assert-element, ...) acts on this one: `sbrs --url https://example.com get-text --css p`. A bare host gets `https://` and a local file becomes a `file://` URL. The command line wins over SB_START_PAGE, which wins over the `start_page` key of the settings file. Commands that open a URL of their own (open, smoke, download-file, print-pdf, pdf-text, assert-pdf-text, record) refuse it.
 
 Also: `--url`, `--start_page`
-
-Environment: `SB_START_PAGE`
 
 </ParamField>
 
@@ -258,15 +247,11 @@ Proxy (SB_PROXY; host:port or scheme://host:port); with --proxy-list, a name fro
 
 Also: `--proxy-server`, `--proxy-string`
 
-Environment: `SB_PROXY`
-
 </ParamField>
 
 <ParamField query="--proxy-list <FILE>" type="string">
 
 File of proxies to choose from; without --proxy a random one is used (SB_PROXY_LIST)
-
-Environment: `SB_PROXY_LIST`
 
 </ParamField>
 
@@ -276,23 +261,17 @@ URL to a proxy auto-config (PAC) file (SB_PROXY_PAC_URL)
 
 Also: `--pac-url`
 
-Environment: `SB_PROXY_PAC_URL`
-
 </ParamField>
 
 <ParamField query="--user-data-dir <USER_DATA_DIR>" type="string">
 
 Path to a persistent browser user-data directory (SB_USER_DATA_DIR)
 
-Environment: `SB_USER_DATA_DIR`
-
 </ParamField>
 
 <ParamField query="--extension-dir <EXTENSION_DIR>" type="string">
 
 Path to an unpacked extension directory (SB_EXTENSION_DIR)
-
-Environment: `SB_EXTENSION_DIR`
 
 </ParamField>
 
@@ -342,8 +321,6 @@ Path to a TOML/JSON settings file (SB_SETTINGS_FILE)
 
 Also: `--settings-file`, `--settings`, `-c`
 
-Environment: `SB_SETTINGS_FILE`
-
 </ParamField>
 
 <ParamField query="--fingerprint <FILE>" type="string">
@@ -351,8 +328,6 @@ Environment: `SB_SETTINGS_FILE`
 Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
 
 The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write. A Chromium browser then runs in the CDP mode unless --uc or another mode is given. The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of the settings file. The user agent, language and proxy named by their own options win over the fingerprint's.
-
-Environment: `SB_FINGERPRINT`
 
 </ParamField>
 
@@ -3468,6 +3443,90 @@ sbrs plugin list
 
 ```bash Examples
 sbrs plugin list
+```
+
+### sbrs plugin new
+
+Create a new seleniumbase-rs plugin project scaffold.
+
+Generates a complete, modular Rust crate configured with templates, backends, CI environments, and tailored AI agent instructions.
+
+```bash Usage
+sbrs plugin new [FLAGS] <NAME>
+```
+
+**Arguments**
+
+<ParamField path="NAME" type="string" required>
+
+The name of the new plugin to create.
+
+</ParamField>
+
+**Flags**
+
+<ParamField query="--template <TEMPLATE>" type="string" default="library">
+
+Template style (e.g. "library", "cli").
+
+</ParamField>
+
+<ParamField query="--backend <BACKEND>" type="string">
+
+Backend foundation (e.g. "cdp", "webdriver").
+
+</ParamField>
+
+<ParamField query="--focus <FOCUS>" type="string" default="general">
+
+Architectural focus (e.g. "general", "cli", "scraping").
+
+</ParamField>
+
+<ParamField query="--integrations <INTEGRATIONS>" type="string">
+
+Target integrations (e.g. "mcp", "ci").
+
+</ParamField>
+
+<ParamField query="--headless" type="boolean">
+
+Enable headless mode by default.
+
+</ParamField>
+
+<ParamField query="--dev-env <DEV_ENV>" type="string" default="cargo">
+
+Development environment configuration (e.g. "cargo", "mise", "docker", "gitlab-ci", "github-actions").
+
+</ParamField>
+
+<ParamField query="--ai-agent <AI_AGENT>" type="string" default="none">
+
+AI agent rule file to generate (e.g. "none", "cursor", "claude-code", "gemini", "antigravity", "codex").
+
+</ParamField>
+
+<ParamField query="--ide <IDE>" type="string" default="cursor">
+
+Primary IDE for quick start instructions (e.g. "cursor", "vscode", "zed", "clion", "neovim", "helix").
+
+</ParamField>
+
+<ParamField query="--target-env <TARGET_ENV>" type="string" default="local">
+
+Target execution environment (e.g. "local", "docker", "cloud").
+
+</ParamField>
+
+<ParamField query="--out-dir <DIR>" type="string">
+
+Destination directory for the scaffolded plugin (defaults to plugin name).
+
+</ParamField>
+
+```bash Examples
+sbrs plugin new my-plugin --template library
 ```
 
 ### sbrs plugin run

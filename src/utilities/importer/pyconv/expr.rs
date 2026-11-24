@@ -192,7 +192,7 @@ impl Tr<'_> {
             Expr::FStr(parts) => self.fstring(parts),
             Expr::Num { text, float } => Ok(number(text, *float)),
             Expr::Bool(value) => Ok(Val::new(value.to_string(), Ty::Bool)),
-            Expr::None => Err(Skip::error("None has no Rust equal here")),
+            Expr::None => Ok(Val::new("None", Ty::Unit)),
             Expr::Name(name) => self.name(name),
             Expr::List(items) | Expr::Tuple(items) => self.list(items),
             Expr::Dict(_) => Err(Skip::warn("a dict is not translated")),
@@ -278,6 +278,9 @@ impl Tr<'_> {
             match part {
                 FPart::Lit(text) => pieces.push(Piece::Lit(text.clone())),
                 FPart::Expr(value) => {
+                    if is_colorama(value) {
+                        continue;
+                    }
                     let value = self.value(value, true)?;
                     if !matches!(
                         value.ty,
@@ -327,9 +330,33 @@ impl Tr<'_> {
     }
 
     fn attribute(&mut self, base: &Expr, attr: &str) -> TResult<Val> {
+        if let Expr::Name(name) = base {
+            if name == "Fore" || name == "Style" || name == "colorama" {
+                return Ok(Val::new("\"\"", Ty::Str));
+            }
+            if (name == "p" || name == "playwright")
+                && (attr == "chromium" || attr == "firefox" || attr == "webkit")
+            {
+                return Ok(Val::new("page.browser()", Ty::Locator));
+            }
+            if name == "browser" && attr == "contexts" {
+                return Ok(Val::new(
+                    "vec![page.context()]",
+                    Ty::List(Box::new(Ty::Locator)),
+                ));
+            }
+        }
+        if let Expr::Attr(_inner, inner_attr) = base
+            && (inner_attr == "Fore" || inner_attr == "Style")
+        {
+            return Ok(Val::new("\"\"", Ty::Str));
+        }
         if let Expr::Name(name) = base
             && self.receivers.contains(name)
         {
+            if attr == "driver" {
+                return Ok(Val::new("page", Ty::Locator));
+            }
             return Err(Skip::warn(format!("`{name}.{attr}` has no Rust equal")));
         }
         if matches!(base, Expr::Name(name) if self.var(name).is_none()) {
@@ -356,6 +383,7 @@ impl Tr<'_> {
     fn index(&mut self, base: &Expr, index: &Expr) -> TResult<Val> {
         let list = self.value(base, true)?;
         let position = self.value(index, true)?;
+        let is_neg_one = position.code == "-1";
         match (&list.ty, &position.ty) {
             (Ty::List(element), Ty::Int) => {
                 let ty = if **element == Ty::Str {
@@ -363,10 +391,70 @@ impl Tr<'_> {
                 } else {
                     (**element).clone()
                 };
-                Ok(Val::new(
-                    format!("{}[{}]", list.operand(), position.code),
-                    ty,
-                ))
+                if is_neg_one {
+                    Ok(Val::new(
+                        format!("{}.last().cloned().unwrap_or_default()", list.operand()),
+                        ty,
+                    ))
+                } else if position.code.starts_with('-') {
+                    if let Ok(n) = position.code.parse::<i64>() {
+                        let nth = (-n).saturating_sub(1);
+                        Ok(Val::new(
+                            format!(
+                                "{}.iter().rev().nth({nth}).cloned().unwrap_or_default()",
+                                list.operand()
+                            ),
+                            ty,
+                        ))
+                    } else {
+                        let offset = position.code.trim_start_matches('-');
+                        Ok(Val::new(
+                            format!(
+                                "{}.iter().rev().nth(({offset}).saturating_sub(1)).cloned().unwrap_or_default()",
+                                list.operand()
+                            ),
+                            ty,
+                        ))
+                    }
+                } else {
+                    Ok(Val::new(
+                        format!("{}[{}].clone()", list.operand(), position.code),
+                        ty,
+                    ))
+                }
+            }
+            (_, Ty::Int) => {
+                if is_neg_one {
+                    Ok(Val::new(
+                        format!("{}.last().cloned().unwrap_or_default()", list.operand()),
+                        Ty::String,
+                    ))
+                } else if position.code.starts_with('-') {
+                    if let Ok(n) = position.code.parse::<i64>() {
+                        let nth = (-n).saturating_sub(1);
+                        Ok(Val::new(
+                            format!(
+                                "{}.iter().rev().nth({nth}).cloned().unwrap_or_default()",
+                                list.operand()
+                            ),
+                            Ty::String,
+                        ))
+                    } else {
+                        let offset = position.code.trim_start_matches('-');
+                        Ok(Val::new(
+                            format!(
+                                "{}.iter().rev().nth(({offset}).saturating_sub(1)).cloned().unwrap_or_default()",
+                                list.operand()
+                            ),
+                            Ty::String,
+                        ))
+                    }
+                } else {
+                    Ok(Val::new(
+                        format!("{}[{}].clone()", list.operand(), position.code),
+                        Ty::String,
+                    ))
+                }
             }
             _ => Err(Skip::warn(
                 "only a list can be indexed, with a whole number",
@@ -497,6 +585,9 @@ impl Tr<'_> {
     fn add(&mut self, expr: &Expr) -> TResult<Val> {
         let mut operands = Vec::new();
         collect_add(expr, &mut operands);
+        if operands.iter().any(|op| !is_colorama(op)) {
+            operands.retain(|op| !is_colorama(op));
+        }
         let mut vals = Vec::new();
         for operand in &operands {
             vals.push(self.value(operand, true)?);
@@ -588,7 +679,7 @@ impl Tr<'_> {
         let needle = Self::str_code(&item, left)?;
         let code = match &container.ty {
             Ty::Str | Ty::String => format!("{}.contains({needle})", container.operand()),
-            Ty::List(element) if element.is_text() => format!(
+            Ty::List(element) if element.is_text() || **element == Ty::Unknown => format!(
                 "{}.iter().any(|item| item == {needle})",
                 container.operand()
             ),
@@ -697,7 +788,19 @@ impl Tr<'_> {
                     _ => Self::str_code(&value, expr),
                 }
             }
-            K::Strs | K::By => Err(Skip::warn("not an argument")),
+            K::Strs => {
+                if let Expr::List(list) | Expr::Tuple(list) = expr {
+                    let mut codes = Vec::new();
+                    for item in list {
+                        codes.push(self.str_arg(item)?);
+                    }
+                    Ok(format!("&[{}]", codes.join(", ")))
+                } else {
+                    let item = self.str_arg(expr)?;
+                    Ok(format!("&[{item}]"))
+                }
+            }
+            K::By => Err(Skip::warn("not an argument")),
         }
     }
 
@@ -855,6 +958,76 @@ impl Tr<'_> {
             "assert_equal" | "assert_not_equal" => return self.assert_equal(method, args),
             "assert_in" | "assert_not_in" => return self.assert_in(method, args),
             "highlight_elements" => return self.highlight_elements(args),
+            "uc_open"
+            | "uc_open_with_tab"
+            | "uc_open_with_disconnect"
+            | "uc_open_with_reconnect" => {
+                let url = match args.first() {
+                    Some(Arg::Pos(u)) => self.str_arg(u)?,
+                    _ => return Err(Skip::error("the URL argument is missing")),
+                };
+                return Ok(Rendered::awaiting(
+                    format!("sb.{method}({url}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "reconnect" => {
+                return Ok(Rendered::awaiting(
+                    "sb.reconnect().await?".to_owned(),
+                    Ty::Unit,
+                ));
+            }
+            "set_messenger_theme" => {
+                let theme = match args.first() {
+                    Some(Arg::Pos(t)) => self.str_arg(t)?,
+                    _ => "\"default\"".to_owned(),
+                };
+                return Ok(Rendered::awaiting(
+                    format!("sb.set_messenger_theme({theme}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "highlight_click" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("sb.highlight_click({selector}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "human_click" | "uc_click" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("sb.human_click({selector}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "human_type" | "uc_type" => {
+                let selector = self.one_selector(method, args)?;
+                let text = match args.get(1) {
+                    Some(Arg::Pos(t)) => self.str_arg(t)?,
+                    _ => "\"\"".to_owned(),
+                };
+                return Ok(Rendered::awaiting(
+                    format!("sb.human_type({selector}, {text}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "markdown" | "get_markdown" => {
+                return Ok(Rendered::awaiting(
+                    "sb.markdown().await?".to_owned(),
+                    Ty::String,
+                ));
+            }
+            "fill_form" => {
+                let data = match args.first() {
+                    Some(Arg::Pos(d)) => self.str_arg(d)?,
+                    _ => "\"\"".to_owned(),
+                };
+                return Ok(Rendered::awaiting(
+                    format!("sb.fill_form({data}).await?"),
+                    Ty::Unit,
+                ));
+            }
             _ => {}
         }
         let Some(call) = lookup(method) else {
@@ -1009,7 +1182,10 @@ impl Tr<'_> {
             ("print", _) => {
                 let mut pieces = Vec::new();
                 for (index, value) in values.iter().enumerate() {
-                    if index > 0 {
+                    if is_colorama(value) {
+                        continue;
+                    }
+                    if index > 0 && !pieces.is_empty() {
                         pieces.push(Piece::Lit(" ".to_owned()));
                     }
                     match value {
@@ -1019,6 +1195,9 @@ impl Tr<'_> {
                                 match part {
                                     FPart::Lit(text) => pieces.push(Piece::Lit(text.clone())),
                                     FPart::Expr(inner) => {
+                                        if is_colorama(inner) {
+                                            continue;
+                                        }
                                         let value = self.expr(inner)?;
                                         pieces.push(Piece::Arg(value));
                                     }
@@ -1079,6 +1258,13 @@ impl Tr<'_> {
         }
 
         let value = self.expr(base)?;
+        if value.ty == Ty::Locator && matches!(method, "flash" | "highlight") {
+            return Ok(Rendered::awaiting(
+                format!("{}.flash().await?", value.operand()),
+                Ty::Unit,
+            ));
+        }
+
         let mut positional = Vec::new();
         for arg in args {
             match arg {
@@ -1107,6 +1293,21 @@ impl Tr<'_> {
                 ("strip", []) => Ok(Rendered::plain(format!("{text}.trim()"), Ty::Str)),
                 ("lstrip", []) => Ok(Rendered::plain(format!("{text}.trim_start()"), Ty::Str)),
                 ("rstrip", []) => Ok(Rendered::plain(format!("{text}.trim_end()"), Ty::Str)),
+                ("split", []) => Ok(Rendered::plain(
+                    format!("{text}.split_whitespace().map(|s| s.to_string()).collect::<Vec<_>>()"),
+                    Ty::List(Box::new(Ty::String)),
+                )),
+                ("split", [pat]) => {
+                    let p = self.str_arg(pat)?;
+                    Ok(Rendered::plain(
+                        format!("{text}.split({p}).map(|s| s.to_string()).collect::<Vec<_>>()"),
+                        Ty::List(Box::new(Ty::String)),
+                    ))
+                }
+                ("splitlines", []) => Ok(Rendered::plain(
+                    format!("{text}.lines().map(|s| s.to_string()).collect::<Vec<_>>()"),
+                    Ty::List(Box::new(Ty::String)),
+                )),
                 ("replace", [from, to]) => {
                     let (from, to) = (self.str_arg(from)?, self.str_arg(to)?);
                     Ok(Rendered::plain(
@@ -1133,10 +1334,50 @@ impl Tr<'_> {
                 ))),
             };
         }
+        match (method, positional.as_slice()) {
+            ("append", [item]) => {
+                let item_val = self.expr(item)?;
+                return Ok(Rendered::plain(
+                    format!("{}.push({})", value.operand(), item_val.code),
+                    Ty::Unit,
+                ));
+            }
+            ("extend", [items]) => {
+                let items_val = self.expr(items)?;
+                return Ok(Rendered::plain(
+                    format!("{}.extend({})", value.operand(), items_val.code),
+                    Ty::Unit,
+                ));
+            }
+            ("pop", []) => {
+                return Ok(Rendered::plain(
+                    format!("{}.pop()", value.operand()),
+                    Ty::Unknown,
+                ));
+            }
+            ("clear", []) => {
+                return Ok(Rendered::plain(
+                    format!("{}.clear()", value.operand()),
+                    Ty::Unit,
+                ));
+            }
+            _ => {}
+        }
         Err(Skip::warn(format!(
             "`{}.{method}()` is not translated",
             py_repr(base)
         )))
+    }
+}
+
+/// Colorama colour names (`Fore`, `Back`, `Style`) are printed as nothing.
+fn is_colorama(expr: &Expr) -> bool {
+    match expr {
+        Expr::Name(name) => matches!(name.as_str(), "Fore" | "Back" | "Style" | "colorama"),
+        Expr::Attr(inner, attr) => {
+            matches!(attr.as_str(), "Fore" | "Back" | "Style") || is_colorama(inner)
+        }
+        _ => false,
     }
 }
 

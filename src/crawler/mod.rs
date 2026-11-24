@@ -12,6 +12,7 @@ pub mod item;
 pub mod robots;
 pub mod sitemap;
 pub mod spider;
+pub mod warc;
 
 #[doc(inline)]
 pub use builder::CrawlerBuilder;
@@ -25,3 +26,5 @@ pub use robots::{fetch_robots_txt, RobotsPolicy};
 pub use sitemap::{fetch_sitemap_urls, parse_sitemap_urls};
 #[doc(inline)]
 pub use spider::{Spider, SpiderConfig, SpiderConfigBuilder};
+#[doc(inline)]
+pub use warc::{WarcRecordType, WarcWriter};

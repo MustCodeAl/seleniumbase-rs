@@ -313,6 +313,77 @@ static CDP_TABLE: &[CdpCall] = &[
         }],
         "tokio::time::sleep(std::time::Duration::from_secs_f64({0})).await",
     ),
+    value(
+        &["is_element_present"],
+        ON,
+        "page.locator({0}).count().await.map(|c| c > 0).unwrap_or(false)",
+        Ty::Bool,
+    ),
+    value(
+        &["is_element_visible"],
+        ON,
+        "page.locator({0}).is_visible().await.unwrap_or(false)",
+        Ty::Bool,
+    ),
+    value(
+        &["get_endpoint_url"],
+        &[],
+        "\"http://127.0.0.1:9222\".to_string()",
+        Ty::String,
+    ),
+    value(
+        &["get_current_url", "current_url"],
+        &[],
+        "page.url().await?",
+        Ty::String,
+    ),
+    unit(
+        &["save_screenshot_to_logs", "save_screenshot"],
+        &[],
+        "page.screenshot().await?",
+    ),
+    importing(
+        &["scroll_down"],
+        &[n("amount")],
+        "page.scroll(Scroll::By(({0} as f64) * 40.0)).await?",
+        &["Scroll"],
+    ),
+    importing(
+        &["scroll_up"],
+        &[n("amount")],
+        "page.scroll(Scroll::By(-(({0} as f64) * 40.0))).await?",
+        &["Scroll"],
+    ),
+    importing(
+        &["scroll_by_y"],
+        &[n("y")],
+        "page.scroll(Scroll::By({0} as f64)).await?",
+        &["Scroll"],
+    ),
+    unit(&["reconnect"], &[], "page.reload().await?"),
+    unit(&["switch_to_default_driver", "switch_to_driver"], &[], ""),
+    unit(
+        &["set_messenger_theme"],
+        &[s("theme")],
+        "page.set_messenger_theme({0}).await?",
+    ),
+    unit(
+        &["remove_elements", "remove_element"],
+        ON,
+        "page.evaluate(&format!(\"document.querySelectorAll('{{}}').forEach(el => el.remove())\", {0})).await?",
+    ),
+    unit(&["gui_click_element"], ON, "page.human_click({0}).await?"),
+    unit(
+        &["uc_gui_click_captcha", "uc_gui_handle_captcha", "uc_click_captcha"],
+        &[],
+        "page.solve_captcha().await?",
+    ),
+    unit(
+        &["uc_gui_press_keys", "uc_gui_press_key", "uc_gui_write"],
+        &[s("key")],
+        "page.keyboard().press({0}).await?",
+    ),
+    unit(&["post_message"], &[s("message")], "println!(\"{}\", {0})"),
 ];
 
 /// `template` with each `{N}` replaced by the Nth argument.
@@ -402,6 +473,197 @@ impl Tr<'_> {
                     Ty::Unit,
                 ));
             }
+            "scroll_down" => {
+                let amount = match args.first() {
+                    Some(Arg::Pos(val)) => match self.expr(val) {
+                        Ok(v) => format!("({} as f64) * 40.0", v.operand()),
+                        _ => "300.0".to_owned(),
+                    },
+                    _ => "300.0".to_owned(),
+                };
+                self.imports.insert("Scroll");
+                return Ok(Rendered::awaiting(
+                    format!("page.scroll(Scroll::By({amount})).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "scroll_up" => {
+                let amount = match args.first() {
+                    Some(Arg::Pos(val)) => match self.expr(val) {
+                        Ok(v) => format!("-(({} as f64) * 40.0)", v.operand()),
+                        _ => "-300.0".to_owned(),
+                    },
+                    _ => "-300.0".to_owned(),
+                };
+                self.imports.insert("Scroll");
+                return Ok(Rendered::awaiting(
+                    format!("page.scroll(Scroll::By({amount})).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "scroll_into_view" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("page.locator({selector}).scroll_into_view().await?"),
+                    Ty::Unit,
+                ));
+            }
+            "click_if_visible" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("if page.locator({selector}).is_visible().await.unwrap_or(false) {{ let _ = page.locator({selector}).click().await; }}"),
+                    Ty::Unit,
+                ));
+            }
+            "remove_elements" | "remove_element" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("page.evaluate(&format!(\"document.querySelectorAll('{{}}').forEach(el => el.remove())\", {selector})).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "save_screenshot_to_logs" | "save_screenshot" => {
+                return Ok(Rendered::awaiting(
+                    "page.screenshot().await?".to_owned(),
+                    Ty::Unit,
+                ));
+            }
+            "solve_captcha" => {
+                return Ok(Rendered::awaiting(
+                    "page.solve_captcha().await?".to_owned(),
+                    Ty::Unit,
+                ));
+            }
+            "internalize_links" => {
+                return Ok(Rendered::awaiting(
+                    "page.internalize_links().await?".to_owned(),
+                    Ty::Unit,
+                ));
+            }
+            "is_element_present" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!(
+                        "page.locator({selector}).count().await.map(|c| c > 0).unwrap_or(false)"
+                    ),
+                    Ty::Bool,
+                ));
+            }
+            "is_element_visible" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("page.locator({selector}).is_visible().await.unwrap_or(false)"),
+                    Ty::Bool,
+                ));
+            }
+            "get_endpoint_url" => {
+                return Ok(Rendered::plain(
+                    "\"http://127.0.0.1:9222\".to_string()".to_owned(),
+                    Ty::String,
+                ));
+            }
+            "uc_gui_click_captcha" | "uc_gui_handle_captcha" | "uc_click_captcha" => {
+                return Ok(Rendered::awaiting(
+                    "page.solve_captcha().await?".to_owned(),
+                    Ty::Unit,
+                ));
+            }
+            "uc_gui_press_keys" | "uc_gui_press_key" | "uc_gui_write" => {
+                let key = match args.first() {
+                    Some(Arg::Pos(val)) => match self.expr(val) {
+                        Ok(v) => v.code,
+                        _ => "\"Enter\"".to_owned(),
+                    },
+                    _ => "\"Enter\"".to_owned(),
+                };
+                return Ok(Rendered::awaiting(
+                    format!("page.keyboard().press({key}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "gui_click_element" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("page.human_click({selector}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "post_message" => {
+                let msg = match args.first() {
+                    Some(Arg::Pos(val)) => match self.expr(val) {
+                        Ok(v) => v.code,
+                        _ => "\"\"".to_owned(),
+                    },
+                    _ => "\"\"".to_owned(),
+                };
+                return Ok(Rendered::plain(
+                    format!("println!(\"{{}}\", {msg})"),
+                    Ty::Unit,
+                ));
+            }
+            "switch_to_default_driver" | "switch_to_driver" => {
+                return Ok(Rendered::plain("", Ty::Unit));
+            }
+            "get_current_url" => {
+                return Ok(Rendered::awaiting(
+                    "page.url().await?".to_owned(),
+                    Ty::String,
+                ));
+            }
+            "scroll_by_y" => {
+                let y = match args.first() {
+                    Some(Arg::Pos(val)) => match self.expr(val) {
+                        Ok(v) => format!("{} as f64", v.operand()),
+                        _ => "300.0".to_owned(),
+                    },
+                    _ => "300.0".to_owned(),
+                };
+                self.imports.insert("Scroll");
+                return Ok(Rendered::awaiting(
+                    format!("page.scroll(Scroll::By({y})).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "reconnect" => {
+                return Ok(Rendered::awaiting(
+                    "page.reload().await?".to_owned(),
+                    Ty::Unit,
+                ));
+            }
+            "set_messenger_theme" => {
+                let theme = match args.first() {
+                    Some(Arg::Pos(val)) => match self.expr(val) {
+                        Ok(v) => v.code,
+                        _ => "\"default\"".to_owned(),
+                    },
+                    _ => "\"default\"".to_owned(),
+                };
+                return Ok(Rendered::awaiting(
+                    format!("page.set_messenger_theme({theme}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "wait_for_timeout" => {
+                let ms = match args.first() {
+                    Some(Arg::Pos(val)) => match self.expr(val) {
+                        Ok(v) => v.code,
+                        _ => "1000".to_owned(),
+                    },
+                    _ => "1000".to_owned(),
+                };
+                return Ok(Rendered::awaiting(
+                    format!("tokio::time::sleep(std::time::Duration::from_millis({ms})).await"),
+                    Ty::Unit,
+                ));
+            }
+            "wait_for_selector" => {
+                let selector = self.one_selector(method, args)?;
+                self.imports.insert("State");
+                return Ok(Rendered::awaiting(
+                    format!("page.locator({selector}).wait_for(State::Visible).await?"),
+                    Ty::Unit,
+                ));
+            }
             _ => {}
         }
         let Some(entry) = CDP_TABLE.iter().find(|entry| entry.py.contains(&method)) else {
@@ -458,7 +720,7 @@ impl Tr<'_> {
     }
 
     /// The selector of `find_element(selector)`.
-    fn one_selector(&mut self, method: &str, args: &[Arg]) -> TResult<String> {
+    pub(super) fn one_selector(&mut self, method: &str, args: &[Arg]) -> TResult<String> {
         match args {
             [Arg::Pos(selector)] | [Arg::Pos(selector), Arg::Kw(..)] => self.str_arg(selector),
             _ => Err(Skip::error(format!("{method} takes one selector"))),
@@ -495,7 +757,7 @@ impl Tr<'_> {
             ("hover", []) => none(format!("{base}.hover().await?")),
             ("double_click", []) => none(format!("{base}.double_click().await?")),
             ("clear", []) => none(format!("{base}.clear().await?")),
-            ("flash" | "highlight", []) => none(format!("{base}.flash().await?")),
+            ("flash" | "highlight", _) => none(format!("{base}.flash().await?")),
             ("type" | "type_text" | "fill", [text]) => {
                 let text = self.str_arg(text)?;
                 none(format!("{base}.type_text({text}).await?"))
@@ -504,18 +766,21 @@ impl Tr<'_> {
                 let text = self.str_arg(text)?;
                 none(format!("{base}.send_keys({text}).await?"))
             }
-            ("get_text", []) => Ok(Rendered::awaiting(
+            ("get_text" | "text", []) => Ok(Rendered::awaiting(
                 format!("{base}.text().await?"),
                 Ty::String,
             )),
-            ("find_element" | "query_selector" | "select", [selector]) => {
+            ("find_element" | "query_selector" | "querySelector" | "select", [selector]) => {
                 let selector = self.str_arg(selector)?;
                 Ok(Rendered::plain(
                     format!("{base}.locator({selector})"),
                     Ty::Locator,
                 ))
             }
-            ("find_elements" | "query_selector_all" | "select_all", [selector]) => {
+            (
+                "find_elements" | "query_selector_all" | "querySelectorAll" | "select_all",
+                [selector],
+            ) => {
                 let selector = self.str_arg(selector)?;
                 Ok(Rendered::awaiting(
                     format!("{base}.locator({selector}).all_waiting().await?"),

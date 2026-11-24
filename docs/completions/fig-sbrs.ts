@@ -3767,6 +3767,90 @@ const completionSpec: Fig.Spec = {
             },
           ],
         },
+        {
+          name: "new",
+          description: "Create a new seleniumbase-rs plugin project scaffold.",
+          options: [
+            {
+              name: "--template",
+              description: "Template style (e.g. \"library\", \"cli\").",
+              args: {
+                name: "template",
+              },
+            },
+            {
+              name: "--backend",
+              description: "Backend foundation (e.g. \"cdp\", \"webdriver\").",
+              args: {
+                name: "backend",
+              },
+            },
+            {
+              name: "--focus",
+              description: "Architectural focus (e.g. \"general\", \"cli\", \"scraping\").",
+              args: {
+                name: "focus",
+              },
+            },
+            {
+              name: "--integrations",
+              description: "Target integrations (e.g. \"mcp\", \"ci\").",
+              args: {
+                name: "integrations",
+              },
+            },
+            {
+              name: "--headless",
+              description: "Enable headless mode by default.",
+            },
+            {
+              name: "--dev-env",
+              description: "Development environment configuration (e.g. \"cargo\", \"mise\", \"docker\", \"gitlab-ci\", \"github-actions\").",
+              args: {
+                name: "dev_env",
+              },
+            },
+            {
+              name: "--ai-agent",
+              description: "AI agent rule file to generate (e.g. \"none\", \"cursor\", \"claude-code\", \"gemini\", \"antigravity\", \"codex\").",
+              args: {
+                name: "ai_agent",
+              },
+            },
+            {
+              name: "--ide",
+              description: "Primary IDE for quick start instructions (e.g. \"cursor\", \"vscode\", \"zed\", \"clion\", \"neovim\", \"helix\").",
+              args: {
+                name: "ide",
+              },
+            },
+            {
+              name: "--target-env",
+              description: "Target execution environment (e.g. \"local\", \"docker\", \"cloud\").",
+              args: {
+                name: "target_env",
+              },
+            },
+            {
+              name: "--out-dir",
+              description: "Destination directory for the scaffolded plugin (defaults to plugin name).",
+              args: {
+                name: "dir",
+                template: "folders",
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "name",
+              description: "The name of the new plugin to create.",
+            },
+          ],
+        },
       ],
       options: [
         {

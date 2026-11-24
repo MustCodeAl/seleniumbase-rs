@@ -6,8 +6,10 @@
 //! checks, and leaves writing them to the caller.
 
 use std::fmt::Write as _;
+use std::path::PathBuf;
 
 use super::NoBrowser;
+use crate::cli::plugin_scaffold::{render_plugin_files, PluginScaffoldOptions};
 use crate::cli::scaffold::{GeneratedFile, ScaffoldError};
 use crate::cli::scripts::sb_mkdir::Suite;
 use crate::cli::scripts::sb_mkfile::TestFile;
@@ -25,71 +27,160 @@ const MAX_CODE_BYTES: usize = 256 * 1024;
 /// The tools of this file.
 pub(super) fn tools() -> Vec<ToolDef<NoBrowser>> {
     vec![
-        ToolDef::new(
-            "python_to_rust",
-            "Python To Rust",
-            "Convert a Python SeleniumBase or Selenium test to a Rust test for this library, as \
-             `sbrs import-python` does. The Python is read, never run. Statements it cannot \
-             translate stay as `// TODO` comments in the Rust, and each one is also a \
-             diagnostic with its line number; review them before using the test. The result \
-             says which API family it detected.",
-            Effect::Inspect,
-            Schema::new()
-                .required(
-                    "code",
-                    Prop::string("The Python source of the test, at most 256 KiB"),
-                )
-                .optional(
-                    "source",
-                    Prop::choice(
-                        &["auto", "seleniumbase", "selenium"],
-                        "Which Python API the code uses; auto looks at its imports and calls",
-                    )
-                    .default("auto"),
-                )
-                .optional(
-                    "test_name",
-                    Prop::string("Name of the Rust test function").default("imported_python_test"),
-                ),
-            python_to_rust,
-        ),
-        ToolDef::new(
-            "scaffold",
-            "Scaffold",
-            "Show the files `sbrs mkfile` (kind test: one browser-test file) or `sbrs mkdir` \
-             (kind suite: a folder with main.rs, helpers.rs, a README and example tests) would \
-             create, as text with each file's path and content. Writes nothing: create the \
-             files yourself. The names follow the same rules as the commands.",
-            Effect::Inspect,
-            Schema::new()
-                .required(
-                    "kind",
-                    Prop::choice(
-                        &["test", "suite"],
-                        "A single test file, or a folder holding a test suite",
-                    ),
-                )
-                .required(
-                    "name",
-                    Prop::string(
-                        "Relative name: `login` or `tests/login.rs` for a test, `tests/ui` for \
-                         a suite; letters, digits, _, - and . only",
-                    ),
-                )
-                .optional(
-                    "url",
-                    Prop::string("kind test: the page the test opens (an http, https or file URL)"),
-                )
-                .optional(
-                    "basic",
-                    Prop::boolean(
-                        "Leave out the example assertions (test) or the example tests (suite)",
-                    )
-                    .default(false),
-                ),
-            scaffold,
-        ),
+        python_to_rust_tool(),
+        scaffold_tool(),
+        scaffold_plugin_tool(),
     ]
+}
+
+fn python_to_rust_tool() -> ToolDef<NoBrowser> {
+    ToolDef::new(
+        "python_to_rust",
+        "Python To Rust",
+        "Convert a Python SeleniumBase or Selenium test to a Rust test for this library, as \
+         `sbrs import-python` does. The Python is read, never run. Statements it cannot \
+         translate stay as `// TODO` comments in the Rust, and each one is also a \
+         diagnostic with its line number; review them before using the test. The result \
+         says which API family it detected.",
+        Effect::Inspect,
+        Schema::new()
+            .required(
+                "code",
+                Prop::string("The Python source of the test, at most 256 KiB"),
+            )
+            .optional(
+                "source",
+                Prop::choice(
+                    &["auto", "seleniumbase", "selenium"],
+                    "Which Python API the code uses; auto looks at its imports and calls",
+                )
+                .default("auto"),
+            )
+            .optional(
+                "test_name",
+                Prop::string("Name of the Rust test function").default("imported_python_test"),
+            ),
+        python_to_rust,
+    )
+}
+
+fn scaffold_tool() -> ToolDef<NoBrowser> {
+    ToolDef::new(
+        "scaffold",
+        "Scaffold",
+        "Show the files `sbrs mkfile` (kind test: one browser-test file) or `sbrs mkdir` \
+         (kind suite: a folder with main.rs, helpers.rs, a README and example tests) would \
+         create, as text with each file's path and content. Writes nothing: create the \
+         files yourself. The names follow the same rules as the commands.",
+        Effect::Inspect,
+        Schema::new()
+            .required(
+                "kind",
+                Prop::choice(
+                    &["test", "suite"],
+                    "A single test file, or a folder holding a test suite",
+                ),
+            )
+            .required(
+                "name",
+                Prop::string(
+                    "Relative name: `login` or `tests/login.rs` for a test, `tests/ui` for \
+                     a suite; letters, digits, _, - and . only",
+                ),
+            )
+            .optional(
+                "url",
+                Prop::string("kind test: the page the test opens (an http, https or file URL)"),
+            )
+            .optional(
+                "basic",
+                Prop::boolean(
+                    "Leave out the example assertions (test) or the example tests (suite)",
+                )
+                .default(false),
+            ),
+        scaffold,
+    )
+}
+
+fn scaffold_plugin_tool() -> ToolDef<NoBrowser> {
+    ToolDef::new(
+        "scaffold_plugin",
+        "Scaffold Plugin",
+        "Show the files `sbrs plugin new` would create to scaffold a new seleniumbase-rs \
+         plugin crate, as text with each file's path and content, plus quick-start \
+         instructions. Writes nothing: create the files yourself.",
+        Effect::Inspect,
+        Schema::new()
+            .required(
+                "name",
+                Prop::string("Name of the plugin crate to scaffold (e.g. `my-plugin`)"),
+            )
+            .optional(
+                "template",
+                Prop::choice(&["library", "cli"], "Template style: `library` or `cli`")
+                    .default("library"),
+            )
+            .optional(
+                "backend",
+                Prop::string("Backend foundation (e.g. `cdp`, `webdriver`)"),
+            )
+            .optional(
+                "focus",
+                Prop::string("Architectural focus (e.g. `general`, `cli`, `scraping`)")
+                    .default("general"),
+            )
+            .optional(
+                "integrations",
+                Prop::string("Target integrations (e.g. `mcp`, `ci`)"),
+            )
+            .optional(
+                "headless",
+                Prop::boolean("Enable headless mode by default in the plugin scaffold")
+                    .default(false),
+            )
+            .optional(
+                "dev_env",
+                Prop::choice(
+                    &["cargo", "mise", "docker", "gitlab-ci", "github-actions"],
+                    "Development environment configuration",
+                )
+                .default("cargo"),
+            )
+            .optional(
+                "ai_agent",
+                Prop::choice(
+                    &[
+                        "none",
+                        "cursor",
+                        "claude-code",
+                        "gemini",
+                        "antigravity",
+                        "codex",
+                    ],
+                    "AI agent rule file to generate",
+                )
+                .default("none"),
+            )
+            .optional(
+                "ide",
+                Prop::choice(
+                    &["cursor", "vscode", "zed", "clion", "neovim", "helix"],
+                    "Primary IDE for quick start instructions",
+                )
+                .default("cursor"),
+            )
+            .optional(
+                "target_env",
+                Prop::string("Target execution environment (e.g. `local`, `docker`, `cloud`)")
+                    .default("local"),
+            )
+            .optional(
+                "out_dir",
+                Prop::string("Destination directory path (defaults to plugin name)"),
+            ),
+        scaffold_plugin,
+    )
 }
 
 async fn python_to_rust(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError> {
@@ -230,6 +321,69 @@ async fn scaffold(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
         }
     }
     let _ = write!(text, "\n{next}\n");
+    Ok(text.into())
+}
+
+async fn scaffold_plugin(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError> {
+    let name = args.str("name")?;
+    let template = args.choice("template", &["library", "cli"], "library")?;
+    let backend = nonempty(&args, "backend")?.map(ToOwned::to_owned);
+    let focus = args.str_or("focus", "general")?;
+    let integrations = nonempty(&args, "integrations")?.map(ToOwned::to_owned);
+    let headless = args.bool_or("headless", false)?;
+    let dev_env = args.choice(
+        "dev_env",
+        &["cargo", "mise", "docker", "gitlab-ci", "github-actions"],
+        "cargo",
+    )?;
+    let ai_agent = args.choice(
+        "ai_agent",
+        &[
+            "none",
+            "cursor",
+            "claude-code",
+            "gemini",
+            "antigravity",
+            "codex",
+        ],
+        "none",
+    )?;
+    let ide = args.choice(
+        "ide",
+        &["cursor", "vscode", "zed", "clion", "neovim", "helix"],
+        "cursor",
+    )?;
+    let target_env = args.str_or("target_env", "local")?;
+    let out_dir = nonempty(&args, "out_dir")?.map(PathBuf::from);
+
+    let opts = PluginScaffoldOptions {
+        name: name.to_owned(),
+        template: template.to_owned(),
+        backend,
+        focus: focus.to_owned(),
+        integrations,
+        headless,
+        dev_env: dev_env.to_owned(),
+        ai_agent: ai_agent.to_owned(),
+        ide: ide.to_owned(),
+        target_env: target_env.to_owned(),
+        out_dir,
+    };
+
+    let (files, instructions) = render_plugin_files(&opts)
+        .map_err(|error| ToolError::invalid("name", error.to_string()))?;
+
+    let mut text = format!(
+        "Scaffold for plugin {name}. Nothing was written; create these {} file(s) yourself.\n",
+        files.len()
+    );
+    for (path, content) in &files {
+        let _ = write!(text, "\n=== {} ===\n{content}", path.display());
+        if !content.ends_with('\n') {
+            text.push('\n');
+        }
+    }
+    let _ = write!(text, "\n{instructions}\n");
     Ok(text.into())
 }
 
@@ -441,5 +595,89 @@ mod tests {
             matches!(&suite_url, ToolError::InvalidArgument { name, .. } if name == "url"),
             "{suite_url}"
         );
+    }
+
+    #[tokio::test]
+    async fn a_plugin_scaffold_returns_all_scaffold_files_and_instructions() {
+        let answer = call(
+            "scaffold_plugin",
+            json!({
+                "name": "sample-plugin",
+                "template": "library",
+                "backend": "cdp"
+            }),
+        )
+        .await
+        .unwrap();
+
+        let text = answer.as_text().unwrap();
+        assert!(text.contains("Scaffold for plugin sample-plugin"), "{text}");
+        assert!(text.contains("Nothing was written"), "{text}");
+        assert!(text.contains("=== sample-plugin/Cargo.toml ==="), "{text}");
+        assert!(text.contains("=== sample-plugin/src/lib.rs ==="), "{text}");
+        assert!(
+            text.contains("=== sample-plugin/tests/plugin_test.rs ==="),
+            "{text}"
+        );
+        assert!(text.contains("=== sample-plugin/README.md ==="), "{text}");
+        assert!(
+            text.contains("SELENIUMBASE-RS PLUGIN SCAFFOLDED: sample-plugin"),
+            "{text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn plugin_scaffold_cli_focus_includes_main_rs() {
+        let answer = call(
+            "scaffold_plugin",
+            json!({
+                "name": "my-cli-plugin",
+                "focus": "cli"
+            }),
+        )
+        .await
+        .unwrap();
+
+        let text = answer.as_text().unwrap();
+        assert!(text.contains("=== my-cli-plugin/src/main.rs ==="), "{text}");
+    }
+
+    #[tokio::test]
+    async fn plugin_scaffold_custom_dev_env_and_agent_rules() {
+        let answer = call(
+            "scaffold_plugin",
+            json!({
+                "name": "docker-plugin",
+                "dev_env": "docker",
+                "ai_agent": "cursor",
+                "ide": "cursor"
+            }),
+        )
+        .await
+        .unwrap();
+
+        let text = answer.as_text().unwrap();
+        assert!(text.contains("=== docker-plugin/Dockerfile ==="), "{text}");
+        assert!(
+            text.contains("=== docker-plugin/docker-compose.yml ==="),
+            "{text}"
+        );
+        assert!(
+            text.contains("=== docker-plugin/.cursorrules ==="),
+            "{text}"
+        );
+    }
+
+    #[tokio::test]
+    async fn plugin_scaffold_rejects_invalid_names() {
+        for bad_name in ["", "../escaped", "/etc/bad", "-flag", ".dotfile"] {
+            let error = call("scaffold_plugin", json!({ "name": bad_name }))
+                .await
+                .unwrap_err();
+            assert!(
+                matches!(&error, ToolError::InvalidArgument { name, .. } if name == "name"),
+                "{bad_name}: {error}"
+            );
+        }
     }
 }

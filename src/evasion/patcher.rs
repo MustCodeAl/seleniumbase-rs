@@ -37,6 +37,12 @@ pub struct EnginePatch {
     pub patch_navigator_webdriver: bool,
     /// Replace `HeadlessChrome` user-agent markers with `Chrome`.
     pub patch_headless_user_agent: bool,
+    /// Replace `kAutomationControlled` Chromium feature flags (ShardBrowser / Camoufox).
+    pub scrub_k_automation_controlled: bool,
+    /// Replace `--enable-automation` command line checks (Eoka / ShardBrowser).
+    pub scrub_enable_automation: bool,
+    /// Replace CDP evaluation isolation script markers (Cloak-CDP).
+    pub patch_cdp_runtime_isolate: bool,
     /// Create a `.orig` backup before patching.
     pub backup: bool,
 }
@@ -52,6 +58,9 @@ impl EnginePatch {
             scrub_chrome_version: false,
             patch_navigator_webdriver: false,
             patch_headless_user_agent: false,
+            scrub_k_automation_controlled: false,
+            scrub_enable_automation: false,
+            patch_cdp_runtime_isolate: false,
             backup: true,
         }
     }
@@ -66,6 +75,9 @@ impl EnginePatch {
             scrub_chrome_version: true,
             patch_navigator_webdriver: true,
             patch_headless_user_agent: true,
+            scrub_k_automation_controlled: true,
+            scrub_enable_automation: true,
+            patch_cdp_runtime_isolate: true,
             backup: true,
         }
     }
@@ -76,6 +88,9 @@ impl EnginePatch {
             scrub_chrome_version: true,
             patch_navigator_webdriver: true,
             patch_headless_user_agent: true,
+            scrub_k_automation_controlled: true,
+            scrub_enable_automation: true,
+            patch_cdp_runtime_isolate: true,
             ..Self::all()
         }
     }
@@ -98,6 +113,9 @@ impl EnginePatch {
             scrub_webdriver_markers: true,
             patch_navigator_webdriver: true,
             patch_headless_user_agent: true,
+            scrub_k_automation_controlled: true,
+            scrub_enable_automation: true,
+            patch_cdp_runtime_isolate: true,
             backup: false,
         }
     }
@@ -525,6 +543,25 @@ fn apply_chrome_binary_patches(mut content: Vec<u8>, spec: EnginePatch) -> Vec<u
         for (needle, repl) in markers {
             content = replace_literal_equal_len(&content, needle, repl);
         }
+    }
+    if spec.scrub_k_automation_controlled {
+        content =
+            replace_literal_equal_len(&content, b"kAutomationControlled", b"kNotControlled0000000");
+    }
+    if spec.scrub_enable_automation {
+        content = replace_literal_equal_len(&content, b"enable-automation", b"disable-automati00");
+    }
+    if spec.patch_cdp_runtime_isolate {
+        content = replace_literal_equal_len(
+            &content,
+            b"__puppeteer_evaluation_script__",
+            b"__user_client_script_executed__",
+        );
+        content = replace_literal_equal_len(
+            &content,
+            b"__playwright_evaluation_script__",
+            b"__user_client_script_executed__",
+        );
     }
     if spec.patch_navigator_webdriver {
         let re = Regex::new(r"navigator\.webdriver\s*=\s*(!0|true)").unwrap();

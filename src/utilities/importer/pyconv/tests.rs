@@ -4,6 +4,8 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use crate::ImportSeverity;
+
 use super::ast::{BinOp, Expr, StmtKind};
 use super::parse::parse_module;
 use super::table::{Fill, Flow, Ret, K, TABLE};
@@ -59,7 +61,7 @@ fn impl_name(implementation: &syn::TypeImplTrait) -> String {
     });
     match argument.as_deref() {
         // A selector or a file name (`impl AsRef<Path>`) takes a string, as far as a Python call goes.
-        Some("Selector" | "Path") => "&str".to_owned(),
+        Some("MessengerSettings" | "Selector" | "Path") => "&str".to_owned(),
 
         Some(name @ ("FrameRef" | "WindowRef")) => format!("impl Into<{name}>"),
         _ => "impl Into".to_owned(),
@@ -776,9 +778,7 @@ fn every_call_the_goldens_make_on_sb_is_a_basecase_method_taking_those_arguments
 /// generated table leaves out, so the hand-written table maps it.
 #[test]
 fn locator_is_converted_to_find_element() {
-    use crate::utilities::python_importer::{
-        import_python, ImportOptions, ImportSeverity, PythonSource,
-    };
+    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
     let source = "from seleniumbase import BaseCase\n\n\nclass T(BaseCase):\n    \
                   def test_locator(self):\n        self.open(\"https://example.com\")\n        \
                   self.locator(\"#a\")\n        self.locator(\"p:contains('x')\", timeout=5)\n";
@@ -825,9 +825,7 @@ fn golden_dir() -> PathBuf {
 /// `SB_UPDATE_GOLDENS=1` writes them again.
 #[test]
 fn the_goldens_are_what_the_converter_writes() {
-    use crate::utilities::python_importer::{
-        import_python, ImportOptions, ImportSeverity, PythonSource,
-    };
+    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
     let mut sources: Vec<PathBuf> = std::fs::read_dir(golden_dir())
         .unwrap()
         .map(|entry| entry.unwrap().path())
@@ -947,9 +945,7 @@ const UPSTREAM_EXAMPLES: &[&str] = &[
 /// folder (`cargo test ... upstream_examples -- --nocapture`).
 #[test]
 fn the_upstream_examples_convert_when_they_are_at_hand() {
-    use crate::utilities::python_importer::{
-        import_python, ImportOptions, ImportSeverity, PythonSource,
-    };
+    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
     let Some(root) = std::env::var_os("SBRS_UPSTREAM_EXAMPLES") else {
         return;
     };
@@ -1073,4 +1069,418 @@ fn decorators_defs_and_classes_are_read() {
     };
     assert_eq!(def.decorators.len(), 1);
     assert_eq!(def.params.len(), 2);
+}
+
+#[test]
+fn python_pattern_matching_translates_to_idiomatic_rust_match() {
+    use crate::utilities::python_importer::{
+        import_python, ImportOptions, ImportSeverity, PythonSource,
+    };
+    let source = r#"
+from seleniumbase import BaseCase
+
+class TestMatch(BaseCase):
+    def test_matching(self):
+        status = "ok"
+        match status:
+            case "ok":
+                self.open("https://example.com/ok")
+            case "error" | "failed":
+                self.open("https://example.com/err")
+            case other if len(other) > 5:
+                self.open("https://example.com/long")
+            case _:
+                self.open("https://example.com/fallback")
+"#;
+    let result = import_python(
+        source,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "test_matching".to_owned(),
+        },
+    );
+    let errors: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == ImportSeverity::Error)
+        .collect();
+    assert!(errors.is_empty(), "{errors:?}\n{}", result.rust);
+    assert!(
+        result.rust.contains("match status.as_str() {"),
+        "{}",
+        result.rust
+    );
+    assert!(result.rust.contains("\"ok\" => {"), "{}", result.rust);
+    assert!(
+        result.rust.contains("\"error\" | \"failed\" => {"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("other if other.len() > 5 => {"),
+        "{}",
+        result.rust
+    );
+    assert!(result.rust.contains("_ => {"), "{}", result.rust);
+}
+
+#[test]
+fn negative_indexing_translates_to_rev_or_last() {
+    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    let source = r#"
+from seleniumbase import BaseCase
+
+class TestIndexing(BaseCase):
+    def test_negative_indexing(self):
+        items = [1, 2, 3]
+        a = items[-1]
+        b = items[-2]
+"#;
+    let result = import_python(
+        source,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "test_negative_indexing".to_owned(),
+        },
+    );
+    assert!(
+        result.rust.contains(".last().cloned().unwrap_or_default()"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains(".iter().rev().nth(1).cloned().unwrap_or_default()"),
+        "{}",
+        result.rust
+    );
+}
+
+#[test]
+fn colorama_styling_is_stripped_cleanly() {
+    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    let source = r#"
+from colorama import Fore, Style
+from seleniumbase import BaseCase
+
+class TestColorama(BaseCase):
+    def test_colorama(self):
+        print(Fore.GREEN + "Test passed!" + Style.RESET_ALL)
+        print(f"{Fore.RED}Test failed!{Style.RESET_ALL}")
+"#;
+    let result = import_python(
+        source,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "test_colorama".to_owned(),
+        },
+    );
+    assert!(
+        result.rust.contains("println!(\"{}\", \"Test passed!\");"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("println!(\"Test failed!\");"),
+        "{}",
+        result.rust
+    );
+}
+
+#[test]
+fn playwright_with_context_manager_unwraps_cleanly() {
+    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    let source = r##"
+from playwright.sync_api import sync_playwright
+
+def test_playwright():
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        page = browser.new_page()
+        page.goto("https://example.com")
+        page.click("#submit")
+        browser.close()
+"##;
+    let result = import_python(
+        source,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "test_playwright".to_owned(),
+        },
+    );
+    assert!(
+        result.rust.contains("sb_cdp\n        .run(async |page| {")
+            || result.rust.contains("sb_cdp.run(async |page| {"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("page.goto(\"https://example.com\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("page.locator(\"#submit\").click().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(!result.rust.contains("browser.close()"), "{}", result.rust);
+    assert!(
+        !result.rust.contains("p.chromium.launch"),
+        "{}",
+        result.rust
+    );
+}
+
+#[test]
+fn expanded_method_mappings_convert_correctly() {
+    use crate::utilities::python_importer::{
+        import_python, ImportOptions, ImportSeverity, PythonSource,
+    };
+    let source = r##"
+from seleniumbase import BaseCase
+
+class TestMethods(BaseCase):
+    def test_all_expanded_methods(self):
+        self.is_element_present("#elem")
+        self.is_element_visible("#elem")
+        self.uc_gui_click_captcha()
+        self.uc_gui_handle_captcha("#captcha")
+        self.uc_gui_press_keys("abc")
+        self.gui_click_element("#elem")
+        self.remove_elements(".ad")
+        self.scroll_down(300)
+        self.scroll_up(200)
+        self.scroll_by_y(150)
+        self.save_screenshot_to_logs()
+        self.get_endpoint_url()
+        self.get_current_url()
+        self.post_message("hello")
+        self.switch_to_default_driver()
+        self.reconnect(2)
+        self.set_messenger_theme("dark")
+"##;
+    let result = import_python(
+        source,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "test_all_expanded_methods".to_owned(),
+        },
+    );
+    let errors: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == ImportSeverity::Error)
+        .collect();
+    assert!(errors.is_empty(), "{errors:?}\n{}", result.rust);
+    assert!(
+        result
+            .rust
+            .contains("sb.is_element_present(\"#elem\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("sb.is_element_visible(\"#elem\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.uc_gui_click_captcha().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("sb.uc_gui_handle_captcha(\"#captcha\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.uc_gui_press_keys(&[\"abc\"])?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("sb.gui_click_element(\"#elem\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.remove_elements(\".ad\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("sb.scroll_down().amount(300.0).await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.scroll_up().amount(200.0).await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.scroll_by_y(150).await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.save_screenshot_to_logs().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.devtools_endpoint().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.current_url().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.post_message(\"hello\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("sb.switch_to_default_driver().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("sb.reconnect().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("sb.set_messenger_theme(\"dark\").await?;"),
+        "{}",
+        result.rust
+    );
+}
+
+#[test]
+fn expanded_method_mappings_cdp_mode() {
+    use crate::utilities::python_importer::{
+        import_python, ImportOptions, ImportSeverity, PythonSource,
+    };
+    let source = r##"
+from seleniumbase import SB
+
+with SB(uc=True) as sb:
+    sb.activate_cdp_mode("https://example.com")
+    present = sb.is_element_present("#elem")
+    visible = sb.is_element_visible("#elem")
+    sb.uc_gui_click_captcha()
+    sb.uc_gui_handle_captcha()
+    sb.uc_gui_press_keys("abc")
+    sb.gui_click_element("#elem")
+    sb.remove_elements(".ad")
+    sb.scroll_down(300)
+    sb.scroll_up(200)
+    sb.scroll_by_y(150)
+    sb.save_screenshot_to_logs()
+    ep = sb.get_endpoint_url()
+    curr = sb.get_current_url()
+    sb.post_message("hello")
+    sb.reconnect()
+    sb.set_messenger_theme("dark")
+"##;
+    let result = import_python(
+        source,
+        &ImportOptions {
+            source: PythonSource::Auto,
+            test_name: "test_cdp_methods".to_owned(),
+        },
+    );
+    let errors: Vec<_> = result
+        .diagnostics
+        .iter()
+        .filter(|d| d.severity == ImportSeverity::Error)
+        .collect();
+    assert!(errors.is_empty(), "{errors:?}\n{}", result.rust);
+    assert!(
+        result
+            .rust
+            .contains("page.locator(\"#elem\").count().await"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("page.locator(\"#elem\").is_visible().await"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("page.solve_captcha().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("page.keyboard().press(\"abc\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("page.human_click(\"#elem\").await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("document.querySelectorAll"),
+        "{}",
+        result.rust
+    );
+    assert!(result.rust.contains("\".ad\""), "{}", result.rust);
+    assert!(
+        result.rust.contains("page.scroll(Scroll::By("),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("page.screenshot().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("page.url().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result.rust.contains("page.reload().await?;"),
+        "{}",
+        result.rust
+    );
+    assert!(
+        result
+            .rust
+            .contains("page.set_messenger_theme(\"dark\").await?;"),
+        "{}",
+        result.rust
+    );
 }

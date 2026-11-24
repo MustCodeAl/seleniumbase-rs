@@ -207,12 +207,53 @@ impl EvasionProvider for WebdriverProvider {
   if (navigator.webdriver !== false || Object.getOwnPropertyDescriptor(Object.getPrototypeOf(navigator), 'webdriver')?.get?.toString().indexOf('[native code]') === -1) {
     sb.getter(Object.getPrototypeOf(navigator), 'webdriver', function () { return false; });
   }
+  if (typeof SVGGraphicsElement !== 'undefined' && SVGGraphicsElement.prototype.getBBox) {
+    const origGetBBox = SVGGraphicsElement.prototype.getBBox;
+    SVGGraphicsElement.prototype.getBBox = sb.native(function getBBox() {
+      const b = origGetBBox.apply(this, arguments);
+      return {
+        x: Math.round(b.x * 100) / 100,
+        y: Math.round(b.y * 100) / 100,
+        width: Math.round(b.width * 100) / 100,
+        height: Math.round(b.height * 100) / 100
+      };
+    }, 'getBBox', origGetBBox);
+  }
   const hooks = ['callPhantom', '_phantom', '__nightmare', '__selenium_unwrapped',
     '__webdriver_evaluate', '__driver_evaluate', '__webdriver_script_fn',
     '__driver_unwrapped', '__fxdriver_evaluate', '__selenium_evaluate',
     '__webdriver_script_func', '_Selenium_IDE_Recorder', 'domAutomation',
     'domAutomationController'];
   hooks.forEach(function (h) { try { delete window[h]; } catch (e) {} });
+
+  if (typeof HTMLIFrameElement !== 'undefined') {
+    const desc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'contentWindow');
+    if (desc && desc.get) {
+      const origGet = desc.get;
+      Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+        get: sb.native(function contentWindow() {
+          const win = origGet.call(this);
+          if (win) {
+            try {
+              if (win.navigator && win.navigator.webdriver !== false) {
+                try { delete win.navigator.webdriver; } catch (e) {}
+                const proto = win.Navigator ? win.Navigator.prototype : Object.getPrototypeOf(win.navigator);
+                if (proto) {
+                  sb.getter(proto, 'webdriver', function () { return false; });
+                }
+              }
+              if (!win.chrome && window.chrome) {
+                win.chrome = window.chrome;
+              }
+            } catch (e) {}
+          }
+          return win;
+        }, 'get contentWindow', origGet),
+        configurable: true,
+        enumerable: desc.enumerable,
+      });
+    }
+  }
 })();"##,
             &[],
         ))
@@ -248,6 +289,31 @@ impl EvasionProvider for CdpMarkerProvider {
     let d = document;
     while (d) { scrub(d); d = Object.getPrototypeOf(d); }
   }
+
+  // Cloak-CDP & Eoka stack cleaner: filter out CDP evaluation artifacts from Error().stack
+  try {
+    const originalStackDesc = Object.getOwnPropertyDescriptor(Error.prototype, 'stack');
+    if (originalStackDesc && typeof originalStackDesc.get === 'function') {
+      const origGet = originalStackDesc.get;
+      Object.defineProperty(Error.prototype, 'stack', {
+        get: function() {
+          const raw = origGet.call(this);
+          if (typeof raw !== 'string') return raw;
+          return raw
+            .split('\n')
+            .filter(function(line) {
+              return !line.includes('__puppeteer_evaluation_script__') &&
+                     !line.includes('__playwright_evaluation_script__') &&
+                     !line.includes('__cdp_') &&
+                     !line.includes('pptr:');
+            })
+            .join('\n');
+        },
+        configurable: true,
+        enumerable: originalStackDesc.enumerable
+      });
+    }
+  } catch (e) {}
 })();"##
                 .to_owned(),
         )
@@ -297,6 +363,7 @@ impl EvasionProvider for ChromeRuntimeProvider {
   }, 'csi');
   window.chrome.runtime = {
     id: undefined,
+    lastError: undefined,
     OnInstalledReason: { CHROME_UPDATE: 'chrome_update', INSTALL: 'install', SHARED_MODULE_UPDATE: 'shared_module_update', UPDATE: 'update' },
     OnRestartRequiredReason: { APP_UPDATE: 'app_update', OS_UPDATE: 'os_update', PERIODIC: 'periodic' },
     PlatformArch: { ARM: 'arm', ARM64: 'arm64', MIPS: 'mips', MIPS64: 'mips64', X86_32: 'x86-32', X86_64: 'x86-64' },
@@ -306,12 +373,30 @@ impl EvasionProvider for ChromeRuntimeProvider {
       return { postMessage: function(){}, disconnect: function(){}, onDisconnect: { addListener: function(){} }, onMessage: { addListener: function(){} } };
     }, 'connect'),
     sendMessage: sb.native(function sendMessage() {
-      if (arguments.length && typeof arguments[arguments.length - 1] === 'function') { arguments[arguments.length - 1]({}); }
+      const cb = arguments.length && typeof arguments[arguments.length - 1] === 'function' ? arguments[arguments.length - 1] : null;
+      if (cb) {
+        window.chrome.runtime.lastError = { message: 'Could not connect. Receiving end does not exist.' };
+        try { cb({}); } finally { window.chrome.runtime.lastError = undefined; }
+      }
       return Promise.resolve({});
     }, 'sendMessage'),
     getURL: sb.native(function getURL(path) { return 'chrome-extension://' + (this.id || '') + (path || ''); }, 'getURL'),
     getManifest: sb.native(function getManifest() { return {}; }, 'getManifest'),
   };
+  if (typeof performance !== 'undefined' && !performance.memory) {
+    try {
+      const mem = {
+        jsHeapSizeLimit: 4294705152,
+        totalJSHeapSize: 56847232,
+        usedJSHeapSize: 34185944
+      };
+      Object.defineProperty(performance, 'memory', {
+        get: sb.native(function () { return Object.assign({}, mem); }, 'get memory'),
+        enumerable: true,
+        configurable: true
+      });
+    } catch (e) {}
+  }
 })();"##,
             &[],
         ))
@@ -418,6 +503,9 @@ impl EvasionProvider for PermissionsProvider {
   const original = Permissions.prototype.query;
   // Notification.permission says "default" where a PermissionState says "prompt".
   const states = { granted: 'granted', denied: 'denied', 'default': 'prompt' };
+  if (typeof Notification !== 'undefined' && Notification.permission === 'denied') {
+    try { sb.getter(Notification, 'permission', function () { return 'default'; }); } catch (e) {}
+  }
   Permissions.prototype.query = sb.native(function query(descriptor) {
     const result = original.apply(this, arguments);
     if (!(descriptor && descriptor.name === 'notifications' && typeof Notification !== 'undefined')) {
@@ -512,6 +600,7 @@ impl EvasionProvider for PluginsProvider {
   const proto = Object.getPrototypeOf(navigator);
   try { sb.getter(proto, 'plugins', function () { return plugins || (plugins = makePlugins()); }); } catch (e) {}
   try { sb.getter(proto, 'mimeTypes', function () { return mimes || (mimes = makeMimes()); }); } catch (e) {}
+  try { sb.getter(proto, 'pdfViewerEnabled', function () { return true; }); } catch (e) {}
 })();"##,
             &[],
         ))
@@ -751,7 +840,30 @@ impl EvasionProvider for WebglProvider {
         let phone = webgl
             .and_then(|gl| gl.renderer.as_deref())
             .is_some_and(is_mobile_gpu);
-        let extensions = if phone {
+        let max_tex = webgl
+            .and_then(|gl| gl.max_texture_size)
+            .unwrap_or(if phone { 8192 } else { 16384 });
+        let custom_extensions = webgl.map(|gl| gl.extensions.as_slice()).unwrap_or_default();
+        let extensions = if !custom_extensions.is_empty() {
+            let list = custom_extensions
+                .iter()
+                .map(|n| quoted(n))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!(
+                r#"
+    const allowedExts = [{list}];
+    const allowedLower = allowedExts.map(function (n) {{ return n.toLowerCase(); }});
+    context.prototype.getSupportedExtensions = sb.native(function getSupportedExtensions() {{
+      return allowedExts.slice();
+    }}, 'getSupportedExtensions');
+    const askedExt = context.prototype.getExtension;
+    context.prototype.getExtension = sb.native(function getExtension(name) {{
+      if (allowedLower.indexOf(String(name).toLowerCase()) === -1) {{ return null; }}
+      return askedExt.apply(this, arguments);
+    }}, 'getExtension', askedExt);"#
+            )
+        } else if phone {
             let hidden = DESKTOP_COMPRESSION_EXTENSIONS
                 .iter()
                 .map(|name| quoted(name))
@@ -767,14 +879,29 @@ impl EvasionProvider for WebglProvider {
   @SB@
   const vendor = @VENDOR@;
   const renderer = @RENDERER@;
+  const maxTex = @MAX_TEX@;
   function patch(context) {
     if (!context || !context.prototype) { return; }
     const original = context.prototype.getParameter;
     context.prototype.getParameter = sb.native(function getParameter(parameter) {
       if (parameter === 37445 && vendor !== null) { return vendor; }
       if (parameter === 37446 && renderer !== null) { return renderer; }
+      if (parameter === 7936) { return 'WebKit'; }
+      if (parameter === 7937) { return 'WebKit WebGL'; }
+      if (parameter === 35724) { return 'WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)'; }
+      if (parameter === 3379 || parameter === 34024) { return maxTex; }
+      if (parameter === 34921) { return 16; }
+      if (parameter === 34930) { return 32; }
       return original.apply(this, arguments);
-    }, 'getParameter', original);@EXTENSIONS@
+    }, 'getParameter', original);
+    const origPrecision = context.prototype.getShaderPrecisionFormat;
+    context.prototype.getShaderPrecisionFormat = sb.native(function getShaderPrecisionFormat(shaderType, precisionType) {
+      const res = origPrecision.apply(this, arguments);
+      if (res && res.precision !== undefined) {
+        return { rangeMin: res.rangeMin, rangeMax: res.rangeMax, precision: res.precision };
+      }
+      return { rangeMin: 127, rangeMax: 127, precision: 23 };
+    }, 'getShaderPrecisionFormat', origPrecision);@EXTENSIONS@
   }
   patch(window.WebGLRenderingContext);
   patch(window.WebGL2RenderingContext);
@@ -782,6 +909,7 @@ impl EvasionProvider for WebglProvider {
             &[
                 ("VENDOR", &vendor),
                 ("RENDERER", &renderer),
+                ("MAX_TEX", &max_tex.to_string()),
                 ("EXTENSIONS", &extensions),
             ],
         ))
@@ -974,7 +1102,7 @@ impl EvasionProvider for AudioNoiseProvider {
         60
     }
     fn applies(&self, fp: &Fingerprint) -> bool {
-        fp.is_masked(Dimension::Audio)
+        fp.is_masked(Dimension::Audio) || fp.audio_sample_rate().is_some()
     }
     fn script(&self, ctx: &EvasionContext) -> Option<String> {
         // The canvas seed's partner, so the two noises differ.
@@ -984,12 +1112,31 @@ impl EvasionProvider for AudioNoiseProvider {
         } else {
             seed
         };
+        let sample_rate = ctx
+            .fingerprint
+            .audio_sample_rate()
+            .map_or_else(|| "null".to_owned(), |sr| sr.to_string());
         Some(render(
             r##"(function () {
   @SB@
   const seed = @SEED@ >>> 0;
+  const sampleRate = @SAMPLE_RATE@;
   @HASH@
   function noise(index) { return hash(index) / 4294967296 - 0.5; }
+  if (sampleRate && window.AudioContext) {
+    try { sb.getter(AudioContext.prototype, 'sampleRate', function () { return sampleRate; }); } catch (e) {}
+  }
+  if (window.OfflineAudioContext) {
+    const originalStartRendering = OfflineAudioContext.prototype.startRendering;
+    OfflineAudioContext.prototype.startRendering = sb.native(function startRendering() {
+      return originalStartRendering.apply(this, arguments).then(function (buffer) {
+        if (buffer && buffer.getChannelData) {
+          buffer.getChannelData(0);
+        }
+        return buffer;
+      });
+    }, 'startRendering', originalStartRendering);
+  }
   if (window.AudioBuffer) {
     const originalGetChannelData = AudioBuffer.prototype.getChannelData;
     const originalCopyFromChannel = AudioBuffer.prototype.copyFromChannel;
@@ -1018,7 +1165,11 @@ impl EvasionProvider for AudioNoiseProvider {
     }, 'getFloatFrequencyData', originalFloat);
   }
 })();"##,
-            &[("SEED", &seed.to_string()), ("HASH", NOISE_HASH)],
+            &[
+                ("SEED", &seed.to_string()),
+                ("SAMPLE_RATE", &sample_rate),
+                ("HASH", NOISE_HASH),
+            ],
         ))
     }
 }
@@ -1390,6 +1541,22 @@ impl EvasionProvider for FontsProvider {
     Object.defineProperty(Original.prototype, 'constructor', { value: Patched, writable: true, configurable: true });
     window.FontFace = Patched;
   }
+  if (window.CanvasRenderingContext2D) {
+    const originalMeasure = CanvasRenderingContext2D.prototype.measureText;
+    CanvasRenderingContext2D.prototype.measureText = sb.native(function measureText(text) {
+      const family = parseFamily(this.font);
+      if (family && !available(family)) {
+        const saved = this.font;
+        try {
+          this.font = this.font.replace(new RegExp(family, 'g'), 'sans-serif');
+          return originalMeasure.apply(this, arguments);
+        } finally {
+          this.font = saved;
+        }
+      }
+      return originalMeasure.apply(this, arguments);
+    }, 'measureText', originalMeasure);
+  }
 })();"##,
             &[("FONTS", &set)],
         ))
@@ -1520,6 +1687,10 @@ impl EvasionProvider for HeadlessProvider {
   if (typeof Document !== 'undefined') {
     try { sb.getter(Document.prototype, 'hidden', function () { return false; }); } catch (e) {}
     try { sb.getter(Document.prototype, 'visibilityState', function () { return 'visible'; }); } catch (e) {}
+    if (Document.prototype.hasFocus) {
+      const origHasFocus = Document.prototype.hasFocus;
+      Document.prototype.hasFocus = sb.native(function hasFocus() { return true; }, 'hasFocus', origHasFocus);
+    }
   }
 })();"##,
             &[],

@@ -1146,12 +1146,102 @@ const fn first_regions() -> [Locale; RANDOM_REGION_COUNT] {
     regions
 }
 
+/// The WebGL extensions of a Windows D3D11 Chrome instance.
+pub(crate) fn windows_d3d11_extensions() -> Vec<String> {
+    vec![
+        "ANGLE_instanced_arrays".to_owned(),
+        "EXT_blend_minmax".to_owned(),
+        "EXT_clip_control".to_owned(),
+        "EXT_color_buffer_half_float".to_owned(),
+        "EXT_depth_clamp".to_owned(),
+        "EXT_disjoint_timer_query".to_owned(),
+        "EXT_float_blend".to_owned(),
+        "EXT_frag_depth".to_owned(),
+        "EXT_polygon_offset_clamp".to_owned(),
+        "EXT_shader_texture_lod".to_owned(),
+        "EXT_texture_compression_bptc".to_owned(),
+        "EXT_texture_compression_rgtc".to_owned(),
+        "EXT_texture_filter_anisotropic".to_owned(),
+        "EXT_texture_mirror_clamp_to_edge".to_owned(),
+        "EXT_sRGB".to_owned(),
+        "KHR_parallel_shader_compile".to_owned(),
+        "OES_draw_buffers_indexed".to_owned(),
+        "OES_element_index_uint".to_owned(),
+        "OES_fbo_render_mipmap".to_owned(),
+        "OES_standard_derivatives".to_owned(),
+        "OES_texture_float".to_owned(),
+        "OES_texture_float_linear".to_owned(),
+        "OES_texture_half_float".to_owned(),
+        "OES_texture_half_float_linear".to_owned(),
+        "OES_vertex_array_object".to_owned(),
+        "WEBGL_color_buffer_float".to_owned(),
+        "WEBGL_compressed_texture_s3tc".to_owned(),
+        "WEBGL_compressed_texture_s3tc_srgb".to_owned(),
+        "WEBGL_debug_renderer_info".to_owned(),
+        "WEBGL_debug_shaders".to_owned(),
+        "WEBGL_depth_texture".to_owned(),
+        "WEBGL_draw_buffers".to_owned(),
+        "WEBGL_lose_context".to_owned(),
+        "WEBGL_multi_draw".to_owned(),
+        "WEBKIT_WEBGL_compressed_texture_s3tc".to_owned(),
+    ]
+}
+
+/// The WebGL extensions of a macOS Metal Chrome instance.
+pub(crate) fn macos_metal_extensions() -> Vec<String> {
+    vec![
+        "ANGLE_instanced_arrays".to_owned(),
+        "EXT_blend_minmax".to_owned(),
+        "EXT_clip_control".to_owned(),
+        "EXT_color_buffer_half_float".to_owned(),
+        "EXT_depth_clamp".to_owned(),
+        "EXT_float_blend".to_owned(),
+        "EXT_frag_depth".to_owned(),
+        "EXT_polygon_offset_clamp".to_owned(),
+        "EXT_shader_texture_lod".to_owned(),
+        "EXT_texture_compression_bptc".to_owned(),
+        "EXT_texture_compression_rgtc".to_owned(),
+        "EXT_texture_filter_anisotropic".to_owned(),
+        "EXT_texture_mirror_clamp_to_edge".to_owned(),
+        "EXT_sRGB".to_owned(),
+        "KHR_parallel_shader_compile".to_owned(),
+        "OES_element_index_uint".to_owned(),
+        "OES_fbo_render_mipmap".to_owned(),
+        "OES_standard_derivatives".to_owned(),
+        "OES_texture_float".to_owned(),
+        "OES_texture_float_linear".to_owned(),
+        "OES_texture_half_float".to_owned(),
+        "OES_texture_half_float_linear".to_owned(),
+        "OES_vertex_array_object".to_owned(),
+        "WEBGL_color_buffer_float".to_owned(),
+        "WEBGL_debug_renderer_info".to_owned(),
+        "WEBGL_debug_shaders".to_owned(),
+        "WEBGL_depth_texture".to_owned(),
+        "WEBGL_draw_buffers".to_owned(),
+        "WEBGL_lose_context".to_owned(),
+        "WEBGL_multi_draw".to_owned(),
+    ]
+}
+
+/// The default audio sample rate in Hz for the operating system persona.
+#[must_use]
+pub(crate) const fn audio_sample_rate_for(os: OsType) -> u32 {
+    match os {
+        OsType::Macos | OsType::Ios => 48000,
+        OsType::Windows => 48000,
+        OsType::Linux | OsType::Android => 44100,
+    }
+}
+
 /// The WebGL strings of a PC adapter behind ANGLE: `maker` is how ANGLE names the maker.
 fn pc_graphics(adapter: &Adapter, maker: &str, renderer: String) -> WebGl {
-    WebGl::new(format!("Google Inc. ({maker})"), renderer).ids(
-        format!("0x{:04x}", adapter.vendor.pci_id()),
-        format!("0x{:04x}", adapter.device_id),
-    )
+    WebGl::new(format!("Google Inc. ({maker})"), renderer)
+        .ids(
+            format!("0x{:04x}", adapter.vendor.pci_id()),
+            format!("0x{:04x}", adapter.device_id),
+        )
+        .extensions(windows_d3d11_extensions())
+        .max_texture_size(16384)
 }
 
 /// The WebGL strings of a phone or tablet, which reports its chip directly.
@@ -1811,6 +1901,8 @@ fn apple_graphics(chip: &str) -> WebGl {
         "Google Inc. (Apple)",
         format!("ANGLE (Apple, ANGLE Metal Renderer: {chip}, Unspecified Version)"),
     )
+    .extensions(macos_metal_extensions())
+    .max_texture_size(16384)
 }
 
 /// The WebGL strings of a Linux machine: ANGLE over desktop OpenGL.

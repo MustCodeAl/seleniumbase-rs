@@ -3,11 +3,59 @@
 use super::ast::{Arg, Expr, Handler, Stmt, StmtKind};
 use super::expr::bind;
 use super::table::{typed, K, TIMEOUT};
-use super::tr::{one_line, py_repr, rust_ident, Skip, Tr, Ty};
+use super::tr::{one_line, py_repr, quote, rust_ident, Skip, Tr, Ty};
 
 /// The first line of a statement's source, for a `TODO`.
 fn first_line(text: &str) -> String {
     one_line(text.lines().next().unwrap_or_default())
+}
+
+fn clean_pattern_text(text: &str) -> String {
+    if text.contains('|') {
+        text.split('|')
+            .map(|part| clean_single_pattern(part.trim()))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    } else {
+        clean_single_pattern(text.trim())
+    }
+}
+
+fn clean_single_pattern(part: &str) -> String {
+    if let Some((name, pat)) = part.split_once(" @ ") {
+        format!("{name} @ {}", clean_single_pattern(pat.trim()))
+    } else if part.contains('.') && !part.contains('"') && !part.contains('\'') {
+        part.replace('.', "::")
+    } else {
+        part.to_owned()
+    }
+}
+
+fn collect_pattern_vars(pat: &Expr, ty: &Ty, vars: &mut Vec<(String, Ty)>) {
+    match pat {
+        Expr::Name(name) => {
+            if name != "_" {
+                vars.push((name.clone(), ty.clone()));
+            }
+        }
+        Expr::Tuple(items) | Expr::List(items) => {
+            for item in items {
+                collect_pattern_vars(item, &Ty::Unknown, vars);
+            }
+        }
+        Expr::Other(text) => {
+            let trimmed = text.trim();
+            if let Some((_, name)) = trimmed.split_once(" as ") {
+                let name = name.trim();
+                if !name.is_empty() && name != "_" {
+                    vars.push((name.to_owned(), ty.clone()));
+                }
+            } else if trimmed.chars().all(|c| c.is_alphanumeric() || c == '_') && trimmed != "_" {
+                vars.push((trimmed.to_owned(), ty.clone()));
+            }
+        }
+        _ => {}
+    }
 }
 
 /// A statement that ends on its own line (no block of its own).
@@ -108,6 +156,60 @@ impl Tr<'_> {
                 ));
                 self.skip_stmt(stmt, &skip);
             }
+            StmtKind::Match { subject, cases } => {
+                let val = match self.expr(subject) {
+                    Ok(v) => v,
+                    Err(skip) => {
+                        self.skip_stmt(stmt, &skip);
+                        return;
+                    }
+                };
+                let subject_code = if val.ty.is_text() {
+                    format!("{}.as_str()", val.operand())
+                } else {
+                    val.operand()
+                };
+                self.emit(format!("match {subject_code} {{"));
+                let mut has_wildcard = false;
+                self.indented(|tr| {
+                    for case in cases {
+                        tr.scopes.push(std::collections::HashMap::new());
+                        let mut pattern_vars = Vec::new();
+                        collect_pattern_vars(&case.pattern, &val.ty, &mut pattern_vars);
+                        for (var_name, var_ty) in &pattern_vars {
+                            tr.declare(var_name, var_ty.clone());
+                        }
+                        let pat_code = tr.translate_pattern(&case.pattern);
+                        if pat_code == "_" && case.guard.is_none() {
+                            has_wildcard = true;
+                        }
+                        let arm = if let Some(guard) = &case.guard {
+                            match tr.condition(guard).or_else(|_| tr.expr(guard)) {
+                                Ok(g) => format!("{pat_code} if {} => {{", g.code),
+                                Err(_) => format!("{pat_code} => {{"),
+                            }
+                        } else {
+                            format!("{pat_code} => {{")
+                        };
+                        tr.emit(arm);
+                        tr.indented(|inner| {
+                            for (var_name, var_ty) in pattern_vars {
+                                inner.declare(&var_name, var_ty);
+                            }
+                            inner.stmts(&case.body);
+                        });
+                        tr.emit("}");
+                        tr.scopes.pop();
+                    }
+                    if !has_wildcard {
+                        tr.emit("_ => {}");
+                    }
+                });
+                self.emit("}");
+            }
+            StmtKind::TypeAlias { name, value } => {
+                self.emit(format!("// type {name} = {value};"));
+            }
             StmtKind::Other(text) => {
                 let skip = Skip::warn(format!("`{}` is not translated", first_line(text)));
                 self.skip_stmt(stmt, &skip);
@@ -120,6 +222,44 @@ impl Tr<'_> {
         }
     }
 
+    fn translate_pattern(&mut self, pat: &Expr) -> String {
+        match pat {
+            Expr::Name(name) => {
+                if name == "_" {
+                    "_".to_owned()
+                } else {
+                    name.clone()
+                }
+            }
+            Expr::Str(s) => quote(s),
+            Expr::Num { text, .. } => text.clone(),
+            Expr::Bool(b) => b.to_string(),
+            Expr::None => "None".to_owned(),
+            Expr::Tuple(items) => {
+                let inner: Vec<String> = items
+                    .iter()
+                    .map(|item| self.translate_pattern(item))
+                    .collect();
+                format!("({})", inner.join(", "))
+            }
+            Expr::List(items) => {
+                let inner: Vec<String> = items
+                    .iter()
+                    .map(|item| self.translate_pattern(item))
+                    .collect();
+                format!("[{}]", inner.join(", "))
+            }
+            Expr::Attr(base, attr) => {
+                format!("{}::{attr}", self.translate_pattern(base))
+            }
+            Expr::Other(text) => clean_pattern_text(text),
+            other => match self.expr(other) {
+                Ok(v) => v.code,
+                Err(_) => "_".to_owned(),
+            },
+        }
+    }
+
     fn expr_stmt(&mut self, stmt: &Stmt, expr: &Expr) {
         let Expr::Call(func, args) = expr else {
             // A bare string is a docstring; anything else does nothing.
@@ -129,7 +269,7 @@ impl Tr<'_> {
             }
             return;
         };
-        // `super().setUp()` and `BaseCase.main(..)` have no Rust equal and
+        // `super().setUp()`, `BaseCase.main(..)`, and `browser.close()` have no Rust equal and
         // need none.
         let is_super = matches!(&**func, Expr::Attr(base, _)
             if matches!(&**base, Expr::Call(inner, _) if matches!(&**inner, Expr::Name(n) if n == "super")));
@@ -137,6 +277,16 @@ impl Tr<'_> {
             || func
                 .dotted()
                 .is_some_and(|path| path == ["BaseCase", "main"])
+        {
+            return;
+        }
+        if func.dotted().is_some_and(|path| path.ends_with(&["close"]))
+            && let Some(base) = func.dotted().and_then(|p| p.first().copied())
+            && (self.receivers.contains(base)
+                || base == "browser"
+                || base == "page"
+                || base == "p"
+                || base == "playwright")
         {
             return;
         }
@@ -154,8 +304,11 @@ impl Tr<'_> {
     fn assign(&mut self, stmt: &Stmt, targets: &[Expr], value: &Expr) {
         match targets {
             [Expr::Name(name)] => {
-                // `sb = sb_cdp.Chrome()` makes the browser; the fixture did.
-                if is_chrome_constructor(value) {
+                // `sb = sb_cdp.Chrome()` or Playwright launch makes the browser; the fixture did.
+                if is_chrome_constructor(value)
+                    || is_playwright_launch(value)
+                    || is_playwright_new_page(value)
+                {
                     self.receivers.insert(name.clone());
                     return;
                 }
@@ -243,7 +396,11 @@ impl Tr<'_> {
             return;
         }
         let rust = self.declare(name, ty);
-        self.emit(format!("let {rust} = {code};"));
+        if code == "Vec::new()" {
+            self.emit(format!("let mut {rust}: Vec<String> = Vec::new();"));
+        } else {
+            self.emit(format!("let {rust} = {code};"));
+        }
     }
 
     fn aug_assign(&mut self, stmt: &Stmt, target: &Expr, op: &str, value: &Expr) {
@@ -610,6 +767,38 @@ impl Tr<'_> {
             }
             return;
         }
+        if let [(Expr::Call(func, _), target)] = items {
+            let is_context_manager = match &**func {
+                Expr::Name(name) => {
+                    name == "SB"
+                        || name == "Driver"
+                        || name == "sync_playwright"
+                        || name == "async_playwright"
+                }
+                Expr::Attr(_, attr) => attr == "sync_playwright" || attr == "async_playwright",
+                _ => false,
+            };
+            if is_context_manager {
+                let is_playwright = match &**func {
+                    Expr::Name(name) => name == "sync_playwright" || name == "async_playwright",
+                    Expr::Attr(_, attr) => attr == "sync_playwright" || attr == "async_playwright",
+                    _ => false,
+                };
+                if is_playwright {
+                    self.cdp = true;
+                }
+                if let Some(Expr::Name(target_name)) = target {
+                    self.receivers.insert(target_name.clone());
+                }
+                self.receivers.insert("page".to_string());
+                self.receivers.insert("browser".to_string());
+                self.receivers.insert("context".to_string());
+                self.receivers.insert("p".to_string());
+                self.receivers.insert("playwright".to_string());
+                self.stmts(body);
+                return;
+            }
+        }
         let skip = Skip::warn(
             "this `with` block is not translated: its body follows without the context manager",
         );
@@ -631,4 +820,14 @@ struct ForHeader {
 /// `sb_cdp.Chrome(..)`: the call that makes a pure CDP browser.
 pub(super) fn is_chrome_constructor(expr: &Expr) -> bool {
     matches!(expr, Expr::Call(func, _) if func.dotted().is_some_and(|path| path == ["sb_cdp", "Chrome"]))
+}
+
+/// A call that launches a Playwright browser (`p.chromium.launch(...)`).
+pub(super) fn is_playwright_launch(expr: &Expr) -> bool {
+    matches!(expr, Expr::Call(func, _) if func.dotted().is_some_and(|path| path.ends_with(&["launch"])))
+}
+
+/// A call that creates a Playwright page (`browser.new_page(...)`).
+pub(super) fn is_playwright_new_page(expr: &Expr) -> bool {
+    matches!(expr, Expr::Call(func, _) if func.dotted().is_some_and(|path| path.ends_with(&["new_page"]) || path.ends_with(&["newPage"])))
 }

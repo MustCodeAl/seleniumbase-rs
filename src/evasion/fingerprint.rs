@@ -525,6 +525,24 @@ const DEFAULT_SEED: u64 = 0x9E37_79B9_7F4A_7C15;
 /// both noises and they differ from each other.
 pub(crate) const AUDIO_SEED_MASK: u64 = 0x5DEE_CE66;
 
+/// Helper to deserialize languages from either a comma-separated string or an array of strings.
+fn deserialize_languages_spoof<'de, D>(deserializer: D) -> Result<Spoof<String>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum WireLang {
+        Spoof(Spoof<String>),
+        List(Vec<String>),
+    }
+
+    match WireLang::deserialize(deserializer)? {
+        WireLang::Spoof(s) => Ok(s),
+        WireLang::List(list) => Ok(Spoof::Value(list.join(","))),
+    }
+}
+
 /// The data of a [`Fingerprint`]: one field per setting.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[cfg_attr(test, derive(schemars::JsonSchema))]
@@ -580,7 +598,11 @@ struct Fields {
     #[serde(skip_serializing_if = "Spoof::is_natural")]
     locale: Spoof<String>,
     /// `navigator.languages`, comma-separated; quality values are ignored.
-    #[serde(skip_serializing_if = "Spoof::is_natural")]
+    #[serde(
+        default,
+        deserialize_with = "deserialize_languages_spoof",
+        skip_serializing_if = "Spoof::is_natural"
+    )]
     languages: Spoof<String>,
     /// The `Accept-Language` header.
     #[serde(skip_serializing_if = "Spoof::is_natural")]
@@ -666,6 +688,26 @@ struct Fields {
     /// Extra browser command-line parameters.
     #[serde(skip_serializing_if = "HashMap::is_empty")]
     cmd_params: HashMap<String, String>,
+
+    // Profile JSON top-level convenience fields aligned with builder / API methods
+    /// Direct WebGL vendor string (`webgl_vendor`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    webgl_vendor: Option<String>,
+    /// Direct WebGL renderer string (`webgl_renderer`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    webgl_renderer: Option<String>,
+    /// Canvas noise policy (`canvas_noise`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    canvas_noise: Option<CanvasNoise>,
+    /// Audio noise policy (`audio_noise`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    audio_noise: Option<AudioNoise>,
+    /// WebRTC IP handling policy (`webrtc_policy`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    webrtc_policy: Option<WebRtcPolicy>,
+    /// Web Audio sample rate in Hz (`audio_sample_rate`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    audio_sample_rate: Option<u32>,
 }
 
 impl Default for Fields {
@@ -716,6 +758,12 @@ impl Default for Fields {
             save_service_worker: false,
             custom_start_urls: Vec::new(),
             cmd_params: HashMap::new(),
+            webgl_vendor: None,
+            webgl_renderer: None,
+            canvas_noise: None,
+            audio_noise: None,
+            webrtc_policy: None,
+            audio_sample_rate: None,
         }
     }
 }
@@ -944,6 +992,42 @@ impl Fingerprint {
         } else {
             self.0.policy.blocked_trackers.clone()
         }
+    }
+
+    /// The unmasked WebGL vendor string, if set.
+    #[must_use]
+    pub fn webgl_vendor(&self) -> Option<&str> {
+        self.0.webgl.value().and_then(|gl| gl.vendor.as_deref())
+    }
+
+    /// The unmasked WebGL renderer string, if set.
+    #[must_use]
+    pub fn webgl_renderer(&self) -> Option<&str> {
+        self.0.webgl.value().and_then(|gl| gl.renderer.as_deref())
+    }
+
+    /// The canvas noise policy.
+    #[must_use]
+    pub const fn canvas_noise(&self) -> CanvasNoise {
+        self.0.policy.canvas_noise
+    }
+
+    /// The audio noise policy.
+    #[must_use]
+    pub const fn audio_noise(&self) -> AudioNoise {
+        self.0.policy.audio_noise
+    }
+
+    /// The WebRTC policy.
+    #[must_use]
+    pub const fn webrtc_policy(&self) -> Option<WebRtcPolicy> {
+        self.0.policy.webrtc_policy
+    }
+
+    /// The Web Audio sample rate in Hz, if configured.
+    #[must_use]
+    pub const fn audio_sample_rate(&self) -> Option<u32> {
+        self.0.audio_sample_rate
     }
 
     /// Whether this fingerprint spoofs `dimension`.
@@ -1622,10 +1706,29 @@ pub struct FingerprintBuilder {
 
 impl FingerprintBuilder {
     /// A builder that starts from `fields`, which are kept as they are.
-    fn from_fields(fields: Fields) -> Self {
+    fn from_fields(mut fields: Fields) -> Self {
+        let mut policy = fields.policy.clone();
+        if let Some(noise) = fields.canvas_noise {
+            policy.canvas_noise = noise;
+        }
+        if let Some(noise) = fields.audio_noise {
+            policy.audio_noise = noise;
+        }
+        if let Some(webrtc_p) = fields.webrtc_policy {
+            policy.webrtc_policy = Some(webrtc_p);
+        }
+        if (fields.webgl_vendor.is_some() || fields.webgl_renderer.is_some())
+            && fields.webgl.is_natural()
+        {
+            fields.webgl = Spoof::Value(WebGl {
+                vendor: fields.webgl_vendor.take(),
+                renderer: fields.webgl_renderer.take(),
+                ..WebGl::default()
+            });
+        }
         Self {
             seed: fields.seed,
-            policy: fields.policy.clone(),
+            policy,
             browser_type_set: true,
             fields,
             changes: Vec::new(),
@@ -1940,6 +2043,64 @@ impl FingerprintBuilder {
         self.change_policy(move |p| p.quic(mode))
     }
 
+    /// Sets the WebGL unmasked vendor string.
+    #[must_use]
+    pub fn webgl_vendor(mut self, vendor: impl Into<String>) -> Self {
+        let v = vendor.into();
+        let current = match self.fields.webgl {
+            Spoof::Value(gl) => gl,
+            _ => WebGl::default(),
+        };
+        self.fields.webgl = Spoof::Value(WebGl {
+            vendor: Some(v),
+            renderer: current.renderer,
+            vendor_id: current.vendor_id,
+            renderer_id: current.renderer_id,
+            extensions: current.extensions,
+            max_texture_size: current.max_texture_size,
+            shader_precision: current.shader_precision,
+        });
+        self
+    }
+
+    /// Sets the WebGL unmasked renderer string.
+    #[must_use]
+    pub fn webgl_renderer(mut self, renderer: impl Into<String>) -> Self {
+        let r = renderer.into();
+        let current = match self.fields.webgl {
+            Spoof::Value(gl) => gl,
+            _ => WebGl::default(),
+        };
+        self.fields.webgl = Spoof::Value(WebGl {
+            vendor: current.vendor,
+            renderer: Some(r),
+            vendor_id: current.vendor_id,
+            renderer_id: current.renderer_id,
+            extensions: current.extensions,
+            max_texture_size: current.max_texture_size,
+            shader_precision: current.shader_precision,
+        });
+        self
+    }
+
+    /// Sets the Web Audio sample rate in Hz (e.g. 44100 or 48000).
+    #[must_use]
+    pub fn audio_sample_rate(mut self, rate: u32) -> Self {
+        self.fields.audio_sample_rate = Some(rate);
+        self
+    }
+
+    /// Sets `navigator.languages` from a list of language tags (e.g. `&["en-US", "en"]`).
+    #[must_use]
+    pub fn languages_list(self, langs: &[impl AsRef<str>]) -> Self {
+        let joined = langs
+            .iter()
+            .map(|s| s.as_ref())
+            .collect::<Vec<_>>()
+            .join(",");
+        self.languages(joined)
+    }
+
     /// Builds the fingerprint.
     ///
     /// The steps are: refuse an `Off` where it means nothing; take the
@@ -2010,6 +2171,25 @@ impl FingerprintBuilder {
 
         if fields.platform.is_natural() && fields.user_agent.is_value() {
             fields.platform = Spoof::Value(fields.os().platform().to_owned());
+        }
+        let mut policy = policy;
+        if let Some(noise) = fields.canvas_noise {
+            policy.canvas_noise = noise;
+        }
+        if let Some(noise) = fields.audio_noise {
+            policy.audio_noise = noise;
+        }
+        if let Some(webrtc_p) = fields.webrtc_policy {
+            policy.webrtc_policy = Some(webrtc_p);
+        }
+        if (fields.webgl_vendor.is_some() || fields.webgl_renderer.is_some())
+            && fields.webgl.is_natural()
+        {
+            fields.webgl = Spoof::Value(WebGl {
+                vendor: fields.webgl_vendor.take(),
+                renderer: fields.webgl_renderer.take(),
+                ..WebGl::default()
+            });
         }
         fields.policy = changes.iter().fold(policy, |p, change| (change.0)(p));
         Ok(Fingerprint(fields))
@@ -2324,6 +2504,9 @@ fn draw_random(f: &mut Fields, browser_type_set: bool) -> Result<(), Fingerprint
     }
     if f.bluetooth.is_random() {
         f.bluetooth = draw.bluetooth().map_or(Spoof::Off, Spoof::Value);
+    }
+    if f.audio_sample_rate.is_none() {
+        f.audio_sample_rate = Some(randomize::audio_sample_rate_for(os));
     }
     Ok(())
 }

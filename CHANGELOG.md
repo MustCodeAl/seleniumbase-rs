@@ -19,7 +19,37 @@ work, `docs/parity.md` the per-API status).
 - **Toolchain Bump to Rust 1.100**:
   - Updated MSRV to Rust 1.100 across workspace manifests, toolchain configurations, and companion projects in preparation for stable `std::alloc::Allocator` arena architectures.
 
-## [Unreleased]
+## [0.9.2] - 2026-11-24
+
+### Added
+
+- **Canonical Zero-Alias Profile JSON Schema & Rust API Alignment**:
+  - Stripped 100% of legacy serde aliases (`alias = ...`) from `src/profile_payloads/profile.rs` and `seleniumbase-rs-stealth/src/fingerprint.rs`.
+  - Unified JSON schema strictly matching Rust `Fingerprint` and `FingerprintBuilder` API: `webrtc_policy`, `proxy`, `audio_noise`, `canvas_noise`, `ports`, `navigator`, `localization`, `timezone`, `webgl`, `fonts`, `media_devices`, `screen`, `geolocation`, `audio_sample_rate`.
+- **Advanced Fingerprinting & Native Low-Level Browser Impersonation**:
+  - Native browser spoofing enhancements inspired by Camoufox, ShardBrowser, Obscura/Cloak-CDP, Eoka/Browser_Oxide, Chromiumfish, DonutBrowser, and Fury.
+  - Display characteristics & media features: `ColorGamut`, `HdrMode`, `dynamic_range` (`Standard` / `High`), `pointer` (`Fine` / `Coarse`), and `hover` emulation across CDP `Emulation.setEmulatedMedia`.
+  - WebGL 1/2 parameter tables, ANGLE D3D11 / Metal / Mesa extension matrices, and shader precision format emulation (`getShaderPrecisionFormat`).
+  - Web Audio sample rate alignment (`48000` Hz for macOS/Windows, `44100` Hz for Linux) and buffer perturbation on `OfflineAudioContext.prototype.startRendering` and `AudioBuffer`.
+  - Font canvas probe shield: `CanvasRenderingContext2D.prototype.measureText` interceptor preventing stealth font enumeration attacks.
+  - SVG / MathML subpixel normalization and Cloak-CDP error stack scrubbing.
+  - New comprehensive documentation: `docs/stealth/advanced/fingerprinting.md` and updated `docs/stealth/advanced/wire-formats.md`.
+- **Python Importer Modernization (`sbrs import-python`, `src/utilities/importer`)**:
+  - Python 3.10-3.16 pattern matching (`match ... case ...`) translated into idiomatic Rust `match` expressions with pattern guards, bindings, and wildcards.
+  - Negative indexing (`[-1]`, `[-2]`) translated to `.last().cloned().unwrap_or_default()` and `.iter().rev().nth(...)`.
+  - Playwright context manager unwrapping (`with sync_playwright() as p:`) into pure CDP fixture execution (`sb_cdp.run(async |page| { ... })`).
+  - Colorama ANSI terminal styling stripping and expanded CDP/BaseCase method mappings (17 new methods).
+- **Standalone `antibot-detector` Plugin (`seleniumbase-rs-plugins/plugins/antibot-detector`)**:
+  - Independent plugin crate detecting 10+ major anti-bot and WAF challenge systems: Cloudflare Turnstile & `cf_clearance`, DataDome, Akamai Bot Manager, Kasada, PerimeterX / HUMAN, AWS WAF, Imperva / Incapsula, FingerprintJS Pro, reCAPTCHA, and hCaptcha.
+- **Companion Chrome Extension (`seleniumbase-rs-companion`)**:
+  - 5 core features: Anti-bot diagnostics & leak inspector, One-click "Export Browser Profile / Fingerprint as Rust ContextOptions", PageArena real-time token counter & LLM cost calculator, Live interactive selector test box, and W3C WebDriver BiDi / CDP event streamer.
+- **Web UI & Multi-Login Orchestrator (`@antislop-ui`)**:
+  - Industrial matte dark theme with single deliberate accent, zero blue-purple gradients, zero neon glows, zero emojis in controls.
+  - Multi-persona concurrent login orchestrator with pairwise cookie isolation and state machine telemetry.
+- **CLI Plugin Scaffolding (`sbrs plugin new`)**:
+  - Command and MCP authoring tool for generating modular plugin crates with customizable foundations (`cdp`, `webdriver`), development configs (`mise`, `docker`, `cargo`), and agent rules.
+- **Crawler WARC Streaming & ISO 28500 Support**:
+  - WARC 1.1 streaming compression / decompression reader and writer (`src/crawler/warc.rs`).
 
 ### Added
 

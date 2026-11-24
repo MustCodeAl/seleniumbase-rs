@@ -750,6 +750,13 @@ impl<'s> Translator<'s> {
                 let n = self.number(index)?;
                 match (base, whole(n)) {
                     (Ev::List(code), Some(n)) => Ok(Ev::Locator(format!("{code}.nth({n})"))),
+                    (Ev::List(code), None) if n == -1.0 => {
+                        Ok(Ev::Locator(format!("{code}.last()")))
+                    }
+                    (Ev::List(code), None) if n < 0.0 => {
+                        let offset = ((-n) as usize).saturating_sub(1);
+                        Ok(Ev::Locator(format!("{code}.iter().rev().nth({offset})")))
+                    }
                     _ => Err("indexing this value is not converted".to_owned()),
                 }
             }
@@ -1069,7 +1076,7 @@ impl<'s> Translator<'s> {
             (Obj::Launcher, "connect" | "connectOverCDP" | "connectOverCdp") => {
                 Err("connecting to a running browser is not converted".to_owned())
             }
-            (Obj::Browser | Obj::Context, "newPage") => self.new_page(),
+            (Obj::Browser | Obj::Context, "newPage" | "new_page") => self.new_page(),
             (
                 Obj::Browser,
                 "newContext" | "createBrowserContext" | "createIncognitoBrowserContext",
@@ -1531,8 +1538,17 @@ impl<'s> Translator<'s> {
             "createCDPSession" | "createCdpSession" | "target" => {
                 Err("CDP sessions are not converted".to_owned())
             }
-            "cookies" | "deleteCookie" => {
-                Err(format!("`page.{name}()` (cookies) is not converted"))
+            "cookies" => Ok(Ev::Value(
+                "page.cookies().all().await?".to_owned(),
+                Ty::Json,
+            )),
+            "deleteCookie" | "clearCookies" => {
+                Ok(code("page.cookies().clear().await?;".to_owned()))
+            }
+            "markdown" => Ok(Ev::Value("page.markdown().await?".to_owned(), Ty::Str)),
+            "fillForm" | "fill_form" => {
+                let data = self.text(args.need(0, "the data")?)?;
+                Ok(code(format!("page.fill_form({data}).await?;")))
             }
             "pause" => Err(
                 "page.pause() opens the Playwright inspector; there is nothing to convert it to"
@@ -1939,6 +1955,10 @@ impl<'s> Translator<'s> {
                 match whole(n) {
                     Some(n) => Ok(Ev::Locator(format!("{locator}.nth({n})"))),
                     None if n == -1.0 => Ok(Ev::Locator(format!("{locator}.last()"))),
+                    None if n < 0.0 => {
+                        let offset = ((-n) as usize).saturating_sub(1);
+                        Ok(Ev::Locator(format!("{locator}.iter().rev().nth({offset})")))
+                    }
                     None => Err(format!("`nth({n})` is not converted")),
                 }
             }
@@ -2131,6 +2151,7 @@ impl<'s> Translator<'s> {
                 Ev::Locator(target) => Ok(code(format!("{locator}.drag_to(&{target}).await?;"))),
                 _ => Err("dragTo() of something other than a locator is not converted".to_owned()),
             },
+            "highlight" | "flash" => Ok(code(format!("{locator}.flash().await?;"))),
             _ => Err(format!("`.{name}()` on a locator is not converted")),
         }
     }

@@ -191,10 +191,29 @@ pub(super) enum StmtKind {
     ClassDef(ClassDef),
     /// `import x` or `from x import y`: the text after the keyword.
     Import(String),
+    /// `match subject: case pattern: ...`.
+    Match {
+        subject: Expr,
+        cases: Vec<MatchCase>,
+    },
+    /// `type Name = Type` (PEP 695).
+    #[allow(dead_code)]
+    TypeAlias { name: String, value: String },
     /// `global`, `nonlocal`, `del`: kept as source.
     Other(String),
     /// A statement that could not be read: its source.
     Unsupported(String),
+}
+
+/// A `case` arm of a `match` statement.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct MatchCase {
+    /// The pattern to match against.
+    pub(super) pattern: Expr,
+    /// An optional `if` guard.
+    pub(super) guard: Option<Expr>,
+    /// The body of the case arm.
+    pub(super) body: Vec<Stmt>,
 }
 
 /// An `except` clause.

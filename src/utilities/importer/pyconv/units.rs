@@ -2,7 +2,7 @@
 //! functions, `with SB(...)` blocks and scripts.
 
 use super::ast::{BinOp, ClassDef, Expr, FuncDef, Stmt, StmtKind};
-use super::stmt::is_chrome_constructor;
+use super::stmt::{is_chrome_constructor, is_playwright_launch, is_playwright_new_page};
 use super::tr::{py_repr, Ty};
 
 /// The rows of a parameterized test.
@@ -139,13 +139,28 @@ fn sb_context(items: &[(Expr, Option<Expr>)]) -> Option<(String, Vec<String>)> {
     let [(context @ Expr::Call(func, _), target)] = items else {
         return None;
     };
-    if !matches!(&**func, Expr::Name(name) if name == "SB") {
+    let is_context_manager = match &**func {
+        Expr::Name(name) => {
+            name == "SB"
+                || name == "Driver"
+                || name == "sync_playwright"
+                || name == "async_playwright"
+        }
+        Expr::Attr(_, attr) => attr == "sync_playwright" || attr == "async_playwright",
+        _ => false,
+    };
+    if !is_context_manager {
         return None;
     }
-    let receivers = match target {
+    let mut receivers = match target {
         Some(Expr::Name(name)) => vec![name.clone()],
         _ => Vec::new(),
     };
+    receivers.push("page".to_string());
+    receivers.push("sb".to_string());
+    receivers.push("browser".to_string());
+    receivers.push("context".to_string());
+    receivers.push("p".to_string());
     Some((py_repr(context), receivers))
 }
 
@@ -308,8 +323,17 @@ fn function_unit(def: &FuncDef, line: usize, found: &mut Found) {
     };
     if is_test && sb_args.is_some() {
         unit.body = body;
-        unit.sb_args = sb_args;
-        unit.cdp = uses_cdp(&unit.body);
+        let is_playwright = sb_args
+            .as_ref()
+            .is_some_and(|args| args.contains("playwright"))
+            || uses_cdp(&unit.body);
+        if is_playwright {
+            unit.sb_args = None;
+            unit.cdp = true;
+        } else {
+            unit.sb_args = sb_args;
+            unit.cdp = uses_cdp(&unit.body);
+        }
     }
     unit.receivers.extend(receivers);
     found.units.push(unit);
@@ -450,14 +474,28 @@ pub(super) fn uses_cdp(stmts: &[Stmt]) -> bool {
     let mut found = false;
     visit_stmts(stmts, &mut |expr| match expr {
         Expr::Call(func, _) => {
-            if is_chrome_constructor(expr) {
+            if is_chrome_constructor(expr)
+                || is_playwright_launch(expr)
+                || is_playwright_new_page(expr)
+            {
                 found = true;
             }
-            if matches!(&**func, Expr::Attr(_, method) if method == "activate_cdp_mode") {
+            if matches!(&**func, Expr::Attr(_, method) if method == "activate_cdp_mode" || method == "new_page" || method == "newPage")
+            {
+                found = true;
+            }
+            if matches!(&**func, Expr::Name(name) if name == "sync_playwright" || name == "async_playwright")
+            {
+                found = true;
+            }
+            if matches!(&**func, Expr::Attr(_, attr) if attr == "sync_playwright" || attr == "async_playwright")
+            {
                 found = true;
             }
         }
-        Expr::Attr(base, name) if name == "cdp" && matches!(&**base, Expr::Name(_)) => {
+        Expr::Attr(base, name)
+            if (name == "cdp" || name == "chromium") && matches!(&**base, Expr::Name(_)) =>
+        {
             found = true;
         }
         _ => {}

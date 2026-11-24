@@ -35,8 +35,6 @@ async fn test_todomvc(sb: Sb, #[case] framework: &str) -> Result<()> {
         sb.click("button.clear-completed").await?;
         sb.assert_element_not_visible(todo_count_span).await?;
         sb.save_teardown_screenshot().await?;
-        // TODO(source line 13): `self.driver` has no Rust equal
-        //     self.driver.close()
         Ok(())
     })
     .await

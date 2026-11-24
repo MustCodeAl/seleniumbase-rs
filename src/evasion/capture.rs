@@ -54,6 +54,7 @@ use super::fingerprint::{
     FingerprintBuilder, MediaDevices, ScreenSize, SpeechVoice, StealthPolicy, WebGl,
 };
 use super::fingerprint::{ColorGamut, ColorScheme, Contrast, KeyboardLayout, MediaFeatures};
+use super::settings::{DynamicRange, HoverType, PointerType};
 
 use super::js::capture_js::CAPTURE_JS;
 use super::spoof::Spoof;
@@ -1033,6 +1034,22 @@ fn media_features_of(media: &Map<String, Value>) -> Option<MediaFeatures> {
             "active" => true,
             _ => return None,
         },
+        dynamic_range: match read("dynamic-range") {
+            Some("high") => DynamicRange::High,
+            Some("standard") | None => DynamicRange::Standard,
+            Some(_) => return None,
+        },
+        pointer: match read("pointer") {
+            Some("fine") | None => PointerType::Fine,
+            Some("coarse") => PointerType::Coarse,
+            Some("none") => PointerType::None,
+            Some(_) => return None,
+        },
+        hover: match read("hover") {
+            Some("hover") | None => HoverType::Hover,
+            Some("none") => HoverType::None,
+            Some(_) => return None,
+        },
     })
 }
 
@@ -1328,7 +1345,10 @@ mod tests {
 
         assert_eq!(
             captured.fingerprint.media_features().value(),
-            Some(&MediaFeatures::new(ColorGamut::P3))
+            Some(&MediaFeatures {
+                dynamic_range: DynamicRange::High,
+                ..MediaFeatures::new(ColorGamut::P3)
+            })
         );
         assert!(
             captured.unmapped.contains_key("media_features"),
@@ -1354,6 +1374,7 @@ mod tests {
                 reduced_motion: true,
                 contrast: Contrast::More,
                 forced_colors: true,
+                dynamic_range: DynamicRange::High,
                 ..MediaFeatures::new(ColorGamut::P3)
             })
         );
@@ -1377,7 +1398,10 @@ mod tests {
     #[test]
     fn a_fingerprint_with_the_captured_media_features_lists_them_as_matched() {
         let claimed = Fingerprint::builder()
-            .media_features(MediaFeatures::new(ColorGamut::P3))
+            .media_features(MediaFeatures {
+                dynamic_range: DynamicRange::High,
+                ..MediaFeatures::new(ColorGamut::P3)
+            })
             .build()
             .unwrap();
         let seen = capture(WINDOWS_ON_MAC).fingerprint;

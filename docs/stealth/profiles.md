@@ -72,20 +72,20 @@ reads.
 | Payload key | Natural | Random | Value (literal) | Off |
 |---|---|---|---|---|
 | (the words above) | `natural`, `native`, `pass_through`, `whitelist`; `auto` with no value held | `mask`, `spoof`, `custom`, `generic`, `random`, `noise` | a value of the key | `off`, `disabled`, `block`, `empty` |
-| `navigator_masking` | the common words | the common words, `desktop_chrome`, `mobile_safari`: user agent, platform, cores, memory, touch points and vendor | a user agent: `Mozilla/` and a digit, with the platform in parentheses (`Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...`); it sets `user_agent` | read as Natural |
-| `localization_masking` | the common words | the common words: locale, languages, accept-languages of the place | a locale (`de-DE`, `zh-Hant-TW`) or an `Accept-Language` list that opens with one (`en-US,en;q=0.9`): the first tag is the `locale`, the tags the `languages`, the text the `accept_languages` | read as Natural |
-| `timezone_masking` | the common words | the common words: the place's zone | an IANA name, area and city: `America/New_York` | read as Natural |
-| `screen_masking` | the common words | the common words: size, pixel ratio and colour depth of the machine | `1920x1080` or `1920x1080x24` (24 when omitted); it sets `screen` and `color_depth` | read as Natural |
-| `graphics_masking` | the common words | the common words: an adapter the OS reports | `vendor~renderer`, both given: `Intel Inc.~Intel(R) Iris(R) Xe Graphics` | read as Natural |
-| `fonts_masking` | the common words | the common words, `system_only`, `blacklist`: the system's fonts | a comma-separated list of fonts: `Arial,Calibri,Consolas`. One font is no list: give it in `fingerprint.fonts` | read as Natural |
-| `media_devices_masking` | the common words | the common words | `2_mic_1_cam`, or `kind:id:label\|kind:id:label` (`audioinput:default:Mic1\|videoinput:default:Cam1`): the counts and the labelled devices | the off words: no device is listed |
-| `geolocation_masking` | the common words | the common words: a spot in the place's city | `lat,lon` or `lat,lon,altitude` (accuracy 20): `40.7128,-74.0060,10.5` | the off words: the request is denied |
-| `webrtc_masking` | the common words (and no IP policy) | the common words: a public and a local address | `public:IP\|local:IP`, IPv6 in brackets: `public:172.56.21.89\|local:10.0.0.5`; it also passes the policy `PublicAndPrivateInterfaces` | the off words: WebRTC is unavailable |
-| `proxy_masking` | the common words, `direct`: no proxy | none: `mask`, `custom`, `socks5`, `http`, `https` use the payload's proxy section, as `auto` does | a `socks5://`, `http://` or `https://` URL: `socks5://user:pass@host:1080` (port 1080 for SOCKS5, 8080 otherwise) | read as Natural, and logged: a proxy has no off state |
-| `geolocation_popup` | `prompt`: ask, whatever position the payload holds | not used | not used | `block`: deny, whatever position the payload holds; `allow` and `auto` follow `geolocation_masking` |
-| `audio_masking` | the common words and the off words: no audio noise | `random`: fresh noise for each script; `mask`, `spoof`, `custom`, `generic`, `noise`: noise seeded by the profile | not used | not used |
+| `navigator` | the common words | the common words, `desktop_chrome`, `mobile_safari`: user agent, platform, cores, memory, touch points and vendor | a user agent: `Mozilla/` and a digit, with the platform in parentheses (`Mozilla/5.0 (Windows NT 10.0; Win64; x64) ...`); it sets `user_agent` | read as Natural |
+| `localization` | the common words | the common words: locale, languages, accept-languages of the place | a locale (`de-DE`, `zh-Hant-TW`) or an `Accept-Language` list that opens with one (`en-US,en;q=0.9`): the first tag is the `locale`, the tags the `languages`, the text the `accept_languages` | read as Natural |
+| `timezone` | the common words | the common words: the place's zone | an IANA name, area and city: `America/New_York` | read as Natural |
+| `screen` | the common words | the common words: size, pixel ratio and colour depth of the machine | `1920x1080` or `1920x1080x24` (24 when omitted); it sets `screen` and `color_depth` | read as Natural |
+| `webgl` | the common words | the common words: an adapter the OS reports | `vendor~renderer`, both given: `Intel Inc.~Intel(R) Iris(R) Xe Graphics` | read as Natural |
+| `fonts` | the common words | the common words, `system_only`, `blacklist`: the system's fonts | a comma-separated list of fonts: `Arial,Calibri,Consolas`. One font is no list: give it in `fingerprint.fonts` | read as Natural |
+| `media_devices` | the common words | the common words | `2_mic_1_cam`, or `kind:id:label\|kind:id:label` (`audioinput:default:Mic1\|videoinput:default:Cam1`): the counts and the labelled devices | the off words: no device is listed |
+| `geolocation` | the common words | the common words: a spot in the place's city | `lat,lon` or `lat,lon,altitude` (accuracy 20): `40.7128,-74.0060,10.5` | the off words: the request is denied |
+| `webrtc_policy` | the common words (and no IP policy) | the common words: a public and a local address | `public:IP\|local:IP`, IPv6 in brackets: `public:172.56.21.89\|local:10.0.0.5`; it also passes the policy `PublicAndPrivateInterfaces` | the off words: WebRTC is unavailable |
+| `proxy` | the common words, `direct`: no proxy | none: `mask`, `custom`, `socks5`, `http`, `https` use the payload's proxy section, as `auto` does | a `socks5://`, `http://` or `https://` URL: `socks5://user:pass@host:1080` (port 1080 for SOCKS5, 8080 otherwise) | read as Natural, and logged: a proxy has no off state |
+| `geolocation_popup` | `prompt`: ask, whatever position the payload holds | not used | not used | `block`: deny, whatever position the payload holds; `allow` and `auto` follow `geolocation` |
+| `audio_noise` | the common words and the off words: no audio noise | `random`: fresh noise for each script; `mask`, `spoof`, `custom`, `generic`, `noise`: noise seeded by the profile | not used | not used |
 | `canvas_noise` | `natural`, `auto`, `off`, `disabled`: no canvas noise | `random`: fresh noise for each script | `low`: noise on one pixel in eight; `persistent`, `mask`, `spoof`, `custom`, `generic`, `noise`: seeded noise. If the key is absent: seeded noise | not used |
-| `ports_masking` | the common words, the off words: nothing blocked | the common words, `block`, `block_all`, `stealth`: the ports of the payload's `fingerprint.ports` are blocked | `block:80,443` or `80,443`: those ports (the policy's `blocked_ports`) | not used |
+| `ports` | the common words, the off words: nothing blocked | the common words, `block`, `block_all`, `stealth`: the ports of the payload's `fingerprint.ports` are blocked | `block:80,443` or `80,443`: those ports (the policy's `blocked_ports`) | not used |
 | `quic_mode` | `natural`, `auto` | not used | `enabled`, `disabled`, `force_http2`. If the key is absent: `disabled` | not used |
 
 The audio, canvas, ports and QUIC keys set the policy and not a setting, so their
@@ -94,7 +94,7 @@ The audio, canvas, ports and QUIC keys set the policy and not a setting, so thei
 `disable_csp`, `grant_permissions` and `native_spoofing` set the same fields of
 the policy.
 
-The settings of one key follow the word together: `navigator_masking: "mask"`
+The settings of one key follow the word together: `navigator: "mask"`
 with a `navigator` section that gives a user agent, a platform and a core count
 keeps those three and draws the memory, the touch points and the vendor, in the
 same machine. A key whose draw cannot be made (a random locale next to a time
@@ -108,7 +108,7 @@ overrides set (`apply_runtime_overrides`) are the built fingerprint's: a `natura
 flag launches without a `--user-agent`, a locale or a proxy, whatever the payload
 holds.
 
-`webrtc_masking` also sets the IP-handling policy that keeps WebRTC from leaking
+`webrtc_policy` also sets the IP-handling policy that keeps WebRTC from leaking
 the real address: every word but the natural ones passes `disable_non_proxied_udp`
 (including a payload that says nothing), `public_only` passes
 `default_public_interface_only`, and a literal address passes

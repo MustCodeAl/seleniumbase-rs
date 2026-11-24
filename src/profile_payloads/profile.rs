@@ -22,62 +22,35 @@ pub struct ProfileParams {
     pub name: String,
     /// Which browser. `firefox` and `stealthfox` are Firefox. Anything else is
     /// Chrome. Absent from the JSON, this is `chromium`.
-    #[serde(
-        default = "default_browser_type",
-        alias = "browserType",
-        alias = "browser"
-    )]
+    #[serde(default = "default_browser_type")]
     pub browser_type: String,
     /// Names `./profile-data/<id>` when storage is local. Characters other than
     /// letters, digits, `-` and `_` become `_`. Absent from the JSON, this is
     /// `default`.
-    #[serde(
-        default = "default_folder_id",
-        alias = "folderId",
-        alias = "folder",
-        alias = "profile_id",
-        alias = "profileId"
-    )]
+    #[serde(default = "default_folder_id")]
     pub folder_id: String,
     /// The operating system the fingerprint claims. `android` and `ios` launch
     /// mobile emulation. Absent from the JSON, this is `windows`.
-    #[serde(
-        default = "default_os_type",
-        alias = "osType",
-        alias = "os",
-        alias = "operating_system",
-        alias = "operatingSystem"
-    )]
+    #[serde(default = "default_os_type")]
     pub os_type: String,
     /// How the browser is driven. `playwright` and `puppeteer` use CDP,
     /// `selenium` uses WebDriver, and anything else is UC mode, except Firefox,
     /// which stays on WebDriver. Absent from the JSON, this is `selenium`.
-    #[serde(default = "default_automation", alias = "driver", alias = "mode")]
+    #[serde(default = "default_automation")]
     pub automation: String,
     /// Launches the browser without a window.
-    #[serde(default, alias = "isHeadless", alias = "headless")]
+    #[serde(default)]
     pub is_headless: bool,
     /// The Chromium major a drawn user agent claims, when the payload's browser
     /// is Chromium.
-    #[serde(
-        default,
-        alias = "coreVersion",
-        alias = "major_version",
-        alias = "majorVersion",
-        alias = "version"
-    )]
+    #[serde(default)]
     pub core_version: Option<u32>,
     /// Kept on the payload. Launching does not read it.
-    #[serde(
-        default,
-        alias = "coreMinorVersion",
-        alias = "minor_version",
-        alias = "minorVersion"
-    )]
+    #[serde(default)]
     pub core_minor_version: Option<u32>,
     /// Kept on the payload. Launching does not read it. Absent from the JSON,
     /// this is `true`.
-    #[serde(default = "default_auto_update_core", alias = "autoUpdateCore")]
+    #[serde(default = "default_auto_update_core")]
     pub auto_update_core: bool,
     /// Kept on the payload. Launching does not read it.
     #[serde(default)]
@@ -110,13 +83,7 @@ pub struct Parameters {
     pub proxy: Option<ProfileProxy>,
     /// Pages to open at start. [`ProfileParams::start_urls`] keeps at most five
     /// web pages.
-    #[serde(
-        default,
-        alias = "customStartUrls",
-        alias = "start_urls",
-        alias = "startUrls",
-        alias = "urls"
-    )]
+    #[serde(default)]
     pub custom_start_urls: Vec<String>,
 }
 
@@ -126,172 +93,76 @@ pub struct Parameters {
 /// settings and the [`StealthPolicy`] of a [`Fingerprint`].
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ProfileFlags {
-    #[serde(
-        default = "default_webrtc_masking",
-        alias = "webrtc",
-        alias = "webRtc",
-        alias = "webrtc_masking",
-        alias = "webRtcMasking"
-    )]
-    pub webrtc_masking: String,
-    #[serde(
-        default = "default_proxy_masking",
-        alias = "proxy",
-        alias = "proxy_masking",
-        alias = "proxyMasking"
-    )]
-    pub proxy_masking: String,
-    #[serde(
-        default = "default_geolocation_popup",
-        alias = "geolocation_permission",
-        alias = "geolocation_popup",
-        alias = "geolocationPopup",
-        alias = "geolocationPermission"
-    )]
+    #[serde(default = "default_webrtc_policy")]
+    pub webrtc_policy: String,
+    #[serde(default = "default_proxy")]
+    pub proxy: String,
+    #[serde(default = "default_geolocation_popup")]
     pub geolocation_popup: String,
-    #[serde(
-        default = "default_audio_masking",
-        alias = "audio",
-        alias = "audio_noise",
-        alias = "audio_masking",
-        alias = "audioNoise",
-        alias = "audioMasking"
-    )]
-    pub audio_masking: String,
-    #[serde(
-        default = "default_graphics_noise",
-        alias = "webgl_noise",
-        alias = "graphics_noise",
-        alias = "graphicsNoise",
-        alias = "webglNoise"
-    )]
-    pub graphics_noise: String,
-    #[serde(
-        default = "default_ports_masking",
-        alias = "ports",
-        alias = "blocked_ports",
-        alias = "ports_masking",
-        alias = "portsMasking",
-        alias = "blockedPorts"
-    )]
-    pub ports_masking: String,
-    #[serde(
-        default = "default_navigator_masking",
-        alias = "navigator",
-        alias = "navigator_masking",
-        alias = "navigatorMasking"
-    )]
-    pub navigator_masking: String,
-    #[serde(
-        default = "default_localization_masking",
-        alias = "localization",
-        alias = "locale",
-        alias = "localization_masking",
-        alias = "localizationMasking"
-    )]
-    pub localization_masking: String,
-    #[serde(
-        default = "default_timezone_masking",
-        alias = "timezone",
-        alias = "time_zone",
-        alias = "timezone_masking",
-        alias = "timezoneMasking",
-        alias = "timeZone"
-    )]
-    pub timezone_masking: String,
-    #[serde(
-        default = "default_graphics_masking",
-        alias = "webgl",
-        alias = "graphics",
-        alias = "graphics_masking",
-        alias = "graphicsMasking",
-        alias = "webGl"
-    )]
-    pub graphics_masking: String,
-    #[serde(
-        default = "default_fonts_masking",
-        alias = "fonts",
-        alias = "fonts_masking",
-        alias = "fontsMasking"
-    )]
-    pub fonts_masking: String,
-    #[serde(
-        default = "default_media_devices_masking",
-        alias = "media_devices",
-        alias = "media_devices_masking",
-        alias = "mediaDevices",
-        alias = "mediaDevicesMasking"
-    )]
-    pub media_devices_masking: String,
-    #[serde(
-        default = "default_screen_masking",
-        alias = "screen",
-        alias = "screen_masking",
-        alias = "screenMasking"
-    )]
-    pub screen_masking: String,
-    #[serde(
-        default = "default_geolocation_masking",
-        alias = "geolocation",
-        alias = "geolocation_masking",
-        alias = "geolocationMasking"
-    )]
-    pub geolocation_masking: String,
-    #[serde(
-        default = "default_quic_mode",
-        alias = "quic",
-        alias = "quic_mode",
-        alias = "quicMode"
-    )]
+    #[serde(default = "default_audio_noise")]
+    pub audio_noise: String,
+    #[serde(default = "default_canvas_noise")]
+    pub canvas_noise: String,
+    #[serde(default = "default_ports")]
+    pub ports: String,
+    #[serde(default = "default_navigator")]
+    pub navigator: String,
+    #[serde(default = "default_localization")]
+    pub localization: String,
+    #[serde(default = "default_timezone")]
+    pub timezone: String,
+    #[serde(default = "default_webgl")]
+    pub webgl: String,
+    #[serde(default = "default_fonts")]
+    pub fonts: String,
+    #[serde(default = "default_media_devices")]
+    pub media_devices: String,
+    #[serde(default = "default_screen")]
+    pub screen: String,
+    #[serde(default = "default_geolocation")]
+    pub geolocation: String,
+    #[serde(default = "default_quic_mode")]
     pub quic_mode: String,
-    #[serde(default, alias = "canvasNoise", alias = "canvas")]
-    pub canvas_noise: Option<String>,
-    #[serde(default = "default_startup_behavior", alias = "startupBehavior")]
+    #[serde(default = "default_startup_behavior")]
     pub startup_behavior: String,
     #[serde(default)]
     pub battery: Option<String>,
-    #[serde(default, alias = "network")]
+    #[serde(default)]
     pub connection: Option<String>,
-    #[serde(default, alias = "storageQuota", alias = "quota")]
+    #[serde(default)]
     pub storage_quota: Option<String>,
-    #[serde(default, alias = "speechVoices", alias = "voices")]
+    #[serde(default)]
     pub speech_voices: Option<String>,
     #[serde(default)]
     pub bluetooth: Option<String>,
-    #[serde(
-        default,
-        alias = "clientHints",
-        alias = "userAgentData",
-        alias = "user_agent_data"
-    )]
+    #[serde(default)]
     pub client_hints: Option<String>,
-    #[serde(default, alias = "disableCsp")]
+    #[serde(default)]
     pub disable_csp: bool,
-    #[serde(default, alias = "grantPermissions")]
+    #[serde(default)]
     pub grant_permissions: bool,
-    #[serde(default, alias = "nativeSpoofing")]
+    #[serde(default)]
     pub native_spoofing: bool,
 }
 
 impl Default for ProfileFlags {
     fn default() -> Self {
         Self {
-            webrtc_masking: default_webrtc_masking(),
-            proxy_masking: default_proxy_masking(),
+            webrtc_policy: default_webrtc_policy(),
+            proxy: default_proxy(),
             geolocation_popup: default_geolocation_popup(),
-            audio_masking: default_audio_masking(),
-            graphics_noise: default_graphics_noise(),
-            ports_masking: default_ports_masking(),
-            navigator_masking: default_navigator_masking(),
-            localization_masking: default_localization_masking(),
-            timezone_masking: default_timezone_masking(),
-            graphics_masking: default_graphics_masking(),
-            fonts_masking: default_fonts_masking(),
-            media_devices_masking: default_media_devices_masking(),
-            screen_masking: default_screen_masking(),
-            geolocation_masking: default_geolocation_masking(),
+            audio_noise: default_audio_noise(),
+            canvas_noise: default_canvas_noise(),
+            ports: default_ports(),
+            navigator: default_navigator(),
+            localization: default_localization(),
+            timezone: default_timezone(),
+            webgl: default_webgl(),
+            fonts: default_fonts(),
+            media_devices: default_media_devices(),
+            screen: default_screen(),
+            geolocation: default_geolocation(),
             quic_mode: default_quic_mode(),
-            canvas_noise: None,
             startup_behavior: default_startup_behavior(),
             battery: None,
             connection: None,
@@ -308,20 +179,9 @@ impl Default for ProfileFlags {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct StorageOptions {
-    #[serde(
-        default = "default_is_local",
-        alias = "isLocal",
-        alias = "local",
-        alias = "local_storage",
-        alias = "localStorage"
-    )]
+    #[serde(default = "default_is_local")]
     pub is_local: bool,
-    #[serde(
-        default = "default_save_service_worker",
-        alias = "saveServiceWorker",
-        alias = "service_worker",
-        alias = "serviceWorker"
-    )]
+    #[serde(default = "default_save_service_worker")]
     pub save_service_worker: bool,
 }
 
@@ -343,190 +203,143 @@ pub struct ProfileFingerprint {
     pub navigator: Option<NavigatorFingerprint>,
     #[serde(default)]
     pub localization: Option<LocalizationFingerprint>,
-    #[serde(
-        default,
-        alias = "maxTouchPoints",
-        alias = "touch_points",
-        alias = "touchPoints"
-    )]
+    #[serde(default)]
     pub max_touch_points: Option<u32>,
-    #[serde(
-        default,
-        alias = "time_zone",
-        alias = "timeZone",
-        alias = "timezone_id",
-        alias = "timeZoneId"
-    )]
+    #[serde(default)]
     pub timezone: Option<TimezoneFingerprint>,
-    #[serde(
-        default,
-        alias = "webgl",
-        alias = "graphics",
-        alias = "webGl",
-        alias = "gpu",
-        alias = "video_card",
-        alias = "videoCard"
-    )]
-    pub graphic: Option<GraphicFingerprint>,
-    #[serde(default, alias = "webRtc", alias = "web_rtc")]
+    #[serde(default)]
+    pub webgl: Option<GraphicFingerprint>,
+    #[serde(default)]
     pub webrtc: Option<WebrtcFingerprint>,
-    #[serde(default, alias = "mediaDevices", alias = "devices")]
+    #[serde(default)]
     pub media_devices: Option<MediaDevicesFingerprint>,
-    #[serde(
-        default,
-        alias = "screen_resolution",
-        alias = "screenResolution",
-        alias = "resolution"
-    )]
+    #[serde(default)]
     pub screen: Option<ScreenFingerprint>,
-    #[serde(
-        default,
-        alias = "availScreen",
-        alias = "available_screen",
-        alias = "availableScreen",
-        alias = "avail"
-    )]
+    #[serde(default)]
     pub avail_screen: Option<ScreenFingerprint>,
-    #[serde(default, alias = "geo", alias = "location")]
+    #[serde(default)]
     pub geolocation: Option<GeolocationFingerprint>,
     #[serde(default)]
     pub ports: Vec<u16>,
     #[serde(default)]
     pub fonts: Vec<String>,
-    #[serde(default, alias = "battery_profile", alias = "batteryProfile")]
+    #[serde(default)]
     pub battery: Option<BatteryProfile>,
-    #[serde(
-        default,
-        alias = "connection_profile",
-        alias = "connectionProfile",
-        alias = "network"
-    )]
+    #[serde(default)]
     pub connection: Option<ConnectionProfile>,
-    #[serde(default, alias = "storageQuota", alias = "quota")]
+    #[serde(default)]
     pub storage_quota: Option<u64>,
-    #[serde(default, alias = "speechVoices", alias = "voices")]
+    #[serde(default)]
     pub speech_voices: Option<Vec<SpeechVoice>>,
     #[serde(default)]
     pub bluetooth: Option<bool>,
-    #[serde(
-        default,
-        alias = "clientHints",
-        alias = "userAgentData",
-        alias = "user_agent_data"
-    )]
+    #[serde(default)]
     pub client_hints: Option<ClientHints>,
-    #[serde(default, alias = "keyboardLayout", alias = "keyboard")]
+    #[serde(default)]
     pub keyboard_layout: Option<KeyboardLayout>,
-    #[serde(default, alias = "mediaFeatures")]
+    #[serde(default)]
     pub media_features: Option<MediaFeatures>,
-    #[serde(
-        default,
-        alias = "cmdParams",
-        alias = "command_params",
-        alias = "commandParams",
-        alias = "switches",
-        alias = "flags"
-    )]
+    #[serde(default)]
     pub cmd_params: CmdParams,
+
+    /// Direct user agent string (aligned with `Fingerprint::user_agent`).
+    #[serde(default)]
+    pub user_agent: Option<String>,
+    /// Direct platform string (aligned with `Fingerprint::platform`).
+    #[serde(default)]
+    pub platform: Option<String>,
+    /// Direct languages string (aligned with `Fingerprint::languages`).
+    #[serde(default)]
+    pub languages: Option<String>,
+    /// Direct hardware concurrency (aligned with `Fingerprint::hardware_concurrency`).
+    #[serde(default)]
+    pub hardware_concurrency: Option<u32>,
+    /// Direct device memory (aligned with `Fingerprint::device_memory`).
+    #[serde(default)]
+    pub device_memory: Option<f64>,
+    /// Direct WebGL vendor string (aligned with `Fingerprint::webgl`).
+    #[serde(default)]
+    pub webgl_vendor: Option<String>,
+    /// Direct WebGL renderer string (aligned with `Fingerprint::webgl`).
+    #[serde(default)]
+    pub webgl_renderer: Option<String>,
+    /// Direct canvas noise policy (aligned with `Fingerprint::canvas_noise`).
+    #[serde(default)]
+    pub canvas_noise: Option<String>,
+    /// Direct audio noise policy (aligned with `Fingerprint::audio_noise`).
+    #[serde(default)]
+    pub audio_noise: Option<String>,
+    /// Direct WebRTC policy (aligned with `Fingerprint::webrtc_policy`).
+    #[serde(default)]
+    pub webrtc_policy: Option<String>,
+    /// Direct audio sample rate in Hz (aligned with `Fingerprint::audio_sample_rate`).
+    #[serde(default)]
+    pub audio_sample_rate: Option<u32>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct NavigatorFingerprint {
-    #[serde(
-        default,
-        alias = "hardwareConcurrency",
-        alias = "concurrency",
-        alias = "cpu",
-        alias = "cores"
-    )]
+    #[serde(default)]
     pub hardware_concurrency: Option<u32>,
-    #[serde(default, alias = "deviceMemory", alias = "memory", alias = "ram")]
+    #[serde(default)]
     pub device_memory: Option<f64>,
-    #[serde(alias = "userAgent", alias = "ua")]
     pub user_agent: String,
-    #[serde(alias = "navigator_platform", alias = "navigatorPlatform")]
     pub platform: String,
-    #[serde(default, alias = "oscpu", alias = "osCpu")]
+    #[serde(default)]
     pub os_cpu: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct LocalizationFingerprint {
-    #[serde(default, alias = "language_list", alias = "languageList")]
+    #[serde(default)]
     pub languages: String,
-    #[serde(default, alias = "language")]
+    #[serde(default)]
     pub locale: String,
-    #[serde(
-        default,
-        alias = "acceptLanguages",
-        alias = "accept_language",
-        alias = "acceptLanguage"
-    )]
+    #[serde(default)]
     pub accept_languages: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct TimezoneFingerprint {
-    #[serde(
-        alias = "timezone",
-        alias = "time_zone",
-        alias = "timeZone",
-        alias = "name",
-        alias = "id"
-    )]
     pub zone: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct GraphicFingerprint {
-    #[serde(alias = "unmasked_renderer", alias = "unmaskedRenderer")]
     pub renderer: String,
-    #[serde(alias = "unmasked_vendor", alias = "unmaskedVendor")]
     pub vendor: String,
-    #[serde(default, alias = "vendorId")]
+    #[serde(default)]
     pub vendor_id: String,
-    #[serde(default, alias = "rendererId")]
+    #[serde(default)]
     pub renderer_id: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct WebrtcFingerprint {
-    #[serde(alias = "publicIp", alias = "ip", alias = "address")]
     pub public_ip: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct MediaDevicesFingerprint {
-    #[serde(default, alias = "audioOutputs", alias = "speakers")]
+    #[serde(default)]
     pub audio_outputs: u32,
-    #[serde(default, alias = "audioInputs", alias = "microphones", alias = "mics")]
+    #[serde(default)]
     pub audio_inputs: u32,
-    #[serde(default, alias = "videoInputs", alias = "cameras", alias = "webcams")]
+    #[serde(default)]
     pub video_inputs: u32,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct ScreenFingerprint {
-    #[serde(alias = "w")]
     pub width: u32,
-    #[serde(alias = "h")]
     pub height: u32,
-    #[serde(
-        default = "default_pixel_ratio",
-        alias = "pixelRatio",
-        alias = "device_pixel_ratio",
-        alias = "devicePixelRatio",
-        alias = "scale_factor",
-        alias = "scaleFactor"
-    )]
+    #[serde(default = "default_pixel_ratio")]
     pub pixel_ratio: f64,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct GeolocationFingerprint {
-    #[serde(alias = "lat")]
     pub latitude: f64,
-    #[serde(alias = "lng", alias = "lon")]
     pub longitude: f64,
     #[serde(default)]
     pub accuracy: f64,
@@ -542,9 +355,8 @@ pub struct CmdParams {
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct CmdParam {
-    #[serde(alias = "param", alias = "name", alias = "key")]
     pub flag: String,
-    #[serde(default, alias = "val")]
+    #[serde(default)]
     pub value: String,
 }
 
@@ -552,23 +364,15 @@ pub struct CmdParam {
 /// into the [`ProxyConfig`](evasion_fp::ProxyConfig) of a [`Fingerprint`].
 #[derive(Clone, Default, Deserialize, Serialize)]
 pub struct ProfileProxy {
-    #[serde(
-        rename = "type",
-        alias = "proxy_type",
-        alias = "proxyType",
-        alias = "protocol",
-        alias = "scheme"
-    )]
+    #[serde(rename = "type")]
     pub proxy_type: String,
-    #[serde(alias = "server", alias = "ip", alias = "hostname")]
     pub host: String,
-    #[serde(alias = "port_number", alias = "portNumber")]
     pub port: u16,
-    #[serde(default, alias = "user", alias = "login")]
+    #[serde(default)]
     pub username: String,
-    #[serde(default, alias = "pass")]
+    #[serde(default)]
     pub password: String,
-    #[serde(default, alias = "saveTraffic")]
+    #[serde(default)]
     pub save_traffic: bool,
 }
 
@@ -613,46 +417,46 @@ fn default_times() -> u32 {
 // payload holds decide and nothing is drawn that nobody asked for. The two
 // exceptions keep their old meaning: the ports the payload lists are blocked,
 // and QUIC is off.
-fn default_webrtc_masking() -> String {
+fn default_webrtc_policy() -> String {
     "auto".into()
 }
-fn default_proxy_masking() -> String {
+fn default_proxy() -> String {
     "auto".into()
 }
 fn default_geolocation_popup() -> String {
     "auto".into()
 }
-fn default_audio_masking() -> String {
+fn default_audio_noise() -> String {
     "auto".into()
 }
-fn default_graphics_noise() -> String {
+fn default_canvas_noise() -> String {
     "mask".into()
 }
-fn default_ports_masking() -> String {
+fn default_ports() -> String {
     "mask".into()
 }
-fn default_navigator_masking() -> String {
+fn default_navigator() -> String {
     "auto".into()
 }
-fn default_localization_masking() -> String {
+fn default_localization() -> String {
     "auto".into()
 }
-fn default_timezone_masking() -> String {
+fn default_timezone() -> String {
     "auto".into()
 }
-fn default_graphics_masking() -> String {
+fn default_webgl() -> String {
     "auto".into()
 }
-fn default_fonts_masking() -> String {
+fn default_fonts() -> String {
     "auto".into()
 }
-fn default_media_devices_masking() -> String {
+fn default_media_devices() -> String {
     "auto".into()
 }
-fn default_screen_masking() -> String {
+fn default_screen() -> String {
     "auto".into()
 }
-fn default_geolocation_masking() -> String {
+fn default_geolocation() -> String {
     "auto".into()
 }
 fn default_quic_mode() -> String {
@@ -795,7 +599,7 @@ fn parse_audio_noise(s: &str) -> AudioNoise {
         other => {
             if classify(other, &[]).is_none() {
                 tracing::warn!(
-                    key = "audio_masking",
+                    key = "audio_noise",
                     keyword = s,
                     "unknown keyword in a profile flag; reading it as natural"
                 );
@@ -1085,9 +889,9 @@ impl ProfileParams {
     ///
     /// The profile's folder and name seed the draw, so a profile gets the same
     /// drawn values on every launch. The built-in policy is
-    /// [`StealthPolicy::balanced`]; the flags `canvas_noise`, `audio_masking`,
-    /// `quic_mode`, `ports_masking`, `disable_csp`, `grant_permissions` and
-    /// `native_spoofing` change it, and `webrtc_masking` sets the WebRTC
+    /// [`StealthPolicy::balanced`]; the flags `canvas_noise`, `audio_noise`,
+    /// `quic_mode`, `ports`, `disable_csp`, `grant_permissions` and
+    /// `native_spoofing` change it, and `webrtc_policy` sets the WebRTC
     /// IP-handling policy.
     ///
     /// A setting that is asked for at random but cannot be drawn (a random
@@ -1111,11 +915,7 @@ impl ProfileParams {
     fn fingerprint_builder(&self) -> FingerprintBuilder {
         let flags = &self.parameters.flags;
         let section = &self.parameters.fingerprint;
-        let canvas = flags
-            .canvas_noise
-            .as_deref()
-            // A payload that names no canvas mode keeps the seeded noise.
-            .map_or(CanvasNoise::Persistent, parse_canvas_noise);
+        let canvas = parse_canvas_noise(&flags.canvas_noise);
 
         let mut cmd_params = std::collections::HashMap::new();
         for p in &section.cmd_params.params {
@@ -1127,7 +927,7 @@ impl ProfileParams {
             .seed(profile_seed(&self.folder_id, &self.name))
             .policy(StealthPolicy::balanced())
             .canvas_noise(canvas)
-            .audio_noise(parse_audio_noise(&flags.audio_masking))
+            .audio_noise(parse_audio_noise(&flags.audio_noise))
             .quic(parse_quic(&flags.quic_mode))
             .disable_csp(flags.disable_csp)
             .grant_permissions(flags.grant_permissions)
@@ -1172,13 +972,13 @@ impl ProfileParams {
         ) && parse_os(&self.os_type) != OsType::Ios
     }
 
-    /// `ports_masking`: the natural words block nothing, every other word and a
+    /// `ports`: the natural words block nothing, every other word and a
     /// list block the ports.
     fn blocked_ports(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let text = &self.parameters.flags.ports_masking;
+        let text = &self.parameters.flags.ports;
         let listed = &self.parameters.fingerprint.ports;
         let ports = match read(
-            "ports_masking",
+            "ports",
             text,
             // For ports, `block` is not the off state: it blocks the ports.
             &[
@@ -1196,10 +996,10 @@ impl ProfileParams {
     }
 
     fn navigator(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "navigator_masking";
+        let key = "navigator";
         let reading = read(
             key,
-            &self.parameters.flags.navigator_masking,
+            &self.parameters.flags.navigator,
             &[
                 ("desktop_chrome", Word::Random),
                 ("mobile_safari", Word::Random),
@@ -1244,8 +1044,8 @@ impl ProfileParams {
     }
 
     fn localization(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "localization_masking";
-        let reading = read(key, &self.parameters.flags.localization_masking, &[], |s| {
+        let key = "localization";
+        let reading = read(key, &self.parameters.flags.localization, &[], |s| {
             parse_localization(s).is_some()
         });
         let word = word_of(reading);
@@ -1269,13 +1069,8 @@ impl ProfileParams {
     }
 
     fn timezone(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "timezone_masking";
-        let reading = read(
-            key,
-            &self.parameters.flags.timezone_masking,
-            &[],
-            is_zone_name,
-        );
+        let key = "timezone";
+        let reading = read(key, &self.parameters.flags.timezone, &[], is_zone_name);
         let given = self
             .parameters
             .fingerprint
@@ -1290,8 +1085,8 @@ impl ProfileParams {
     }
 
     fn screen(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "screen_masking";
-        let reading = read(key, &self.parameters.flags.screen_masking, &[], |s| {
+        let key = "screen";
+        let reading = read(key, &self.parameters.flags.screen, &[], |s| {
             parse_dimensions(s).is_some()
         });
         let word = word_of(reading);
@@ -1316,32 +1111,27 @@ impl ProfileParams {
     }
 
     fn graphics(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "graphics_masking";
-        let reading = read(key, &self.parameters.flags.graphics_masking, &[], |s| {
+        let key = "webgl";
+        let reading = read(key, &self.parameters.flags.webgl, &[], |s| {
             parse_vendor_renderer(s).is_some()
         });
-        let from_section = self
-            .parameters
-            .fingerprint
-            .graphic
-            .as_ref()
-            .and_then(|gpu| {
-                let webgl = match (given_text(&gpu.vendor), given_text(&gpu.renderer)) {
-                    (Some(vendor), Some(renderer)) => WebGl::new(vendor, renderer),
-                    (None, Some(renderer)) => WebGl::renderer_only(renderer),
-                    (Some(vendor), None) => WebGl::vendor_only(vendor),
-                    (None, None) => return None,
-                };
-                Some(
-                    match (given_text(&gpu.vendor_id), given_text(&gpu.renderer_id)) {
-                        (None, None) => webgl,
-                        (vendor_id, renderer_id) => webgl.ids(
-                            vendor_id.unwrap_or_default(),
-                            renderer_id.unwrap_or_default(),
-                        ),
-                    },
-                )
-            });
+        let from_section = self.parameters.fingerprint.webgl.as_ref().and_then(|gpu| {
+            let webgl = match (given_text(&gpu.vendor), given_text(&gpu.renderer)) {
+                (Some(vendor), Some(renderer)) => WebGl::new(vendor, renderer),
+                (None, Some(renderer)) => WebGl::renderer_only(renderer),
+                (Some(vendor), None) => WebGl::vendor_only(vendor),
+                (None, None) => return None,
+            };
+            Some(
+                match (given_text(&gpu.vendor_id), given_text(&gpu.renderer_id)) {
+                    (None, None) => webgl,
+                    (vendor_id, renderer_id) => webgl.ids(
+                        vendor_id.unwrap_or_default(),
+                        renderer_id.unwrap_or_default(),
+                    ),
+                },
+            )
+        });
         let given = from_section.or_else(|| match reading {
             Reading::Literal(text) => {
                 parse_vendor_renderer(text).map(|(vendor, renderer)| WebGl::new(vendor, renderer))
@@ -1352,10 +1142,10 @@ impl ProfileParams {
     }
 
     fn fonts(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "fonts_masking";
+        let key = "fonts";
         let reading = read(
             key,
-            &self.parameters.flags.fonts_masking,
+            &self.parameters.flags.fonts,
             &[("system_only", Word::Random), ("blacklist", Word::Random)],
             |s| parse_font_list(s).is_some(),
         );
@@ -1378,13 +1168,10 @@ impl ProfileParams {
     }
 
     fn media_devices(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "media_devices_masking";
-        let reading = read(
-            key,
-            &self.parameters.flags.media_devices_masking,
-            &[],
-            |s| parse_media_devices(s).is_some(),
-        );
+        let key = "media_devices";
+        let reading = read(key, &self.parameters.flags.media_devices, &[], |s| {
+            parse_media_devices(s).is_some()
+        });
         let given = match self.parameters.fingerprint.media_devices.as_ref() {
             Some(media) => Some(MediaDevices::counts(
                 media.audio_inputs,
@@ -1399,13 +1186,13 @@ impl ProfileParams {
         builder.media_devices(settle(key, word_of(reading), given, true, true))
     }
 
-    /// `geolocation_masking` and `geolocation_popup`. The popup flag was how
+    /// `geolocation` and `geolocation_popup`. The popup flag was how
     /// the old model said what a request is answered with; now the state of the
     /// setting says it: a position answers, `Off` denies, `Natural` asks. So
     /// `block` denies and `prompt` asks, whatever position the payload holds.
     fn geolocation(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "geolocation_masking";
-        let reading = read(key, &self.parameters.flags.geolocation_masking, &[], |s| {
+        let key = "geolocation";
+        let reading = read(key, &self.parameters.flags.geolocation, &[], |s| {
             parse_coordinates(s).is_some()
         });
         let given = match self.parameters.fingerprint.geolocation.as_ref() {
@@ -1437,15 +1224,15 @@ impl ProfileParams {
         })
     }
 
-    /// `proxy_masking`. A proxy cannot be drawn, so the words that draw for
+    /// `proxy`. A proxy cannot be drawn, so the words that draw for
     /// the other keys (`mask`, `custom`, `socks5`, ...) use the proxy the
     /// payload holds, as `auto` does. The words that turn a key off read as
     /// natural, and are logged: no proxy.
     fn proxy(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "proxy_masking";
+        let key = "proxy";
         let reading = read(
             key,
-            &self.parameters.flags.proxy_masking,
+            &self.parameters.flags.proxy,
             &[
                 ("socks5", Word::Random),
                 ("http", Word::Random),
@@ -1477,17 +1264,17 @@ impl ProfileParams {
         builder.proxy(settle(key, word_of(reading), given, false, false))
     }
 
-    /// `webrtc_masking`: the setting and the IP-handling policy.
+    /// `webrtc_policy`: the setting and the IP-handling policy.
     ///
     /// The policy keeps WebRTC from leaking the real address, so every word
     /// but the natural ones passes `disable_non_proxied_udp`; a literal address
     /// passes `default_public_and_private_interfaces`, and `public_only` passes
     /// `default_public_interface_only`.
     fn webrtc(&self, builder: FingerprintBuilder) -> FingerprintBuilder {
-        let key = "webrtc_masking";
+        let key = "webrtc_policy";
         let reading = read(
             key,
-            &self.parameters.flags.webrtc_masking,
+            &self.parameters.flags.webrtc_policy,
             &[("public_only", Word::Auto)],
             |s| parse_webrtc_addresses(s).is_some(),
         );
@@ -1495,7 +1282,7 @@ impl ProfileParams {
         let text = self
             .parameters
             .flags
-            .webrtc_masking
+            .webrtc_policy
             .trim()
             .to_ascii_lowercase();
         let from_section = self
@@ -1706,7 +1493,7 @@ impl ProfileParams {
     /// The user agent of the payload's fingerprint, when it has one.
     ///
     /// It is the one [`to_fingerprint`](Self::to_fingerprint) builds, so the
-    /// `navigator_masking` flag decides: `natural` gives none, and a drawn
+    /// `navigator` flag decides: `natural` gives none, and a drawn
     /// user agent is the drawn one.
     pub fn user_agent(&self) -> Option<String> {
         self.to_fingerprint().user_agent().value().cloned()
@@ -1719,7 +1506,7 @@ impl ProfileParams {
     }
 
     /// The proxy URL of the payload's fingerprint, when it has one (see
-    /// [`user_agent`](Self::user_agent)): none under `proxy_masking: natural`.
+    /// [`user_agent`](Self::user_agent)): none under `proxy: natural`.
     pub fn proxy_string(&self) -> Option<String> {
         self.to_fingerprint()
             .proxy()
@@ -1837,7 +1624,7 @@ mod tests {
             "notes": "asd",
             "parameters": {
                 "flags": {
-                    "webrtc_masking": "custom",
+                    "webrtc_policy": "custom",
                     "startup_behavior": "custom"
                 },
                 "storage": {
@@ -1881,109 +1668,108 @@ mod tests {
     }
 
     #[test]
-    fn parse_profile_payload_camel_case_and_aliases() {
+    fn parse_profile_payload_canonical_names() {
         let raw = json!({
-            "name": "CamelProfile",
-            "browserType": "chromium",
-            "folderId": "my-folder",
-            "coreVersion": 130,
-            "autoUpdateCore": false,
-            "osType": "macos",
+            "name": "CanonicalProfile",
+            "browser_type": "chromium",
+            "folder_id": "my-folder",
+            "core_version": 130,
+            "auto_update_core": false,
+            "os_type": "macos",
             "parameters": {
                 "flags": {
-                    "webrtcMasking": "block",
-                    "proxyMasking": "direct",
-                    "audioNoise": "natural",
-                    "webglNoise": "mask",
-                    "blockedPorts": "block",
-                    "navigatorMasking": "auto",
-                    "localizationMasking": "en-US",
-                    "timeZone": "America/New_York",
-                    "graphicsMasking": "natural",
-                    "mediaDevicesMasking": "auto",
-                    "screenMasking": "1920x1080",
-                    "geolocationMasking": "auto",
-                    "quicMode": "auto",
-                    "canvasNoise": "persistent",
-                    "startupBehavior": "custom",
-                    "storageQuota": "auto",
-                    "speechVoices": "natural",
-                    "userAgentData": "auto",
-                    "disableCsp": true,
-                    "grantPermissions": true,
-                    "nativeSpoofing": true
+                    "webrtc_policy": "block",
+                    "proxy": "direct",
+                    "audio_noise": "natural",
+                    "canvas_noise": "persistent",
+                    "ports": "block",
+                    "navigator": "auto",
+                    "localization": "en-US",
+                    "timezone": "America/New_York",
+                    "webgl": "natural",
+                    "media_devices": "auto",
+                    "screen": "1920x1080",
+                    "geolocation": "auto",
+                    "quic_mode": "auto",
+                    "startup_behavior": "custom",
+                    "storage_quota": "auto",
+                    "speech_voices": "natural",
+                    "client_hints": "auto",
+                    "disable_csp": true,
+                    "grant_permissions": true,
+                    "native_spoofing": true
                 },
                 "storage": {
-                    "isLocal": true,
-                    "saveServiceWorker": true
+                    "is_local": true,
+                    "save_service_worker": true
                 },
                 "fingerprint": {
                     "navigator": {
-                        "hardwareConcurrency": 16,
-                        "deviceMemory": 32.0,
-                        "userAgent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
-                        "navigatorPlatform": "MacIntel",
-                        "osCpu": "Intel"
+                        "hardware_concurrency": 16,
+                        "device_memory": 32.0,
+                        "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)",
+                        "platform": "MacIntel",
+                        "os_cpu": "Intel"
                     },
                     "localization": {
                         "languages": "en-US,en",
                         "locale": "en-US",
-                        "acceptLanguages": "en-US,en;q=0.9"
+                        "accept_languages": "en-US,en;q=0.9"
                     },
-                    "timeZone": {
-                        "timeZone": "America/New_York"
+                    "timezone": {
+                        "zone": "America/New_York"
                     },
-                    "webGl": {
-                        "unmaskedRenderer": "Apple M1",
-                        "unmaskedVendor": "Apple",
-                        "vendorId": "0x106b",
-                        "rendererId": "0x0001"
+                    "webgl": {
+                        "renderer": "Apple M1",
+                        "vendor": "Apple",
+                        "vendor_id": "0x106b",
+                        "renderer_id": "0x0001"
                     },
-                    "webRtc": {
-                        "publicIp": "1.2.3.4"
+                    "webrtc": {
+                        "public_ip": "1.2.3.4"
                     },
-                    "mediaDevices": {
-                        "audioOutputs": 2,
-                        "audioInputs": 1,
-                        "videoInputs": 1
+                    "media_devices": {
+                        "audio_outputs": 2,
+                        "audio_inputs": 1,
+                        "video_inputs": 1
                     },
-                    "screenResolution": {
+                    "screen": {
                         "width": 2560,
                         "height": 1440,
-                        "pixelRatio": 2.0
+                        "pixel_ratio": 2.0
                     },
-                    "availScreen": {
+                    "avail_screen": {
                         "width": 2560,
                         "height": 1400,
-                        "pixelRatio": 2.0
+                        "pixel_ratio": 2.0
                     },
-                    "location": {
-                        "lat": 40.7128,
-                        "lng": -74.0060,
+                    "geolocation": {
+                        "latitude": 40.7128,
+                        "longitude": -74.0060,
                         "accuracy": 10.0
                     },
-                    "maxTouchPoints": 0,
-                    "quota": 1073741824,
-                    "cmdParams": {
+                    "max_touch_points": 0,
+                    "storage_quota": 1073741824,
+                    "cmd_params": {
                         "params": [
-                            { "param": "--enable-features=NetworkService", "val": "" }
+                            { "flag": "--enable-features=NetworkService", "value": "" }
                         ]
                     }
                 },
                 "proxy": {
-                    "protocol": "socks5",
-                    "server": "127.0.0.1",
-                    "portNumber": 1080,
-                    "user": "proxyuser",
-                    "pass": "proxypass",
-                    "saveTraffic": true
+                    "type": "socks5",
+                    "host": "127.0.0.1",
+                    "port": 1080,
+                    "username": "proxyuser",
+                    "password": "proxypass",
+                    "save_traffic": true
                 },
-                "startUrls": ["https://example.com/start"]
+                "custom_start_urls": ["https://example.com/start"]
             }
         });
 
-        let params: ProfileParams = serde_json::from_value(raw).expect("valid camelCase profile");
-        assert_eq!(params.name, "CamelProfile");
+        let params: ProfileParams = serde_json::from_value(raw).expect("valid canonical profile");
+        assert_eq!(params.name, "CanonicalProfile");
         assert_eq!(params.browser_type, "chromium");
         assert_eq!(params.folder_id, "my-folder");
         assert_eq!(params.core_version, Some(130));
@@ -2022,7 +1808,7 @@ mod tests {
         .unwrap();
         assert_eq!(params.browser_type, "chromium");
         assert_eq!(params.os_type, "windows");
-        assert_eq!(params.parameters.flags.webrtc_masking, "auto");
+        assert_eq!(params.parameters.flags.webrtc_policy, "auto");
         assert!(params.parameters.storage.is_local);
         assert_eq!(params.times, 1);
     }
@@ -2188,7 +1974,7 @@ mod tests {
             "name": "WebGLIds",
             "parameters": {
                 "fingerprint": {
-                    "graphic": {
+                    "webgl": {
                         "vendor": "NVIDIA",
                         "renderer": "GeForce RTX",
                         "vendor_id": "0x10de",
@@ -2234,15 +2020,15 @@ mod tests {
     }
 
     #[test]
-    fn concrete_screen_masking_parses_dimensions() {
-        let fp = fingerprint_of(json!({ "screen_masking": "1920x1080x24" }));
+    fn concrete_screen_parses_dimensions() {
+        let fp = fingerprint_of(json!({ "screen": "1920x1080x24" }));
         assert_eq!(fp.screen().value(), Some(&ScreenSize::new(1920, 1080)));
         assert_eq!(fp.color_depth().value(), Some(&24));
     }
 
     #[test]
-    fn concrete_geolocation_masking_parses_coordinates() {
-        let fp = fingerprint_of(json!({ "geolocation_masking": "40.7128,-74.0060,10.5" }));
+    fn concrete_geolocation_parses_coordinates() {
+        let fp = fingerprint_of(json!({ "geolocation": "40.7128,-74.0060,10.5" }));
         let place = fp.geolocation().value().expect("a position");
         assert_eq!(place.latitude, 40.7128);
         assert_eq!(place.longitude, -74.0060);
@@ -2250,34 +2036,32 @@ mod tests {
     }
 
     #[test]
-    fn concrete_graphics_masking_parses_vendor_renderer() {
-        let fp = fingerprint_of(
-            json!({ "graphics_masking": "Intel Inc.~Intel(R) Iris(R) Xe Graphics" }),
-        );
+    fn concrete_webgl_parses_vendor_renderer() {
+        let fp = fingerprint_of(json!({ "webgl": "Intel Inc.~Intel(R) Iris(R) Xe Graphics" }));
         let gl = fp.webgl().value().expect("a webgl value");
         assert_eq!(gl.vendor.as_deref(), Some("Intel Inc."));
         assert_eq!(gl.renderer.as_deref(), Some("Intel(R) Iris(R) Xe Graphics"));
     }
 
     #[test]
-    fn concrete_navigator_masking_parses_user_agent() {
+    fn concrete_navigator_parses_user_agent() {
         let ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
-        let fp = fingerprint_of(json!({ "navigator_masking": ua }));
+        let fp = fingerprint_of(json!({ "navigator": ua }));
         assert_eq!(fp.user_agent().as_str(), Some(ua));
     }
 
     #[test]
-    fn concrete_localization_and_timezone_masking_parses_values() {
+    fn concrete_localization_and_timezone_parses_values() {
         let fp = fingerprint_of(json!({
-            "localization_masking": "en-US,en;q=0.9",
-            "timezone_masking": "America/New_York"
+            "localization": "en-US,en;q=0.9",
+            "timezone": "America/New_York"
         }));
         // The locale is the first tag, the list is the tags, the header is the text.
         assert_eq!(fp.locale().as_str(), Some("en-US"));
         assert_eq!(fp.languages().as_str(), Some("en-US,en"));
         assert_eq!(fp.accept_languages().as_str(), Some("en-US,en;q=0.9"));
         assert_eq!(fp.timezone().as_str(), Some("America/New_York"));
-        let tag = fingerprint_of(json!({ "localization_masking": "zh-Hant-TW" }));
+        let tag = fingerprint_of(json!({ "localization": "zh-Hant-TW" }));
         assert_eq!(tag.locale().as_str(), Some("zh-Hant-TW"));
         assert_eq!(tag.languages().as_str(), Some("zh-Hant-TW"));
     }
@@ -2286,11 +2070,11 @@ mod tests {
     fn a_literal_has_the_shape_of_its_key_or_it_is_no_literal() {
         // Each of these used to be taken for a literal because of one character.
         let fp = fingerprint_of(json!({
-            "localization_masking": "no-such thing",
-            "timezone_masking": "a/b c",
-            "navigator_masking": "Chrome/133 is nice",
-            "graphics_masking": "~",
-            "fonts_masking": "Arial"
+            "localization": "no-such thing",
+            "timezone": "a/b c",
+            "navigator": "Chrome/133 is nice",
+            "webgl": "~",
+            "fonts": "Arial"
         }));
         for (key, natural) in natural_states(&fp) {
             assert!(natural, "{key}");
@@ -2319,8 +2103,8 @@ mod tests {
     }
 
     #[test]
-    fn concrete_fonts_masking_parses_list() {
-        let fp = fingerprint_of(json!({ "fonts_masking": "Arial,Calibri,Consolas" }));
+    fn concrete_fonts_parses_list() {
+        let fp = fingerprint_of(json!({ "fonts": "Arial,Calibri,Consolas" }));
         assert_eq!(
             fp.fonts().value(),
             Some(&vec![
@@ -2332,9 +2116,9 @@ mod tests {
     }
 
     #[test]
-    fn concrete_media_devices_masking_parses_specs() {
+    fn concrete_media_devices_parses_specs() {
         let fp = fingerprint_of(json!({
-            "media_devices_masking": "audioinput:default:Mic1|videoinput:default:Cam1"
+            "media_devices": "audioinput:default:Mic1|videoinput:default:Cam1"
         }));
         let devices = fp.media_devices().value().expect("devices");
         assert_eq!(devices.audio_inputs, 1);
@@ -2345,16 +2129,16 @@ mod tests {
     }
 
     #[test]
-    fn concrete_ports_masking_parses_block_list() {
-        let fp = fingerprint_of(json!({ "ports_masking": "block:80,443,3000,8080,9222" }));
+    fn concrete_ports_parses_block_list() {
+        let fp = fingerprint_of(json!({ "ports": "block:80,443,3000,8080,9222" }));
         assert_eq!(fp.policy().blocked_ports, vec![80, 443, 3000, 8080, 9222]);
         assert!(fp.is_masked(Dimension::Ports));
     }
 
     #[test]
-    fn concrete_proxy_masking_parses_url() {
+    fn concrete_proxy_parses_url() {
         let fp = fingerprint_of(json!({
-            "proxy_masking": "socks5://user123:pass456@192.168.1.50:1080"
+            "proxy": "socks5://user123:pass456@192.168.1.50:1080"
         }));
         let proxy = fp.proxy().value().expect("a proxy");
         assert_eq!(proxy.r#type, "socks5");
@@ -2365,9 +2149,9 @@ mod tests {
     }
 
     #[test]
-    fn concrete_webrtc_masking_parses_ips() {
+    fn concrete_webrtc_policy_parses_ips() {
         let fp = fingerprint_of(json!({
-            "webrtc_masking": "public:172.56.21.89|local:10.0.0.5"
+            "webrtc_policy": "public:172.56.21.89|local:10.0.0.5"
         }));
         let addresses = fp.webrtc().value().expect("addresses");
         assert_eq!(addresses.public_ip.as_deref(), Some("172.56.21.89"));
@@ -2379,9 +2163,9 @@ mod tests {
     }
 
     #[test]
-    fn concrete_webrtc_masking_parses_ipv6_ips() {
+    fn concrete_webrtc_policy_parses_ipv6_ips() {
         let fp = fingerprint_of(json!({
-            "webrtc_masking": "public:[2001:db8::1]|local:[fe80::1]"
+            "webrtc_policy": "public:[2001:db8::1]|local:[fe80::1]"
         }));
         let addresses = fp.webrtc().value().expect("addresses");
         assert_eq!(addresses.public_ip.as_deref(), Some("2001:db8::1"));
@@ -2389,8 +2173,8 @@ mod tests {
     }
 
     #[test]
-    fn concrete_proxy_masking_parses_ipv6_url() {
-        let fp = fingerprint_of(json!({ "proxy_masking": "socks5://[2001:db8::1]:1080" }));
+    fn concrete_proxy_parses_ipv6_url() {
+        let fp = fingerprint_of(json!({ "proxy": "socks5://[2001:db8::1]:1080" }));
         let proxy = fp.proxy().value().expect("a proxy");
         assert_eq!(proxy.r#type, "socks5");
         assert_eq!(proxy.host, "2001:db8::1");
@@ -2403,11 +2187,10 @@ mod tests {
             "name": "Keywords",
             "parameters": {
                 "flags": {
-                    "audio_masking": "noise",
-                    "graphics_noise": "medium",
+                    "audio_noise": "noise",
                     "canvas_noise": "random",
                     "quic_mode": "force_http2",
-                    "ports_masking": "block_all"
+                    "ports": "block_all"
                 },
                 "fingerprint": { "ports": [9222] }
             }
@@ -2436,7 +2219,7 @@ mod tests {
                         "languages": "de-DE,de", "locale": "de-DE", "accept_languages": "de-DE,de;q=0.9"
                     },
                     "timezone": { "zone": "Europe/Berlin" },
-                    "graphic": { "vendor": "Intel Inc.", "renderer": "Intel Iris" },
+                    "webgl": { "vendor": "Intel Inc.", "renderer": "Intel Iris" },
                     "media_devices": { "audio_inputs": 1, "audio_outputs": 1, "video_inputs": 1 },
                     "screen": { "width": 1440, "height": 900, "pixel_ratio": 2 },
                     "geolocation": { "latitude": 52.52, "longitude": 13.4, "accuracy": 20 },
@@ -2466,18 +2249,18 @@ mod tests {
     fn the_defaults_leave_each_dimension_to_its_value() {
         let flags = ProfileFlags::default();
         for (name, word) in [
-            ("webrtc_masking", &flags.webrtc_masking),
-            ("proxy_masking", &flags.proxy_masking),
+            ("webrtc_policy", &flags.webrtc_policy),
+            ("proxy", &flags.proxy),
             ("geolocation_popup", &flags.geolocation_popup),
-            ("audio_masking", &flags.audio_masking),
-            ("navigator_masking", &flags.navigator_masking),
-            ("localization_masking", &flags.localization_masking),
-            ("timezone_masking", &flags.timezone_masking),
-            ("graphics_masking", &flags.graphics_masking),
-            ("fonts_masking", &flags.fonts_masking),
-            ("media_devices_masking", &flags.media_devices_masking),
-            ("screen_masking", &flags.screen_masking),
-            ("geolocation_masking", &flags.geolocation_masking),
+            ("audio_noise", &flags.audio_noise),
+            ("navigator", &flags.navigator),
+            ("localization", &flags.localization),
+            ("timezone", &flags.timezone),
+            ("webgl", &flags.webgl),
+            ("fonts", &flags.fonts),
+            ("media_devices", &flags.media_devices),
+            ("screen", &flags.screen),
+            ("geolocation", &flags.geolocation),
         ] {
             assert_eq!(word, "auto", "{name}");
         }
@@ -2502,22 +2285,22 @@ mod tests {
         assert_eq!(
             fp.policy().blocked_ports,
             vec![9222],
-            "ports_masking defaults to mask"
+            "ports defaults to mask"
         );
     }
 
     #[test]
     fn an_explicit_natural_flag_stays_off_whatever_values_the_payload_holds() {
         let fp = payload_with_values(json!({
-            "navigator_masking": "natural",
-            "localization_masking": "native",
-            "timezone_masking": "natural",
-            "graphics_masking": "pass_through",
-            "media_devices_masking": "natural",
-            "screen_masking": "natural",
-            "geolocation_masking": "natural",
-            "fonts_masking": "whitelist",
-            "proxy_masking": "natural"
+            "navigator": "natural",
+            "localization": "native",
+            "timezone": "natural",
+            "webgl": "pass_through",
+            "media_devices": "natural",
+            "screen": "natural",
+            "geolocation": "natural",
+            "fonts": "whitelist",
+            "proxy": "natural"
         }))
         .to_fingerprint();
 
@@ -2530,12 +2313,12 @@ mod tests {
     fn an_off_word_turns_the_apis_that_can_be_off_off_and_leaves_the_others_natural() {
         for word in ["off", "disabled", "block", "empty"] {
             let fp = payload_with_values(json!({
-                "geolocation_masking": word,
-                "webrtc_masking": word,
-                "media_devices_masking": word,
-                "timezone_masking": word,
-                "screen_masking": word,
-                "proxy_masking": word
+                "geolocation": word,
+                "webrtc_policy": word,
+                "media_devices": word,
+                "timezone": word,
+                "screen": word,
+                "proxy": word
             }))
             .to_fingerprint();
 
@@ -2555,17 +2338,17 @@ mod tests {
     #[test]
     fn the_word_auto_leaves_a_dimension_to_its_value() {
         let fp = payload_with_values(json!({
-            "geolocation_masking": "auto",
-            "localization_masking": "auto",
-            "timezone_masking": "auto",
-            "proxy_masking": "auto",
+            "geolocation": "auto",
+            "localization": "auto",
+            "timezone": "auto",
+            "proxy": "auto",
             "geolocation_popup": "auto"
         }))
         .to_fingerprint();
         assert!(fp.timezone().is_value() && fp.proxy().is_value());
         assert!(fp.geolocation().is_value() && fp.locale().is_value());
         // And with no value, `auto` is the browser's own.
-        let bare = fingerprint_of(json!({ "timezone_masking": "auto" }));
+        let bare = fingerprint_of(json!({ "timezone": "auto" }));
         assert!(bare.timezone().is_natural());
     }
 
@@ -2582,7 +2365,7 @@ mod tests {
     #[test]
     fn blocking_webrtc_still_passes_the_policy_that_stops_the_leak() {
         for word in ["disabled", "block"] {
-            let fp = payload_with_values(json!({ "webrtc_masking": word })).to_fingerprint();
+            let fp = payload_with_values(json!({ "webrtc_policy": word })).to_fingerprint();
             assert_eq!(
                 fp.policy().webrtc_policy,
                 Some(WebRtcPolicy::DisableNonProxiedUdp),
@@ -2591,7 +2374,7 @@ mod tests {
             assert!(fp.is_masked(Dimension::WebRtc), "{word}");
             assert!(fp.webrtc().is_off(), "{word}");
         }
-        let natural = payload_with_values(json!({ "webrtc_masking": "natural" })).to_fingerprint();
+        let natural = payload_with_values(json!({ "webrtc_policy": "natural" })).to_fingerprint();
         assert!(!natural.is_masked(Dimension::WebRtc));
         assert_eq!(natural.policy().webrtc_policy, None);
         // A payload that says nothing about WebRTC still keeps the leak closed.
@@ -2647,16 +2430,16 @@ mod tests {
     /// A payload whose every persona key reads `word`, and nothing else.
     fn every_key(word: &str) -> Fingerprint {
         fingerprint_of(json!({
-            "navigator_masking": word,
-            "localization_masking": word,
-            "timezone_masking": word,
-            "screen_masking": word,
-            "graphics_masking": word,
-            "fonts_masking": word,
-            "media_devices_masking": word,
-            "geolocation_masking": word,
-            "webrtc_masking": word,
-            "proxy_masking": word
+            "navigator": word,
+            "localization": word,
+            "timezone": word,
+            "screen": word,
+            "webgl": word,
+            "fonts": word,
+            "media_devices": word,
+            "geolocation": word,
+            "webrtc_policy": word,
+            "proxy": word
         }))
     }
 
@@ -2701,9 +2484,9 @@ mod tests {
     #[test]
     fn the_mask_words_use_a_value_the_payload_holds_and_draw_the_rest() {
         let fp = payload_with_values(json!({
-            "navigator_masking": "mask",
-            "screen_masking": "random",
-            "proxy_masking": "custom"
+            "navigator": "mask",
+            "screen": "random",
+            "proxy": "custom"
         }))
         .to_fingerprint();
 
@@ -2761,7 +2544,7 @@ mod tests {
         let states = natural_states(&fp);
         assert!(states.iter().all(|(_, natural)| *natural), "{states:?}");
         let fp = fingerprint_of(json!({
-            "audio_masking": "wibble",
+            "audio_noise": "wibble",
             "canvas_noise": "wibble",
             "quic_mode": "wibble"
         }));
@@ -2776,7 +2559,7 @@ mod tests {
             let params: ProfileParams = serde_json::from_value(json!({
                 "name": "Stable",
                 "folder_id": folder,
-                "parameters": { "flags": { "navigator_masking": "mask", "timezone_masking": "mask" } }
+                "parameters": { "flags": { "navigator": "mask", "timezone": "mask" } }
             }))
             .unwrap();
             params.to_fingerprint()
@@ -2792,7 +2575,7 @@ mod tests {
         let params: ProfileParams = serde_json::from_value(json!({
             "name": "Unknown zone",
             "parameters": {
-                "flags": { "localization_masking": "mask", "navigator_masking": "mask" },
+                "flags": { "localization": "mask", "navigator": "mask" },
                 "fingerprint": { "timezone": { "zone": "Pacific/Chatham" } }
             }
         }))
@@ -2816,7 +2599,7 @@ mod tests {
                     "navigator": { "user_agent": "", "platform": " ", "os_cpu": "" },
                     "localization": { "languages": "", "locale": "", "accept_languages": "" },
                     "timezone": { "zone": "" },
-                    "graphic": { "vendor": "", "renderer": "" },
+                    "webgl": { "vendor": "", "renderer": "" },
                     "fonts": ["", " "]
                 }
             }
@@ -2842,9 +2625,9 @@ mod tests {
 
         // A mask word draws what the payload does not give, never an empty value.
         let drawn = blank_payload(json!({
-            "navigator_masking": "mask",
-            "localization_masking": "mask",
-            "timezone_masking": "mask"
+            "navigator": "mask",
+            "localization": "mask",
+            "timezone": "mask"
         }))
         .to_fingerprint();
         assert!(user_agent_of(&drawn).starts_with("Mozilla/"));
@@ -2884,9 +2667,9 @@ mod tests {
 
         // A natural flag launches with none of it, whatever the payload holds.
         let natural = launch(json!({
-            "navigator_masking": "natural",
-            "localization_masking": "natural",
-            "proxy_masking": "natural"
+            "navigator": "natural",
+            "localization": "natural",
+            "proxy": "natural"
         }));
         assert_eq!(
             (
@@ -2899,16 +2682,13 @@ mod tests {
         // So does the word for no proxy, and the off words, which a proxy lacks.
         for word in ["direct", "off", "disabled"] {
             assert_eq!(
-                launch(json!({ "proxy_masking": word }))
-                    .browser
-                    .proxy
-                    .server,
+                launch(json!({ "proxy": word })).browser.proxy.server,
                 None,
                 "{word}"
             );
         }
         // The getters answer the same.
-        let params = payload_with_values(json!({ "proxy_masking": "natural" }));
+        let params = payload_with_values(json!({ "proxy": "natural" }));
         assert_eq!(params.proxy_string(), None);
         assert!(payload_with_values(json!({})).proxy_string().is_some());
     }
@@ -2921,7 +2701,7 @@ mod tests {
                 "browser_type": browser,
                 "os_type": os,
                 "core_version": 124,
-                "parameters": { "flags": { "navigator_masking": "mask" } }
+                "parameters": { "flags": { "navigator": "mask" } }
             }))
             .unwrap();
             user_agent_of(&params.to_fingerprint()).to_owned()
@@ -2932,32 +2712,31 @@ mod tests {
         assert!(!agent("mobile_safari", "ios").contains("Chrome/"));
     }
 
-    /// A payload in the shape the external tool sends it: every flag key present
-    /// with the words and values the old reader took, and every section.
+    /// A payload in the shape of unified fingerprint keys: every flag key present
+    /// with the words and values the reader takes, and every section.
     #[test]
-    fn a_payload_in_the_old_format_loads_with_every_key_read() {
+    fn a_payload_in_unified_format_loads_with_every_key_read() {
         let params: ProfileParams = serde_json::from_value(json!({
-            "name": "Old format",
+            "name": "Unified format",
             "browser_type": "chromium",
             "folder_id": "4500dd84-d8c5-4450-b2df-1c64daed8bad",
             "os_type": "windows",
             "automation": "selenium",
             "parameters": {
                 "flags": {
-                    "webrtc_masking": "public:203.0.113.9|local:10.0.0.2",
-                    "proxy_masking": "http://user:pass@proxy.example:3128",
+                    "webrtc_policy": "public:203.0.113.9|local:10.0.0.2",
+                    "proxy": "http://user:pass@proxy.example:3128",
                     "geolocation_popup": "allow",
-                    "audio_masking": "mask",
-                    "graphics_noise": "medium",
-                    "ports_masking": "block:80,8080",
-                    "navigator_masking": "desktop_chrome",
-                    "localization_masking": "spoof",
-                    "timezone_masking": "Europe/Paris",
-                    "graphics_masking": "NVIDIA~GeForce RTX 3060",
-                    "fonts_masking": "system_only",
-                    "media_devices_masking": "2_mic_1_cam",
-                    "screen_masking": "2560x1440x30",
-                    "geolocation_masking": "48.8566,2.3522,35",
+                    "audio_noise": "mask",
+                    "ports": "block:80,8080",
+                    "navigator": "desktop_chrome",
+                    "localization": "spoof",
+                    "timezone": "Europe/Paris",
+                    "webgl": "NVIDIA~GeForce RTX 3060",
+                    "fonts": "system_only",
+                    "media_devices": "2_mic_1_cam",
+                    "screen": "2560x1440x30",
+                    "geolocation": "48.8566,2.3522,35",
                     "quic_mode": "disabled",
                     "canvas_noise": "low",
                     "startup_behavior": "custom",
@@ -2974,7 +2753,7 @@ mod tests {
                     "max_touch_points": 0,
                     "localization": { "languages": "fr-FR,fr", "locale": "fr-FR", "accept_languages": "fr-FR,fr;q=0.9" },
                     "timezone": { "zone": "Europe/Paris" },
-                    "graphic": { "vendor": "Google Inc. (NVIDIA)", "renderer": "ANGLE (NVIDIA, GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)" },
+                    "webgl": { "vendor": "Google Inc. (NVIDIA)", "renderer": "ANGLE (NVIDIA, GeForce RTX 3060 Direct3D11 vs_5_0 ps_5_0, D3D11)" },
                     "webrtc": { "public_ip": "203.0.113.9" },
                     "media_devices": { "audio_inputs": 2, "audio_outputs": 1, "video_inputs": 1 },
                     "screen": { "width": 2560, "height": 1440, "pixel_ratio": 1.5 },

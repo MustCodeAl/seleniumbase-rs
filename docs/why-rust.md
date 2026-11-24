@@ -26,7 +26,7 @@ be a better fit. It does not claim Rust is universally better.
 ## What this crate is
 
 `seleniumbase-rs` is a Rust port of the Python SeleniumBase framework (it tracks
-4.55.2) and of its <Tooltip tip="Model Context Protocol: the way an AI agent calls a tool such as a browser.">MCP</Tooltip> server. It keeps the productive `BaseCase` API and
+4.58.3) and of its <Tooltip tip="Model Context Protocol: the way an AI agent calls a tool such as a browser.">MCP</Tooltip> server. It keeps the productive `BaseCase` API and
 anti-detection features, but runs on Rust's async runtime, type system, and
 native distribution model. It has two engines: a WebDriver engine built on
 `thirtyfour`, and a pure Chrome DevTools Protocol engine (`sb_cdp`) that needs
@@ -39,8 +39,39 @@ of it is checked against a mock or unit tests rather than a real browser.
 ## When Rust helps most
 
 Choose `seleniumbase-rs` when the test harness itself benefits from strong
-compile-time checks, predictable resource ownership, native binaries, or
-integration with an existing Rust workspace.
+compile-time checks, predictable resource ownership, native binaries, zero-copy
+data extraction, or integration with an existing Rust workspace.
+
+### Deterministic teardown and zero orphaned processes
+
+A notorious problem in automated browser testing—especially under Python or Node—is
+orphaned `chromedriver` and Chrome processes that linger after test failures, SIGINT,
+or unhandled exceptions, eventually exhausting system memory in CI.
+
+In `seleniumbase-rs`, lifecycle management is rooted in Rust's ownership model and
+RAII. The `run_browser_test` and `sb.run(async |sb| { ... })` harness guarantees
+that browser sessions, sockets, and child processes are explicitly awaited, closed,
+and reaped on every execution path, including test assertion failures and panics.
+
+### High-density concurrent browser contexts
+
+Python's Global Interpreter Lock (GIL) and process-based concurrency model make
+running dozens of concurrent authenticated browser sessions heavy on RAM and CPU.
+Node.js avoids the GIL but suffers from single-threaded event loop starvation when
+performing DOM transformation or heavy JSON serialization.
+
+`seleniumbase-rs` couples native Tokio multi-threaded async tasks with `BrowserPool`
+and `ContextOptions`. Multiple isolated sessions share a single browser instance
+under distinct browser contexts, each with its own isolated cookie jar, localStorage,
+cache, and spoofed fingerprint. Memory usage scales per tab rather than per browser process.
+
+### Zero-copy DOM & PageArena for LLM agents
+
+When driving browsers for AI agents, raw HTML payloads easily consume 50,000 to
+150,000 tokens per page, flooding context windows with noise. `seleniumbase-rs`
+incorporates `PageArena`, a zero-copy DOM parser and Markdown generator that strips
+decorations and extracts semantic Markdown directly into contiguous memory buffers.
+This yields an 80% to 90% reduction in token count with microsecond parse latencies.
 
 ### Refactoring safety
 

@@ -55,7 +55,7 @@
 /// The version of Python SeleniumBase whose API this crate tracks.
 ///
 /// Kept in step with `parity/upstream.toml`; see `docs/UPSTREAM_SYNC.md`.
-pub const UPSTREAM_SELENIUMBASE_VERSION: &str = "4.56.5";
+pub const UPSTREAM_SELENIUMBASE_VERSION: &str = "4.58.3";
 
 pub mod api;
 pub mod artifacts;

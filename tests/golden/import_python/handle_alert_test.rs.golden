@@ -29,7 +29,7 @@ async fn handle_alert_test(sb: Sb) -> Result<()> {
         //     self.browser == "safari" and self._reuse_session
         if false {
             // Alerts can freeze Safari if reusing the browser session
-            // TODO(source line 22): `self.driver` has no Rust equal
+            // TODO(source line 22): the element method `.quit()` is not translated
             //     self.driver.quit()
         }
         Ok(())

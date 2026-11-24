@@ -272,6 +272,21 @@
         }
       ]
     },
+    "DynamicRange": {
+      "description": "The `dynamic-range` mode of a display.",
+      "oneOf": [
+        {
+          "const": "standard",
+          "description": "Standard dynamic range display (SDR).",
+          "type": "string"
+        },
+        {
+          "const": "high",
+          "description": "High dynamic range display (HDR).",
+          "type": "string"
+        }
+      ]
+    },
     "Fields": {
       "additionalProperties": false,
       "description": "The data of a `Fingerprint`: one field per setting.",
@@ -287,6 +302,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "not": {
@@ -310,6 +337,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "not": {
                 "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
               },
@@ -317,6 +356,26 @@
             }
           ],
           "description": "`navigator.appVersion`."
+        },
+        "audio_noise": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AudioNoise"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Audio noise policy (`audio_noise`)."
+        },
+        "audio_sample_rate": {
+          "description": "Web Audio sample rate in Hz (`audio_sample_rate`).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "avail_screen": {
           "anyOf": [
@@ -329,6 +388,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "$ref": "#/$defs/ScreenSize"
@@ -350,6 +421,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "$ref": "#/$defs/BatteryProfile"
             }
           ],
@@ -367,6 +450,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "type": "boolean"
@@ -391,6 +486,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "not": {
                 "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
               },
@@ -398,6 +505,17 @@
             }
           ],
           "description": "`navigator.buildID` (Firefox persona)."
+        },
+        "canvas_noise": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CanvasNoise"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Canvas noise policy (`canvas_noise`)."
         },
         "client_hints": {
           "anyOf": [
@@ -411,6 +529,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "$ref": "#/$defs/ClientHints"
@@ -438,6 +568,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "format": "uint32",
               "minimum": 0,
               "type": "integer"
@@ -457,6 +599,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "$ref": "#/$defs/ConnectionProfile"
@@ -493,6 +647,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "format": "double",
               "type": "number"
             }
@@ -510,6 +676,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "items": {
@@ -534,6 +712,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "$ref": "#/$defs/Geolocation"
             }
           ],
@@ -550,6 +740,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "format": "uint32",
@@ -582,6 +784,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "$ref": "#/$defs/KeyboardLayout"
             }
           ],
@@ -598,6 +812,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "not": {
@@ -626,6 +852,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "not": {
                 "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
               },
@@ -645,6 +883,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "format": "uint32",
@@ -668,6 +918,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "$ref": "#/$defs/MediaDevices"
             }
           ],
@@ -684,6 +946,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "$ref": "#/$defs/MediaFeatures"
@@ -714,6 +988,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "not": {
                 "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
               },
@@ -735,6 +1021,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "format": "double",
               "type": "number"
             }
@@ -752,6 +1050,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "not": {
@@ -795,6 +1105,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "not": {
                 "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
               },
@@ -813,6 +1135,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "$ref": "#/$defs/ProxyConfig"
@@ -836,6 +1170,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "$ref": "#/$defs/ScreenSize"
@@ -866,6 +1212,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "items": {
                 "$ref": "#/$defs/SpeechVoice"
               },
@@ -887,6 +1245,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "format": "uint64",
               "minimum": 0,
               "type": "integer"
@@ -905,6 +1275,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "not": {
@@ -928,6 +1310,18 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "not": {
                 "pattern": "^([Nn][Aa][Tt][Uu][Rr][Aa][Ll]|[Rr][Aa][Nn][Dd][Oo][Mm]|[Oo][Ff][Ff])$"
               },
@@ -947,6 +1341,18 @@
             },
             {
               "type": "null"
+            },
+            {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
             },
             {
               "not": {
@@ -970,10 +1376,36 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "$ref": "#/$defs/WebGl"
             }
           ],
           "description": "The unmasked WebGL vendor and renderer."
+        },
+        "webgl_renderer": {
+          "description": "Direct WebGL renderer string (`webgl_renderer`).",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "webgl_vendor": {
+          "description": "Direct WebGL vendor string (`webgl_vendor`).",
+          "type": [
+            "string",
+            "null"
+          ]
         },
         "webrtc": {
           "anyOf": [
@@ -989,10 +1421,33 @@
               "type": "null"
             },
             {
+              "additionalProperties": false,
+              "properties": {
+                "mimic": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "mimic"
+              ],
+              "type": "object"
+            },
+            {
               "$ref": "#/$defs/WebRtcAddresses"
             }
           ],
           "description": "The addresses WebRTC reports. `off` makes WebRTC unavailable."
+        },
+        "webrtc_policy": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/WebRtcPolicy"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "WebRTC IP handling policy (`webrtc_policy`)."
         }
       },
       "type": "object"
@@ -1032,6 +1487,21 @@
         "longitude"
       ],
       "type": "object"
+    },
+    "HoverType": {
+      "description": "Whether the primary pointing system allows hovering over elements (`hover: hover` vs `none`).",
+      "oneOf": [
+        {
+          "const": "hover",
+          "description": "Mouse, trackpad.",
+          "type": "string"
+        },
+        {
+          "const": "none",
+          "description": "Touchscreen.",
+          "type": "string"
+        }
+      ]
     },
     "HumanizeConfig": {
       "description": "Humanized input-timing configuration.",
@@ -1161,10 +1631,25 @@
           "default": "no-preference",
           "description": "`prefers-contrast`."
         },
+        "dynamic_range": {
+          "$ref": "#/$defs/DynamicRange",
+          "default": "standard",
+          "description": "`dynamic-range`: whether the display covers High Dynamic Range."
+        },
         "forced_colors": {
           "default": false,
           "description": "`forced-colors: active`, Windows high contrast.",
           "type": "boolean"
+        },
+        "hover": {
+          "$ref": "#/$defs/HoverType",
+          "default": "hover",
+          "description": "`hover`: primary pointing mechanism hover capability (`hover`, `none`)."
+        },
+        "pointer": {
+          "$ref": "#/$defs/PointerType",
+          "default": "fine",
+          "description": "`pointer`: primary pointing mechanism accuracy (`fine`, `coarse`, `none`)."
         },
         "reduced_motion": {
           "default": false,
@@ -1194,6 +1679,26 @@
         {
           "const": "ios",
           "description": "iOS / iPadOS persona.",
+          "type": "string"
+        }
+      ]
+    },
+    "PointerType": {
+      "description": "The primary pointing system accuracy (`pointer: fine` vs `coarse` vs `none`).",
+      "oneOf": [
+        {
+          "const": "fine",
+          "description": "Mouse, stylus, trackpad.",
+          "type": "string"
+        },
+        {
+          "const": "coarse",
+          "description": "Touchscreen / finger.",
+          "type": "string"
+        },
+        {
+          "const": "none",
+          "description": "No pointing device.",
           "type": "string"
         }
       ]
@@ -1267,6 +1772,29 @@
       "required": [
         "width",
         "height"
+      ],
+      "type": "object"
+    },
+    "ShaderPrecision": {
+      "description": "Shader precision parameters (`gl.getShaderPrecisionFormat`).",
+      "properties": {
+        "precision": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "range_max": {
+          "format": "int32",
+          "type": "integer"
+        },
+        "range_min": {
+          "format": "int32",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "range_min",
+        "range_max",
+        "precision"
       ],
       "type": "object"
     },
@@ -1393,6 +1921,22 @@
     "WebGl": {
       "description": "The WebGL strings `getParameter` reports for the unmasked vendor and renderer.",
       "properties": {
+        "extensions": {
+          "description": "Supported WebGL extensions.",
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "max_texture_size": {
+          "description": "Maximum texture size (e.g. 16384 for desktop, 8192/4096 for mobile).",
+          "format": "uint32",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
         "renderer": {
           "description": "`UNMASKED_RENDERER_WEBGL`, such as `ANGLE (NVIDIA, ...)`.",
           "type": [
@@ -1406,6 +1950,17 @@
             "string",
             "null"
           ]
+        },
+        "shader_precision": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ShaderPrecision"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Shader precision format (`getShaderPrecisionFormat`)."
         },
         "vendor": {
           "description": "`UNMASKED_VENDOR_WEBGL`, such as `Google Inc. (NVIDIA)`.",

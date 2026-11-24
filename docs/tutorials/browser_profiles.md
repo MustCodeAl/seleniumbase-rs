@@ -176,14 +176,14 @@ URLs opened on launch. Maximum **5**; extras are ignored.
 
 ### `parameters.flags`
 
-The masking flags (`webrtc_masking`, `proxy_masking`, `geolocation_popup`,
-`audio_masking`, `navigator_masking`, `localization_masking`,
-`timezone_masking`, `graphics_masking`, `fonts_masking`,
-`media_devices_masking`, `screen_masking`, `ports_masking`,
-`geolocation_masking`, `canvas_noise` and `quic_mode`) take the words and the
+The flags (`webrtc_policy`, `proxy`, `geolocation_popup`,
+`audio_noise`, `navigator`, `localization`,
+`timezone`, `webgl`, `fonts`,
+`media_devices`, `screen`, `ports`,
+`geolocation`, `canvas_noise` and `quic_mode`) take the words and the
 literal formats in the one table in
 [Fingerprint & Stealth Profiles](/stealth/profiles#keywords-in-json-payloads).
-A flag the payload leaves out is `auto`, except `ports_masking` (`mask`: the ports
+A flag the payload leaves out is `auto`, except `ports` (`mask`: the ports
 of `fingerprint.ports` are blocked), `canvas_noise` (seeded noise) and `quic_mode`
 (`disabled`). The rest:
 
@@ -399,7 +399,7 @@ Proxy scheme.
 
 <ParamField body="host" type="string" required>
 
-Proxy host. IPv6 addresses should **not** include brackets when supplied in this object (use them only in `proxy_masking` URL literals).
+Proxy host. IPv6 addresses should **not** include brackets when supplied in this object (use them only in `proxy` URL literals).
 
 </ParamField>
 
@@ -467,7 +467,7 @@ launch, because its folder and name seed the draw.
 
 The values turn the navigator on by themselves: the launcher passes the supplied
 `user_agent` to `--user-agent` and the `platform` value into the evasion
-bootstrap. Add `"navigator_masking": "natural"` to the flags to keep the
+bootstrap. Add `"navigator": "natural"` to the flags to keep the
 browser's own navigator whatever the profile holds, or `"mask"` to draw the
 settings the profile does not give (the memory, the touch points, the vendor)
 from the same machine.
@@ -511,7 +511,7 @@ This profile uses `mobile_safari` and `ios`.
   "core_version": 26,
   "parameters": {
     "flags": {
-      "webrtc_masking": "natural",
+      "webrtc_policy": "natural",
       "native_spoofing": true
     },
     "fingerprint": {
@@ -540,7 +540,7 @@ metrics through CDP so page-side JS cannot detect the override.
 
 ## Literal value shortcuts
 
-Most masking flags also accept a concrete literal string instead of a word. The
+Most flags also accept a concrete literal string instead of a word. The
 parser reads the flag as `mask` with that value and writes the value into the
 fingerprint so it is applied automatically. The format of each literal is in the
 Value column of the
@@ -557,21 +557,21 @@ Value column of the
   "core_version": 133,
   "parameters": {
     "flags": {
-      "audio_masking": "noise",
-      "fonts_masking": "Arial,Helvetica,Open Sans,Roboto,Segoe UI,Times New Roman",
-      "geolocation_masking": "40.7128,-74.0060,10.5",
+      "audio_noise": "noise",
+      "fonts": "Arial,Helvetica,Open Sans,Roboto,Segoe UI,Times New Roman",
+      "geolocation": "40.7128,-74.0060,10.5",
       "geolocation_popup": "allow",
-      "graphics_masking": "Intel Inc.~Intel(R) Iris(R) Xe Graphics~WebGL 2.0",
+      "webgl": "Intel Inc.~Intel(R) Iris(R) Xe Graphics~WebGL 2.0",
       "graphics_noise": "medium",
-      "localization_masking": "en-US,en;q=0.9",
-      "media_devices_masking": "audioinput:default:Mic1|videoinput:default:Cam1",
-      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
-      "ports_masking": "block:80,443,3000,8080,9222",
-      "proxy_masking": "socks5://user123:pass456@192.168.1.50:1080",
-      "screen_masking": "1920x1080x24",
+      "localization": "en-US,en;q=0.9",
+      "media_devices": "audioinput:default:Mic1|videoinput:default:Cam1",
+      "navigator": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36",
+      "ports": "block:80,443,3000,8080,9222",
+      "proxy": "socks5://user123:pass456@192.168.1.50:1080",
+      "screen": "1920x1080x24",
       "quic_mode": "disabled",
-      "timezone_masking": "America/New_York",
-      "webrtc_masking": "public:192.168.1.50|local:10.0.0.5",
+      "timezone": "America/New_York",
+      "webrtc_policy": "public:192.168.1.50|local:10.0.0.5",
       "canvas_noise": "random"
     }
   }
@@ -602,9 +602,9 @@ without any extra code.
 ```
 
 The `parameters.proxy` block becomes
-`--proxy-server=http://alice:secret@proxy.example.com:8080`: `proxy_masking`
+`--proxy-server=http://alice:secret@proxy.example.com:8080`: `proxy`
 defaults to `auto`, which uses a proxy that has a host. Set
-`proxy_masking: natural` (or `direct`) to launch without a proxy although the
+`proxy: natural` (or `direct`) to launch without a proxy although the
 block is there.
 
 #### Native-level spoofing (`native_spoofing: true`)
@@ -616,10 +616,10 @@ block is there.
   "os_type": "windows",
   "parameters": {
     "flags": {
-      "navigator_masking": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 …",
-      "screen_masking": "1920x1080x24",
-      "timezone_masking": "America/New_York",
-      "geolocation_masking": "40.7580,-73.9855,10.5",
+      "navigator": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 …",
+      "screen": "1920x1080x24",
+      "timezone": "America/New_York",
+      "geolocation": "40.7580,-73.9855,10.5",
       "native_spoofing": true
     }
   }
@@ -636,15 +636,15 @@ inspect.
 ```json
 {
   "parameters": {
-    "flags": { "webrtc_masking": "mask" }
+    "flags": { "webrtc_policy": "mask" }
   }
 }
 ```
 
-`webrtc_masking: mask` forces `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
+`webrtc_policy: mask` forces `--force-webrtc-ip-handling-policy=disable_non_proxied_udp`
 so public IP leakage is reduced, and draws the addresses WebRTC reports. The
 default, `auto`, passes the same policy and reports no address of its own unless
-the profile holds a WebRTC IP. `webrtc_masking: natural` leaves the browser's
+the profile holds a WebRTC IP. `webrtc_policy: natural` leaves the browser's
 default policy in place, and `disabled` (or `off`, `block`) makes WebRTC
 unavailable.
 
@@ -654,7 +654,7 @@ or the `fingerprint.webrtc.public_ip` field:
 ```json
 {
   "parameters": {
-    "flags": { "webrtc_masking": "public:172.56.21.89|local:10.0.0.5" },
+    "flags": { "webrtc_policy": "public:172.56.21.89|local:10.0.0.5" },
     "fingerprint": {
       "webrtc": { "public_ip": "172.56.21.89" }
     }
@@ -703,7 +703,7 @@ let raw = json!({
     "os_type": "windows",
     "parameters": {
         "flags": {
-            "webrtc_masking": "mask"
+            "webrtc_policy": "mask"
         },
         "fingerprint": {
             "navigator": {
@@ -776,9 +776,9 @@ The table of keywords for every flag.
 
 <Accordion title="Proxy not applied" icon="network-wired">
 
-**Likely cause.** `proxy_masking` is `natural` or `disabled`, or the proxy has no host.
+**Likely cause.** `proxy` is `natural` or `disabled`, or the proxy has no host.
 
-**Fix.** Leave `proxy_masking` at `auto` (or set `custom`) and provide `parameters.proxy` with a host.
+**Fix.** Leave `proxy` at `auto` (or set `custom`) and provide `parameters.proxy` with a host.
 
 </Accordion>
 

@@ -4,6 +4,7 @@ pub mod commands;
 pub mod devtools;
 pub mod fingerprint_cmd;
 pub mod plugin_cmd;
+pub mod plugin_scaffold;
 pub mod prompt;
 pub mod scaffold;
 pub mod scripts;

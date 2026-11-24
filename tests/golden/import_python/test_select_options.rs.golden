@@ -22,18 +22,18 @@ async fn test_select_options(sb: Sb) -> Result<()> {
         for (index, option_text) in option_texts.iter().enumerate() {
             sb.select_option_by_text("#mySelect", option_text).await?;
             let selected_value = sb.attribute("#mySelect", "value").await?.unwrap_or_default();
-            sb.assert_equal(selected_value.as_str(), option_values[index].as_str())?;
+            sb.assert_equal(selected_value.as_str(), option_values[index].clone().as_str())?;
         }
         for (index, option_value) in option_values.iter().enumerate() {
             sb.select_option_by_value("#mySelect", option_value).await?;
             let selected_value = sb.attribute("#mySelect", "value").await?.unwrap_or_default();
-            sb.assert_equal(selected_value.as_str(), option_values[index].as_str())?;
+            sb.assert_equal(selected_value.as_str(), option_values[index].clone().as_str())?;
         }
         for (index, option_index) in option_indexes.iter().enumerate() {
             sb.select_option_by_index("#mySelect", option_index.parse().expect("a whole number")).await?;
             // assert_attribute() combines get_attribute() and assert_equal()
             // It also highlights the element when Demo Mode is enabled.
-            sb.assert_attribute("#mySelect", "value", &option_values[index]).await?;
+            sb.assert_attribute("#mySelect", "value", &option_values[index].clone()).await?;
         }
         Ok(())
     })

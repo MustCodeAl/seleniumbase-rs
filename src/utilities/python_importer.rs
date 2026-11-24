@@ -170,6 +170,9 @@ fn detect_source(source: &str, requested: PythonSource) -> PythonSource {
         || source.contains("import seleniumbase")
         || source.contains("BaseCase")
         || source.contains("with SB(")
+        || source.contains("playwright")
+        || source.contains("sync_playwright")
+        || source.contains("async_playwright")
     {
         PythonSource::SeleniumBase
     } else {

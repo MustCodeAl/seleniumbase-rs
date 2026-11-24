@@ -1156,6 +1156,9 @@ mod tests {
                 ("prefers-reduced-transparency", "no-preference"),
                 ("prefers-contrast", "no-preference"),
                 ("forced-colors", "none"),
+                ("dynamic-range", "standard"),
+                ("pointer", "fine"),
+                ("hover", "hover"),
             ]
         );
     }

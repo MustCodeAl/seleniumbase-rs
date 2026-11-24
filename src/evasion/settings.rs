@@ -57,6 +57,78 @@ impl From<(u32, u32)> for Spoof<ScreenSize> {
     }
 }
 
+/// The `dynamic-range` mode of a display.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum DynamicRange {
+    /// Standard dynamic range display (SDR).
+    #[default]
+    Standard,
+    /// High dynamic range display (HDR).
+    High,
+}
+
+impl DynamicRange {
+    /// The value `Emulation.setEmulatedMedia` and CSS take for `dynamic-range`.
+    #[must_use]
+    pub const fn media_value(self) -> &'static str {
+        match self {
+            Self::Standard => "standard",
+            Self::High => "high",
+        }
+    }
+}
+
+/// The primary pointing system accuracy (`pointer: fine` vs `coarse` vs `none`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum PointerType {
+    /// Mouse, stylus, trackpad.
+    #[default]
+    Fine,
+    /// Touchscreen / finger.
+    Coarse,
+    /// No pointing device.
+    None,
+}
+
+impl PointerType {
+    /// The value `Emulation.setEmulatedMedia` and CSS take for `pointer`.
+    #[must_use]
+    pub const fn media_value(self) -> &'static str {
+        match self {
+            Self::Fine => "fine",
+            Self::Coarse => "coarse",
+            Self::None => "none",
+        }
+    }
+}
+
+/// Whether the primary pointing system allows hovering over elements (`hover: hover` vs `none`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+#[serde(rename_all = "lowercase")]
+pub enum HoverType {
+    /// Mouse, trackpad.
+    #[default]
+    Hover,
+    /// Touchscreen.
+    None,
+}
+
+impl HoverType {
+    /// The value `Emulation.setEmulatedMedia` and CSS take for `hover`.
+    #[must_use]
+    pub const fn media_value(self) -> &'static str {
+        match self {
+            Self::Hover => "hover",
+            Self::None => "none",
+        }
+    }
+}
+
 /// What `matchMedia` and `@media` rules report about the display and the
 /// user's preferences. The pointer and hover features belong to the device:
 /// a phone persona's touch emulation gives them.
@@ -76,6 +148,12 @@ pub struct MediaFeatures {
     pub contrast: Contrast,
     /// `forced-colors: active`, Windows high contrast.
     pub forced_colors: bool,
+    /// `dynamic-range`: whether the display covers High Dynamic Range.
+    pub dynamic_range: DynamicRange,
+    /// `pointer`: primary pointing mechanism accuracy (`fine`, `coarse`, `none`).
+    pub pointer: PointerType,
+    /// `hover`: primary pointing mechanism hover capability (`hover`, `none`).
+    pub hover: HoverType,
 }
 
 impl Default for MediaFeatures {
@@ -95,6 +173,9 @@ impl MediaFeatures {
             reduced_transparency: false,
             contrast: Contrast::NoPreference,
             forced_colors: false,
+            dynamic_range: DynamicRange::Standard,
+            pointer: PointerType::Fine,
+            hover: HoverType::Hover,
         }
     }
 
@@ -115,6 +196,9 @@ impl MediaFeatures {
                 "name": "forced-colors",
                 "value": if self.forced_colors { "active" } else { "none" }
             },
+            { "name": "dynamic-range", "value": self.dynamic_range.media_value() },
+            { "name": "pointer", "value": self.pointer.media_value() },
+            { "name": "hover", "value": self.hover.media_value() },
         ])
     }
 }
@@ -438,6 +522,36 @@ pub struct WebGl {
     /// The PCI device id of the GPU (`0x1f91`). Kept, never shown to a page.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub renderer_id: Option<String>,
+    /// Supported WebGL extensions.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub extensions: Vec<String>,
+    /// Maximum texture size (e.g. 16384 for desktop, 8192/4096 for mobile).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_texture_size: Option<u32>,
+    /// Shader precision format (`getShaderPrecisionFormat`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shader_precision: Option<ShaderPrecision>,
+}
+
+/// Shader precision parameters (`gl.getShaderPrecisionFormat`).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[cfg_attr(test, derive(schemars::JsonSchema))]
+pub struct ShaderPrecision {
+    pub range_min: i32,
+    pub range_max: i32,
+    pub precision: i32,
+}
+
+impl ShaderPrecision {
+    /// Desktop high float precision format (e.g. rangeMin: 127, rangeMax: 127, precision: 23).
+    #[must_use]
+    pub const fn desktop_high_float() -> Self {
+        Self {
+            range_min: 127,
+            range_max: 127,
+            precision: 23,
+        }
+    }
 }
 
 impl WebGl {
@@ -474,6 +588,27 @@ impl WebGl {
     pub fn ids(mut self, vendor_id: impl Into<String>, renderer_id: impl Into<String>) -> Self {
         self.vendor_id = Some(vendor_id.into());
         self.renderer_id = Some(renderer_id.into());
+        self
+    }
+
+    /// Sets the supported WebGL extension names.
+    #[must_use]
+    pub fn extensions(mut self, extensions: impl IntoIterator<Item = impl Into<String>>) -> Self {
+        self.extensions = extensions.into_iter().map(Into::into).collect();
+        self
+    }
+
+    /// Sets the maximum texture size (e.g. 16384).
+    #[must_use]
+    pub const fn max_texture_size(mut self, size: u32) -> Self {
+        self.max_texture_size = Some(size);
+        self
+    }
+
+    /// Sets the shader precision format parameters.
+    #[must_use]
+    pub const fn shader_precision(mut self, precision: ShaderPrecision) -> Self {
+        self.shader_precision = Some(precision);
         self
     }
 
@@ -705,6 +840,9 @@ mod tests {
                 ("prefers-reduced-transparency", "no-preference"),
                 ("prefers-contrast", "more"),
                 ("forced-colors", "active"),
+                ("dynamic-range", "standard"),
+                ("pointer", "fine"),
+                ("hover", "hover"),
             ]
         );
     }

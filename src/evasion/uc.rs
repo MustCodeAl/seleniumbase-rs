@@ -237,6 +237,23 @@ pub const UC_STEALTH_SCRIPT: &str = r#"
     }
   } catch(err) {}
 
+  // 8b. Document hasFocus & navigator.pdfViewerEnabled for headless challenge solving
+  try {
+    if (Document.prototype.hasFocus) {
+      const origHasFocus = Document.prototype.hasFocus;
+      Document.prototype.hasFocus = markNative(function hasFocus() {
+        return true;
+      }, 'hasFocus');
+    }
+  } catch(err) {}
+  try {
+    Object.defineProperty(Object.getPrototypeOf(navigator), 'pdfViewerEnabled', {
+      get: markNative(function getPdfViewerEnabled() { return true; }, 'get pdfViewerEnabled'),
+      configurable: true,
+      enumerable: true
+    });
+  } catch(err) {}
+
   // 9. MediaDevices enumeration mock.
   try {
     if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {

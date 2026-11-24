@@ -8,7 +8,7 @@
 //! | Job | Tools |
 //! |---|---|
 //! | Find the right method | `find_api`, `parity_lookup` |
-//! | Write Rust tests | `python_to_rust`, `scaffold` |
+//! | Write Rust tests | `python_to_rust`, `scaffold`, `scaffold_plugin` |
 //! | Use the command line | `cli_help`, `list_plugins`, `plugin_info`, `install_driver` |
 //! | Diagnose | `explain_error`, `check_config`, `check_fingerprint`, `diagnose_environment` |
 //!
@@ -79,11 +79,12 @@ mod tests {
     use super::*;
 
     /// The tools of the server, in the order they are listed.
-    const DEV_TOOLS: [&str; 12] = [
+    const DEV_TOOLS: [&str; 13] = [
         "find_api",
         "parity_lookup",
         "python_to_rust",
         "scaffold",
+        "scaffold_plugin",
         "cli_help",
         "list_plugins",
         "plugin_info",
