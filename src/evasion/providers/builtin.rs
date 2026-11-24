@@ -703,13 +703,23 @@ impl EvasionProvider for WindowGeometryProvider {
         let ratio = fp.pixel_ratio().value().copied();
         if native {
             // Width/height/scale are handled by CDP Emulation.setDeviceMetricsOverride.
-            // Only colorDepth is not covered by CDP, so patch it minimally.
+            // Only colorDepth is not covered by CDP, so patch it minimally, alongside orientation.
             let depth = depth?.to_string();
             return Some(render(
                 r##"(function () {
   @SB@
   try { sb.getter(Screen.prototype, 'colorDepth', function () { return @DEPTH@; }); } catch (e) {}
   try { sb.getter(Screen.prototype, 'pixelDepth', function () { return @DEPTH@; }); } catch (e) {}
+  try { sb.getter(Screen.prototype, 'availTop', function () { return 0; }); } catch (e) {}
+  try { sb.getter(Screen.prototype, 'availLeft', function () { return 0; }); } catch (e) {}
+  try {
+    if (typeof ScreenOrientation !== 'undefined') {
+      sb.getter(ScreenOrientation.prototype, 'type', function () {
+        return window.innerWidth >= window.innerHeight ? 'landscape-primary' : 'portrait-primary';
+      });
+      sb.getter(ScreenOrientation.prototype, 'angle', function () { return 0; });
+    }
+  } catch (e) {}
 })();"##,
                 &[("DEPTH", &depth)],
             ));
@@ -757,9 +767,19 @@ impl EvasionProvider for WindowGeometryProvider {
             r##"(function () {
   @SB@
   const defs = { @DEFS@ };
+  if (!('availTop' in defs)) { defs.availTop = 0; }
+  if (!('availLeft' in defs)) { defs.availLeft = 0; }
   Object.keys(defs).forEach(function (k) {
     try { sb.getter(Screen.prototype, k, function () { return defs[k]; }); } catch (e) {}
   });
+  try {
+    if (typeof ScreenOrientation !== 'undefined') {
+      sb.getter(ScreenOrientation.prototype, 'type', function () {
+        return window.innerWidth >= window.innerHeight ? 'landscape-primary' : 'portrait-primary';
+      });
+      sb.getter(ScreenOrientation.prototype, 'angle', function () { return 0; });
+    }
+  } catch (e) {}
   // outerWidth, outerHeight and devicePixelRatio are replaceable accessors that
   // live on window itself; keep their setter and enumerability.
   function replaceable(property, read) {
@@ -889,9 +909,23 @@ impl EvasionProvider for WebglProvider {
       if (parameter === 7936) { return 'WebKit'; }
       if (parameter === 7937) { return 'WebKit WebGL'; }
       if (parameter === 35724) { return 'WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)'; }
-      if (parameter === 3379 || parameter === 34024) { return maxTex; }
+      if (parameter === 3379 || parameter === 34024 || parameter === 34076) { return maxTex; }
+      if (parameter === 3386) { return new Int32Array([maxTex, maxTex]); }
       if (parameter === 34921) { return 16; }
       if (parameter === 34930) { return 32; }
+      if (parameter === 34929 || parameter === 34931) { return 16; }
+      if (parameter === 36347) { return 4096; }
+      if (parameter === 36348) { return 30; }
+      if (parameter === 36349) { return 1024; }
+      if (parameter === 33902) { return new Float32Array([1, 1]); }
+      if (parameter === 33901) { return new Float32Array([1, 1024]); }
+      if (parameter === 3414) { return 24; }
+      if (parameter === 3415) { return 8; }
+      if (parameter === 34047) { return 4294967295; }
+      if (parameter === 32883 || parameter === 35864) { return 2048; }
+      if (parameter === 36063 || parameter === 34852) { return 8; }
+      if (parameter === 35380) { return 256; }
+      if (parameter === 35377) { return 65536; }
       return original.apply(this, arguments);
     }, 'getParameter', original);
     const origPrecision = context.prototype.getShaderPrecisionFormat;
@@ -963,9 +997,23 @@ impl EvasionProvider for WebGpuProvider {
     gpu.requestAdapter = sb.native(function requestAdapter() { return Promise.resolve(null); }, 'requestAdapter', original);
     return;
   }
-  if (typeof GPUAdapterInfo === 'undefined') { return; }
-  try { sb.getter(GPUAdapterInfo.prototype, 'vendor', function () { return vendor; }); } catch (e) {}
-  try { sb.getter(GPUAdapterInfo.prototype, 'architecture', function () { return architecture; }); } catch (e) {}
+  if (typeof GPUAdapterInfo !== 'undefined') {
+    try { sb.getter(GPUAdapterInfo.prototype, 'vendor', function () { return vendor; }); } catch (e) {}
+    try { sb.getter(GPUAdapterInfo.prototype, 'architecture', function () { return architecture; }); } catch (e) {}
+  }
+  if (typeof GPUAdapter !== 'undefined') {
+    try {
+      sb.getter(GPUAdapter.prototype, 'info', function () {
+        return { vendor: vendor, architecture: architecture, device: '', description: '' };
+      });
+    } catch (e) {}
+    if (GPUAdapter.prototype.requestAdapterInfo) {
+      const origReq = GPUAdapter.prototype.requestAdapterInfo;
+      GPUAdapter.prototype.requestAdapterInfo = sb.native(function requestAdapterInfo() {
+        return Promise.resolve(this.info || { vendor: vendor, architecture: architecture, device: '', description: '' });
+      }, 'requestAdapterInfo', origReq);
+    }
+  }
 })();"##,
             &[
                 ("VENDOR", &quoted(maker)),
