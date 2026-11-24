@@ -6,8 +6,15 @@
 //! Recycles memory across page crawls with an $O(1)$ pointer reset, eliminating global heap
 //! contention and memory fragmentation without relying on third-party allocation crates.
 
+use std::alloc::Layout;
 use std::cell::RefCell;
 use std::fmt;
+use std::ptr::NonNull;
+
+use allocator_api2::alloc::{AllocError, Allocator};
+
+pub use allocator_api2::boxed::Box as ArenaBox;
+pub use allocator_api2::vec::Vec as ArenaVec;
 
 use super::table::TableData;
 use crate::error::SeleniumBaseError;
@@ -77,44 +84,78 @@ impl PageArena {
         }
     }
 
+    /// Allocates a value of type `T` on the arena, returning a mutable reference.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the arena allocation fails.
+    #[allow(
+        clippy::mut_from_ref,
+        reason = "Arena bump allocator provides interior mutability"
+    )]
+    pub fn alloc<T>(&self, val: T) -> &mut T {
+        let layout = Layout::new::<T>();
+        let non_null = self
+            .allocate(layout)
+            .expect("arena allocation must succeed");
+        // SAFETY: The allocated memory is uniquely borrowed, aligned, and properly sized for `T`.
+        unsafe {
+            let ptr = non_null.as_ptr() as *mut T;
+            std::ptr::write(ptr, val);
+            &mut *ptr
+        }
+    }
+
+    /// Allocates and copies a slice of elements into the arena.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the arena allocation fails.
+    #[allow(
+        clippy::mut_from_ref,
+        reason = "Arena bump allocator provides interior mutability"
+    )]
+    pub fn alloc_slice<T: Clone>(&self, slice: &[T]) -> &mut [T] {
+        let layout = Layout::array::<T>(slice.len()).expect("valid slice layout");
+        let non_null = self
+            .allocate(layout)
+            .expect("arena allocation must succeed");
+        // SAFETY: The allocated pointer is aligned and sized for `[T]`.
+        unsafe {
+            let ptr = non_null.as_ptr() as *mut T;
+            for (i, item) in slice.iter().enumerate() {
+                std::ptr::write(ptr.add(i), item.clone());
+            }
+            std::slice::from_raw_parts_mut(ptr, slice.len())
+        }
+    }
+
+    /// Creates a new [`ArenaVec`] using this arena as its custom allocator.
+    #[must_use]
+    pub fn new_vec_in<T>(&self) -> ArenaVec<T, &Self> {
+        ArenaVec::new_in(self)
+    }
+
+    /// Creates a new [`ArenaBox`] containing `val` using this arena as its allocator.
+    pub fn new_box_in<T>(&self, val: T) -> ArenaBox<T, &Self> {
+        ArenaBox::new_in(val, self)
+    }
+
     /// Allocates a string slice inside the arena, returning a reference whose lifetime
     /// matches the arena borrow.
     #[must_use]
     pub fn alloc_str<'a>(&'a self, text: &str) -> &'a str {
         let bytes = text.as_bytes();
-        let len = bytes.len();
-
-        let mut chunk_idx = *self.current_chunk.borrow();
-        let mut offset = *self.current_offset.borrow();
-
-        let target_cap = self.chunk_capacity.max(len);
-
-        // Check if we need to switch or add a chunk
-        if offset + len > self.chunk_capacity {
-            let next_idx = chunk_idx + 1;
-            let mut chunks = self.chunks.borrow_mut();
-            if next_idx >= chunks.len() {
-                chunks.push(vec![0u8; target_cap].into_boxed_slice());
-            }
-            chunk_idx = next_idx;
-            offset = 0;
-            *self.current_chunk.borrow_mut() = chunk_idx;
-            *self.current_offset.borrow_mut() = 0;
-        }
-
-        // SAFETY: The chunk buffer is allocated in a Box on the heap whose memory
-        // address does not change when new chunks are appended to `chunks`.
-        // The slice is only written here once and never mutated while borrowed.
-        let slice = unsafe {
-            let chunks_ref = &*self.chunks.as_ptr();
-            let chunk_ptr = chunks_ref[chunk_idx].as_ptr() as *mut u8;
-            let dest = std::slice::from_raw_parts_mut(chunk_ptr.add(offset), len);
+        let layout = Layout::for_value(bytes);
+        let non_null = self
+            .allocate(layout)
+            .expect("arena allocation must succeed");
+        // SAFETY: The memory is freshly allocated, non-overlapping, and copied from valid UTF-8.
+        unsafe {
+            let dest = std::slice::from_raw_parts_mut(non_null.as_ptr() as *mut u8, bytes.len());
             dest.copy_from_slice(bytes);
             std::str::from_utf8_unchecked(dest)
-        };
-
-        *self.current_offset.borrow_mut() = offset + len;
-        slice
+        }
     }
 
     /// Resets the allocation offsets in $O(1)$, recycling all pre-allocated chunks
@@ -132,6 +173,58 @@ impl PageArena {
         chunk_idx
             .saturating_mul(self.chunk_capacity)
             .saturating_add(offset)
+    }
+}
+
+// SAFETY: PageArena satisfies the Allocator contract by providing contiguous, properly aligned
+// memory buffers. Deallocations are no-ops because PageArena uses bump-allocation with O(1) bulk reset.
+unsafe impl Allocator for PageArena {
+    fn allocate(&self, layout: Layout) -> Result<NonNull<[u8]>, AllocError> {
+        let align = layout.align();
+        let size = layout.size();
+        if size == 0 {
+            let dangling = NonNull::new(align as *mut u8).ok_or(AllocError)?;
+            return Ok(NonNull::slice_from_raw_parts(dangling, 0));
+        }
+
+        let mut chunk_idx = *self.current_chunk.borrow();
+        let mut offset = *self.current_offset.borrow();
+
+        let aligned_offset =
+            (offset.saturating_add(align).saturating_sub(1)) & !(align.saturating_sub(1));
+        let needed_chunk_capacity = self.chunk_capacity.max(size.saturating_add(align));
+
+        if aligned_offset.saturating_add(size) > self.chunk_capacity {
+            let next_idx = chunk_idx + 1;
+            let mut chunks = self.chunks.borrow_mut();
+            if next_idx >= chunks.len() {
+                chunks.push(vec![0u8; needed_chunk_capacity].into_boxed_slice());
+            }
+            chunk_idx = next_idx;
+            offset = 0;
+            *self.current_chunk.borrow_mut() = chunk_idx;
+            *self.current_offset.borrow_mut() = 0;
+        }
+
+        let start_offset =
+            (offset.saturating_add(align).saturating_sub(1)) & !(align.saturating_sub(1));
+        let end_offset = start_offset.saturating_add(size);
+        *self.current_offset.borrow_mut() = end_offset;
+
+        // SAFETY: The chunk buffer is a Box heap allocation that remains valid and pinned.
+        let ptr = unsafe {
+            let chunks_ref = &*self.chunks.as_ptr();
+            let chunk_ptr = chunks_ref[chunk_idx].as_ptr() as *mut u8;
+            chunk_ptr.add(start_offset)
+        };
+
+        NonNull::new(ptr)
+            .map(|nn| NonNull::slice_from_raw_parts(nn, size))
+            .ok_or(AllocError)
+    }
+
+    unsafe fn deallocate(&self, _ptr: NonNull<u8>, _layout: Layout) {
+        // Bump arena: individual deallocations are no-ops; reclaimed on reset()
     }
 }
 
@@ -192,6 +285,25 @@ mod tests {
 
         arena.reset();
         assert_eq!(arena.allocated_bytes(), 0);
+    }
+
+    #[test]
+    fn arena_allocator_api_vec_and_box() {
+        let arena = PageArena::with_capacity(4096);
+        let mut vec = arena.new_vec_in::<u32>();
+        vec.push(10);
+        vec.push(20);
+        vec.push(30);
+        assert_eq!(vec.as_slice(), &[10, 20, 30]);
+
+        let b = arena.new_box_in("allocated in arena");
+        assert_eq!(*b, "allocated in arena");
+
+        let val_ref = arena.alloc(42usize);
+        assert_eq!(*val_ref, 42);
+
+        let slice_ref = arena.alloc_slice(&[1u8, 2, 3, 4, 5]);
+        assert_eq!(slice_ref, &[1, 2, 3, 4, 5]);
     }
 
     #[test]

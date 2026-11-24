@@ -5973,6 +5973,7 @@ dependencies = [
 name = "seleniumbase-rs"
 version = "0.9.2"
 dependencies = [
+ "allocator-api2 0.2.21",
  "anstream 0.6.21",
  "async-trait",
  "axum",

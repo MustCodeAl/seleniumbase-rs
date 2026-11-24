@@ -13,7 +13,7 @@ pub mod metadata;
 pub mod table;
 
 #[doc(inline)]
-pub use arena::{PageArena, TableDataArena};
+pub use arena::{ArenaBox, ArenaVec, PageArena, TableDataArena};
 #[doc(inline)]
 pub use form::FormData;
 #[doc(inline)]
