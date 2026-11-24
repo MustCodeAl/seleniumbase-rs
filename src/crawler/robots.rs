@@ -153,6 +153,7 @@ impl<'a> RobotsPolicy<'a> {
     /// Borrowed slices point directly to `content` without allocating new strings.
     #[must_use]
     pub fn parse(content: &'a str) -> Self {
+        let content = content.strip_prefix('\u{feff}').unwrap_or(content);
         let mut groups = Vec::new();
         let mut sitemaps = Vec::new();
 
@@ -227,29 +228,35 @@ impl<'a> RobotsPolicy<'a> {
     #[must_use]
     pub fn is_allowed(&self, user_agent: &str, path_or_url: &str) -> bool {
         let path = extract_path_and_query(path_or_url);
-        let Some(group) = self.find_group(user_agent) else {
+        if path == "/robots.txt" {
             return true;
-        };
+        }
+        let groups = self.matching_groups(user_agent);
+        if groups.is_empty() {
+            return true;
+        }
 
         let mut best_match: Option<(&RobotsRule<'a>, usize)> = None;
 
-        for rule in &group.rules {
-            if rule.path.is_empty() {
-                continue;
-            }
-            if matches_pattern(&rule.path, path) {
-                let rule_len = rule.path.len();
-                match best_match {
-                    None => {
-                        best_match = Some((rule, rule_len));
-                    }
-                    Some((prev_rule, prev_len)) => {
-                        if rule_len > prev_len
-                            || (rule_len == prev_len
-                                && rule.rule_type == RuleType::Allow
-                                && prev_rule.rule_type == RuleType::Disallow)
-                        {
+        for group in groups {
+            for rule in &group.rules {
+                if rule.path.is_empty() {
+                    continue;
+                }
+                if matches_pattern(&rule.path, path) {
+                    let rule_len = rule.path.len();
+                    match best_match {
+                        None => {
                             best_match = Some((rule, rule_len));
+                        }
+                        Some((prev_rule, prev_len)) => {
+                            if rule_len > prev_len
+                                || (rule_len == prev_len
+                                    && rule.rule_type == RuleType::Allow
+                                    && prev_rule.rule_type == RuleType::Disallow)
+                            {
+                                best_match = Some((rule, rule_len));
+                            }
                         }
                     }
                 }
@@ -265,7 +272,10 @@ impl<'a> RobotsPolicy<'a> {
     /// Returns the crawl delay specified for the given user agent, if configured.
     #[must_use]
     pub fn crawl_delay(&self, user_agent: &str) -> Option<Duration> {
-        self.find_group(user_agent).and_then(|g| g.crawl_delay)
+        self.matching_groups(user_agent)
+            .into_iter()
+            .filter_map(|g| g.crawl_delay)
+            .max()
     }
 
     /// Discovered sitemap URLs referenced in the policy.
@@ -291,39 +301,28 @@ impl<'a> RobotsPolicy<'a> {
         }
     }
 
-    fn find_group(&self, user_agent: &str) -> Option<&RobotsGroup<'a>> {
+    fn matching_groups(&self, user_agent: &str) -> Vec<&RobotsGroup<'a>> {
         let target_ua = user_agent.to_ascii_lowercase();
 
-        let mut best_group: Option<(&RobotsGroup<'a>, usize)> = None;
-
+        let mut specific_groups = Vec::new();
         for group in &self.groups {
             for ua in &group.user_agents {
                 let ua_lower = ua.to_ascii_lowercase();
-                if ua_lower == "*" {
-                    continue;
-                }
-                if target_ua.contains(&ua_lower) {
-                    let match_len = ua_lower.len();
-                    if best_group.as_ref().is_none_or(|(_, len)| match_len > *len) {
-                        best_group = Some((group, match_len));
-                    }
+                if ua_lower != "*" && (target_ua == ua_lower || target_ua.contains(&ua_lower)) {
+                    specific_groups.push(group);
+                    break;
                 }
             }
         }
 
-        if let Some((group, _)) = best_group {
-            return Some(group);
+        if !specific_groups.is_empty() {
+            return specific_groups;
         }
 
-        for group in &self.groups {
-            for ua in &group.user_agents {
-                if ua.trim() == "*" {
-                    return Some(group);
-                }
-            }
-        }
-
-        None
+        self.groups
+            .iter()
+            .filter(|g| g.user_agents.iter().any(|ua| ua.trim() == "*"))
+            .collect()
     }
 }
 
