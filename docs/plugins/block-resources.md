@@ -15,9 +15,15 @@ Protocol (`Network.setBlockedURLs`), so it needs a Chromium-based browser.
 
 Plugin name: `block-resources`. Needs a Chromium browser.
 
-Constructors: `BlockResources::images_and_fonts()`, `BlockResources::media()` and `BlockResources::patterns(...)`.
+Constructors: `BlockResources::images_and_fonts()`, `BlockResources::media()`, `BlockResources::stylesheets()`, `BlockResources::all()`, `BlockResources::kinds(...)`, `BlockResources::new(kinds, patterns)`, and `BlockResources::patterns(...)`.
 
 </Card>
+
+<Visibility for="agents">
+
+Summary for AI exports: block-resources is a built-in core plugin (feature `plugin-block-resources`, name `block-resources`) for Chromium browsers (`Requirements::CHROMIUM_ONLY`). It combines declarative `Plugin::network` `NetRule::block` filters on CDP `ResourceKind` (catching dynamic CDN URLs without file extensions) with `Network.setBlockedURLs` URL patterns on every tab. Options in `[plugins.block-resources]`: `preset` (`"images-and-fonts"`, `"media"`, `"stylesheets"`, `"all"`), `strip` / `kinds` (`image`, `font`, `media`, `stylesheet`/`css`, `script`, `xhr`, `fetch`, `websocket`, `other`), and `patterns` (URL wildcard list). Constructors: `BlockResources::new(kinds, patterns)`, `images_and_fonts()`, `media()`, `stylesheets()`, `all()`, `kinds(...)`, and `patterns(...)`.
+
+</Visibility>
 
 ```sh Terminal
 cargo add seleniumbase-rs-plugin-block-resources --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 0666904475f4f1f422f8f426f169f6a0e533e824
@@ -48,18 +54,32 @@ Give the set to `LaunchOptionsBuilder::plugins`, as shown in the
 
 | Constructor | Blocks |
 |---|---|
-| `BlockResources::images_and_fonts()` | Images (`*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.avif`, `*.svg`, `*.ico`) and web fonts (`*.woff`, `*.woff2`, `*.ttf`, `*.otf`) |
-| `BlockResources::media()` | Audio and video files (`*.mp4`, `*.webm`, `*.mp3`, `*.ogg`, `*.wav`, `*.m4a`) |
-| `BlockResources::stylesheets()` | CSS stylesheets (`*.css`) |
-| `BlockResources::resource_kinds(...)` | Declarative CDP `ResourceKind` blocking (`Image`, `Media`, `Font`, `Stylesheet`, `Script`) |
+| `BlockResources::images_and_fonts()` | Images (`*.png`, `*.jpg`, `*.jpeg`, `*.gif`, `*.webp`, `*.avif`, `*.svg`, `*.ico`) and web fonts (`*.woff`, `*.woff2`, `*.ttf`, `*.otf`) plus `ResourceKind::Image` & `ResourceKind::Font` |
+| `BlockResources::media()` | Audio and video files (`*.mp4`, `*.webm`, `*.mp3`, `*.ogg`, `*.wav`, `*.m4a`) plus `ResourceKind::Media` |
+| `BlockResources::stylesheets()` | CSS stylesheets (`*.css`) plus `ResourceKind::Stylesheet` |
+| `BlockResources::all()` | Images, web fonts, media, and stylesheets by both `ResourceKind` and extension |
+| `BlockResources::kinds(...)` | Declarative CDP `ResourceKind` blocking (`Image`, `Font`, `Media`, `Stylesheet`, `Script`, `Xhr`, `Fetch`, `WebSocket`, `Other`), catching extensionless CDN URLs like `/_next/image?url=...` |
+| `BlockResources::new(kinds, patterns)` | Custom combination of `ResourceKind` filters and URL wildcard patterns |
 | `BlockResources::patterns(...)` | URLs that match these patterns, such as `*://ads.example.com/*` (`*` matches anything) |
+
+Use `blocked_kinds()` and `blocked_patterns()` to inspect configured filters.
+
+## Options
+
+Configure through `[plugins.block-resources]` in `sbase_config.toml` or `--plugin-opt`:
+
+- **`preset`**: `"images-and-fonts"` (default), `"media"`, `"stylesheets"`, or `"all"`.
+- **`strip`** (alias **`kinds`**): Array of resource kinds (`"image"`, `"font"`, `"media"`, `"stylesheet"`, `"script"`, `"xhr"`, `"fetch"`, `"websocket"`, `"other"`).
+- **`patterns`**: Array of URL wildcard patterns.
 
 ## How it works
 
 The plugin is named `block-resources` and requires a Chromium browser
-(`Requirements::CHROMIUM_ONLY`). In `on_page_created` it sends `Network.enable`
-and then `Network.setBlockedURLs` with the patterns, to every tab. A failed
-command stops the tab, and the error names the plugin and the hook.
+(`Requirements::CHROMIUM_ONLY`). It declares `Capability::NetIntercept` rules via
+`Plugin::network` for configured `ResourceKind` values and URL patterns, and in
+`on_page_created` sends `Network.enable` and `Network.setBlockedURLs` when URL
+patterns are set. A failed command stops the tab, and the error names the plugin
+and the hook.
 
 ```mermaid
 sequenceDiagram

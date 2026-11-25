@@ -408,7 +408,7 @@ mod tests {
         // which needs no escaping whatever characters the id holds.
         let found = session.find(SelectorRef::Id("a b")).await.unwrap();
 
-        assert_eq!(found.to_string(), "[id=\"a b\"]");
+        assert_eq!(found.to_string(), "id=a b");
         let asked = driver.requests("/element");
         assert_eq!(asked[0].body["using"], "css selector");
         assert_eq!(asked[0].body["value"], "[id=\"a b\"]");

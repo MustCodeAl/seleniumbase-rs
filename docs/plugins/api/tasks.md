@@ -312,7 +312,7 @@ impl Clock {
 
 What a task uses for sleeping, time limits and the current time. The API
 crate has no runtime. seleniumbase-rs gives the set a timer that sleeps on
-its own runtime (`PluginSet::with_timer`). A test gives it `ManualTimer`
+its own runtime (`PluginSetBuilder::with_timer`). A test gives it `ManualTimer`
 from `seleniumbase-rs-plugin-testing`, which moves when the test says so.
 
 `sleep` waits for `duration`. `now_ms` is milliseconds since the Unix epoch,

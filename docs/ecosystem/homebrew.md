@@ -135,6 +135,7 @@ Homebrew builds it from the release source (it needs Rust, which Homebrew
 installs for the build). You get:
 
 - `sbrs` and `sbrs-mcp` on your `PATH`;
+- man pages (`man sbrs` and `man sbrs-mcp`) in Homebrew's `man1` directory;
 - shell completions for bash, zsh, fish and PowerShell, installed where your
   shell finds them. **Warp** uses them too: it falls back to your shell's
   completions for commands it has no built-in spec for (on by default);
@@ -143,6 +144,12 @@ installs for the build). You get:
 <LayoutTree>
   <LayoutDir name="$(brew --prefix)" open>
     <LayoutDir name="share" open>
+      <LayoutDir name="man" open>
+        <LayoutDir name="man1" open>
+          <LayoutFile name="sbrs.1" note="Manual page for `sbrs`" />
+          <LayoutFile name="sbrs-mcp.1" note="Manual page for `sbrs-mcp`" />
+        </LayoutDir>
+      </LayoutDir>
       <LayoutDir name="sbrs" open>
         <LayoutDir name="fig" open>
           <LayoutFile name="sbrs.ts" note="A Fig completion spec, for inshellisense and other Fig-spec tools" />

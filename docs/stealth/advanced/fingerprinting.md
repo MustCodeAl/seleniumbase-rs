@@ -1,266 +1,168 @@
-# Advanced Fingerprinting & Low-Level Browser Impersonation
-
-This document details the advanced fingerprinting architecture, parameters, calculations,
-and low-level native spoofing evasions in `seleniumbase-rs` and `seleniumbase-rs-stealth`.
-
-Modern anti-bot solutions (Cloudflare Turnstile, DataDome, Akamai, Kasada, FingerprintJS Pro,
-PerimeterX/HUMAN) do not rely solely on `navigator.webdriver`. Instead, they evaluate
-cross-layer consistency across hundreds of browser signals: WebGL rendering parameters and
-extension matrices, audio frequency response curves, canvas font probe dimensions, high-entropy
-Client Hints, screen color gamut and dynamic range (HDR), SVG/MathML metrics, and CDP evaluation
-stack traces.
-
-`seleniumbase-rs` pairs hardware-coherent fingerprint generation with low-level browser
-prototype and protocol-level engine patching in an idiomatic, strictly typed Rust API.
-
+---
+title: "Advanced fingerprinting"
+sidebarTitle: "Advanced fingerprinting"
+description: "Multi-layer browser identity synthesis and prototype-coherent spoofing across WebGL 1/2, WebGPU, Canvas/OffscreenCanvas, DOMRect geometry, Web Audio & AnalyserNode, font metrics, Client Hints, CDP stack sanitization, and Mimic specimens."
 ---
 
-## 1. Unified Profile JSON Architecture
+<Badge color="blue">Module: evasion</Badge> <Badge color="purple">Crate: seleniumbase-rs-stealth</Badge>
 
-Rather than relying on fragmented, arbitrary keys, `seleniumbase-rs` defines a **canonical profile representation** where JSON field names map 1:1 to the public [`Fingerprint`](file:///Users/notlaggy/Documents/GitFolder/seleniumbase-rs/src/evasion/fingerprint.rs) and `FingerprintBuilder` methods:
+Modern anti-bot systems do not rely on a single flag like `navigator.webdriver`. They cross-check **graphics limits, shader precision, audio analyzer buffers, canvas font probe bounding boxes, subpixel `DOMRect` geometry, high-entropy Client Hints, display color gamut, and CDP evaluation stacks** for internal contradictions.
 
-```json
-{
-  "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-  "platform": "Win32",
-  "languages": ["en-US", "en"],
-  "hardware_concurrency": 8,
-  "device_memory": 8.0,
-  "webgl_vendor": "Google Inc. (NVIDIA)",
-  "webgl_renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4080 Direct3D11 vs_5_0 ps_5_0, D3D11)",
-  "canvas_noise": "persistent",
-  "audio_noise": "persistent",
-  "webrtc_policy": "disable_non_proxied_udp",
-  "audio_sample_rate": 48000,
-  "screen_width": 1920,
-  "screen_height": 1080,
-  "device_pixel_ratio": 1.0,
-  "color_depth": 24,
-  "color_gamut": "srgb",
-  "hdr": false,
-  "timezone": "America/New_York"
-}
-```
+`seleniumbase-rs` combines deterministic, hardware-coherent persona modeling (`src/evasion/fingerprint.rs`, `src/evasion/mimic.rs`, `src/evasion/randomize.rs`) with 32 prototype- and protocol-level `EvasionProvider` passes (`src/evasion/providers/builtin.rs`).
 
-### Clean Deserialization & Direct Accessors
-- **`languages`**: Accepts either a clean JSON string array (`["en-US", "en"]`) or a standard comma-separated string (`"en-US,en"`).
-- **Direct Accessors**:
-  ```rust
-  let fp = Fingerprint::from_json(json_text)?;
-  assert_eq!(fp.webgl_vendor(), Some("Google Inc. (NVIDIA)"));
-  assert_eq!(fp.canvas_noise(), CanvasNoise::Persistent);
-  assert_eq!(fp.audio_sample_rate(), Some(48000));
-  ```
+## 1. Fluent builder, JSON profiles, and validation
 
----
-
-## 2. Display Characteristics, Color Gamut & Dynamic Range (HDR)
-
-Modern anti-bot detection examines media query consistency (`window.matchMedia`) to detect
-headless emulators and mismatched hardware claims.
-
-### Color Gamut (`ColorGamut`)
-- **`Srgb`**: Standard gamut for ordinary desktop and laptop displays (Windows and Linux).
-- **`P3` (Display P3)**: Wide gamut native to Apple Retina displays (macOS, iOS) and high-end OLED mobile devices.
-- **`Rec2020`**: Ultra-wide gamut used in professional HDR mastering.
-
-### Dynamic Range (`DynamicRange` / `HdrMode`)
-Anti-fingerprinting scripts probe `@media (dynamic-range: high)` and `@media (video-dynamic-range: high)`:
-```rust
-use seleniumbase_rs::evasion::settings::{ColorGamut, DynamicRange, MediaFeatures};
-
-let features = MediaFeatures {
-    color_gamut: ColorGamut::P3,
-    dynamic_range: DynamicRange::High,
-    ..MediaFeatures::default()
-};
-```
-When injected, `Emulation.setEmulatedMedia` overrides both `color-gamut` and `dynamic-range` in lockstep, ensuring that CSS `@media` rules, `matchMedia('(dynamic-range: high)')`, and `screen.colorDepth` (30-bit for HDR vs 24-bit for SDR) remain coherent.
-
----
-
-## 3. WebGL Hardware Emulation & Extension Matrices
-
-Simply overriding `UNMASKED_VENDOR_WEBGL` (37445) and `UNMASKED_RENDERER_WEBGL` (37446) is a known
-detection vector on anti-bot fingerprinting probes if auxiliary parameters disagree with the claimed hardware.
-
-### Full Parameter Emulation
-`WebglProvider` hooks `getParameter` on both `WebGLRenderingContext` and `WebGL2RenderingContext` to emulate:
-1. `gl.VENDOR` (`7936`): Fixed to `'WebKit'`.
-2. `gl.RENDERER` (`7937`): Fixed to `'WebKit WebGL'`.
-3. `gl.SHADING_LANGUAGE_VERSION` (`35724`): `'WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)'`.
-4. `gl.MAX_TEXTURE_SIZE` (`3379`) & `gl.MAX_RENDERBUFFER_SIZE` (`34024`):
-   - Desktop: `16384`
-   - Mobile: `8192` (or `4096`)
-5. `gl.MAX_VERTEX_ATTRIBS` (`34921`): `16`.
-6. `gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS` (`34930`): `32`.
-7. `gl.MAX_VARYING_VECTORS` (`36347`): `30` (Desktop) / `15` (Mobile).
-
-### Realistic WebGL Extension Matrices
-Real Chromium instances expose a specific matrix of WebGL extensions depending on the GPU backend (ANGLE Direct3D11 on Windows, ANGLE Metal on macOS, Desktop OpenGL on Linux):
-
-```rust
-use seleniumbase_rs::evasion::randomize::windows_d3d11_extensions;
-use seleniumbase_rs::evasion::settings::WebGl;
-
-let gl = WebGl::new("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, GeForce RTX 4070 Direct3D11)")
-    .extensions(windows_d3d11_extensions())
-    .max_texture_size(16384);
-```
-- **Mobile Profiles**: Desktop texture compression extensions (`WEBGL_compressed_texture_s3tc`, `EXT_texture_compression_bptc`, `EXT_texture_compression_rgtc`) are stripped from `getSupportedExtensions()` and return `null` on `getExtension()`, matching mobile Mali and Adreno GPUs.
-
----
-
-## 4. Web Audio API & Sample Rate Spoofing
-
-Audio fingerprinting renders a synthetic audio signal through an oscillator and `DynamicsCompressorNode`, measuring the resulting floating-point buffer digest.
-
-### Dual Protections in `AudioNoiseProvider`
-1. **Sample Rate Alignment (`audio_sample_rate`)**:
-   - macOS / Apple Silicon: `48000 Hz`
-   - Windows 10/11: `48000 Hz` (modern) or `44100 Hz`
-   - Linux: `44100 Hz`
-   `AudioContext.prototype.sampleRate` is mocked with a native getter to match the hardware persona.
-2. **Buffer Perturbation**:
-   - `AudioBuffer.prototype.getChannelData` and `copyFromChannel` apply deterministic pseudo-random noise seeded by the profile's session seed.
-3. **`OfflineAudioContext.prototype.startRendering` Hook**:
-   - Hooks the rendering Promise resolution to ensure the output buffer is perturbed before the page can calculate an unmasked SHA-256 or MD5 audio hash.
-
----
-
-## 5. Dual-Layer Font Protection & Canvas Probe Shield
-
-Font fingerprinting attacks operate via two distinct vectors:
-1. `document.fonts.check()` / `FontFaceSet.prototype.load()`.
-2. Canvas text measurement: setting `ctx.font = '72px "' + font + '", monospace'` and probing `ctx.measureText('mmmmmmmmllli').width`.
-
-`FontsProvider` deploys a two-tier shield:
-- **FontFaceSet Restrictor**: Restricts loading and checking to the profile's allowed system fonts.
-- **Canvas Probe Shield**: Hooks `CanvasRenderingContext2D.prototype.measureText`. When an unauthorized font family is detected in `this.font`, it temporarily substitutes the font specification with generic `sans-serif` before measuring, ensuring that probe scripts cannot measure host font bounding box differences:
-
-```javascript
-// CanvasRenderingContext2D measureText shield
-const originalMeasure = CanvasRenderingContext2D.prototype.measureText;
-CanvasRenderingContext2D.prototype.measureText = sb.native(function measureText(text) {
-  const family = parseFamily(this.font);
-  if (family && !available(family)) {
-    const saved = this.font;
-    try {
-      this.font = this.font.replace(new RegExp(family, 'g'), 'sans-serif');
-      return originalMeasure.apply(this, arguments);
-    } finally {
-      this.font = saved;
-    }
-  }
-  return originalMeasure.apply(this, arguments);
-}, 'measureText', originalMeasure);
-```
-
----
-
-## 6. Client Hints High-Entropy Calculations
-
-Chromium's `navigator.userAgentData.getHighEntropyValues()` exposes architecture, bitness, and detailed platform versions that must match the HTTP `Sec-CH-UA-*` headers exactly.
-
-`seleniumbase-rs` calculates coherent values based on the persona:
-| OS Persona | `architecture` | `bitness` | `platformVersion` | `wow64` | `model` |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **Windows 11** | `"x86"` | `"64"` | `"15.0.0"` | `false` | `""` |
-| **Windows 10** | `"x86"` | `"64"` | `"10.0.0"` | `false` | `""` |
-| **macOS (Apple Silicon)** | `"arm"` | `"64"` | `"15.0.0"` | `false` | `""` |
-| **Linux** | `"x86"` | `"64"` | `"6.5.0"` | `false` | `""` |
-| **Android (Pixel 8)** | `"arm"` | `"64"` | `"14.0.0"` | `false` | `"Pixel 8"` |
-
----
-
-## 7. MathML & SVG Subpixel Metric Normalization
-
-Advanced bots inspect subpixel rendering of MathML expressions (`<math>`, `<mfrac>`) and SVG paths (`SVGGraphicsElement.prototype.getBBox`).
-
-Because different operating systems rasterize fonts and glyph curves with slightly different floating-point bounding boxes, `seleniumbase-rs` normalizes subpixel dimensions on DOM rect accessors (`SVGGraphicsElement.prototype.getBBox` and `Element.prototype.getBoundingClientRect`) to eliminate cross-platform rasterization leaks.
-
----
-
-## 8. Chrome Proprietary APIs & Environment Hygiene
-
-Real desktop Chromium environments expose unique browser APIs that headless runners frequently omit:
-1. **`performance.memory` Heap Emulation**:
-   - `jsHeapSizeLimit` (`4,294,705,152` bytes on 64-bit systems)
-   - `totalJSHeapSize` and `usedJSHeapSize` realistic dynamic allocation objects.
-2. **`navigator.pdfViewerEnabled`**: Emulated as `true` on desktop personas matching genuine Chrome.
-3. **Pointer Accuracy & Hover Capabilities**:
-   - Desktop: `@media (pointer: fine)` and `@media (hover: hover)`.
-   - Mobile: `@media (pointer: coarse)` and `@media (hover: none)`.
-4. **Shader Precision Formats (`gl.getShaderPrecisionFormat`)**:
-   - Emulates hardware shader precision (`rangeMin: 127`, `rangeMax: 127`, `precision: 23`) to prevent GPU vendor mismatch detection.
-
----
-
-## 9. CDP Inspection & Stack Frame Sanitization
-
-When browser automation tools execute JavaScript via CDP `Runtime.evaluate`, internal stack traces expose automation scripts.
-
-### Native Function & Error Stack Sanitization
-1. **`Function.prototype.toString`**: Every hooked function reports `function () { [native code] }` and retains its original descriptor properties (`writable`, `enumerable`, `configurable`).
-2. **`Error.prototype.stack` Filtering**:
-   ```javascript
-   // Removes CDP evaluation artifacts
-   error.stack.split('\n').filter(line => (
-     !line.includes('__puppeteer_evaluation_script__') &&
-     !line.includes('__playwright_evaluation_script__') &&
-     !line.includes('eval at <anonymous>')
-   )).join('\n');
-   ```
-3. **Binary Scrubbing**: `scrub_k_automation_controlled` and `scrub_enable_automation` in `patcher.rs` ensure `navigator.webdriver` is missing at the C++ engine level without relying solely on JavaScript prototype deletion.
-
----
-
-## 10. Complete Rust Example
+All fingerprint fields live on `Fingerprint` and serialize cleanly with JSON field names matching `FingerprintBuilder` setters:
 
 ```rust
 use seleniumbase_rs::evasion::fingerprint::{
     AudioNoise, CanvasNoise, Fingerprint, OsType, WebRtcPolicy,
 };
 use seleniumbase_rs::evasion::settings::{ColorGamut, DynamicRange, MediaFeatures, WebGl};
-use seleniumbase_rs::evasion::randomize::windows_d3d11_extensions;
-use seleniumbase_rs::sb_cdp::ContextOptions;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Build an advanced fingerprint
-    let fp = Fingerprint::builder()
-        .os_type(OsType::Windows)
-        .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
-        .languages_list(&["en-US", "en"])
-        .hardware_concurrency(16)
-        .device_memory(16.0)
-        .webgl(
-            WebGl::new("Google Inc. (NVIDIA)", "ANGLE (NVIDIA, GeForce RTX 4080 Direct3D11)")
-                .extensions(windows_d3d11_extensions())
-                .max_texture_size(16384)
+let fp = Fingerprint::builder()
+    .os_type(OsType::Windows)
+    .core_version(157)
+    .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36")
+    .languages_list(&["en-US", "en"])
+    .hardware_concurrency(8)
+    .device_memory(8.0)
+    .webgl(
+        WebGl::new(
+            "Google Inc. (NVIDIA)",
+            "ANGLE (NVIDIA, NVIDIA GeForce RTX 4070 Direct3D11 vs_5_0 ps_5_0, D3D11)",
         )
-        .canvas_noise(CanvasNoise::Persistent)
-        .audio_noise(AudioNoise::Persistent)
-        .audio_sample_rate(48000)
-        .webrtc_policy(Some(WebRtcPolicy::DisableNonProxiedUdp))
-        .media_features(MediaFeatures {
-            color_gamut: ColorGamut::Srgb,
-            dynamic_range: DynamicRange::Standard,
-            ..MediaFeatures::default()
-        })
-        .build()?;
+        .max_texture_size(16384),
+    )
+    .canvas_noise(CanvasNoise::Persistent)
+    .audio_noise(AudioNoise::Persistent)
+    .audio_sample_rate(48_000)
+    .webrtc_policy(Some(WebRtcPolicy::DisableNonProxiedUdp))
+    .media_features(MediaFeatures {
+        color_gamut: ColorGamut::Srgb,
+        dynamic_range: DynamicRange::Standard,
+        ..MediaFeatures::default()
+    })
+    .native_spoofing(true)
+    .build()?;
 
-    // 2. Export / Save profile as unified JSON
-    let json_file = "profiles/stealth_rtx4080.json";
-    fp.save(json_file)?;
-
-    // 3. Launch an undetected browser context
-    let options = ContextOptions::builder()
-        .viewport(1920, 1080)
-        .fingerprint(fp)
-        .build()?;
-
-    println!("Advanced fingerprint initialized and ready.");
-    Ok(())
-}
+let report = fp.validate();
+assert!(report.is_coherent());
+Ok::<(), Box<dyn std::error::Error>>(())
 ```
+
+Before launching a browser, `Fingerprint::validate()` produces a `CoherenceReport` checking:
+
+- **OS & User-Agent agreement** (`navigator.platform`, mobile `maxTouchPoints`, desktop vs mobile GPU strings).
+- **Graphics & WebGL consistency** (e.g., rejecting Direct3D/ANGLE renderers paired with macOS or Linux).
+- **Client Hints coherence** (`Sec-CH-UA` major versions matching `core_version`, `platform`, `mobile`, `formFactors`, and brand versions).
+- **Locale & timezone pairing** via `randomize::Place` and `KeyboardLayout`.
+
+You can also draw a complete, internally consistent persona from a single seed:
+
+```rust
+use seleniumbase_rs::evasion::fingerprint::{Fingerprint, OsType};
+
+let windows = Fingerprint::randomized(OsType::Windows, 42);
+let chrome_156 = Fingerprint::randomized_with_major(OsType::Macos, 99, 156);
+assert!(windows.validate().is_coherent());
+assert_eq!(chrome_156.core_version(), Some(156));
+```
+
+## 2. Recorded specimens (`Spoof::Mimic`)
+
+Rather than assembling device parameters manually, `Spoof::Mimic(Specimen)` (`src/evasion/mimic.rs`) pins individual settings or entire dimensions to real, cataloged browser builds and hardware rows:
+
+| Specimen kind | Example use | What it supplies |
+|---|---|---|
+| `Specimen::Build(Build)` | Chrome or Edge desktop/mobile release | Real frozen UA format, `core_version`, brand matrix, known full build version with provenance (`Provenance`) |
+| `Specimen::Machine(Machine)` | `macbook-13-m1`, `windows-uhd-620`, etc. | Coherent CPU cores, RAM, screen geometry, DPR, color gamut, WebGL vendor/renderer & extension tables |
+| `Specimen::Place(Place)` | `de-de-berlin`, locale/region pairs | IANA timezone, locale, `Accept-Language`, keyboard layout, coordinates |
+| `Specimen::Rendering(Rendering)` | Recorded build + machine outputs | Captured reference outputs for rendering probes |
+
+## 3. Display, color gamut, and HDR (`MediaFeatures`)
+
+Bot scripts compare CSS `@media` queries against JavaScript properties (`screen.colorDepth`, `screen.isExtended`, `devicePixelRatio`):
+
+- **`ColorGamut`**: `Srgb` (typical Windows/Linux desktop), `P3` (Apple Retina displays and wide-gamut displays), and `Rec2020`.
+- **`DynamicRange`**: `Standard` (24-bit SDR) vs `High` (HDR monitors paired with `dynamic-range: high` and `video-dynamic-range: high`).
+- **`ScreenProvider` & `WindowGeometryProvider`**: Overrides `screen.*` dimensions, `availWidth`/`availHeight`, `isExtended`, `outerWidth`/`outerHeight`, and synchronizes `Emulation.setEmulatedMedia` when CDP native spoofing is enabled.
+
+## 4. WebGL 1/2 parameter matrices and WebGPU
+
+Changing only unmasked WebGL strings (`37445` / `37446`) is trivial to detect when WebGL2 limits disagree with the claimed GPU backend:
+
+- **`WebglProvider`**: Hooks `getParameter` on both `WebGLRenderingContext` and `WebGL2RenderingContext`, emulating WebGL1 and WebGL2 constants (`MAX_TEXTURE_SIZE`, `MAX_RENDERBUFFER_SIZE`, `MAX_COMBINED_TEXTURE_IMAGE_UNITS`, `MAX_VERTEX_UNIFORM_VECTORS`, WebGL2 `MAX_ARRAY_TEXTURE_LAYERS` / `MAX_UNIFORM_BUFFER_BINDINGS` / `MAX_DRAW_BUFFERS` / `MAX_COLOR_ATTACHMENTS`), `getSupportedExtensions()` matrices per OS/backend, `getShaderPrecisionFormat`, and deterministic `readPixels` perturbation when `CanvasNoise` is active.
+- **`WebGpuProvider`**: Aligns `navigator.gpu.requestAdapter()`, `GPUAdapterInfo` (`vendor`, `architecture`), `GPUAdapter.prototype.info`, and `requestAdapterInfo()` with the configured GPU maker (`nvidia`, `apple`, `intel`, `amd`). On Linux personas without Intel drivers, `requestAdapter()` gracefully returns `Promise.resolve(null)` to avoid impossible GPU claims.
+
+## 5. Canvas, `OffscreenCanvas`, and `DOMRect` protection
+
+Modern detectors fingerprint rendering outside `<canvas>.toDataURL()` alone:
+
+- **`CanvasNoiseProvider`**: Injects seeded, coordinate-deterministic noise into:
+  - `HTMLCanvasElement.prototype.toDataURL` and `toBlob` (using an offscreen noisy clone so visible canvases remain unaltered).
+  - `CanvasRenderingContext2D.prototype.getImageData`.
+  - `OffscreenCanvas.prototype.convertToBlob` and `OffscreenCanvasRenderingContext2D.prototype.getImageData`.
+  - `measureText` wrappers aligned with both 2D and `OffscreenCanvas` contexts.
+- **`DomRectProvider`**: Applies deterministic ~`1e-4` CSS pixel micro-jitter derived from the session seed and element bounds to `Element.prototype.getBoundingClientRect`, `Element.prototype.getClientRects`, `Range.prototype.getBoundingClientRect`, and `Range.prototype.getClientRects`. Exact identities (`right = left + width`, `bottom = top + height`) stay intact while breaking cross-run subpixel font/MathML/SVG box hashes.
+
+## 6. Web Audio, latency, and `AnalyserNode` consistency
+
+`AudioNoiseProvider` coordinates prototype overrides without attaching own properties on instances (preserving empty `Object.keys()` checks on audio nodes):
+
+- Overrides `AudioContext.prototype.sampleRate` when `audio_sample_rate` is configured (`44100` or `48000`).
+- Emulates hardware-plausible `AudioContext.prototype.baseLatency`, `AudioContext.prototype.outputLatency`, and `AudioDestinationNode.prototype.maxChannelCount` (`2`).
+- Perturbs `AudioBuffer.prototype.getChannelData`, `AudioBuffer.prototype.copyFromChannel`, `OfflineAudioContext.prototype.startRendering`, and `AnalyserNode.prototype` (`getFloatFrequencyData`, `getByteFrequencyData`, `getFloatTimeDomainData`, `getByteTimeDomainData`).
+
+## 7. Font enumeration and Client Hints coherence
+
+- **`FontsProvider`**: Filters `document.fonts.check()` and `FontFaceSet.prototype.load()` against the profile's OS-appropriate font allowlist, and shields `CanvasRenderingContext2D.prototype.measureText` by substituting unknown requested families with generic fallbacks before measurement.
+- **`ClientHintsProvider`**: When `native_spoofing` is off or not yet applied at launch, mirrors `navigator.userAgentData` in secure contexts—including `brands`, `fullVersionList`, `platform`, `platformVersion`, `architecture`, `bitness`, `model`, `uaFullVersion`, `wow64`, and `formFactors`. When `native_spoofing` is enabled, `Emulation.setUserAgentOverride` delivers the identical Client Hints metadata directly from the browser engine so HTTP headers and JS agree automatically.
+
+## 8. Runtime hygiene and binary patching
+
+- **`NativeToStringProvider`**: Preserves `[native code]` output from `Function.prototype.toString` and native property descriptor metadata for every injected hook.
+- **`CdpMarkerProvider`**: Strips `cdc_` / `$cdc_` / `__webdriver*` / `__selenium*` / `__driver*` / `__fxdriver*` globals across prototype chains and filters evaluation stack traces (`__puppeteer_evaluation_script__`, `__playwright_evaluation_script__`, `UtilityScript.`, `ExecutionContext.evaluate`, `devtools://`, `__sbcdp`) inside `Error.prototype.stack` while leaving `Error.prepareStackTrace` untouched.
+- **Engine-level scrubbing**: Pairs with [Binary patching](/stealth/advanced/binary-patching) (`ChromedriverPatcher`, `ChromeBinaryPatcher`, and `sbrs patch-chromedriver` / `sbrs patch-chrome`) to neutralize automation flags and markers before the browser process runs.
+
+## 9. High-level synthesis in `seleniumbase-rs-stealth`
+
+For multi-profile orchestration or persisting profiles across browser and wire runs, `seleniumbase-rs-stealth` (`seleniumbase_rs_stealth::fingerprint`) adds:
+
+- **`FingerprintGenerator`**: One seeded builder producing a `GeneratedFingerprint` bundled with a `StealthScriptBundle` and coherent `ProfileFingerprint` (including `DisplayMetadata`, `GpuMetadata`, `WebGlParameters::for_gpu`, `WebGpuMetadata::for_gpu`, `MediaDeviceMetadata::synthetic`, `AudioMetadata`, `BatteryMetadata`, `NetworkMetadata`, and `ClientHintsHighEntropy::for_browser`).
+- **`ProfileFingerprint::to_fingerprint()` / `from_fingerprint()`**: Bidirectional conversion with `seleniumbase_rs::evasion::fingerprint::Fingerprint`.
+
+```rust
+use seleniumbase_rs::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::fingerprint::FingerprintGenerator;
+
+let generated = FingerprintGenerator::new(2026)
+    .os(OsType::Macos)
+    .audio_sample_rate(48_000)
+    .hdr(true)
+    .generate();
+
+let fp = generated.profile.to_fingerprint()?;
+assert!(fp.validate().is_coherent());
+Ok::<(), Box<dyn std::error::Error>>(())
+```
+
+<Columns cols={2}>
+
+<Card title="Evasion providers" icon="microchip" color="#1a85d4" href="/stealth/advanced/providers">
+  Execution order, priorities, and writing custom `EvasionProvider` passes.
+</Card>
+
+<Card title="Binary patching" icon="wrench" color="#d47628" href="/stealth/advanced/binary-patching">
+  Inspect and scrub `chromedriver` and Chromium binaries before launch.
+</Card>
+
+<Card title="Network patching" icon="network-wired" color="#a631be" href="/concepts/network-patching">
+  Understand TLS, HTTP/2, HTTP/3, and loopback MitM wire alignment.
+</Card>
+
+<Card title="Stealth settings" icon="sliders" color="#199f43" href="/api/stealth-settings">
+  Full reference for `Fingerprint`, `Spoof`, and `StealthPolicy`.
+</Card>
+
+</Columns>

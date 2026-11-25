@@ -24,7 +24,9 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `double_click_with_offset(selector, x, y)` | The same with a double click, and the same call builder. |
 | `click_nth_visible_element(selector, number)` | Clicks the `number`th visible match, counting from 1; a `number` of 0 fails with `InvalidConfig`. Returns a call builder with `.timeout(Duration)` and `.scroll(bool)` (on by default). |
 | `click_chain(selectors)` | Clicks each selector in order. |
+| `human_click(selector)` | Clicks the element using randomized curved Bézier pointer movement and human-like click timing. |
 | `type_text(selector, text)` | Clears and types. |
+| `human_type(selector, text)` | Types `text` character by character with randomized human typing cadence and natural inter-keystroke intervals. |
 | `add_text(selector, text)` | Appends text. |
 | `send_keys(selector, text)` | Sends keystrokes to the element. |
 | `press_keys(selector, text)` | Types `text` into the element one key at a time; a trailing `\n` presses Enter. |
@@ -48,6 +50,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `uncheck_if_checked(selector)` | Unchecks a checkbox only if checked. |
 | `is_checked(selector)` | Returns true if the element is checked. |
 | `choose_file(selector, path)` | Sets a file input value. |
+| `fill_form(&data)` | Automatically fills in form inputs (`input`, `textarea`, `select`) matching the fields of a serializable struct `&T`. |
 
 All `selector` arguments accept the same formats described in the
 [Selectors guide](/tutorials/selectors).

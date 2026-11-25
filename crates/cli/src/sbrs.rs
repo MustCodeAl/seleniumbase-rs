@@ -38,7 +38,7 @@ use seleniumbase_rs::utilities::importer::{
 };
 use seleniumbase_rs::{
     import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
-    ChromedriverPatcher, DriverMode, EnginePatch, ImportOptions, ImportSeverity, PythonSource,
+    ChromedriverPatcher, DriverMode, ImportOptions, ImportSeverity, PatchPreset, PythonSource,
     RuntimeConfig,
 };
 use serde_json::{json, Value};
@@ -136,6 +136,48 @@ impl From<GridActionArg> for sb_grid::GridAction {
             GridActionArg::Stop => Self::Stop,
             GridActionArg::Restart => Self::Restart,
             GridActionArg::Status => Self::Status,
+        }
+    }
+}
+
+/// Named binary patching presets accepted by `sbrs patch-chromedriver` and `sbrs patch-chrome`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, usage::ValueEnum)]
+enum PatchPresetArg {
+    /// Conservative patches (`cdc_` properties, prefixes, core `__webdriver` globals) with `.orig` backup.
+    Balanced,
+    /// Full standard set of driver and browser markers with `.orig` backup.
+    All,
+    /// Maximum scrubbing including embedded `sourceURL` comments and DOM automation flags.
+    Aggressive,
+    /// Preset tuned for cloning and patching Chrome/Chromium binaries in cache.
+    #[usage(name = "chrome-binary")]
+    ChromeBinary,
+}
+
+impl From<PatchPresetArg> for PatchPreset {
+    fn from(value: PatchPresetArg) -> Self {
+        match value {
+            PatchPresetArg::Balanced => Self::Balanced,
+            PatchPresetArg::All => Self::All,
+            PatchPresetArg::Aggressive => Self::Aggressive,
+            PatchPresetArg::ChromeBinary => Self::ChromeBinary,
+        }
+    }
+}
+
+impl std::str::FromStr for PatchPresetArg {
+    type Err = seleniumbase_rs::SeleniumBaseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.parse::<PatchPreset>()? {
+            PatchPreset::Balanced => Ok(Self::Balanced),
+            PatchPreset::All => Ok(Self::All),
+            PatchPreset::Aggressive => Ok(Self::Aggressive),
+            PatchPreset::ChromeBinary => Ok(Self::ChromeBinary),
+            _ => Err(seleniumbase_rs::SeleniumBaseError::patcher(
+                s,
+                format!("unsupported patch preset '{s}'"),
+            )),
         }
     }
 }
@@ -347,6 +389,7 @@ struct PluginRunArgs {
 #[derive(Debug, usage::Args)]
 struct PluginNewArgs {
     /// The name of the new plugin to create.
+    #[usage(value_hint = usage::ValueHint::Other)]
     name: String,
     /// Template style (e.g. "library", "cli").
     #[usage(long, default = "library", value_hint = usage::ValueHint::Other)]
@@ -1023,6 +1066,15 @@ enum Commands {
     PatchChromedriver {
         #[usage(long, value_hint = usage::ValueHint::ExecutablePath, help = "Path to the chromedriver binary")]
         path: String,
+        /// Inspect automation markers without patching the binary.
+        #[usage(long, bool_value, help = "Inspect automation markers without modifying the binary")]
+        inspect: bool,
+        /// Restore the binary from its `<binary>.orig` backup instead of patching.
+        #[usage(long, bool_value, help = "Restore the binary from its .orig backup")]
+        restore: bool,
+        /// Named patch preset (`balanced`, `all`, `aggressive`, `chrome-binary`).
+        #[usage(long, value_enum, help = "Named patch preset to apply (default: all)")]
+        preset: Option<PatchPresetArg>,
     },
     /// Patch a Chrome/Chromium binary for native-level spoofing.
     #[usage(
@@ -1035,6 +1087,15 @@ enum Commands {
         /// Directory where the patched copy is cached.
         #[usage(long, value_hint = usage::ValueHint::DirPath, help = "Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)")]
         cache_dir: Option<String>,
+        /// Inspect markers on the source executable without writing a patched copy.
+        #[usage(long, bool_value, help = "Inspect automation markers without writing a patched copy")]
+        inspect: bool,
+        /// Named patch preset (`balanced`, `all`, `aggressive`, `chrome-binary`).
+        #[usage(long, value_enum, help = "Named patch preset to apply (default: chrome-binary)")]
+        preset: Option<PatchPresetArg>,
+        /// Also inspect or patch discovered companion libraries (macOS Framework, Windows DLL, Linux .so).
+        #[usage(long = "with-companions", bool_value, help = "Also inspect or patch discovered companion libraries")]
+        with_companions: bool,
     },
     /// Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
     ///
@@ -4244,18 +4305,91 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("Cookies: {}", serde_json::to_string(&cookies)?);
             after.finish(&mut sb).await?;
         }
-        Commands::PatchChromedriver { path } => {
-            seleniumbase_rs::evasion::patcher::patch_chromedriver(&path)?;
-            println!("Successfully patched chromedriver binary at: {path}");
+        Commands::PatchChromedriver {
+            path,
+            inspect,
+            restore,
+            preset,
+        } => {
+            if inspect && restore {
+                return Err(seleniumbase_rs::SeleniumBaseError::patcher(
+                    &path,
+                    "cannot pass both --inspect and --restore",
+                )
+                .into());
+            }
+            let patcher = ChromedriverPatcher::new(&path);
+            if inspect {
+                let report = patcher.inspect()?;
+                println!("{report}");
+                if report.needs_patch() {
+                    println!(
+                        "Status: core automation markers found (run without --inspect to patch)"
+                    );
+                } else if report.has_any_markers() {
+                    println!(
+                        "Status: extended markers present (use `--preset aggressive` to scrub all)"
+                    );
+                } else {
+                    println!("Status: clean (no known automation markers found)");
+                }
+            } else if restore {
+                patcher.restore()?;
+                println!("Restored chromedriver binary from backup at: {path}");
+            } else {
+                let chosen: PatchPreset = preset.map_or(PatchPreset::All, Into::into);
+                patcher.patch(chosen.to_patch())?;
+                println!(
+                    "Successfully patched chromedriver binary at: {path} (preset: {chosen})"
+                );
+            }
         }
-        Commands::PatchChrome { path, cache_dir } => {
-            let cache = patch_cache_dir(
-                cache_dir,
-                seleniumbase_rs::config::env_vars::text("SB_PATCH_CACHE_DIR"),
-            );
-            let patcher = ChromeBinaryPatcher::new(path).cache_dir(cache);
-            let patched = patcher.patch(EnginePatch::chrome_binary())?;
-            println!("Patched Chrome binary available at: {}", patched.display());
+        Commands::PatchChrome {
+            path,
+            cache_dir,
+            inspect,
+            preset,
+            with_companions,
+        } => {
+            if inspect {
+                let patcher = ChromeBinaryPatcher::new(&path);
+                let reports = if with_companions {
+                    patcher.inspect_bundle()?
+                } else {
+                    vec![patcher.inspect()?]
+                };
+                for report in reports {
+                    println!("{report}");
+                }
+            } else {
+                let cache = patch_cache_dir(
+                    cache_dir,
+                    seleniumbase_rs::config::env_vars::text("SB_PATCH_CACHE_DIR"),
+                );
+                let patcher = ChromeBinaryPatcher::new(&path).cache_dir(cache);
+                let chosen: PatchPreset = preset.map_or(PatchPreset::ChromeBinary, Into::into);
+                if with_companions {
+                    let bundle = patcher.patch_bundle(chosen.to_patch())?;
+                    println!(
+                        "Patched Chrome binary available at: {} (preset: {chosen})",
+                        bundle.executable.display()
+                    );
+                    if let Some(companion) = bundle.companion {
+                        println!(
+                            "Patched companion library available at: {}",
+                            companion.display()
+                        );
+                    } else {
+                        println!("No companion framework/DLL found alongside {path}");
+                    }
+                } else {
+                    let patched = patcher.patch(chosen.to_patch())?;
+                    println!(
+                        "Patched Chrome binary available at: {} (preset: {chosen})",
+                        patched.display()
+                    );
+                }
+            }
         }
         Commands::Version => println!("sbrs {VERSION}"),
         Commands::Encrypt { text } => {

@@ -125,11 +125,23 @@ cargo add --dev seleniumbase-rs-plugin-testing --git https://github.com/MustCode
 
 </CodeGroup>
 
-More plugins live in their own repositories, such as
-[tauri-plugin-sbrs-automation](/ecosystem/tauri). Search GitHub for the
-topic `seleniumbase-rs-plugin` to find community ones.
+More plugins live in their own repositories or as standalone workspace crates—see
+[Community plugins](/plugins/community/overview) (covering
+[`antibot-detector`](/plugins/community/antibot-detector),
+[`behavior-dataset`](/plugins/community/behavior-dataset),
+[`langchain`](/plugins/community/langchain), and
+[`owasp`](/plugins/community/owasp)),
+[tauri-plugin-sbrs-automation](/ecosystem/tauri), or search GitHub for the
+topic `seleniumbase-rs-plugin`. Scaffold your own crate in one command with
+`sbrs plugin new` (or the `dev` MCP server's `scaffold_plugin` tool).
 
 <Columns cols={2}>
+
+<Card color="#693acf" title="Community plugins" icon="users" href="/plugins/community/overview">
+
+Standalone ecosystem plugins (`antibot-detector`, `behavior-dataset`, `langchain`, `owasp`) and `sbrs plugin new`.
+
+</Card>
 
 <Card color="#1a85d4" title="Choosing plugins" icon="toggle-on" href="/plugins/selecting">
 

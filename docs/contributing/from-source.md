@@ -294,16 +294,18 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 
 <LayoutTree>
 <LayoutDir name="seleniumbase-rs" open note="the workspace root">
-<LayoutFile name="Cargo.toml" highlight note="the workspace and the library package: version, rust-version 1.99, features" />
+<LayoutFile name="Cargo.toml" highlight note="the workspace and the library package: version, rust-version 1.100, features" />
 <LayoutFile name="Cargo.lock" note="the locked dependency versions" />
-<LayoutFile name="rust-toolchain.toml" note="pins Rust 1.99 with clippy and rustfmt" />
+<LayoutFile name="rust-toolchain.toml" note="pins Rust 1.100 with clippy and rustfmt" />
 <LayoutDir name="src" open note="the library (no binary): both engines, the MCP tools, the library half of the command line">
 <LayoutFile name="lib.rs" highlight note="the crate root and its public re-exports" />
 <LayoutFile name="error.rs" highlight note="SeleniumBaseError: hints, exit codes, selector advice" />
 <LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours" />
 <LayoutDir name="browser" note="BrowserConfig, the launcher, the WebDriver session, driver access and downloads" />
 <LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, pool, mock" />
+<LayoutDir name="crawler" note="concurrent crawler, RFC 9309 robots.txt parser, XML sitemap discovery, and recursive spider" />
 <LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor" />
+<LayoutDir name="extract" note="token-efficient HTML-to-Markdown conversion, JSON-LD, table, and typed form extraction" />
 <LayoutDir name="mcp" note="the MCP servers cdp, driver, sb and dev, and their tools" />
 <LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/" />
 <LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
@@ -400,6 +402,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name=".config" note="configuration of tools">
 <LayoutFile name="nextest.toml" note="the nextest configuration and its chrome test group" />
 </LayoutDir>
+<LayoutDir name=".agents" note="local assistant skills and automation definitions" />
 <LayoutDir name=".github" note="GitHub Actions">
 <LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
 </LayoutDir>

@@ -359,10 +359,10 @@ release:binaries:
     - mise exec -- cargo build --release --locked --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features "$CLI_FEATURES,pdf,plugins-builtin"
     - mkdir -p dist
     - cp target/release/sbrs target/release/sbrs-mcp dist/
-    - tar -czf dist/seleniumbase-rs-${CI_COMMIT_TAG:-v0.9.1}-x86_64-unknown-linux-gnu.tar.gz -C dist sbrs sbrs-mcp
+    - tar -czf dist/seleniumbase-rs-${CI_COMMIT_TAG:-v0.9.3}-x86_64-unknown-linux-gnu.tar.gz -C dist sbrs sbrs-mcp
     - cd dist && sha256sum * > SHA256SUMS
   artifacts:
-    name: "seleniumbase-rs-binaries-${CI_COMMIT_TAG:-v0.9.1}"
+    name: "seleniumbase-rs-binaries-${CI_COMMIT_TAG:-v0.9.3}"
     when: always
     expire_in: 4 weeks
     paths:

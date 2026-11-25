@@ -1,313 +1,374 @@
 ---
-title: "Network Patching & Low-Level Browser Impersonation"
-sidebarTitle: "Network patching"
+title: "Wire Formats and Impersonation"
+sidebarTitle: "Wire formats"
 ---
 
-Network Patching is SeleniumBase-RS's low-level browser impersonation engine. Rather than merely setting high-level HTTP headers or driving a heavy browser process, it controls and patches the raw network bytes transmitted across the wire: TLS ClientHello fingerprints, HTTP/2 frame and HPACK sequences, HTTP/3 QUIC specifications, Ephemeral-CA MITM interception, and egress ledger auditing.
+Examples importing `seleniumbase_rs_stealth::wire` require the facade's
+`wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
+this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
-<Badge color="orange">Advanced Architecture</Badge>
+<Badge color="orange">Experimental</Badge>
 
 <Visibility for="agents">
 
-Summary for AI coding agents: Network patching operates below WebDriver and CDP. It provides byte-accurate browser impersonation using measured TLS handshakes (JA3, JA4, BoringSSL cipher order, extension permutations), HTTP/2 frame hierarchies (SETTINGS, WINDOW_UPDATE, pseudo-header order), and HTTP/3 QUIC profiles. It includes an Ephemeral-CA MITM engine (`seleniumbase_rs_stealth::wire::mitm`) that dynamically signs leaf certificates, an egress `Ledger` / `JsonLedger` event sink for transaction auditing, and native-level binary and protocol engine patching.
+Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `crates/codec/src/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_codec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_wire` turns a measured `WireFormat` into a wreq client, and `WireFormat::builder()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
 
 </Visibility>
 
----
+## What is measured, and what is refused
 
-## 1. What is Low-Level Browser Impersonation?
+Every wire value this crate imitates was measured from a real browser by a
+capture tool and stored as JSON in `crates/codec/src/measured`. Nothing is typed by
+hand. The files are embedded with `include_str!`, parsed once, and looked up by
+browser and operating system.
 
-Modern anti-bot defenses—such as Cloudflare Turnstile, DataDome, Akamai Bot Manager, Kasada, and PerimeterX (HUMAN)—do not evaluate browsers solely through JavaScript surface APIs. Long before a webpage's DOM or JavaScript executes, server-side network sensors evaluate the TCP, TLS, and HTTP framing signatures of incoming requests.
-
-A traditional HTTP client (such as Python `requests`, Node `axios`, Go `net/http`, or standard Rust `reqwest`) gives itself away on the very first packet:
-- **TLS Handshake Fingerprints (JA3 / JA4)**: Standard OpenSSL or rustls handshakes advertise cipher suites, elliptic curves, signature algorithms, and extension permutations that are completely different from Google Chrome or Apple Safari.
-- **HTTP/2 Frame Mismatches (Akamai Fingerprint)**: Standard HTTP/2 implementations send stream settings, window updates, and pseudo-header orders (`:scheme`, `:method`, `:path`, `:authority`) that diverge from Chromium's strict `:method`, `:authority`, `:scheme`, `:path` convention.
-- **HTTP/3 & QUIC Deviations**: Default QUIC implementations fail to match Chromium's transport parameter layouts, GREASE values, and QPACK dynamic table behaviors.
-
-**Low-Level Browser Impersonation** solves this at the wire layer. Rather than launching an entire browser binary (which consumes 150–350 MB RAM per instance), it uses byte-exact records captured from real browsers (`crates/codec/src/measured`) and feeds them into a dedicated network stack (`seleniumbase_rs_wire` / `seleniumbase-rs-stealth`) powered by BoringSSL, dynamic frame synthesizers, and an Ephemeral-CA MITM proxy.
-
-```mermaid
-flowchart TD
-    App["Application / Automation Pipeline"] --> NS["Low-Level Impersonation Stack (seleniumbase_rs_wire)"]
-    
-    subgraph Engine ["Network Impersonation Engine"]
-        WF["WireFormat Engine<br/>(JA4 / Akamai / H2Spec / H3Spec)"]
-        MITM["Ephemeral-CA MITM Proxy<br/>(Dynamic Leaf Generation)"]
-        LEDGER["Ledger / JsonLedger<br/>(Egress EventSink Audit)"]
-    end
-    
-    NS --> Engine
-    Engine --> TLS["BoringSSL Custom Handshake<br/>(Cipher & Extension Permutations)"]
-    TLS --> NET["Target Host / Anti-Bot Edge"]
-```
-
----
-
-## 2. Low-Level Impersonation vs. Playwright
-
-A common architectural question is how low-level wire impersonation compares to **Playwright** or **Puppeteer**:
-
-### What is Playwright?
-Playwright is an automation framework from Microsoft that spawns and controls real browser binaries (Chromium, Firefox, WebKit) via the Chrome DevTools Protocol (CDP) or browser-specific debugging sockets. While it generates genuine TLS handshakes by virtue of running a real browser, it comes with heavy operational overhead and distinct automation detection vectors.
-
-### Direct Architectural Comparison
-
-| Dimension | Playwright / Puppeteer | Low-Level Browser Impersonation (`seleniumbase-rs-stealth::wire`) |
-|---|---|---|
-| **Execution Model** | Spawns a full Chromium browser process (150–350 MB RAM per instance). | Headless asynchronous HTTP client with patched network wire framing (5–12 MB RAM per session). |
-| **Throughput** | 5–20 pages/min per CPU core. | 500–2,500 requests/sec per CPU core. |
-| **TLS & Wire Fingerprint** | Native Chrome TLS handshake. | Native Chrome TLS handshake synthesized via BoringSSL (`JA4`, `JA3`, `peetprint`). |
-| **CDP Leak Vulnerability** | **High**: Exposes `Runtime.enable`, `window.cdc_`, execution context anomalies, and CDP caller stack traces. | **Zero CDP footprint**: No DevTools protocol is connected; undetectable by CDP probes. |
-| **Proxy & Egress Steering** | Configured per browser context (requires browser restart for certain proxy switches). | Dynamic per-request egress routing, proxy rotation, and ledger auditing. |
-| **Hardware Overhead** | Requires GPU/software rasterizer, audio stack, and sandbox IPC. | Pure asynchronous I/O over Tokio without display or GUI requirements. |
-| **Use Case** | Complex SPAs requiring deep DOM interaction and visual verification. | High-throughput data extraction, API scraping, and authenticated endpoint transactions. |
-
----
-
-## 3. Ephemeral-CA TLS & MITM Proxy Architecture
-
-When driving an upstream browser or intercepting traffic to harvest session cookies and clearance tokens, the **Ephemeral-CA MITM Proxy** (`seleniumbase_rs_wire::mitm`) intercepts and inspects egress traffic in real-time.
-
-```mermaid
-sequenceDiagram
-    autonumber
-    actor Browser as Client / Upstream Browser
-    participant MITM as Ephemeral-CA MITM Proxy
-    participant CA as In-Memory Root CA (Ephemeral)
-    participant Edge as Anti-Bot Edge (Target Host)
-
-    Browser->>MITM: CONNECT api.example.com:443
-    MITM->>CA: Request dynamic leaf certificate for "api.example.com"
-    CA-->>MITM: Ephemeral Leaf Cert (SAN: api.example.com)
-    MITM-->>Browser: HTTP/1.1 200 Connection Established
-    Browser->>MITM: TLS ClientHello (Client handshake)
-    MITM-->>Browser: TLS Handshake complete (Re-signed by Ephemeral CA)
-
-    MITM->>Edge: TLS ClientHello (Chromium JA4 / BoringSSL Impersonation)
-    Edge-->>MITM: TLS Handshake complete (Target server)
-    Browser->>MITM: GET /data (HTTP/2 Request)
-    MITM->>MITM: EventSink: Log transaction, redact sensitive auth
-    MITM->>Edge: GET /data (Preserved H2 framing & pseudo-headers)
-    Edge-->>MITM: 200 OK + Set-Cookie: cf_clearance=...
-    MITM->>MITM: Ledger: Capture clearance cookie pinned to egress IP
-    MITM-->>Browser: 200 OK + Set-Cookie
-```
-
-### How Ephemeral-CA TLS Operates:
-1. **Self-Signed Ephemeral Root CA**: Upon engine startup, an in-memory root Certificate Authority (`CaOptions`) is generated using an ECDSA (P-256) or RSA-2048 keypair. The private key resides strictly in memory and is never written to disk, preventing persistent root certificate trust leaks on host machines.
-2. **On-the-Fly Leaf Certificate Issuance**: When a client issues an `HTTP CONNECT` or TLS handshake for a target domain (e.g., `api.example.com`):
-   - The MITM proxy extracts the Server Name Indication (SNI).
-   - The engine synthesizes an ephemeral **Leaf Certificate** on the fly with Subject Alternative Names (SANs) matching the requested hostname.
-   - The leaf certificate is signed by the ephemeral Root CA and cached in an in-memory LRU cache with configurable validity and renewal margins.
-3. **Upstream Wire Impersonation**: The MITM proxy connects upstream to the target server using the exact `WireFormat` of the target browser persona, replaying Chrome's JA4 and HTTP/2 settings.
-4. **Traffic Rewriting & Injection**: Requests and responses pass through an `EventSink`. Clearance tokens, cookies, and authentication headers can be injected, updated, or audited transparently.
+Today there is one entry: **Chrome 155.0.8059.40 on macOS**, captured on
+2026-10-11. Its record holds the user agent, the TLS spec (and the one Chrome
+uses for WebSocket), the HTTP/2 start, the header lists and their order, the
+client hints, and where it came from:
 
 ```rust
-use seleniumbase_rs_stealth::wire::mitm::{CaOptions, MitmProxy, ProxyConfig};
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
+use seleniumbase_rs::browser::config::Browser;
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 1. Initialize Ephemeral CA in-memory
-    let ca = CaOptions::builder()
-        .common_name("SeleniumBase-RS Ephemeral Root CA")
-        .ca_validity_days(1)
-        .leaf_validity_hours(2)
-        .leaf_capacity(1000)
-        .build()?;
+fn demo() -> Result<(), WireMeasurementError> {
+    let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
+    assert_eq!(chrome.major, 155);
+    println!("{} captured on {}", chrome.provenance.browser, chrome.provenance.captured_on);
+    // The JA4 of the measured hello. The capture recorded t13d1517h2_8daaf6152771_cb7bf5808d99
+    // for it, in the file's `capture` evidence.
+    println!("{}", chrome.tls.ja4());
 
-    // 2. Configure MITM Proxy
-    let proxy = MitmProxy::builder()
-        .ca(ca)
-        .listen_addr("127.0.0.1:8080")
-        .upstream_wire_impersonation(true)
-        .build()?;
-
-    // Starts listening and synthesizing leaf certificates dynamically
-    proxy.start().await?;
+    // A system nobody measured is an error, never a nearby guess.
+    let windows = measurement::get(Browser::Chrome, OsType::Windows);
+    assert!(matches!(windows, Err(WireMeasurementError::NotMeasured { .. })));
     Ok(())
 }
 ```
 
----
+`WireMeasurementError::NotMeasured { kind, os }` is the error the design plan calls
+`SpecError::NotMeasured`. The TLS and HTTP/2 refusals live in two other enums,
+`codec::tls_spec::TlsSpecError` and `codec::h2_spec::H2SpecError`.
 
-## 4. CaOptions, Leaf Certificates, and Egress / Proxy Routing
+<Note>
 
-### `CaOptions` Configuration Parameters
-The `CaOptions` builder configures certificate lifecycle, security parameters, and cache bounds:
-- **`ca_validity_days`**: Duration the ephemeral root CA remains valid (typically 1 to 7 days).
-- **`leaf_validity_hours`**: Lifetime of synthesized leaf certificates (default: 2 hours).
-- **`leaf_renew_margin_mins`**: Window before expiration when a cached leaf certificate is renewed (default: 15 minutes).
-- **`leaf_capacity`**: Maximum number of cached leaf certificates kept in the in-memory LRU cache (e.g. 1,000 entries).
+Why an unmeasured system is refused rather than approximated: a made-up persona
+is worse than no persona. A TLS stack that claims to be Chrome on Windows with
+values copied from Chrome on macOS is a contradiction a detector can see, and
+the crate has no way to know which of the two differ. Windows, Linux, Android,
+iOS and Safari stay refused until someone runs the capture tools on that system
+and commits the result.
 
-### Egress & Proxy Routing
-The stack abstracts egress routing via `EgressConnector`, preventing DNS and identity leaks:
-- **Direct Socket Binding**: Outbound IPv4 or IPv6 socket binding.
-- **SOCKS5 / SOCKS5h**: Remote DNS resolution (`SOCKS5h`) ensures domain names are resolved at the proxy exit node, completely eliminating local DNS query leaks.
-- **HTTP / HTTPS CONNECT**: Upstream proxy chains with basic or digest authentication.
-- **Dynamic IP Pinning**: Egress sessions track the public outbound IP to ensure clearance cookies (`cf_clearance`, `datadome`) remain strictly bound to the IP that solved the challenge.
+</Note>
 
----
+The same rule shows up higher up:
 
-## 5. Ledger & JsonLedger: Transaction Auditing
+- `WireFormat::for_system(Browser::Chrome, OsType::Windows)` and
+  `WireFormat::from_fingerprint` of a Windows `Fingerprint` return
+  `WireFormatError::WireMeasurement(WireMeasurementError::NotMeasured { .. })`.
+- `WireFormat::from_fingerprint` of a fingerprint whose user agent
+  claims another Chrome major than the measured one returns
+  `WireFormatError::VersionMismatch`: Chrome 155's handshake under a Chrome 153
+  user agent is a contradiction too.
+- `WireFormat::random(seed)` only draws from measured entries, and
+  the identity it builds claims the measured major
+  (`Fingerprint::randomized_with_major`).
 
-In automated scraping and network patching, every outbound packet must be auditable, repeatable, and isolated. The `Ledger` subsystem provides structured event recording for all egress transactions.
+## Re-measuring when Chrome updates
 
-### Architecture of the Audit Ledger
-- **`Ledger` Trait**: The core interface for recording egress events.
-- **`JsonLedger`**: Writes structured JSON Lines (`.jsonl`) to disk or an asynchronous stream.
-- **`InMemoryLedger`**: Retains recent transactions in memory for programmatic inspection and assertion in tests.
+<Warning>
 
-### Recorded Event Attributes:
-- **Timestamp**: Microsecond-precision UTC timestamp.
-- **Request Metadata**: HTTP method, URL, normalized header names.
-- **Traffic Metrics**: Bytes sent, bytes received, round-trip latency.
-- **TLS Information**: Negotiated TLS version, cipher suite, ALPN (`h2`, `http/1.1`, `h3`), and JA4 fingerprint.
-- **Clearance Status**: Tracks whether anti-bot cookies (`cf_clearance`, `datadome`, `_abck`) were received, updated, or refreshed.
-- **Redaction Rules**: Sensitive values (passwords, `Authorization` headers, session cookies) are automatically redacted from logs and debug traces.
+The measured file describes the Chrome that was installed when it was captured.
+When Chrome moves to a new major version, nothing updates the file for you: the
+profile still describes Chrome 155, and a site sees the difference.
+
+</Warning>
+
+To add the new version:
+
+<Steps>
+
+<Step title="Update Chrome" icon="download">
+
+Update Chrome. The tools start their own browser (the system Chrome, or the
+one `--chrome PATH` names), headed. Leave `--headless` off: a headless
+Chrome reports a different identity, so `capture_hints` refuses it
+(`CaptureError::Headless`) and the others do not measure its identity.
+
+</Step>
+
+<Step title="Run the three tools" icon="terminal">
+
+Run the three tools in this order, from the repository root. Each extends the
+same file, named `<browser>-<major>-<os>.json`, and `capture_h2` refuses a
+Chrome of another version than the file it extends.
+
+```text
+cargo run -p seleniumbase-rs-scrape      --example capture_tls
+cargo run -p seleniumbase-rs-scrape      --example capture_hints
+cargo run -p seleniumbase-rs-wire --example capture_h2
+```
+
+- `capture_tls` points the browser at a loopback listener that records each
+  `ClientHello` and hangs up. The JA3, JA4 and peetprint strings and the raw
+  bytes all come from what the browser sent. It prints the known gaps and
+  whether the result can be reproduced.
+- `capture_hints` serves a small page that asks the browser for its
+  high-entropy hints and records the `Sec-CH-UA*` request headers of the same
+  browser. If the two disagree, nothing is written. For a browser the tool
+  cannot drive, `--snippet` prints a script to paste into its developer
+  console.
+- `capture_h2` serves a small HTTPS site with an [ephemeral
+  CA](/stealth/advanced/mitm-proxy#the-ephemeral-ca-tls-server), starts Chrome so that it trusts only
+  that CA, and reads the first request on each of five connections (a
+  navigation, a `fetch`, an image, a script, a stylesheet), once over HTTP/2
+  and once over HTTP/1.1. `--h1` and `--h2` run one pass only.
+
+They share these options: `--out DIR` (default `crates/codec/src/measured`),
+`--fixtures DIR` (default `tests/fixtures/measured`, for the raw bytes),
+`--chrome PATH`, `--lang TAG` (sets `Accept-Language`, default `en-US`),
+`--probes N`, `--timeout SECS`, `--headless`, `--no-sandbox`, `--snippet` and
+`--help`.
+
+</Step>
+
+<Step title="Register the new file" icon="file-code">
+
+Add the new file to the `SOURCES` list in `crates/codec/src/measurement.rs`. The test
+`crates/codec/tests/wire_measurement.rs` fails when a file in `crates/codec/src/measured` is missing
+from that list.
+
+</Step>
+
+<Step title="Run the wire tests" icon="flask">
+
+Run the wire tests, including `crates/wire/tests/impersonate_wire.rs`. They compare what
+our client sends with the measured file and fail, by name, when a known gap
+closes or a new difference appears.
+
+</Step>
+
+</Steps>
+
+A new Windows or Linux entry comes the same way: run the tools on that system.
+Safari has no tool yet beyond the `capture_hints` console snippet.
+
+## Reading the wire formats
+
+All of `seleniumbase_rs_codec` is pure: no sockets, no clock, no files, and
+`#![forbid(unsafe_code)]`. Every parser bounds its input and returns an error
+for hostile or truncated bytes instead of panicking.
+
+| Format | Type | What it is |
+|---|---|---|
+| TLS `ClientHello` | `codec::client_hello::ClientHello` | `ClientHello::parse(records)` decodes the first handshake message, across TLS records. `ClientHello::needed_len(prefix)` says how many bytes a capture loop still needs. |
+| JA3 | `codec::ja3::Ja3` | Five comma-separated fields with <Tooltip tip="Random reserved values a client adds to its handshake so servers do not depend on a fixed list (RFC 8701).">GREASE</Tooltip> removed. `Ja3::parse`, `Ja3::of(&hello)`, `hash()` (MD5, as JA3 defines it). |
+| JA4 | `codec::ja4::Ja4` | `a_b_c` of FoxIO's TLS-client definition. `Ja4::of`, `Ja4::of_original_order` (`JA4_o`), `Ja4::parse`, `diff`. |
+| `JA4_r`, `JA4_ro` | `codec::ja4::Ja4Raw` | The unhashed, sorted or wire-order variants. `Ja4::raw(&hello)`, `Ja4Raw::parse`, `Ja4Raw::hashed()`. |
+| peetprint | `codec::ja3::Peetprint` | A JA3-like format that also records signature algorithms. GREASE shows as `GREASE`. |
+| Akamai HTTP/2 | `codec::akamai::Akamai` | `SETTINGS \| WINDOW_UPDATE \| PRIORITY \| pseudo-header order`. |
+
+Only JA4 itself is implemented. JA4H, JA4S, JA4X and the other JA4+ methods carry
+a different licence and are not part of this crate.
 
 ```rust
-use seleniumbase_rs_stealth::scrape::ledger::{JsonLedger, LedgerOptions};
+use seleniumbase_rs_stealth::codec::akamai::Akamai;
+use seleniumbase_rs_stealth::codec::ja3::Ja3;
+use seleniumbase_rs_stealth::codec::ja4::Ja4;
 
-let ledger = JsonLedger::open("target/egress_audit.jsonl", LedgerOptions::default())?;
-// Every egress request through the session automatically writes an immutable log line
+fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    // The Akamai string measured from Chrome 155 on macOS.
+    let akamai: Akamai = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p".parse()?;
+    assert_eq!(akamai.settings, vec![(1, 65536), (2, 0), (4, 6_291_456), (6, 262_144)]);
+    assert_eq!(akamai.window_update, 15_663_105);
+
+    // One JA4 and one JA3 measured from the same browser.
+    let ja4: Ja4 = "t13d1517h2_8daaf6152771_cb7bf5808d99".parse()?;
+    assert_eq!(ja4.a, "t13d1517h2");
+    let ja3: Ja3 = "771,4865-4866-4867-49195-49199-49196-49200-52393-52392-49171-49172-156-157-47-53,\
+                    13-10-35-18-65281-27-45-65037-5-0-23-17613-51-51764-43-11-16,4588-29-23-24,0"
+        .parse()?;
+    assert_eq!(ja3.version, 771);
+    Ok(())
+}
 ```
 
----
+<Tip>
 
-## 6. EventSink & MITM Proxy Architecture
+Chrome shuffles its TLS extensions on every connection, so its JA3 changes from
+one connection to the next by design. JA4 sorts them first and stays stable.
+Compare JA4 when you compare a browser with a client.
 
-The MITM proxy relies on an event-driven interception pipeline decoupled via the `EventSink` trait.
+</Tip>
 
-```mermaid
-flowchart LR
-    Req[Incoming Client Request] --> ES_Req[EventSink::on_request]
-    ES_Req --> Egress[Egress Connector / Wire Impersonator]
-    Egress --> Target[Target Web Server]
-    Target --> ES_Resp[EventSink::on_response]
-    ES_Resp --> Ledger[Ledger Audit Log]
-    ES_Resp --> Resp[Client Response Stream]
-```
+The spec types sit on top of the parsers. A `TlsSpec`
+(`TlsSpec::from_client_hello`) is the whole TLS profile as plain data, and an
+`H2Spec` (alias `H2Spec`; `H2Spec::from_capture`, `H2Spec::from_akamai`) is
+the HTTP/2 start. Each has `check_reproducible()`, which says whether the
+BoringSSL and wreq stack can send it, and names what it cannot.
 
-### EventSink Trait Methods:
-- **`on_request(&self, req: &mut RequestContext)`**: Invoked before sending a request upstream. Allows header rewriting, user-agent injection, or credentials injection.
-- **`on_response(&self, resp: &mut ResponseContext)`**: Invoked upon receiving the target server's response. Parses clearance cookies, evaluates challenge status codes (e.g. 403 / 503), and updates session state.
-- **`on_tls_handshake(&self, handshake: &TlsHandshakeEvent)`**: Logs negotiated cipher suites and peer certificate chains.
+## An impersonating client
 
-Built-in implementations include `NoopEventSink` (zero overhead) and `CollectingEventSink` (in-memory buffer for testing and debugging).
-
----
-
-## 7. Wire Formats in Detail: JA4, Akamai H2, and H3Spec
-
-A `WireFormat` represents the complete network fingerprint DNA of a specific browser persona.
-
-### A. TLS ClientHello Fingerprinting (JA3 / JA4 / Peetprint)
-Anti-bot systems analyze the unencrypted TLS `ClientHello` packet:
-- **JA3**: An MD5 hash of TLS version, cipher suites, extensions, elliptic curves, and curve point formats.
-- **JA4**: A modern, readable fingerprint format:
-  ```
-  t13d1516h2_8daaf6152771_027eb95dd9e3
-  ```
-  - `t13`: TLS 1.3 over TCP.
-  - `d`: SNI present (domain).
-  - `15`: 15 cipher suites advertised.
-  - `16`: 16 TLS extensions present.
-  - `h2`: ALPN indicates HTTP/2.
-  - `8daaf6152771`: Sorted cipher suite hash.
-  - `027eb95dd9e3`: Sorted extension hash.
-- **BoringSSL Cipher Suite Order**: Google Chrome relies on BoringSSL, which permutes extension orders and injects GREASE (Generate Random Extensions And Sustain Extensibility) values (e.g. `0x1a1a`, `0x2a2a`).
-
-### B. HTTP/2 Framing (`H2Spec` & Akamai Fingerprint)
-Chromium's HTTP/2 implementation exhibits a deterministic framing hierarchy:
-- **Initial SETTINGS Frame**:
-  - `HEADER_TABLE_SIZE`: 65536
-  - `ENABLE_PUSH`: 0
-  - `MAX_CONCURRENT_STREAMS`: 1000 (or omitted)
-  - `INITIAL_WINDOW_SIZE`: 6291456
-  - `MAX_HEADER_LIST_SIZE`: 262144
-- **WINDOW_UPDATE Frame**: Immediately follows `SETTINGS` with a stream-0 window increment of `15663105`.
-- **Pseudo-Header Ordering**: Chromium strictly serializes pseudo-headers in this exact order:
-  1. `:method`
-  2. `:authority`
-  3. `:scheme`
-  4. `:path`
-  Any deviation (e.g. standard Go or Python placing `:scheme` before `:method`) triggers immediate detection by Akamai and Cloudflare.
-
-### C. HTTP/3 & QUIC (`H3Spec`)
-HTTP/3 operates over UDP using the QUIC protocol (RFC 9000, RFC 9001, RFC 9114):
-- **QUIC Transport Parameters**: Emulates Chrome's `initial_max_data`, `initial_max_stream_data_bidi_local`, and `initial_max_streams_bidi`.
-- **GREASE Injection**: Injects reserved QUIC transport parameter IDs and cipher suites.
-- **QPACK Compression**: Adheres to Chromium's QPACK dynamic table size limits and encoder/decoder stream layouts.
-
----
-
-## 8. Common Authorization Models & Header Hygiene
-
-Network Patching natively manages all standard Web and API authorization paradigms while maintaining strict header hygiene:
-
-1. **Bearer Token Authentication**:
-   - `Authorization: Bearer <token>`
-   - Header case must conform to target browser standards (lowercase `authorization` in HTTP/2 and HTTP/3).
-2. **Basic Authentication (RFC 7617)**:
-   - `Authorization: Basic <base64(user:password)>`
-   - Preemptive or challenge-response handling upon receiving `401 Unauthorized` with `WWW-Authenticate`.
-3. **Digest Authentication (RFC 7616 / RFC 2617)**:
-   - MD5 and SHA-256 algorithm support.
-   - Computes `HA1`, `HA2`, and `response` incorporating `nonce`, `nc` (nonce counter), `cnonce`, and `qop="auth"`.
-4. **Mutual TLS (mTLS)**:
-   - Client identity certificates and private keys presented during the initial TLS handshake to satisfy enterprise zero-trust gateways.
-5. **Session Cookies & Clearance Jars**:
-   - Strict RFC 6265 path and domain isolation.
-   - Cleared anti-bot cookies (`cf_clearance`, `__cf_bm`, `datadome`, `_abck`) are pinned to the egress proxy IP that solved them.
-6. **OAuth2 with PKCE (RFC 7636)**:
-   - Generates high-entropy `code_verifier` (43–128 characters) and SHA-256 `code_challenge` for secure single-page app and mobile client token exchanges without client secrets.
-
----
-
-## 9. Native-Level Spoofing & Engine Patching
-
-When driving real browser binaries (Chromium or Firefox) rather than the raw wire HTTP client, naive JavaScript property overrides alone are fragile against modern detectors that inspect V8 internal structures, error stack traces, and WebIDL prototype chains.
-
-SeleniumBase-RS implements native-layer and binary-level patching across these core surfaces:
-
-- **Native WebIDL & Function Integrity**: Wrappers live on prototypes with faithful `Function.prototype.toString` (`function () { [native code] }`), length/name descriptors, and own-property hygiene so instance inspection sees empty property lists.
-- **Deterministic Hardware & Readback Noise**: Deterministic per-seed micro-noise covers 2D/Offscreen Canvas pixels and text metrics, `DOMRect` geometry, WebGL `readPixels`, and `AudioBuffer`/`AnalyserNode` frequency and time-domain outputs.
-- **CDP Stack & Automation Scrubbing**: Filters DevTools evaluation frames (`UtilityScript.`, `__webdriver_evaluate`, `ExecutionContext.evaluate`) from `Error.prototype.stack` without touching `Error.prepareStackTrace`, while scrubbing driver globals (`$cdc_`, `__webdriver_*`).
-- **Binary Driver & Browser Patching**: Operates directly on chromedriver and Chromium binaries to neutralize `$cdc_` variables, `kAutomationControlled`, and `--enable-automation` checks before launch.
-- **ANGLE/OpenGL Parameter Coherence**: Aligns shader precision, WebGL2 limits, hardware-tier uniform/texture unit caps, and mobile vs. desktop compressed texture extensions with the spoofed GPU renderer.
-
-### Binary Engine Patcher (`ChromedriverPatcher` & `ChromeBinaryPatcher`)
-
-In `seleniumbase-rs::evasion::patcher`, the binary patcher operates directly on executable bytes:
+The `wire` crate turns a measured profile into a wreq client:
 
 ```rust
-use seleniumbase_rs::evasion::patcher::{ChromeBinaryPatcher, EnginePatch};
+use seleniumbase_rs_stealth::wire::client::{
+    WireFormat::client_builder, WireFormat, WireProtocol,
+};
+use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
+use seleniumbase_rs::browser::config::Browser;
 
-let patcher = ChromeBinaryPatcher::new("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome");
-let patched_binary = patcher.patch(EnginePatch {
-    scrub_webdriver_markers: true,
-    patch_navigator_webdriver: true,
-    patch_headless_user_agent: true,
-    scrub_k_automation_controlled: true,
-    scrub_enable_automation: true,
-    patch_cdp_runtime_isolate: true,
-    ..EnginePatch::balanced()
-})?;
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = WireFormat::measured(Browser::Chrome)?;
+    let client = profile.client_builder()?.build()?;
 
-println!("Patched binary ready for zero-detection execution: {}", patched_binary.display());
+    let request = client.get("https://example.com/");
+    let request = profile.apply(request, RequestShape::Document, None, WireProtocol::Http2)?;
+    let response = request.send().await?;
+    drop(response);
+    Ok(())
+}
 ```
 
----
+- `WireFormat::client_builder` returns a `wreq::ClientBuilder` with the profile's
+  `ClientHello`, HTTP/2 start and default headers. You add proxies, timeouts and
+  a trust store, then build. Certificate verification stays on: trust a private
+  root with `tls_cert_store`, never by turning verification off.
+- `profile.apply` gives one request the headers of its shape
+  (`RequestShape::Document` for a navigation, `RequestShape::Fetch` for a
+  script-issued request) in the measured order and spelling. The identity
+  headers (`User-Agent`, `Sec-CH-UA*`, `Accept-Language`, `Cookie`) are filled in
+  per request, so rotating an identity needs no new connection setup. The
+  cookie is passed in and never stored. On HTTP/2 the list ends with the
+  `priority` header of the measured table for the request's `Sec-Fetch-Dest`;
+  Chrome sends it on HTTP/2 only.
+- The profile carries the measured TLS without its known gaps (see
+  [Limits](/scraping/advanced-stealthy/limits#limits)) and keeps extension permutation on, as Chrome does.
+- Cookies, redirects, body limits and the hand-over from a browser are not part
+  of this client. That is what [`HttpSession`](/scraping/stealthy/http-session) is for.
 
-## 10. Core Rules and Operational Best Practices
+Other ways to get a profile: `WireFormat::for_system(kind, os)`,
+`WireFormat::from_fingerprint(&fp)` (a Chromium identity that claims
+the measured major; its `User-Agent`, languages and client hints are the
+fingerprint's, the hints computed from its Chrome major unless it sets its own)
+and `WireFormat::random(seed)`. To change the `Accept-Language`, localize the
+fingerprint first (`LocaleExt::localize`) and build the profile from the result.
 
-1. **Never guess unmeasured systems**:
-   If target traffic must appear as Chrome on Windows, use a measured profile for Chrome on Windows. Never combine a macOS TLS profile with a Windows User-Agent—detectors immediately flag this contradiction (`JA4` platform mismatch).
-2. **Pin clearance cookies to the solving egress IP**:
-   Cloudflare and DataDome validate that the client IP establishing the TLS connection matches the IP embedded in the HMAC of `cf_clearance` or `datadome`. If you rotate proxies, clearance cookies must rotate with them.
-3. **Keep `Error.prototype.stack` clean during CDP evaluations**:
-   When using CDP Mode or `Page::evaluate`, ensure stack frame filters are active to prevent detectors from inspecting caller stack traces.
-4. **Use Ephemeral Roots for MITM, never static development CAs**:
-   Static debugging certificates (like Charles or mitmproxy default certs) have publicly known fingerprints and subject keys that are immediately detected. Generate ephemeral keys per run.
-5. **Prevent DNS leaks with remote resolution**:
-   Always configure proxy connections with remote resolution (`socks5h://` or `http://` / `https://` CONNECT) to prevent DNS leaks from exposing the worker's true physical IP.
+## Custom inputs
+
+Every part of a profile can be supplied by the caller. `WireFormatBuilder`
+starts from the newest measured Chrome (or `base`/`base_on` another measured
+entry) and layers your inputs over it. What an input does not carry comes from
+the base: a JA3 has no signature algorithms, an Akamai string has no HEADERS
+priority, a header list has no TLS.
+
+```rust
+use seleniumbase_rs_stealth::codec::header_spec::ClientHeaders;
+use seleniumbase_rs_stealth::wire::client::WireFormat;
+
+fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    let profile = WireFormat::builder()
+        .akamai("1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p")?
+        .client_headers(
+            ClientHeaders::new("Mozilla/5.0 (custom)").accept_language("de-DE,de;q=0.9"),
+        )
+        .build()?;
+    assert_eq!(profile.client_headers().user_agent, "Mozilla/5.0 (custom)");
+    Ok(())
+}
+```
+
+| Method | What it replaces |
+|---|---|
+| `base(kind)`, `base_on(kind, os)` | The measured entry that supplies everything the other inputs leave out. Call first: it discards the TLS and HTTP/2 inputs given before it. |
+| `ja3(&str)` | Version, ciphers, extensions, groups and point formats. Turns extension permutation off, so the JA3 arrives exactly as given. |
+| `ja4_r(&str)`, `ja4_ro(&str)` | Ciphers, extensions and signature algorithms, from a sorted or wire-order raw JA4. |
+| `peetprint(&str)` | Ciphers, extensions, groups, versions, ALPN, signature algorithms, PSK modes and certificate compression. |
+| `signature_algorithms(&[u16])` | The signature algorithms alone. |
+| `grease(bool)`, `permute_extensions(bool)` | GREASE (RFC 8701) and Chrome-style extension shuffling. Call `grease` before `ja3`: a spec that lists padding needs GREASE off. |
+| `akamai(&str)` | HTTP/2 SETTINGS and their order, the connection window, PRIORITY frames and the pseudo-header order. The HEADERS priority fields stay the base's. |
+| `user_agent`, `accept_language`, `client_hints` | The identity headers. |
+| `header`, `without_header`, `header_order`, `priority`, `headers` | Header names, values, order and the HTTP/2 `priority` value per `Sec-Fetch-Dest`, per request shape. |
+
+The inputs that need the base to be judged (`ja3`, `ja4_r`, `ja4_ro`,
+`peetprint`, `signature_algorithms`, `akamai`) return their error at once. The
+identity and header inputs are checked in `build()`. Nothing is sent before a
+client exists.
+
+### What is refused
+
+BoringSSL and wreq cannot emit everything a browser can. Anything they cannot
+reproduce is refused with a named error before a client exists, and
+`crates/wire/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
+given. The errors are variants of `WireFormatError`: `Tls(..)` wraps
+`codec::tls_spec::TlsSpecError`, `Http2(..)` wraps `codec::h2_spec::H2SpecError`,
+`Convert(..)` wraps the rules that belong to the client stack itself. A string that
+is not well formed at all is `Ja3(..)`, `Ja4(..)`, `Peetprint(..)` or `Akamai(..)`.
+
+| Input | Refused | Error |
+|---|---|---|
+| Handshake version | Anything other than TLS 1.2 (`771`), the only value BoringSSL writes | `LegacyVersion` |
+| Cipher suites | DHE suites, the TLS 1.3 CCM suites, the signalling suites, anything BoringSSL does not write; a subset of the three TLS 1.3 suites | `UnsupportedCipher`, `Tls13Suites` |
+| Extensions | `pre_shared_key`, `early_data`, `post_handshake_auth`, `trust_anchors` (`0xCA34`), GREASE ids listed as extensions, any id with no BoringSSL option; a repeated id | `UnsupportedExtension { id, reason }`, `DuplicateExtension` |
+| Supported groups and key shares | x448, brainpool, secp256k1, the larger FFDHE groups; a key share for a group that is not offered | `UnsupportedGroup`, `KeyShareNotOffered` |
+| Signature algorithms | ML-DSA (`0x0904` to `0x0906`) and any id outside the set BoringSSL writes | `UnsupportedSigalg { id, name }` |
+| HTTP/2 SETTINGS | Ids other than 1 to 6, 8 and 9 (GREASE and experimental settings); a repeated id; a value outside RFC 9113's range; leaving out `SETTINGS_INITIAL_WINDOW_SIZE`, which wreq always sends | `UnsupportedSetting`, `DuplicateSetting`, `SettingValue`, `SettingAlwaysSent` |
+| HTTP/2 window and priority | A window increment that passes 2^31-1; a PRIORITY frame for stream 0, or two for one stream (wreq drops both silently) | `WindowUpdate`, `Priority { stream, reason }` |
+| ALPN | Anything wreq cannot announce besides `h2` and `http/1.1` | `Convert(..)` |
+
+For example, a JA3 that adds `trust_anchors` and a signature algorithm BoringSSL
+cannot write:
+
+```rust
+use seleniumbase_rs_stealth::wire::client::{WireFormatError, WireFormat};
+use seleniumbase_rs_stealth::codec::tls_spec::TlsSpecError;
+
+fn demo(ja3_with_trust_anchors: &str) {
+    let refused = WireFormat::builder().ja3(ja3_with_trust_anchors);
+    assert!(matches!(
+        refused,
+        Err(WireFormatError::Tls(TlsSpecError::UnsupportedExtension { id: 0xCA34, .. }))
+    ));
+
+    let refused = WireFormat::builder().signature_algorithms(&[0x0904]);
+    assert!(matches!(
+        refused,
+        Err(WireFormatError::Tls(TlsSpecError::UnsupportedSigalg { id: 0x0904, .. }))
+    ));
+}
+```
+
+<Info>
+
+A refusal is not a bug to work around. It means the pinned BoringSSL and wreq
+cannot send what you asked for, and sending something close would be a different
+fingerprint from the one you named.
+
+</Info>
+
+## HTTP/3 and QUIC profiles
+
+When connecting to origins that advertise HTTP/3 (`WireProtocol::Http3`), `seleniumbase_rs_stealth::codec::H3Spec` captures QUIC transport parameter ordering, HTTP/3 `SETTINGS` frames, and pseudo-header ordering (`:method`, `:authority`, `:scheme`, `:path`), while `seleniumbase_rs_stealth::wire::Http3Client` (`Http3Options`, `Http3Request`, `Http3Response`) sends requests over QUIC. Enable HTTP/3 capture/sending support with the `http3` feature on the stealth wire layer; see [HTTP/3 and QUIC](/stealth/advanced/http3) for options and subprocess requirements, and [Network patching](/concepts/network-patching) for how TLS, HTTP/2, HTTP/3, and MitM layers work together.
+
+## Where these types live
+
+The parsers and the measured table are `seleniumbase_rs_stealth::codec`, on by
+default. `WireFormat`, `WireFormatBuilder`, `WireProtocol`, and
+`WireFormat::client_builder` are re-exported at `seleniumbase_rs_stealth::wire`, which
+needs `features = ["wire"]`. The module paths used above
+(`wire::client`, `codec::tls_spec`) are the same types. The item pages are
+[codec](/stealth/api/codec), [WireMeasurement](/stealth/api/codec-measurement),
+[TlsSpec](/stealth/api/codec-tls-spec) and [wire](/stealth/api/wire).
+
+<Columns cols={2}>
+
+<Card title="HttpSession" icon="network-wired" color="#a631be" href="/scraping/stealthy/http-session">
+  The client this page builds, carrying a browser's cookies.
+</Card>
+
+<Card title="Examples" icon="play" color="#693acf" href="/scraping/advanced-stealthy/examples">
+  `custom_profile` and the three capture tools, and what each needs.
+</Card>
+
+</Columns>

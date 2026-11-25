@@ -10,7 +10,7 @@ Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by `SB_UP
 
 </Info>
 
-<Badge>sbrs 0.9.2 (seleniumbase-rs)</Badge>
+<Badge>sbrs 0.9.3 (seleniumbase-rs)</Badge>
 
 A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.
 
@@ -3326,7 +3326,7 @@ sbrs options --markdown
 Patch a Chrome/Chromium binary for native-level spoofing.
 
 ```bash Usage
-sbrs patch-chrome <--path <PATH>> [--cache-dir <CACHE_DIR>]
+sbrs patch-chrome <FLAGS>
 ```
 
 **Flags**
@@ -3343,6 +3343,26 @@ Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)
 
 </ParamField>
 
+<ParamField query="--inspect" type="boolean">
+
+Inspect automation markers without writing a patched copy
+
+</ParamField>
+
+<ParamField query="--preset <PRESET>" type="string">
+
+Named patch preset to apply (default: chrome-binary)
+
+One of: `balanced`, `all`, `aggressive`, `chrome-binary`
+
+</ParamField>
+
+<ParamField query="--with-companions" type="boolean">
+
+Also inspect or patch discovered companion libraries
+
+</ParamField>
+
 ```bash Examples
 sbrs patch-chrome --path ./chrome --cache-dir ./patched
 ```
@@ -3352,7 +3372,7 @@ sbrs patch-chrome --path ./chrome --cache-dir ./patched
 Patch a chromedriver binary to reduce detection surface.
 
 ```bash Usage
-sbrs patch-chromedriver <--path <PATH>>
+sbrs patch-chromedriver <FLAGS>
 ```
 
 **Flags**
@@ -3360,6 +3380,26 @@ sbrs patch-chromedriver <--path <PATH>>
 <ParamField query="--path <PATH>" type="string" required>
 
 Path to the chromedriver binary
+
+</ParamField>
+
+<ParamField query="--inspect" type="boolean">
+
+Inspect automation markers without modifying the binary
+
+</ParamField>
+
+<ParamField query="--restore" type="boolean">
+
+Restore the binary from its .orig backup
+
+</ParamField>
+
+<ParamField query="--preset <PRESET>" type="string">
+
+Named patch preset to apply (default: all)
+
+One of: `balanced`, `all`, `aggressive`, `chrome-binary`
 
 </ParamField>
 

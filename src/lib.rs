@@ -278,8 +278,9 @@ pub use evasion::providers::{
 };
 #[doc(inline)]
 pub use evasion::{
-    engine_spoofing_args, find_system_chrome, find_system_chrome_with, ChromeBinaryPatcher,
-    ChromedriverPatcher, EnginePatch,
+    engine_spoofing_args, find_system_chrome, find_system_chrome_with, BinaryFormat,
+    BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
+    MarkerCounts, PatchPreset, PatchedBrowserBundle,
 };
 #[doc(inline)]
 pub use extract::{

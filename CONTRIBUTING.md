@@ -137,16 +137,18 @@ Neither is needed to build, test or contribute.
 
 ```text
 seleniumbase-rs/               # the workspace root
-├── Cargo.toml                 # the workspace and the library package: version, rust-version 1.99, features
+├── Cargo.toml                 # the workspace and the library package: version, rust-version 1.100, features
 ├── Cargo.lock                 # the locked dependency versions
-├── rust-toolchain.toml        # pins Rust 1.99 with clippy and rustfmt
+├── rust-toolchain.toml        # pins Rust 1.100 with clippy and rustfmt
 ├── src/                       # the library (no binary): both engines, the MCP tools, the library half of the command line
 │   ├── lib.rs                 # the crate root and its public re-exports
 │   ├── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
 │   ├── api/                   # BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours
 │   ├── browser/               # BrowserConfig, the launcher, the WebDriver session, driver access and downloads
 │   ├── sb_cdp/                # the pure CDP engine: Browser, Page, Locator, pool, mock
+│   ├── crawler/               # concurrent crawler, RFC 9309 robots.txt parser, XML sitemap discovery, and recursive spider
 │   ├── evasion/               # fingerprints, evasion providers, humanize, binary patching and the CDP reactor
+│   ├── extract/               # token-efficient HTML-to-Markdown conversion, JSON-LD, table, and typed form extraction
 │   ├── mcp/                   # the MCP servers cdp, driver, sb and dev, and their tools
 │   ├── cli/                   # the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/
 │   ├── testing/               # the rstest sb fixtures; bdd/: Gherkin through rstest-bdd
@@ -197,6 +199,7 @@ seleniumbase-rs/               # the workspace root
 ├── tools/                     # scripts for the docs, the parity manifests, the Linux check and the release archives
 ├── docker/                    # the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/
 ├── .config/                   # configuration of tools
+├── .agents/                   # local assistant skills and automation definitions
 ├── .github/                   # GitHub Actions
 ├── .gitlab-ci.yml             # GitLab CI: gate, test, supply-chain and docs jobs, the GitLab security scanners, and the manual msrv and chrome jobs
 ├── .warp/                     # the Warp terminal

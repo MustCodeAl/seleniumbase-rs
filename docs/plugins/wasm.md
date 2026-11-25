@@ -159,7 +159,7 @@ anything (`"*.png"`, `"*://ads.example.com/*"`).
 
 ### Limits
 
-The host applies these to every module. `Limits` changes the first four.
+The host applies these to every module. `Limits::builder()` changes the first four (for example `Limits::builder().fuel_per_call(1_000_000).build()`).
 
 | Limit | Default |
 |---|---|

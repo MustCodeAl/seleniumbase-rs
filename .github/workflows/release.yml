@@ -165,9 +165,10 @@ jobs:
         run: |
           name="$CRATE-$TAG-${{ matrix.target }}"
           stage="stage/$name"
-          mkdir -p "$stage/completions" "$stage/warp/workflows" dist
+          mkdir -p "$stage/completions" "$stage/man/man1" "$stage/warp/workflows" dist
           cp "target/${{ matrix.target }}/release/sbrs" "target/${{ matrix.target }}/release/sbrs-mcp" "$stage/"
           cp completions-out/* "$stage/completions/"
+          cp man/man1/*.1 "$stage/man/man1/"
           cp .warp/workflows/*.yaml "$stage/warp/workflows/"
           cp README.md LICENSE "$stage/"
           # The binaries sit at the archive's root, as bin-dir in crates/cli/Cargo.toml says.
@@ -180,9 +181,10 @@ jobs:
         run: |
           $name = "$env:CRATE-$env:TAG-${{ matrix.target }}"
           $stage = "stage/$name"
-          New-Item -ItemType Directory -Force -Path "$stage/completions", "$stage/warp/workflows", "dist" | Out-Null
+          New-Item -ItemType Directory -Force -Path "$stage/completions", "$stage/man/man1", "$stage/warp/workflows", "dist" | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/sbrs.exe", "target/${{ matrix.target }}/release/sbrs-mcp.exe" "$stage/"
           Copy-Item completions-out/* "$stage/completions/"
+          Copy-Item man/man1/*.1 "$stage/man/man1/"
           Copy-Item .warp/workflows/*.yaml "$stage/warp/workflows/"
           Copy-Item README.md, LICENSE "$stage/"
           Compress-Archive -Path "$stage/*" -DestinationPath "dist/$name.zip"

@@ -1331,6 +1331,15 @@ Patch a chromedriver binary to reduce detection surface.
 \fB\-\-path\fR \fI<PATH>\fR
 Path to the chromedriver binary
 .TP
+\fB\-\-inspect\fR
+Inspect automation markers without modifying the binary
+.TP
+\fB\-\-restore\fR
+Restore the binary from its .orig backup
+.TP
+\fB\-\-preset\fR \fI<PRESET>\fR
+Named patch preset to apply (default: all)
+.TP
 \fB\-h, \-\-help\fR
 Print help
 \fBExamples:\fR
@@ -1352,6 +1361,15 @@ Path to the Chrome/Chromium binary
 .TP
 \fB\-\-cache\-dir\fR \fI<CACHE_DIR>\fR
 Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)
+.TP
+\fB\-\-inspect\fR
+Inspect automation markers without writing a patched copy
+.TP
+\fB\-\-preset\fR \fI<PRESET>\fR
+Named patch preset to apply (default: chrome\-binary)
+.TP
+\fB\-\-with\-companions\fR
+Also inspect or patch discovered companion libraries
 .TP
 \fB\-h, \-\-help\fR
 Print help

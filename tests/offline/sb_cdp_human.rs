@@ -61,6 +61,7 @@ fn typed_result(mock: &MockCtrl) -> String {
             continue;
         }
         match call.params["key"].as_str().unwrap() {
+            "Shift" | "Control" | "Alt" | "Meta" => {}
             "Backspace" => {
                 field.pop();
             }

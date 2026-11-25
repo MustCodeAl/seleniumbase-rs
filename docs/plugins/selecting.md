@@ -72,9 +72,9 @@ built-in plugins.
 share a set with `crx`: naming both builds the set, and the check every launch
 makes refuses it with ``plugin `browser` cannot be combined with plugin `crx` ``,
 before a browser starts. Name one of them. `browser` takes `extension_zip` (`.zip`
-or `.crx` files) and `extension_dir` (unpacked folders). Its worker-wait and session
-options (`wait_for_workers`, `session` and the like) are not implemented yet and are
-refused as unknown options, not ignored. Both declare `host.fs.write:temp`
+or `.crx` files), `extension_dir` (unpacked folders), `wait_for_workers` /
+`worker_timeout_secs`, and session persistence (`session`, `save_on_close`,
+`session_dir`, `interactive`, `pause_message`). Both declare `host.fs.write:temp`
 (`browser` also `host.fs.read`, for the paths it is given), so a settings file
 in the current folder cannot turn either on by itself: name it with `--plugin`
 or `SB_PLUGINS`, as [explained below](#what-a-project-file-may-not-turn-on-alone).

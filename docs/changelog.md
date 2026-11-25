@@ -5,19 +5,19 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-## Latest release: v0.8.7
+## Latest release: v0.9.3
 
 <Columns cols={3}>
 
-<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.8.7">
-  v0.8.7 on GitHub.
+<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.3">
+  v0.9.3 on GitHub.
 </Card>
 
-<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.zip">
+<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.zip">
   The source of this release as a zip archive.
 </Card>
 
-<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.8.7.tar.gz">
+<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.tar.gz">
   The source of this release as a tarball.
 </Card>
 
@@ -26,15 +26,144 @@ Semantic Versioning.
 The releases publish no prebuilt binaries; install the command line from the tag:
 
 ```bash Terminal
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 seleniumbase-rs-cli
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.9.3 seleniumbase-rs-cli
 ```
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New", "Fix"]}>
+<Update label="2026-11-25" description="v0.9.3" tags={["New", "Fix"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.3) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.tar.gz)
 
 ### Added
 
+- **Binary Patching CLI Expansion**:
+  - `sbrs patch-chromedriver --inspect`: inspect automation markers without modifying the binary.
+  - `sbrs patch-chromedriver --restore`: restore from `.orig` backup.
+  - `sbrs patch-chromedriver --preset <preset>`: apply a named patch preset (`balanced`, `all`, `aggressive`, `chrome-binary`).
+  - `sbrs patch-chrome --inspect`: inspect markers on the source executable without writing a patched copy.
+  - `sbrs patch-chrome --preset <preset>`: apply a named patch preset.
+  - `sbrs patch-chrome --with-companions`: also inspect or patch discovered companion libraries (macOS Framework, Windows DLL, Linux `.so`).
+- **Homebrew Man Page Support**:
+  - Man pages (`sbrs.1`, `sbrs-mcp.1`) now installed by the Homebrew formula.
+  - Release archives include man pages for all packaging systems.
+- **HTTP/3 Stealth Improvements** (`seleniumbase-rs-stealth`):
+  - Profile resolution fix: cap Chromium version to highest available `phantom-http` profile instead of building invalid profile strings.
+  - Proxy support: HTTP/3 requests now respect `Route::Socks5`, `Route::HttpProxy`, and `Route::ConnectUdp` proxy routes.
+  - Alt-Svc header support: `ClientBuilder::alt_svc()` with `AltSvcHttpsPolicy` for HTTP/3 service discovery.
+  - H3→H2 graceful fallback: negotiated protocol via `Client::request()` falls back transparently when H3 is unavailable.
+  - Client reuse: pooled `phantom-http` clients instead of spawning a new `sbrs-h3d` process per request.
+
+### Fixed
+
+- Patcher test: updated CDP isolation marker test payload to match current Chromium DevTools frame identifiers.
+- CLI completion: `--preset` flags now provide shell completion choices via `value_enum`.
+
+</Update>
+
+<Update label="2026-11-24" description="v0.9.2" tags={["New", "Fix"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.2) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.2.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.2.tar.gz)
+
+### Added
+
+- **Canonical Zero-Alias Profile JSON Schema & Rust API Alignment**:
+  - Stripped 100% of legacy serde aliases (`alias = ...`) from `src/profile_payloads/profile.rs` and `seleniumbase-rs-stealth/src/fingerprint.rs`.
+  - Unified JSON schema strictly matching Rust `Fingerprint` and `FingerprintBuilder` API: `webrtc_policy`, `proxy`, `audio_noise`, `canvas_noise`, `ports`, `navigator`, `localization`, `timezone`, `webgl`, `fonts`, `media_devices`, `screen`, `geolocation`, `audio_sample_rate`.
+- **Advanced Fingerprinting & Native Low-Level Browser Impersonation**:
+  - Native browser spoofing enhancements across prototype chains, WebIDL getters, binary markers, error stack scrubbing, deterministic media/canvas/audio noise, and hardware-coherent profiles:
+    - Added `DomRectProvider` (`"dom_rect"`, priority 58) with deterministic ~`1e-4` px micro-jitter on `Element` and `Range` `getBoundingClientRect`/`getClientRects`, extended `CanvasNoiseProvider` to `measureText` (`TextMetrics` bounds) and `OffscreenCanvas`/`OffscreenCanvasRenderingContext2D`, extended `AudioNoiseProvider` to `AnalyserNode` byte/float readouts and prototype `baseLatency`/`outputLatency`/`maxChannelCount`, fixed WebGL2 `MAX_ARRAY_TEXTURE_LAYERS` (`35071`) with uniform/component/texel-offset enums, desktop vs. Apple/mobile GPU caps, and `readPixels` 1-LSB jitter, expanded `CdpMarkerProvider` eval frame filtering without adding `Error.prepareStackTrace`, and set `Screen.prototype.isExtended` plus `ClientHints` `wow64`/`formFactors`.
+    - Added `firefox_user_agent(os, major)`, `gecko_oscpu(os)`, `gecko_build_id()`, `chromium_user_agent_for_os`, and `edge_user_agent_for_os` in `evasion::randomize`, expanded weighted Chromium/platform/GPU/device tables, and added `ClientHints` coherence checks in `Fingerprint::validate()`.
+  - Display characteristics & media features: `ColorGamut`, `HdrMode`, `dynamic_range` (`Standard` / `High`), `pointer` (`Fine` / `Coarse`), and `hover` emulation across CDP `Emulation.setEmulatedMedia`.
+  - WebGL 1/2 parameter tables, ANGLE D3D11 / Metal / Mesa extension matrices, and shader precision format emulation (`getShaderPrecisionFormat`).
+  - Web Audio sample rate alignment (`48000` Hz for macOS/Windows, `44100` Hz for Linux) and buffer perturbation on `OfflineAudioContext.prototype.startRendering` and `AudioBuffer`.
+  - Font canvas probe shield: `CanvasRenderingContext2D.prototype.measureText` interceptor preventing stealth font enumeration attacks.
+  - SVG / MathML subpixel normalization and CDP/DevTools evaluation error stack scrubbing.
+  - New comprehensive documentation: `docs/stealth/advanced/fingerprinting.md` and updated `docs/stealth/advanced/wire-formats.md`.
+- **Python Importer Modernization (`sbrs import-python`, `src/utilities/importer`)**:
+  - Python 3.10-3.16 pattern matching (`match ... case ...`) translated into idiomatic Rust `match` expressions with pattern guards, bindings, and wildcards.
+  - Negative indexing (`[-1]`, `[-2]`) translated to `.last().cloned().unwrap_or_default()` and `.iter().rev().nth(...)`.
+  - Playwright context manager unwrapping (`with sync_playwright() as p:`) into pure CDP fixture execution (`sb_cdp.run(async |page| { ... })`).
+  - Colorama ANSI terminal styling stripping and expanded CDP/BaseCase method mappings (17 new methods).
+- **Standalone `antibot-detector` Plugin (`seleniumbase-rs-plugins/plugins/antibot-detector`)**:
+  - Independent plugin crate detecting 10+ major anti-bot and WAF challenge systems: Cloudflare Turnstile & `cf_clearance`, DataDome, Akamai Bot Manager, Kasada, PerimeterX / HUMAN, AWS WAF, Imperva / Incapsula, FingerprintJS Pro, reCAPTCHA, and hCaptcha.
+- **Companion Chrome Extension (`seleniumbase-rs-companion`)**:
+  - 5 core features: Anti-bot diagnostics & leak inspector, One-click "Export Browser Profile / Fingerprint as Rust ContextOptions", PageArena real-time token counter & LLM cost calculator, Live interactive selector test box, and W3C WebDriver BiDi / CDP event streamer.
+- **Web UI & Multi-Login Orchestrator (`@antislop-ui`)**:
+  - Industrial matte dark theme with single deliberate accent, zero blue-purple gradients, zero neon glows, zero emojis in controls.
+  - Multi-persona concurrent login orchestrator with pairwise cookie isolation and state machine telemetry.
+- **CLI Plugin Scaffolding (`sbrs plugin new`)**:
+  - Command and MCP authoring tool for generating modular plugin crates with customizable foundations (`cdp`, `webdriver`), development configs (`mise`, `docker`, `cargo`), and agent rules.
+- **Crawler WARC Streaming & ISO 28500 Support**:
+  - WARC 1.1 streaming compression / decompression reader and writer (`src/crawler/warc.rs`).
+- **AI & LLM Structured Extraction (`markdown()`, `fill_form()`)**:
+  - `BaseCase::markdown()`, `Page::markdown()`, and `Locator::markdown()`: Automated HTML-to-clean-Markdown extraction tailored for LLMs and RAG pipelines. Automatically strips noise elements (`nav`, `footer`, `script`, `style`, `aside`, `form`, SVG icons) and formats semantic article content into token-efficient Markdown headings, lists, tables, and code blocks.
+  - `extract::html_to_markdown` & `extract::html_to_markdown_with`: Zero-allocation Markdown conversion engine configured via `MarkdownOptions` (`strip_links`, `strip_images`, `max_characters`).
+  - `BaseCase::fill_form(&data)` & `Page::fill_form(&data)`: Strongly typed automated form filling from any Serde-serializable struct via `extract::FormData`, automatically matching and populating `input[name]`, `input[id]`, `textarea`, and `select` elements without manual element typing boilerplate.
+- **Autonomous Crawler Enhancements (`robots.txt`, `sitemap.xml`, `Spider`)**:
+  - `RobotsPolicy` (`seleniumbase_rs::crawler::RobotsPolicy`): RFC 9309 compliant `robots.txt` parser supporting `User-agent`, `Allow`, `Disallow`, `Crawl-delay`, and `Sitemap` directives, with zero-copy string borrowing (`Cow<'a, str>`), `RobotsPolicy::parse(text)`, `fetch_robots_txt(&client, base_url)`, and `is_allowed(ua, path)`.
+  - `sitemap::parse_sitemap_urls` & `sitemap::fetch_sitemap_urls`: High-performance parsing and HTTP fetching of standard XML sitemaps and sitemap index files without heavy external XML dependencies.
+  - `Spider` (`seleniumbase_rs::crawler::Spider`): Breadth-first recursive link crawler with depth boundaries (`max_depth`), domain fencing (`allowed_domains`), URL pattern whitelists/blacklists, link deduplication via `HashSet`, and integrated `RobotsPolicy` compliance.
+  - `Crawler::crawl_spider`: Autonomous recursive spider execution engine traversing the spider's discovered frontier across pooled browser contexts.
+- **W3C WebDriver BiDi Bidirectional Event Subscriptions**:
+  - `BaseCase::bidi_listen_logs()` and `BrowserSession::bidi_listen_logs()`: Subscribes directly to W3C WebDriver BiDi `log.entryAdded` events over thirtyfour's BiDi connection, streaming browser console logs, JavaScript errors, and runtime diagnostics to an asynchronous `EventStream`.
+  - `BaseCase::bidi_forward_logs(sender)`: Spawns an asynchronous forwarding task pushing live BiDi log entries directly into a `tokio::sync::mpsc::UnboundedSender`.
+  - `BaseCase::bidi_listen_network()` and `BrowserSession::bidi_listen_network()`: Subscribes to real-time BiDi network events (`network.responseCompleted`) for bidirectional telemetry without polling.
+- **Behavioral Stealth & Per-Lease Context Fingerprints**:
+  - `BrowserPool` per-lease fingerprinting: `ContextOptionsBuilder::fingerprint(Option<Fingerprint>)` applies randomized or custom fingerprints per browser context lease in `BrowserPool::acquire_with(&options)`, enabling isolated, multi-identity scraping without browser restarts.
+  - `BaseCase::human_click(selector)`: Humanized mouse interaction calculating randomized Bézier trajectories, acceleration/deceleration speed curves, and natural target overshoots.
+  - `BaseCase::human_type(selector, text)`: Human-paced typing emulation simulating realistic inter-keystroke delays (Gaussian distributions with 50-120ms intervals and natural jitter), defeating behavioral keystroke timing detectors.
+- **Zero-Copy Streaming HAR & JSONL Network Dumper**:
+  - `HarStreamWriter`: Zero-allocation, streaming network event dumper for CDP capture sessions. Flushes CDP network request and response payloads directly to disk using `tokio::io::BufWriter` in streaming HAR chunks or JSON Lines (JSONL).
+  - `Page::stream_to_jsonl(path)` & `Page::stream_to_jsonl_with(path, opts)`: Direct disk streaming preventing RAM bloat on multi-gigabyte browser capture sessions.
+  - `Page::start_har_stream(writer)`: Flexible stream dumper attachment supporting arbitrary async write destinations (`AsyncWrite`).
+- **High-Throughput Concurrent Crawler Pipeline (`seleniumbase_rs::crawler`)**:
+  - Tokio-native asynchronous web crawling engine (`CrawlerBuilder`, `Crawler`) featuring bounded concurrency, token-bucket rate limiting, automatic exponential backoff retries, per-page CDP context isolation, and structured result aggregation (`CrawlItem<T>`).
+- **Type-Safe Structured Data Extraction (`seleniumbase_rs::extract`)**:
+  - `PageMetadata`: Zero-overhead parsing of SEO metadata, `OpenGraph` tags, Twitter Cards, canonical URL, and custom meta properties directly into strongly typed models via `sb.metadata()` and `page.metadata()`.
+  - `extract_json_ld<T: DeserializeOwned>()`: Direct deserialization of Schema.org JSON-LD scripts (including nested `@graph` arrays) into typed Rust structs via `sb.json_ld::<T>()` and `page.json_ld::<T>()`.
+  - `TableData`: Automated HTML table parsing extracting structured columns and rows, with `.to_records::<T: DeserializeOwned>()` mapping rows directly into typed structs without manual DOM traversal.
+- **Resilient / Auto-Healing Locators (`ResilientLocator`)**:
+  - Fallback locator cascade resolving selector drift dynamically: prioritizes candidate selectors, automatically selects the first matching element in the DOM, caches the working selector in-memory for instant subsequent lookups, and emits structured `tracing::warn!` diagnostics on drift. Accessible via `page.resilient_locator(&[sel1, sel2, ...])`.
+- **SeleniumBase Method Parity & UC Helpers**:
+  - Implemented `r#type(selector, text)`, `uc_open(url)`, `uc_open_with_tab(url)`, and `skip(reason)` aliases on `BaseCase`, strictly adhering to Rust API naming guidelines (C-GETTER) without unidiomatic `get_` prefixes (e.g. `text`, `title`, `current_url`, `page_source`, `attribute`, `property`, `cookies`, `value`, etc.).
+  - Added zero-argument `uc_gui_click_captcha()` with automated candidate detection (`.cf-turnstile`, `#challenge-stage`, Turnstile iframes, checkbox) and CDP `Page::gui_click_captcha` delegation, plus `uc_gui_press_keys(keys)`.
+- **Python Selenium WebDriver Parity Types & Helpers**:
+  - `Keys`: Full W3C / Selenium special keyboard key constants (`Keys::ENTER`, `Keys::TAB`, `Keys::BACKSPACE`, `Keys::ESCAPE`, `Keys::SPACE`, `Keys::ARROW_UP`, `Keys::ARROW_DOWN`, `Keys::ARROW_LEFT`, `Keys::ARROW_RIGHT`, `Keys::HOME`, `Keys::END`, `Keys::PAGE_UP`, `Keys::PAGE_DOWN`, `Keys::INSERT`, `Keys::DELETE`, `Keys::SHIFT`, `Keys::CONTROL`, `Keys::ALT`, `Keys::META`/`COMMAND`, `Keys::F1`..`Keys::F12`, and `Keys::NUMPAD0`..`NUMPAD9`, `ADD`, `SUBTRACT`, etc.) with `Keys::to_key(ch)`.
+  - Expanded `sb_cdp::Key` enum and pure CDP keyboard PUA dispatch: automatically resolves and dispatches native keypress events for all special keys.
+  - `Select`: Select element wrapper matching Python Selenium's `selenium.webdriver.support.select.Select`: provides `select_by_visible_text`, `select_by_value`, `select_by_index`, `options`, `all_selected_options`, `first_selected_option`, and multi-select deselectors `deselect_all`, `deselect_by_visible_text`, `deselect_by_value`, `deselect_by_index`.
+  - `Color`: CSS color parser and converter matching Python Selenium's `selenium.webdriver.support.color.Color`: parses hex strings (`#rgb`, `#rrggbb`, `#rgba`, `#rrggbbaa`), `rgb(...)`, `rgba(...)`, and CSS named colors (`red`, `blue`, `transparent`, etc.), converting to `.hex()`, `.rgb()`, and `.rgba()`.
+  - `Alert` crate root re-export: Exposed `Alert` dialog helper (`text`, `accept`, `dismiss`, `send_keys`) directly at `seleniumbase_rs::Alert`.
+  - `BaseCase::back` & `BaseCase::forward`: Added navigation aliases matching Python WebDriver's `driver.back()` and `driver.forward()`.
+- **Complete 8 Locator Strategy Types and By Namespace**: Added full support for the 8 standard W3C WebDriver / Selenium locator strategies (`By::ID = "id"`, `By::NAME = "name"`, `By::XPATH = "xpath"`, `By::LINK_TEXT = "link text"`, `By::PARTIAL_LINK_TEXT = "partial link text"`, `By::TAG_NAME = "tag name"`, `By::CLASS_NAME = "class name"`, `By::CSS_SELECTOR = "css selector"`). Added `By` enum and associated constants, tuple conversions `(By, value)` and `(&str, value)` on `Selector` and `SelectorRef`, native pure CDP DOM resolution in `helper.js` for ID, name, tag name, and class name, compile-time `selector!` macro expansions (`id`, `name`, `tag`, `class`, etc.), and re-exported `By` at crate root.
+- **Upstream Sync to 4.56.5 & Parity Hardening**: Bumped upstream SeleniumBase pin to 4.56.5 (`UPSTREAM_SELENIUMBASE_VERSION = "4.56.5"`, commit `c5b23d06eb8d5f35df8bfd32158fe2ec3fc8da6e`), implemented `BaseCase::assert_element_absent(selector)`, and re-verified full parity across `parity/api.toml`, `parity/upstream-api.json`, and `docs/parity.md`.
+- **Super Stealth Typing Parity (SeleniumBase 4.58)**: Added automatic ShiftLeft keydown (virtual keycode 16, modifier 8) + lowercase `unmodifiedText` + ShiftLeft keyup emulation for uppercase characters in `sb_cdp::input` (`type_char` and `type_text`), matching real human typing events on modern anti-bot detectors.
+- **Documentation Centralization & Deepening**: Centralized and updated documentation across all 5 workspace repositories in `docs/`:
+  - **Mimic & Specimen Spoofing**: Documented the 5th state of `Spoof` (`Spoof::Mimic(Specimen)`), four specimen kinds (`Build`, `Machine`, `Place`, `Rendering`), specimen constructors, JSON serialization, and coherence resolution in `docs/stealth/fingerprints.md` and `docs/api/stealth-settings.md`.
+  - **Selectors & Lookup Rewriting**: Documented owned `Selector` vs borrowed `SelectorRef`, semantic constructors (`text`, `label`, `role`, `containing_text`), `selector.check()`, and transparent `:contains()` rewriting to relative XPath in `docs/tutorials/selectors.md`.
+  - **Macro Catalog**: Documented convenience macros (`selector!`, `sb_test!`, `uc_config!`, `cdp_config!`, `sb_config!`, `fingerprint!`, action macros, and form/timeout helpers) with return type semantics in `docs/tutorials/utilities.md`.
+  - **Native Fingerprint Profile JSON Parameters**: Documented full schema breakdown, atomic file creation, and size limits in `docs/stealth/profiles.md`.
+  - **HTTP/3 Wire Integration**: Documented `H3Spec`, `WireProtocol::Http3`, and `HttpRequest::protocol(WireProtocol::Http3)` in `docs/stealth/advanced/http3.md`, `docs/scraping/stealthy/http-session.md`, and API reference pages.
+  - **Plugin Enhancements**: Documented new browser execution, hydration wait (`wait_for`), scroll, action, and structured extraction parameters across `fetcher.md`, `extractor.md`, `crawler.md`, and `block-resources.md`.
+- **Release Profile Optimization**: Configured thin LTO, single codegen unit, and binary stripping in root `Cargo.toml` for maximized release performance and minimal binary footprint.
+
+- **MCP Client Registry Expansion**: Extended `sbrs-mcp install` to support 27 AI clients
+  (including Antigravity, AugmentCode, Claude Code, Cline, Codex, Copilot, Cursor, Factory Droid,
+  Gemini CLI, Grok Build, Hermes, Kilo, Kimi, Kiro, Oh My Pi, OpenCode, OpenClaw, Pi, Plank, Qwen Code,
+  Roo Code, Mistral Vibe, Trae, Warp, and Zed), with automatic client detection, command generation,
+  and project/user config layouts.
+- **Stacktrace Syntax Highlighting & ANSI Diagnostic Formatting**: Added colored, syntax-highlighted
+  stack backtraces, colored panic formatting, and adaptive terminal reports (`crates/cli/src/diagnostic.rs`).
+- **Responsive Shutdown Handling**: Ctrl+C / SIGINT signals initiate immediate feedback with bounded
+  drain timeouts and double-signal force-exit support (`crates/cli/src/sbrs.rs`).
+- **Mimic Feature & Dynamic Version Parsing**: Added `Specimen`, `Build`, `Machine`, `Place`,
+  `Rendering`, and `Provenance` models (`src/evasion/mimic.rs`), `Spoof::Mimic` variant, and dynamic
+  Chrome/Edge version parsing without hardcoded major version boundaries.
+- **Lane 5 Launch Emulation in Core**: Added direct `timezone`, `geolocation`, and `platform` launch
+  settings to `LaunchOptionsBuilder` and `BrowserConfigBuilder` in core without requiring a full `Fingerprint`.
+- **API Guidelines Compliance**: Staged workspace lints, extracted submodules from large `mod.rs` files
+  (`providers`, `mcp`, `session`), implemented monomorphic generic selector wrappers across `BaseCase`,
+  and added comprehensive JSON payload aliases across profile fingerprints.
 - **BrowserScan bot detection tests**: add real-Chrome integration tests
   (`browserscan_bot_detection_invariants_pass`, `uc_stealth_script_satisfies_browserscan_invariants`,
   `browserscan_bot_detection_live_page`) and unit tests verifying stealth invariants and live page bot
@@ -66,13 +195,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
 
 ### Breaking
 
-- **Breaking: the borrowed selector `Selector<'a>` is `SelectorRef<'a>`** (the crate root, the
-  `selector!` macro and `Selector::as_selector` follow). The name `Selector` is kept free for the
-  owned type, `Selector`, which takes it in the next release.
-
-- **Breaking: the borrowed selector `Selector<'a>` is `SelectorRef<'a>`** (the crate root, the
-  `selector!` macro and `SelectorBuf::as_selector` follow). The name `Selector` is kept free for the
-  owned type, `SelectorBuf`, which takes it in the next release.
+- **Breaking: `SelectorBuf` is renamed to `Selector`, and the borrowed selector `Selector<'a>` is `SelectorRef<'a>`** (the crate root, the
+  `selector!` macro and `Selector::as_selector` follow). Both are re-exported at the crate root.
 
 - **A `bool` parameter whose meaning is not clear at the call site is a two-variant enum, and a
   file name is an `impl AsRef<Path>`** (finding F9 of the API guidelines audit). The enums:
@@ -158,6 +282,23 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   `upgrade` do, and no longer the versioned `Cellar` path that `brew upgrade` deletes (every client
   was then left with a program that was not there, which is what `repair` mended). A test runs a
   copy of the binary through a link in a Cellar of its own.
+
+</Update>
+
+<Update label="2026-11-22" description="v0.9.1" tags={["New"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.1) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.1.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.1.tar.gz)
+
+### Added
+
+- **W3C WebDriver BiDi Bidirectional Protocol Support**:
+  - Added full WebDriver BiDi support via thirtyfour: `config.session.bidi` setting, `BrowserConfigBuilder::bidi(bool)`, `BrowserSession::bidi()`, and `BaseCase::bidi()`.
+  - Re-exported `BiDi` directly at `seleniumbase_rs::BiDi`.
+- **Zero-Allocation Data Extraction Optimizations**:
+  - Migrated `TableData`, `PageMetadata`, and `extract_json_ld` to statically pre-compiled selectors (`std::sync::LazyLock`), eliminating per-call selector compilation.
+  - Replaced intermediate `Vec<&str>` allocations and multiple string copies with single-pass chunk streaming and pre-allocated collection capacities.
+- **Toolchain Bump to Rust 1.100**:
+  - Updated MSRV to Rust 1.100 across workspace manifests, toolchain configurations, and companion projects in preparation for stable `std::alloc::Allocator` arena architectures.
 
 </Update>
 

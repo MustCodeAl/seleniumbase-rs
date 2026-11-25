@@ -256,7 +256,7 @@ wait with. The default body is `None`.
 
 The set enforces [`Capability::Clock`](/plugins/api/capabilities): a plugin that
 does not hold it gets `None`. The clock is the plugin set's, when the set has one
-([`PluginSet::with_timer`](/plugins/api/plugin-set)), else the host handle's own.
+(`PluginSetBuilder::with_timer`), else the host handle's own.
 
 ## PageHandle
 

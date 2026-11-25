@@ -28,3 +28,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `unique_links()` | Returns unique `href` values from the page. |
 | `all_links()` | Returns all `href` values from the page. |
 | `link_status_code(url)` | Returns the HTTP status code for `url`. |
+| `metadata()` | Extracts structured metadata (`PageMetadata`: SEO title, description, OpenGraph, Twitter Cards, canonical URL) from the current page's HTML `<head>`. |
+| `json_ld::<T>()` | Extracts and deserializes Schema.org JSON-LD structured data (`Vec<T>`) from `<script type="application/ld+json">` tags, flattening top-level arrays and `@graph` structures. |
+| `table(selector)` | Extracts an HTML `<table>` matching `selector` into structured `TableData` with headers and rows. |
+| `markdown()` | Converts the current page HTML into clean, LLM-ready Markdown, stripping navigation, footers, scripts, and non-content elements. |

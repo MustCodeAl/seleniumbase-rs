@@ -552,7 +552,7 @@ async fn the_bootstrap_and_the_provider_list_are_the_ones_a_browser_session_runs
         json!(seleniumbase_rs::session_registry(&fingerprint).provider_names())
     );
     let names = providers.as_array().unwrap();
-    assert_eq!(names.len(), 31);
+    assert_eq!(names.len(), 32);
     for left_to_the_browser in ["plugins", "connection"] {
         assert!(!names.contains(&json!(left_to_the_browser)));
     }

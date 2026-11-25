@@ -575,6 +575,7 @@ async fn the_dev_server_speaks_mcp_over_stdio_and_needs_no_browser() {
             "parity_lookup",
             "python_to_rust",
             "scaffold",
+            "scaffold_plugin",
             "cli_help",
             "list_plugins",
             "plugin_info",

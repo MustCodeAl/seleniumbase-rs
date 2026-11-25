@@ -6,18 +6,31 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
-## [0.9.1] - 2026-11-22
+## [0.9.3] - 2026-11-25
 
 ### Added
 
-- **W3C WebDriver BiDi Bidirectional Protocol Support**:
-  - Added full WebDriver BiDi support via thirtyfour: `config.session.bidi` setting, `BrowserConfigBuilder::bidi(bool)`, `BrowserSession::bidi()`, and `BaseCase::bidi()`.
-  - Re-exported `BiDi` directly at `seleniumbase_rs::BiDi`.
-- **Zero-Allocation Data Extraction Optimizations**:
-  - Migrated `TableData`, `PageMetadata`, and `extract_json_ld` to statically pre-compiled selectors (`std::sync::LazyLock`), eliminating per-call selector compilation.
-  - Replaced intermediate `Vec<&str>` allocations and multiple string copies with single-pass chunk streaming and pre-allocated collection capacities.
-- **Toolchain Bump to Rust 1.100**:
-  - Updated MSRV to Rust 1.100 across workspace manifests, toolchain configurations, and companion projects in preparation for stable `std::alloc::Allocator` arena architectures.
+- **Binary Patching CLI Expansion**:
+  - `sbrs patch-chromedriver --inspect`: inspect automation markers without modifying the binary.
+  - `sbrs patch-chromedriver --restore`: restore from `.orig` backup.
+  - `sbrs patch-chromedriver --preset <preset>`: apply a named patch preset (`balanced`, `all`, `aggressive`, `chrome-binary`).
+  - `sbrs patch-chrome --inspect`: inspect markers on the source executable without writing a patched copy.
+  - `sbrs patch-chrome --preset <preset>`: apply a named patch preset.
+  - `sbrs patch-chrome --with-companions`: also inspect or patch discovered companion libraries (macOS Framework, Windows DLL, Linux `.so`).
+- **Homebrew Man Page Support**:
+  - Man pages (`sbrs.1`, `sbrs-mcp.1`) now installed by the Homebrew formula.
+  - Release archives include man pages for all packaging systems.
+- **HTTP/3 Stealth Improvements** (`seleniumbase-rs-stealth`):
+  - Profile resolution fix: cap Chromium version to highest available `phantom-http` profile instead of building invalid profile strings.
+  - Proxy support: HTTP/3 requests now respect `Route::Socks5`, `Route::HttpProxy`, and `Route::ConnectUdp` proxy routes.
+  - Alt-Svc header support: `ClientBuilder::alt_svc()` with `AltSvcHttpsPolicy` for HTTP/3 service discovery.
+  - H3→H2 graceful fallback: negotiated protocol via `Client::request()` falls back transparently when H3 is unavailable.
+  - Client reuse: pooled `phantom-http` clients instead of spawning a new `sbrs-h3d` process per request.
+
+### Fixed
+
+- Patcher test: updated CDP isolation marker test payload to match current Chromium DevTools frame identifiers.
+- CLI completion: `--preset` flags now provide shell completion choices via `value_enum`.
 
 ## [0.9.2] - 2026-11-24
 
@@ -52,9 +65,6 @@ work, `docs/parity.md` the per-API status).
   - Command and MCP authoring tool for generating modular plugin crates with customizable foundations (`cdp`, `webdriver`), development configs (`mise`, `docker`, `cargo`), and agent rules.
 - **Crawler WARC Streaming & ISO 28500 Support**:
   - WARC 1.1 streaming compression / decompression reader and writer (`src/crawler/warc.rs`).
-
-### Added
-
 - **AI & LLM Structured Extraction (`markdown()`, `fill_form()`)**:
   - `BaseCase::markdown()`, `Page::markdown()`, and `Locator::markdown()`: Automated HTML-to-clean-Markdown extraction tailored for LLMs and RAG pipelines. Automatically strips noise elements (`nav`, `footer`, `script`, `style`, `aside`, `form`, SVG icons) and formats semantic article content into token-efficient Markdown headings, lists, tables, and code blocks.
   - `extract::html_to_markdown` & `extract::html_to_markdown_with`: Zero-allocation Markdown conversion engine configured via `MarkdownOptions` (`strip_links`, `strip_images`, `max_characters`).
@@ -242,6 +252,18 @@ work, `docs/parity.md` the per-API status).
   was then left with a program that was not there, which is what `repair` mended). A test runs a
   copy of the binary through a link in a Cellar of its own.
 
+## [0.9.1] - 2026-11-22
+
+### Added
+
+- **W3C WebDriver BiDi Bidirectional Protocol Support**:
+  - Added full WebDriver BiDi support via thirtyfour: `config.session.bidi` setting, `BrowserConfigBuilder::bidi(bool)`, `BrowserSession::bidi()`, and `BaseCase::bidi()`.
+  - Re-exported `BiDi` directly at `seleniumbase_rs::BiDi`.
+- **Zero-Allocation Data Extraction Optimizations**:
+  - Migrated `TableData`, `PageMetadata`, and `extract_json_ld` to statically pre-compiled selectors (`std::sync::LazyLock`), eliminating per-call selector compilation.
+  - Replaced intermediate `Vec<&str>` allocations and multiple string copies with single-pass chunk streaming and pre-allocated collection capacities.
+- **Toolchain Bump to Rust 1.100**:
+  - Updated MSRV to Rust 1.100 across workspace manifests, toolchain configurations, and companion projects in preparation for stable `std::alloc::Allocator` arena architectures.
 
 ## [0.8.7] - 2026-11-20
 

@@ -554,6 +554,22 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
+          name: "--inspect",
+          description: "Inspect automation markers without modifying the binary",
+        },
+        {
+          name: "--restore",
+          description: "Restore the binary from its .orig backup",
+        },
+        {
+          name: "--preset",
+          description: "Named patch preset to apply (default: all)",
+          args: {
+            name: "preset",
+            suggestions: ["balanced", "all", "aggressive", "chrome-binary"],
+          },
+        },
+        {
           name: ["-h", "--help"],
           description: "Print help",
         },
@@ -578,6 +594,22 @@ const completionSpec: Fig.Spec = {
             name: "cache_dir",
             template: "folders",
           },
+        },
+        {
+          name: "--inspect",
+          description: "Inspect automation markers without writing a patched copy",
+        },
+        {
+          name: "--preset",
+          description: "Named patch preset to apply (default: chrome-binary)",
+          args: {
+            name: "preset",
+            suggestions: ["balanced", "all", "aggressive", "chrome-binary"],
+          },
+        },
+        {
+          name: "--with-companions",
+          description: "Also inspect or patch discovered companion libraries",
         },
         {
           name: ["-h", "--help"],

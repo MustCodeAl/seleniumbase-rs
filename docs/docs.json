@@ -306,7 +306,9 @@
               "tutorials/mfa_totp",
               "tutorials/verify_by_email",
               "tutorials/pdf_parsing",
-              "tutorials/masterqa"
+              "tutorials/masterqa",
+              "tutorials/ai_extraction",
+              "tutorials/crawler"
             ]
           },
           {
@@ -315,6 +317,7 @@
             "pages": [
               "tutorials/pure_cdp",
               "tutorials/cdp_mode",
+              "tutorials/bidi_and_streaming",
               "help/playwright_mode",
               "tutorials/gui_automation"
             ]
@@ -408,6 +411,7 @@
             "pages": [
               "stealth/advanced/overview",
               "stealth/advanced/providers",
+              "stealth/advanced/fingerprinting",
               "stealth/advanced/binary-patching",
               "stealth/advanced/playwright",
               "stealth/advanced/wire-formats",
@@ -496,6 +500,16 @@
                   "plugins/imap",
                   "plugins/tor",
                   "plugins/wasm"
+                ]
+              },
+              {
+                "group": "Community",
+                "pages": [
+                  "plugins/community/overview",
+                  "plugins/community/antibot-detector",
+                  "plugins/community/behavior-dataset",
+                  "plugins/community/langchain",
+                  "plugins/community/owasp"
                 ]
               },
               "plugins/overview",
@@ -780,6 +794,7 @@
                         "icon": "network-wired",
                         "pages": [
                           "concepts/network",
+                          "concepts/network-patching",
                           "concepts/streaming-network-capture",
                           "concepts/bundling-and-caching"
                         ]

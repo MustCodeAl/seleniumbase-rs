@@ -23,7 +23,7 @@ host a task, so it refuses the plugin before a browser starts.
 
 <Visibility for="agents">
 
-Summary for AI exports: crawler is a built-in testing plugin (feature `plugin-crawler`, name `crawler`) for Chromium on the pure CDP engine, for sites the operator owns or may test. Options live in `[plugins.crawler]`: `start` (addresses), `scope` (`same-origin` by default, `same-site`, or `{ hosts = [...] }`), `include` and `exclude` (patterns), `max_depth` (3, at most 100), `max_pages` (500, from 1 to 50000), `delay_ms` (1000, at most 60000), `respect_robots` (true), `max_links` (1000, from 1 to 100000), `state_file` (none) and the table `expect` with `max_status` (399), `must_reach` (empty) and `no_console_errors` (false). An unknown option or a value out of range is an error. Its task, run with `sbrs plugin run crawler --input FILE`, takes `{start?, resume?}` and crawls breadth first, one navigation at a time, never leaving the scope. It records one line for each page (`index`, `url`, `depth`, `from`, `status`, `title`, `links`, `queued`, or `error`, or `skipped: "robots.txt"`) and returns the report `{pages, edges, broken, js_errors, js_errors_total, unreached, robots_blocked, truncated, passed, summary, resumed}`. The summary uses the wording of Python's `assert_no_404_errors`. As a test plugin it fails the next `on_test_end` with the summary unless the report passed. Nothing in it is shown to work in a real Chrome by tests that run by default.
+Summary for AI exports: crawler is a built-in testing plugin (feature `plugin-crawler`, name `crawler`) for Chromium on the pure CDP engine, for sites the operator owns or may test. Options live in `[plugins.crawler]`: `start` (addresses), `scope` (`same-origin` by default, `same-site`, or `{ hosts = [...] }`), `include` and `exclude` (patterns), `max_depth` (3, at most 100), `max_pages` (500, from 1 to 50000), `delay_ms` (1000, at most 60000), `respect_robots` (true), `max_links` (1000, from 1 to 100000), `state_file` (none), optional `wait_for`, `wait_ms`, `scroll_y`, `extract` (`{ "field": "css" }`), and `markdown` (false), plus the table `expect` with `max_status` (399), `must_reach` (empty) and `no_console_errors` (false). The crate also exports `sitemap::parse_sitemap_urls` (re-exporting `seleniumbase_rs::crawler::sitemap`) to discover URLs from XML sitemaps. An unknown option or a value out of range is an error. Its task, run with `sbrs plugin run crawler --input FILE`, takes `{start?, resume?, wait_for?, wait_ms?, scroll_y?, extract?, markdown?}` and crawls breadth first, one navigation at a time, never leaving the scope. It records one line for each page (`index`, `url`, `depth`, `from`, `status`, `title`, `links`, `queued`, optional `extracted` / `markdown`, or `error`, or `skipped: "robots.txt"`) and returns the report `{pages, edges, broken, js_errors, js_errors_total, unreached, robots_blocked, truncated, passed, summary, resumed, records?}`. The summary uses the wording of Python's `assert_no_404_errors`. As a test plugin it fails the next `on_test_end` with the summary unless the report passed. Nothing in it is shown to work in a real Chrome by tests that run by default.
 
 </Visibility>
 
@@ -298,8 +298,11 @@ Other mistakes in the options, each reported as ``plugin configuration: crawler:
 
 ## The task
 
-The input is `{"start": ["https://staging.example.com/"], "resume": true}`. Both
-keys are optional; without `start` the option of that name is used.
+The input is `{"start": ["https://staging.example.com/"], "resume": true}` and may
+also override `wait_for`, `wait_ms`, `scroll_y`, `extract`, and `markdown` per
+crawl run. All keys are optional; without `start` the option of that name is
+used. You can also feed seed URLs discovered via
+`seleniumbase_rs_plugin_crawler::sitemap::parse_sitemap_urls(xml)`.
 
 ```json crawl.json
 {"start": ["https://staging.example.com/"], "resume": true}

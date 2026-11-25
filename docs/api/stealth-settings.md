@@ -84,7 +84,7 @@ A `Specimen` names an entry in the measured hardware and software catalogue:
 | `policy()`, `humanize()` | The delivery policy and the humanized input timing. |
 | `tracker_hosts()` | The policy's host list, or the crate's default list when that list is empty. |
 
-Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `keyboard_layout`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `storage_quota`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`.
+Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `keyboard_layout`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `storage_quota`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`. Direct accessors `webgl_vendor()` and `webgl_renderer()` return `Option<&str>`, and `audio_sample_rate()` returns `Option<u32>`.
 
 `Off` is meaningful for media devices, geolocation, WebRTC, battery, connection, speech voices, Bluetooth and Client Hints. `Random` on a setting that has nothing to draw (`oscpu`, `build_id`, `proxy`) fails `build`.
 
@@ -122,13 +122,14 @@ Each setting method takes `impl Into<Spoof<T>>`. Calls can come in any order. A 
 | `core_version(u32)` | Chromium major the identity claims. |
 | `seed(u64)` | Seed of the draw and of deterministic noise. |
 | `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version` | `navigator` claims. `oscpu` and `build_id` have no random value. |
-| `locale`, `languages`, `accept_languages`, `timezone` | Language and time zone. |
+| `locale`, `languages`, `languages_list`, `accept_languages`, `timezone` | Language and time zone. `languages_list(&[tags])` sets `navigator.languages` from a slice of language tags. |
 | `keyboard_layout(KeyboardLayout)` | The layout `navigator.keyboard.getLayoutMap()` reports: `Qwerty`, `Qwertz` or `Azerty` (Windows's KBDUS, KBDGR and KBDFR). Unset, `build()` takes it from a given `locale` (`KeyboardLayout::for_locale`; none for a language with no layout everybody uses). No `Off`. `Dimension::Keyboard` is on when it is set. |
 | `screen(width, height)` | Screen size in CSS pixels (`Spoof::Value`). |
 | `screen_spoof(spoof)` | Screen size from any `Spoof<ScreenSize>`, including `Random`. |
 | `avail_screen`, `pixel_ratio`, `color_depth` | Available screen, device pixel ratio, colour depth. |
 | `media_features(MediaFeatures)` | What `matchMedia` and `@media` report about the display and the preferences: `color_gamut` (`ColorGamut`), `color_scheme` (`ColorScheme`), `reduced_motion`, `reduced_transparency`, `contrast` (`Contrast`), `forced_colors`. `MediaFeatures::new(ColorGamut::P3)` starts from a display with no preference set. No `Off`. `Dimension::MediaFeatures` is on when it is set. |
-| `webgl` | Unmasked vendor and renderer. A `(vendor, renderer)` pair works. |
+| `webgl`, `webgl_vendor`, `webgl_renderer` | Unmasked vendor and renderer. A `(vendor, renderer)` pair works, or set `webgl_vendor(vendor)` and `webgl_renderer(renderer)` directly. |
+| `audio_sample_rate(u32)` | Web Audio sample rate in Hz (e.g. `44100` or `48000`). |
 | `media_devices` / `media_device_counts(audio_in, audio_out, video_in)` | What `enumerateDevices()` lists. `Off` lists none. |
 | `geolocation` | Position `navigator.geolocation` reports. `(latitude, longitude)` works. `Off` denies it. |
 | `fonts`, `speech_voices`, `client_hints`, `battery`, `connection`, `bluetooth` | Those APIs. `Off` makes the API unavailable or lists nothing. |

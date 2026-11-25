@@ -129,3 +129,17 @@ fn the_warp_workflows_are_in_the_source_tree() {
         "no .warp/workflows/*.yaml in the source tree"
     );
 }
+
+/// `man1.install "man/man1/sbrs.1", "man/man1/sbrs-mcp.1"` and
+/// `assert_match ".TH SBRS", shell_output("#{bin}/sbrs completions man")`.
+#[test]
+fn the_man_pages_are_in_the_source_tree_and_printed() {
+    for rel in ["man/man1/sbrs.1", "man/man1/sbrs-mcp.1"] {
+        let path = source_tree().join(rel);
+        assert!(path.is_file(), "missing man page at {}", path.display());
+    }
+    let dir = here();
+    let output = run(dir.path(), &[], &["completions", "man"]);
+    assert!(output.status.success(), "{}", stderr(&output));
+    assert!(stdout(&output).contains(".TH SBRS"), "{}", stdout(&output));
+}

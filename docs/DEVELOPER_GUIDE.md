@@ -175,16 +175,18 @@ presentations, and optional stealth/CDP integrations.
 
 <LayoutTree>
 <LayoutDir name="seleniumbase-rs" open note="the workspace root">
-<LayoutFile name="Cargo.toml" highlight note="the workspace and the library package: version, rust-version 1.99, features" />
+<LayoutFile name="Cargo.toml" highlight note="the workspace and the library package: version, rust-version 1.100, features" />
 <LayoutFile name="Cargo.lock" note="the locked dependency versions" />
-<LayoutFile name="rust-toolchain.toml" note="pins Rust 1.99 with clippy and rustfmt" />
+<LayoutFile name="rust-toolchain.toml" note="pins Rust 1.100 with clippy and rustfmt" />
 <LayoutDir name="src" open note="the library (no binary): both engines, the MCP tools, the library half of the command line">
 <LayoutFile name="lib.rs" highlight note="the crate root and its public re-exports" />
 <LayoutFile name="error.rs" highlight note="SeleniumBaseError: hints, exit codes, selector advice" />
 <LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours" />
 <LayoutDir name="browser" note="BrowserConfig, the launcher, the WebDriver session, driver access and downloads" />
 <LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, pool, mock" />
+<LayoutDir name="crawler" note="concurrent crawler, RFC 9309 robots.txt parser, XML sitemap discovery, and recursive spider" />
 <LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor" />
+<LayoutDir name="extract" note="token-efficient HTML-to-Markdown conversion, JSON-LD, table, and typed form extraction" />
 <LayoutDir name="mcp" note="the MCP servers cdp, driver, sb and dev, and their tools" />
 <LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/" />
 <LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
@@ -281,6 +283,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name=".config" note="configuration of tools">
 <LayoutFile name="nextest.toml" note="the nextest configuration and its chrome test group" />
 </LayoutDir>
+<LayoutDir name=".agents" note="local assistant skills and automation definitions" />
 <LayoutDir name=".github" note="GitHub Actions">
 <LayoutDir name="workflows" note="ci, docker, completions, release and upstream-watch" />
 </LayoutDir>
@@ -565,8 +568,10 @@ capability trait.
 <LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours">
 <LayoutFile name="base_case.rs" note="the BaseCase struct and its constructors" />
 <LayoutDir name="base_case_impls" open note="BaseCase helpers, one file per domain">
+<LayoutFile name="base_case_impl_actions.rs" note="action chains and input helpers" />
 <LayoutFile name="base_case_impl_addon.rs" note="add-on helpers" />
 <LayoutFile name="base_case_impl_alerts.rs" note="alerts" />
+<LayoutFile name="base_case_impl_bidi.rs" note="WebDriver BiDi event streaming" />
 <LayoutFile name="base_case_impl_browser.rs" note="browser helpers" />
 <LayoutFile name="base_case_impl_cdp_page.rs" note="CDP page helpers" />
 <LayoutFile name="base_case_impl_cdp_tests.rs" note="tests of the CDP helpers" />
@@ -583,6 +588,7 @@ capability trait.
 <LayoutFile name="base_case_impl_element_tests.rs" note="tests of the element helpers" />
 <LayoutFile name="base_case_impl_esc.rs" note="ending a test when ESC is pressed" />
 <LayoutFile name="base_case_impl_extra.rs" note="extra helpers" />
+<LayoutFile name="base_case_impl_extract.rs" note="structured HTML, table, JSON-LD, and Markdown extraction" />
 <LayoutFile name="base_case_impl_fingerprint.rs" note="fingerprint helpers" />
 <LayoutFile name="base_case_impl_form_tests.rs" note="tests of the form helpers" />
 <LayoutFile name="base_case_impl_frame_tests.rs" note="tests of the frame helpers" />
@@ -717,6 +723,8 @@ Launch and session plumbing:
 <LayoutFile name="proxy_auth.rs" note="proxy authentication" />
 <LayoutFile name="reuse.rs" note="reused sessions and --crumbs" />
 <LayoutDir name="session" open note="BrowserSession, the WebDriver wrapper and the CDP session cache">
+<LayoutFile name="bidi.rs" note="BiDi WebSocket event streaming" />
+<LayoutFile name="browser_session.rs" note="core BrowserSession implementation and state" />
 <LayoutFile name="capabilities.rs" note="the capabilities each browser is asked for" />
 <LayoutFile name="cdp.rs" note="DevTools commands of the session" />
 <LayoutFile name="connect.rs" note="starting a session, a leased one, or a direct CDP attachment" />
@@ -769,13 +777,17 @@ Anti-detection layer:
 <LayoutFile name="mod.rs" note="the js module" />
 <LayoutFile name="recorder_js.rs" note="the recorder script as Rust" />
 </LayoutDir>
+<LayoutFile name="mimic.rs" note="recorded Build, Machine, Place, and Rendering specimens" />
 <LayoutFile name="mod.rs" note="the evasion module" />
 <LayoutFile name="options.rs" note="StealthOptions: launch arguments and preferences" />
 <LayoutFile name="patcher.rs" note="ChromedriverPatcher and EnginePatch" />
 <LayoutFile name="policy.rs" note="StealthPolicy" />
 <LayoutDir name="providers" open note="the evasion registry and the built-in providers">
 <LayoutFile name="builtin.rs" note="the built-in providers" />
+<LayoutFile name="config.rs" note="provider configuration options" />
+<LayoutFile name="context.rs" note="evasion execution context passed to providers" />
 <LayoutFile name="mod.rs" note="EvasionRegistry and default_registry" />
+<LayoutFile name="registry.rs" note="ordered provider registry implementation" />
 </LayoutDir>
 <LayoutFile name="randomize.rs" note="the tables behind Fingerprint::randomized; the method is the API" />
 <LayoutFile name="reactor.rs" note="the background CDP Fetch interceptor" />
@@ -818,6 +830,7 @@ tests share it. It has no command-line parser.
 <LayoutFile name="fingerprint_cmd.rs" note="sbrs fingerprint" />
 <LayoutFile name="mod.rs" note="the cli module" />
 <LayoutFile name="plugin_cmd.rs" note="sbrs plugin list and info, and the check of plugin names" />
+<LayoutFile name="plugin_scaffold.rs" note="plugin scaffolding generator for `sbrs plugin new`" />
 <LayoutFile name="prompt.rs" note="the shell prompt line" />
 <LayoutFile name="scaffold.rs" note="sbrs mkdir and mkfile" />
 <LayoutDir name="scripts" open note="shared by the binaries, the MCP server and the golden tests">
@@ -936,6 +949,7 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutFile name="man.rs" note="renders the man pages man/man1/*.1 from the usage specs (tests only)" />
 <LayoutFile name="plugin_catalog.rs" note="the plugins with a task as commands of sbrs plugin: a usage-dynamic catalog" />
 <LayoutFile name="plugin_flags.rs" note="the --plugin flag, in a struct of its own so that it can complete the plugin names" />
+<LayoutFile name="plugin_scaffold.rs" note="CLI wiring for `sbrs plugin new`" />
 <LayoutFile name="proxy.rs" note="sbrs proxy" />
 <LayoutFile name="recorder_flags.rs" note="the recorder flags" />
 <LayoutFile name="runtime_values.rs" note="the completion words only the running program knows: plugins, presets" />

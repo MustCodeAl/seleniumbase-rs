@@ -34,46 +34,62 @@ has no driver to patch).
 
 <Visibility for="agents">
 
-Summary for AI exports: `ChromedriverPatcher::new(path)` removes the `cdc_` and webdriver markers from a chromedriver binary (`needs_patch()`, then `patch(EnginePatch::balanced())`; `restore()` copies the `.orig` backup back). `ChromeBinaryPatcher` patches a cached copy of the browser and never modifies the original. The CLI has `sbrs patch-chromedriver --path` and `sbrs patch-chrome --path`. Patch only executables you own or may modify.
+Summary for AI exports: `ChromedriverPatcher::new(path)` inspects (`inspect()` -> `BinaryMarkerReport`) and removes `cdc_`, webdriver/DOM/extra globals, CDP flags, and optional `sourceURL` markers from a driver binary (`needs_patch()`, `verify_clean()`, `patch(spec)`, `restore()`). `ChromeBinaryPatcher` inspects and patches cached copies of the Chrome binary (`patched_path_for(&spec)`) and companion libraries (`patch_bundle(spec)` -> `PatchedBrowserBundle`), never modifying originals. Equal-length custom rules use `BinaryPatchRule::try_new` / `neutralize`. CLI: `sbrs patch-chromedriver --path [--inspect|--restore|--preset balanced|all|aggressive|chrome-binary]` and `sbrs patch-chrome --path [--inspect] [--preset ...] [--with-companions] [--cache-dir ...]`.
 
 </Visibility>
 
 ## What is patched
 
-* `cdc_<22 alphanum>_` property assignments such as
-  `window.cdc_..._Array = window.Array`.
-* Quoted `$cdc_...` string prefixes.
+* `cdc_<22 alphanum>_` property assignments (`window.cdc_..._Array = window.Array`).
+* Quoted `$cdc_...` string prefixes and raw NUL-terminated `$cdc_<22 alphanum>_` tokens.
 * `__webdriver`, `__selenium`, and `__driver` globals.
-* `{window.cdc_...;}` initialization blocks (the `all()` preset).
-* Hard-coded `ChromeDriver/<version>` strings, and `navigator.webdriver = true`
-  assignments (the `all()` preset).
+* `{window.cdc_...;}` initialization blocks (`all()` / `aggressive()`).
+* Hard-coded `ChromeDriver/<version>` / `EdgeDriver/<version>` strings and `navigator.webdriver = true` / `!0` assignments (`all()` / `aggressive()`).
+* Extended globals (`__fxdriver`, `__nightmare`, `_phantom`, `callPhantom`, `calledSelenium`, `$wdc_`, `__lastWatir`), `domAutomation` / `domAutomationController`, `HeadlessChrome`, `kAutomationControlled`, `enable-automation`, `webdriver-active`, `AutomationControlled`, and CDP evaluation script tokens (`__puppeteer_evaluation_script__`, `__playwright_evaluation_script__`).
+* Automation `//# sourceURL=` comments naming `webdriver`, `cdc_`, `pptr:`, `puppeteer`, or `playwright` (`EnginePatch::aggressive()`).
+* User-defined equal-length byte replacements via `BinaryPatchRule`.
 
 ## `ChromedriverPatcher` API
 
 ```rust,no_run
-use seleniumbase_rs::{ChromedriverPatcher, EnginePatch};
+use seleniumbase_rs::{ChromedriverPatcher, EnginePatch, PatchPreset};
 
 fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let patcher = ChromedriverPatcher::new("/path/to/chromedriver");
 
-    // Check whether known markers are still present.
+    let report = patcher.inspect()?;
+    println!("{report}"); // format (ELF/Mach-O/PE), size, sha256, and per-category MarkerCounts
+
     if patcher.needs_patch()? {
-        // balanced = conservative patches with a .orig backup
-        patcher.patch(EnginePatch::balanced())?;
+        patcher.patch(EnginePatch::from_preset(PatchPreset::All))?;
+        assert!(patcher.verify_clean()?);
     }
     Ok(())
 }
 ```
 
-`EnginePatch` presets:
+`EnginePatch` presets (and `PatchPreset`):
 
-| Preset | Behavior |
-|---|---|
-| `EnginePatch::balanced()` | Scrubs `cdc_` props, randomizes prefixes, removes webdriver markers; creates a backup. |
-| `EnginePatch::all()` | Everything in `balanced()` plus replacement of `{window.cdc...;}` blocks, the `ChromeDriver/<version>` strings and `navigator.webdriver` assignments; creates a backup. |
-| `EnginePatch::aggressive()` | Currently the same set as `all()`. |
-| `EnginePatch::no_backup()` | Same as `all()` but skips the `.orig` backup. Useful for ephemeral CI binaries. |
-| `EnginePatch::chrome_binary()` | The set for the browser executable, used by `ChromeBinaryPatcher` (see below). Not meant for chromedriver. |
+| Preset | `PatchPreset` | Behavior |
+|---|---|---|
+| `EnginePatch::balanced()` | `PatchPreset::Balanced` | Scrubs `cdc_` props, randomizes prefixes, removes core webdriver markers; creates `.orig` backup. |
+| `EnginePatch::all()` | `PatchPreset::All` | Adds `{window.cdc...;}` blocks, `ChromeDriver`/`EdgeDriver` versions, `navigator.webdriver`, `HeadlessChrome`, `domAutomation`, extended driver globals, `kAutomationControlled`, `enable-automation`, `webdriver-active`, and CDP evaluation markers; creates `.orig` backup. |
+| `EnginePatch::aggressive()` | `PatchPreset::Aggressive` | Everything in `all()` plus neutralizing automation `//# sourceURL=` comments; creates `.orig` backup. |
+| `EnginePatch::no_backup()` | — | Same flags as `all()` without creating `.orig` backup (CI/ephemeral binaries). |
+| `EnginePatch::chrome_binary()` | `PatchPreset::ChromeBinary` | Browser binary preset for cached copies (`ChromeBinaryPatcher`), skipping chromedriver-only `cdc_` / version passes and disabling `.orig` backup. |
+
+Custom equal-length rules preserve Mach-O, ELF, and PE section offsets:
+
+```rust,no_run
+use seleniumbase_rs::{BinaryPatchRule, ChromedriverPatcher, EnginePatch};
+
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let spec = EnginePatch::aggressive()
+        .custom_rule(BinaryPatchRule::neutralize(b"customAutomationFlag")?);
+    ChromedriverPatcher::new("/path/to/chromedriver").patch(spec)?;
+    Ok(())
+}
+```
 
 The patch is written to a temporary file next to the driver and renamed over it,
 keeping the original permissions, so a driver that is running does not make it
@@ -175,12 +191,13 @@ matching `Fingerprint`, and UC mode.
 ## Chrome/Chromium binary patching
 
 `ChromeBinaryPatcher` copies the browser executable to a cache directory and
-applies byte-level patches so no JavaScript override is needed for some
-automation markers (`HeadlessChrome` in the user agent, `__webdriver`-style
-globals, `navigator.webdriver = true` assignments). The original browser is
-never modified. Because the browser binary itself returns the modified
-values, page scripts cannot detect the spoof through `toString()` or property
-descriptor inspection.
+applies byte-level patches so no JavaScript override is needed for engine
+markers (`HeadlessChrome` in the user agent, `__webdriver`-style globals,
+`domAutomation` / `domAutomationController`, `navigator.webdriver` assignments,
+`kAutomationControlled`, `enable-automation`, and CDP evaluation script names).
+The original browser is never modified. Because the browser binary itself returns
+the modified values, page scripts cannot detect the spoof through `toString()` or
+property descriptor inspection.
 
 ```rust,no_run
 use seleniumbase_rs::{ChromeBinaryPatcher, EnginePatch};
@@ -188,18 +205,27 @@ use seleniumbase_rs::{ChromeBinaryPatcher, EnginePatch};
 fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let patcher = ChromeBinaryPatcher::new("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome")
         .cache_dir("/tmp/sb-chrome-patches");
+    let report = patcher.inspect()?;
+    println!("{report}");
+
+    // Patch primary executable only:
     let patched = patcher.patch(EnginePatch::chrome_binary())?;
     println!("Patched binary: {}", patched.display());
+
+    // Or also discover and patch companion libraries (macOS Framework / Windows DLL / Linux .so):
+    let bundle = patcher.patch_bundle(EnginePatch::aggressive())?;
+    println!("Executable: {}, companion: {:?}", bundle.executable.display(), bundle.companion);
     Ok(())
 }
 ```
 
 The patched copy goes under the cache directory in
-`seleniumbase-rs/chrome-patches/<hash>/`, where the hash is derived from the
-source path and its modification time. A copy that already exists is reused, so a
-second call is instant and a changed Chrome gets a new copy. On macOS the copy's
-code signature is removed (with `codesign --remove-signature`) so the system
-accepts it.
+`seleniumbase-rs/chrome-patches/<hash>/`, where `patched_path_for(&spec)` hashes
+the source path, its modification time, and the full `EnginePatch` fingerprint
+(presets and custom rules) so distinct configurations never collide. A copy that
+already exists is reused, so a second call is instant and an updated Chrome
+gets a new copy. On macOS the copy's code signature is removed (with
+`codesign --remove-signature`) so the system accepts it.
 
 When `native_spoofing` is enabled in a `Fingerprint` and
 `BrowserConfigBuilder::browser_binary_path` is not set, the launcher automatically
@@ -208,11 +234,15 @@ from `SB_CHROME_BIN`, or else a Chrome it finds on the system (`CHROME_BIN`,
 `CHROMIUM_BIN`, the usual install paths, then `PATH`), and caches the copy in
 `SB_PATCH_CACHE_DIR` (default: the platform cache directory).
 
-You can also patch from the CLI. Quote a path that contains spaces:
+You can inspect, patch, or restore from the CLI. Quote paths containing spaces:
 
 ```bash Terminal
-sbrs patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
-sbrs patch-chrome --path /usr/bin/google-chrome --cache-dir /tmp/sb-chrome-patches
+sbrs patch-chromedriver --path /path/to/chromedriver --inspect
+sbrs patch-chromedriver --path /path/to/chromedriver --preset aggressive
+sbrs patch-chromedriver --path /path/to/chromedriver --restore
+sbrs patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --inspect --with-companions
+sbrs patch-chrome --path /usr/bin/google-chrome --preset chrome-binary --cache-dir /tmp/sb-chrome-patches
+sbrs patch-chrome --path "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" --with-companions
 ```
 
 Without `--cache-dir` the CLI caches under `sb-chrome-patches` in the platform

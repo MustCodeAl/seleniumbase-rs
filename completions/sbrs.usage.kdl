@@ -1,6 +1,6 @@
 name sbrs
 bin sbrs
-version "0.9.2 (seleniumbase-rs)"
+version "0.9.3 (seleniumbase-rs)"
 about "SeleniumBaseRust CLI"
 long_about "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper."
 logo #"""
@@ -1327,6 +1327,18 @@ cmd patch-chromedriver help_heading="Drivers, grid and servers" help="Patch a ch
     flag --path help="Path to the chromedriver binary" required=#true {
         arg <PATH>
     }
+    flag --inspect help="Inspect automation markers without modifying the binary" bool_value=#true
+    flag --restore help="Restore the binary from its .orig backup" bool_value=#true
+    flag --preset help="Named patch preset to apply (default: all)" {
+        arg <PRESET> {
+            choices {
+                choice balanced help="Conservative patches (`cdc_` properties, prefixes, core `__webdriver` globals) with `.orig` backup."
+                choice all help="Full standard set of driver and browser markers with `.orig` backup."
+                choice aggressive help="Maximum scrubbing including embedded `sourceURL` comments and DOM automation flags."
+                choice chrome-binary help="Preset tuned for cloning and patching Chrome/Chromium binaries in cache."
+            }
+        }
+    }
     flag "-h --help" help="Print help" action=help builtin=#true
     complete path type=executable
     example "sbrs patch-chromedriver --path ./chromedriver"
@@ -1338,6 +1350,18 @@ cmd patch-chrome help_heading="Drivers, grid and servers" help="Patch a Chrome/C
     flag --cache-dir help="Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)" {
         arg <CACHE_DIR>
     }
+    flag --inspect help="Inspect automation markers without writing a patched copy" bool_value=#true
+    flag --preset help="Named patch preset to apply (default: chrome-binary)" {
+        arg <PRESET> {
+            choices {
+                choice balanced help="Conservative patches (`cdc_` properties, prefixes, core `__webdriver` globals) with `.orig` backup."
+                choice all help="Full standard set of driver and browser markers with `.orig` backup."
+                choice aggressive help="Maximum scrubbing including embedded `sourceURL` comments and DOM automation flags."
+                choice chrome-binary help="Preset tuned for cloning and patching Chrome/Chromium binaries in cache."
+            }
+        }
+    }
+    flag --with-companions help="Also inspect or patch discovered companion libraries" bool_value=#true
     flag "-h --help" help="Print help" action=help builtin=#true
     complete path type=executable
     complete cache_dir type=dir
@@ -2651,6 +2675,7 @@ Generates a complete, modular Rust crate configured with templates, backends, CI
         }
         flag "-h --help" help="Print help" action=help builtin=#true
         arg <NAME> help="The name of the new plugin to create."
+        complete name type=none
         complete template type=none
         complete backend type=none
         complete focus type=none

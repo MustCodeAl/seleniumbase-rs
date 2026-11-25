@@ -8,7 +8,7 @@ description: "Send a request over HTTP/3 with Chrome's TLS, QUIC transport param
 
 <Visibility for="agents">
 
-Summary for AI exports: HTTP/3 lives in the `seleniumbase-rs-wire` crate behind the facade's `http3` feature (off by default; it turns `wire` on). The QUIC stack is phantom-http `=0.6.0`, whose own BoringSSL cannot be linked next to the one wreq uses, so it runs in a separate program, `sbrs-h3d` (`cargo install --path crates/h3d` in the stealth repository), which `Http3Client` drives over stdin and stdout. Requests go over HTTP/3 only, with no fallback, no proxy and no `Alt-Svc` learning. The TLS ClientHello, QUIC transport parameters, HTTP/3 SETTINGS and header order were measured equal to Chrome 156 on macOS; the Initial packets, control and QPACK streams and Huffman coding of short values were measured different; everything after the first flight was not measured.
+Summary for AI exports: HTTP/3 lives in `seleniumbase-rs-wire` behind the facade's `http3` feature (off by default; it turns `wire` on) and in `seleniumbase-rs-codec::h3_spec`. The QUIC stack is phantom-http `=0.6.0` in a separate helper binary `sbrs-h3d` (`cargo install --path crates/h3d`) driven over stdin/stdout by `Http3Client`. `Http3Options::for_version(major, os)` and `for_fingerprint(&fp)` align the helper profile with Chrome 156/157; `HttpRequest::protocol(WireProtocol::Http3)` routes `HttpSession` requests through HTTP/3 with `CookieJar` synchronization (`exchange_http3`). `seleniumbase_rs_wire::capture_h3` decodes QUIC v1 (RFC 9001) and v2 (RFC 9369) Initial packets (`client_initial_keys`, `parse_long_header`), HTTP/3 frames/SETTINGS (`parse_frames`, `parse_settings`), and static-table/Huffman QPACK field sections (`decode_field_section`). The TLS ClientHello, QUIC transport parameters, HTTP/3 SETTINGS, and pseudo-header order match measured Chrome; Initial packet padding/CID/number layout, control GREASE/PRIORITY_UPDATE, and dynamic QPACK differ.
 
 </Visibility>
 
@@ -60,17 +60,18 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 <Step title="Send a request" icon="paper-plane">
 
 ```rust
-use seleniumbase_rs_stealth::wire::http3::{Http3Client, Http3Options, Http3Request};
-use seleniumbase_rs_stealth::wire::client::WireProtocol;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::codec::H3Spec;
+use seleniumbase_rs_stealth::wire::http3::{Http3Client, Http3Options, Http3Request};
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    // Inspect the measured Chrome 156 HTTP/3 specification
-    let spec = H3Spec::chrome_156_macos();
-    assert_eq!(spec.pseudo_header_order(), &["method", "authority", "scheme", "path"]);
+    // Inspect the current stable Chromium HTTP/3 specification (or chrome_156_macos / chrome(major, os))
+    let spec = H3Spec::current_stable();
+    assert_eq!(spec.pseudo_headers(), &[":method", ":authority", ":scheme", ":path"]);
 
     // sbrs-h3d on the PATH, or the program named in SBRS_H3D.
-    let mut client = Http3Client::start(&Http3Options::new())?;
+    let options = Http3Options::new().for_version(157, OsType::Macos);
+    let mut client = Http3Client::start(&options)?;
     let response = client.send(Http3Request::get("https://example.com/")).await?;
     assert_eq!(response.protocol(), "h3");
     println!("{} {} bytes", response.status(), response.body().len());
@@ -82,12 +83,14 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 
 </Steps>
 
-### Codec and wire integration
+### Codec, `HttpSession` routing, and QUIC capture (`capture_h3`)
 
-Beyond the standalone `sbrs-h3d` helper client, the HTTP/3 layer is integrated directly into the `codec` and `wire` crates:
-- **`seleniumbase_rs_stealth::codec::H3Spec`**: Pure data representation of an HTTP/3 profile. Includes pseudo-header order (`:method`, `:authority`, `:scheme`, `:path`), SETTINGS table (QPACK table capacity, max field section size, blocked streams), and 11 fixed QUIC transport parameters measured from Chrome 156 on macOS.
-- **`WireProtocol::Http3`**: Protocol variant in `seleniumbase_rs_stealth::wire::client::WireProtocol`.
-- **`HttpRequest::protocol(WireProtocol::Http3)`**: Enables per-request wire protocol routing and leading headers configuration in `HttpSession`.
+Beyond standalone `sbrs-h3d` calls, HTTP/3 integrates across `codec` and `wire`:
+
+- **`seleniumbase_rs_stealth::codec::H3Spec`**: Pure data representation of QUIC transport parameters (`transport_param_id`), HTTP/3 `SETTINGS` (`setting_id`), and pseudo-header order (`:method`, `:authority`, `:scheme`, `:path`). Provides `H3Spec::current_stable()`, `chrome_157_macos()`, `chrome_156_macos()`, `chrome(major, os)`, `new(...)`, and `new_with_version(...)`.
+- **`Http3Options` persona matching**: `Http3Options::for_version(major, os)` and `Http3Options::for_fingerprint(&fp)` pass `--profile chrome-<major>-<os>` to `sbrs-h3d`.
+- **`HttpSession` routing (`WireProtocol::Http3`)**: Calling `session.request(Method::GET, url).protocol(WireProtocol::Http3).send().await?` sends the request over `sbrs-h3d` with `CookieJar` cookies attached, stores `Set-Cookie` responses back into the session jar, and records `WireProtocol::Http3` for that origin.
+- **RFC 9001 / RFC 9369 capture decoding (`capture_h3`)**: `seleniumbase_rs_stealth::wire::capture_h3` derives client Initial packet keys (`client_initial_keys`, `parse_long_header` for QUIC `VERSION_1` and `VERSION_2`), parses QUIC variable-length integers and HTTP/3 frames (`parse_frames`, `parse_settings`), and decodes static-table / Huffman QPACK field sections (`decode_field_section`) without needing keylog secrets for Initial flights.
 
 What to know:
 
@@ -99,13 +102,8 @@ What to know:
   that ended is `Http3Error::HelperEnded`. A request the helper could not send,
   or that got no response, is `Http3Error::Failed` with the helper's kind
   (`request`, `send`, `timeout` or `body`).
-- **The profile.** The helper uses phantom's `chrome-156-macos` profile unless
-  `Http3Options::profile` names another. Its headers come from that profile's
-  navigation template; a header you add with `Http3Request::header` keeps the
-  template's place when the template has it.
-- **No `Alt-Svc`.** HTTP/3 is used only when you ask for it. With UDP blocked, a
-  request fails at its time limit: 30 seconds unless `Http3Request::timeout`
-  says otherwise.
+- **The profile.** Standalone `Http3Options::new()` defaults to `chrome-156-macos` unless `Http3Options::profile(...)`, `for_version(major, os)`, or `for_fingerprint(&fp)` selects another (for instance `HttpSession` selects `profile.major()` / `profile.os()`, aligning with Chrome 157). Its headers come from that profile's navigation template; a header you add with `Http3Request::header` keeps the template's place when the template has it.
+- **No `Alt-Svc` upgrade yet.** Requests only use `sbrs-h3d` when `Http3Client` or `HttpRequest::protocol(WireProtocol::Http3)` selects it (or once an origin responds with `HTTP_3`). With UDP blocked, a request fails at its time limit: 30 seconds unless `Http3Request::timeout` says otherwise.
 - **No proxy.** An HTTP proxy cannot carry HTTP/3 (a CONNECT tunnel carries
   TCP), and the helper takes no proxy. Requests go straight from this machine,
   so a [proxy](/stealth/proxies) set elsewhere does not apply to them.

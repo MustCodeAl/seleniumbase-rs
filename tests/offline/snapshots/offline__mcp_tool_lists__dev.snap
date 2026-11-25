@@ -4,7 +4,7 @@ expression: text
 ---
 {
   "server": "seleniumbase-dev",
-  "tool_count": 12,
+  "tool_count": 13,
   "tools": [
     {
       "annotations": {
@@ -55,7 +55,7 @@ expression: text
         "readOnlyHint": true,
         "title": "Parity Lookup"
       },
-      "description": "Look up a Python SeleniumBase 4.55.2 name (a BaseCase or sb.cdp method, a Driver() method, a command, an option or an upstream MCP tool) and say what this library has for it: its status (implemented, composed, not-applicable, planned), the Rust path, and notes on any difference in behavior. With no exact match, lists close names.",
+      "description": "Look up a Python SeleniumBase 4.58.3 name (a BaseCase or sb.cdp method, a Driver() method, a command, an option or an upstream MCP tool) and say what this library has for it: its status (implemented, composed, not-applicable, planned), the Rust path, and notes on any difference in behavior. With no exact match, lists close names.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {
@@ -153,6 +153,105 @@ expression: text
         "type": "object"
       },
       "name": "scaffold",
+      "untrusted": false
+    },
+    {
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false,
+        "readOnlyHint": true,
+        "title": "Scaffold Plugin"
+      },
+      "description": "Show the files `sbrs plugin new` would create to scaffold a new seleniumbase-rs plugin crate, as text with each file's path and content, plus quick-start instructions. Writes nothing: create the files yourself.",
+      "inputSchema": {
+        "additionalProperties": false,
+        "properties": {
+          "ai_agent": {
+            "default": "none",
+            "description": "AI agent rule file to generate",
+            "enum": [
+              "none",
+              "cursor",
+              "claude-code",
+              "gemini",
+              "antigravity",
+              "codex"
+            ],
+            "type": "string"
+          },
+          "backend": {
+            "description": "Backend foundation (e.g. `cdp`, `webdriver`)",
+            "type": "string"
+          },
+          "dev_env": {
+            "default": "cargo",
+            "description": "Development environment configuration",
+            "enum": [
+              "cargo",
+              "mise",
+              "docker",
+              "gitlab-ci",
+              "github-actions"
+            ],
+            "type": "string"
+          },
+          "focus": {
+            "default": "general",
+            "description": "Architectural focus (e.g. `general`, `cli`, `scraping`)",
+            "type": "string"
+          },
+          "headless": {
+            "default": false,
+            "description": "Enable headless mode by default in the plugin scaffold",
+            "type": "boolean"
+          },
+          "ide": {
+            "default": "cursor",
+            "description": "Primary IDE for quick start instructions",
+            "enum": [
+              "cursor",
+              "vscode",
+              "zed",
+              "clion",
+              "neovim",
+              "helix"
+            ],
+            "type": "string"
+          },
+          "integrations": {
+            "description": "Target integrations (e.g. `mcp`, `ci`)",
+            "type": "string"
+          },
+          "name": {
+            "description": "Name of the plugin crate to scaffold (e.g. `my-plugin`)",
+            "type": "string"
+          },
+          "out_dir": {
+            "description": "Destination directory path (defaults to plugin name)",
+            "type": "string"
+          },
+          "target_env": {
+            "default": "local",
+            "description": "Target execution environment (e.g. `local`, `docker`, `cloud`)",
+            "type": "string"
+          },
+          "template": {
+            "default": "library",
+            "description": "Template style: `library` or `cli`",
+            "enum": [
+              "library",
+              "cli"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      "name": "scaffold_plugin",
       "untrusted": false
     },
     {

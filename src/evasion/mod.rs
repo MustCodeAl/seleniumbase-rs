@@ -29,8 +29,9 @@ pub use fingerprint::{
 };
 pub use mimic::Specimen;
 pub use patcher::{
-    engine_spoofing_args, find_system_chrome, find_system_chrome_with, ChromeBinaryPatcher,
-    ChromedriverPatcher, EnginePatch,
+    engine_spoofing_args, find_system_chrome, find_system_chrome_with, BinaryFormat,
+    BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
+    MarkerCounts, PatchPreset, PatchedBrowserBundle,
 };
 pub use providers::{
     default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,

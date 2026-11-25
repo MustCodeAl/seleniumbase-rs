@@ -103,9 +103,10 @@ Or build the plugin yourself:
 use seleniumbase_rs::builtin_plugins::browser::{BrowserSession, SessionConfig};
 use seleniumbase_rs::plugin_api::PluginSet;
 
-let config = SessionConfig::new()
-    .with_zip("extensions/dark-reader.crx")
-    .with_dir("my-extension");
+let config = SessionConfig::builder()
+    .zip("extensions/dark-reader.crx")
+    .dir("my-extension")
+    .build()?;
 let plugins = PluginSet::new().with(BrowserSession::new(config)?)?;
 Ok::<(), seleniumbase_rs::plugin_api::PluginError>(())
 ```
@@ -388,7 +389,8 @@ use seleniumbase_rs_plugin_browser::{BrowserSession, SessionConfig};
 use seleniumbase_rs_plugin_testing::block_on;
 
 // `my-extension` is a folder with a Manifest V3 `manifest.json`.
-let plugin = BrowserSession::new(SessionConfig::new().with_dir("my-extension"))?;
+let config = SessionConfig::builder().dir("my-extension").build()?;
+let plugin = BrowserSession::new(config)?;
 let mut launch = LaunchSettings::default();
 block_on(plugin.before_launch(&mut launch))?;
 assert_eq!(launch.extensions.len(), 1);
