@@ -26,12 +26,12 @@ use super::settings::{
 /// stable releases. Refresh with each Chromium release, together with
 /// [`KNOWN_FULL_VERSIONS`], which must hold a row for every major listed here.
 ///
-/// A repeated major weights the draw: on 2026-11-08 Chrome for Testing's Stable was 157.0.8103.38 (Beta 158 is never drawn), so 157 gets five draws in eight, 156 two and the lagging 155 one, as real visitors spread over the last three releases.
+/// A repeated major weights the draw: on 2026-11-08 Chrome for Testing's Stable was 157.0.8103.38 (Beta 158 is never drawn), so 157 gets six draws in twelve, 156 three, 155 two, and 154 one, as real visitors spread over recent releases.
 /// Earlier (2026-10-15) Google's Chrome version history
 /// (`versionhistory.googleapis.com`, stable channel, `mac` and `win64`) served
 /// 155 to everyone and 156.0.8078.35 to an early 0.5 %; 154 is the release
 /// before them.
-const CHROMIUM_MAJORS: [u32; 8] = [155, 156, 156, 157, 157, 157, 157, 157];
+const CHROMIUM_MAJORS: [u32; 12] = [154, 155, 155, 156, 156, 156, 157, 157, 157, 157, 157, 157];
 
 /// The current stable Chromium major (Chrome for Testing last-known-good,
 /// 2026-11-08). The next bump is this constant, the private `CHROMIUM_MAJORS` table and a new
@@ -159,67 +159,108 @@ pub(super) enum Tier {
     High,
 }
 
+/// Picks an item using its positive weight in one RNG draw (`next_u64`).
+fn pick_weighted<'a, T>(rng: &mut Rng, items: &'a [T], weight: impl Fn(&T) -> u32) -> &'a T {
+    let total: u64 = items
+        .iter()
+        .map(|item| u64::from(weight(item).max(1)))
+        .sum();
+    let target = rng.next_u64() % total;
+    let mut acc = 0_u64;
+    for item in items {
+        acc += u64::from(weight(item).max(1));
+        if target < acc {
+            return item;
+        }
+    }
+    &items[items.len() - 1]
+}
+
 /// What a [`Tier`] of PC reports. Repeating a value weights it.
 #[derive(Debug)]
 struct TierSpec {
     /// `navigator.hardwareConcurrency`.
-    cores: [u32; 3],
+    cores: [u32; 6],
     /// `navigator.deviceMemory` (Chromium caps it at 8).
-    memory_gb: [f64; 3],
+    memory_gb: [f64; 4],
     /// Screens on Windows, where fractional display scaling is common.
-    windows_screens: [Screen; 4],
+    windows_screens: [Screen; 8],
     /// Screens on Linux.
-    linux_screens: [Screen; 4],
+    linux_screens: [Screen; 8],
 }
 
 static ENTRY: TierSpec = TierSpec {
-    cores: [4, 4, 8],
-    memory_gb: [4.0, 8.0, 8.0],
+    cores: [4, 4, 4, 6, 8, 8],
+    memory_gb: [4.0, 4.0, 8.0, 8.0],
     windows_screens: [
         Screen::new(1366, 768, 1.0),
         Screen::new(1920, 1080, 1.0),
+        Screen::new(1920, 1080, 1.0),
         Screen::new(1536, 864, 1.25),
+        Screen::new(1536, 864, 1.25),
+        Screen::new(1920, 1080, 1.25),
         Screen::new(1280, 720, 1.5),
+        Screen::new(1600, 900, 1.0),
     ],
     linux_screens: [
         Screen::new(1366, 768, 1.0),
         Screen::new(1920, 1080, 1.0),
-        Screen::new(1600, 900, 1.0),
         Screen::new(1920, 1080, 1.0),
+        Screen::new(1920, 1080, 1.0),
+        Screen::new(1600, 900, 1.0),
+        Screen::new(1920, 1200, 1.0),
+        Screen::new(1280, 800, 1.0),
+        Screen::new(1920, 1080, 1.25),
     ],
 };
 
 static MID: TierSpec = TierSpec {
-    cores: [6, 8, 12],
-    memory_gb: [8.0, 8.0, 8.0],
+    cores: [6, 8, 8, 8, 12, 12],
+    memory_gb: [8.0, 8.0, 8.0, 8.0],
     windows_screens: [
         Screen::new(1920, 1080, 1.0),
-        Screen::new(1536, 864, 1.25),
-        Screen::new(1600, 900, 1.0),
         Screen::new(1920, 1080, 1.0),
+        Screen::new(1920, 1080, 1.0),
+        Screen::new(1536, 864, 1.25),
+        Screen::new(1536, 864, 1.25),
+        Screen::new(2560, 1440, 1.0),
+        Screen::new(1600, 900, 1.0),
+        Screen::new(2048, 1152, 1.25),
     ],
     linux_screens: [
         Screen::new(1920, 1080, 1.0),
+        Screen::new(1920, 1080, 1.0),
+        Screen::new(1920, 1080, 1.0),
         Screen::new(1920, 1200, 1.0),
         Screen::new(2560, 1440, 1.0),
-        Screen::new(1920, 1080, 1.0),
+        Screen::new(2560, 1440, 1.0),
+        Screen::new(1920, 1080, 1.25),
+        Screen::new(1680, 1050, 1.0),
     ],
 };
 
 static HIGH: TierSpec = TierSpec {
-    cores: [12, 16, 20],
-    memory_gb: [8.0, 8.0, 8.0],
+    cores: [12, 12, 16, 16, 16, 20],
+    memory_gb: [8.0, 8.0, 8.0, 8.0],
     windows_screens: [
+        Screen::new(2560, 1440, 1.0),
         Screen::new(2560, 1440, 1.0),
         Screen::new(1920, 1080, 1.0),
         Screen::new(1920, 1080, 2.0),
         Screen::new(3840, 2160, 1.0),
+        Screen::new(3840, 2160, 1.5),
+        Screen::new(2560, 1440, 1.25),
+        Screen::new(3440, 1440, 1.0),
     ],
     linux_screens: [
         Screen::new(2560, 1440, 1.0),
-        Screen::new(3840, 2160, 1.0),
-        Screen::new(1920, 1080, 2.0),
         Screen::new(2560, 1440, 1.0),
+        Screen::new(3840, 2160, 1.0),
+        Screen::new(3840, 2160, 2.0),
+        Screen::new(1920, 1080, 2.0),
+        Screen::new(1920, 1080, 1.0),
+        Screen::new(2560, 1600, 1.0),
+        Screen::new(3440, 1440, 1.0),
     ],
 };
 
@@ -281,6 +322,7 @@ pub(super) struct Adapter {
     pub(super) device_id: u16,
     pub(super) tier: Tier,
     pub(super) slug: &'static str,
+    pub(super) weight: u32,
 }
 
 impl Adapter {
@@ -290,6 +332,7 @@ impl Adapter {
         device_id: u16,
         tier: Tier,
         slug: &'static str,
+        weight: u32,
     ) -> Self {
         Self {
             vendor,
@@ -297,6 +340,7 @@ impl Adapter {
             device_id,
             tier,
             slug,
+            weight,
         }
     }
 }
@@ -304,22 +348,22 @@ impl Adapter {
 /// Windows adapters, named the way Chrome's ANGLE layer reports them.
 #[rustfmt::skip]
 pub(super) static WINDOWS_ADAPTERS: [Adapter; 16] = [
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1650", 0x1f82, Tier::Entry, "gtx-1650"),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1660 SUPER", 0x21c4, Tier::Mid, "gtx-1660-super"),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 2060", 0x1f08, Tier::Mid, "rtx-2060"),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3050", 0x2507, Tier::Mid, "rtx-3050"),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3060", 0x2503, Tier::Mid, "rtx-3060"),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3070", 0x2484, Tier::High, "rtx-3070"),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4060", 0x28a0, Tier::Mid, "rtx-4060"),
-    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4070", 0x2786, Tier::High, "rtx-4070"),
-    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 620", 0x5917, Tier::Entry, "uhd-620"),
-    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 630", 0x3e9b, Tier::Entry, "uhd-630"),
-    Adapter::new(GpuVendor::Intel, "Intel(R) Iris(R) Xe Graphics", 0x46a6, Tier::Entry, "iris-xe"),
-    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 770", 0x4680, Tier::Mid, "uhd-770"),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon(TM) Graphics", 0x1638, Tier::Entry, "radeon-graphics"),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 580 Series", 0x67df, Tier::Mid, "rx-580"),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6600", 0x73ff, Tier::Mid, "rx-6600"),
-    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6700 XT", 0x73df, Tier::High, "rx-6700-xt"),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1650", 0x1f82, Tier::Entry, "gtx-1650", 3),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce GTX 1660 SUPER", 0x21c4, Tier::Mid, "gtx-1660-super", 2),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 2060", 0x1f08, Tier::Mid, "rtx-2060", 2),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3050", 0x2507, Tier::Mid, "rtx-3050", 3),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3060", 0x2503, Tier::Mid, "rtx-3060", 5),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 3070", 0x2484, Tier::High, "rtx-3070", 2),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4060", 0x28a0, Tier::Mid, "rtx-4060", 5),
+    Adapter::new(GpuVendor::Nvidia, "NVIDIA GeForce RTX 4070", 0x2786, Tier::High, "rtx-4070", 2),
+    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 620", 0x5917, Tier::Entry, "uhd-620", 4),
+    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 630", 0x3e9b, Tier::Entry, "uhd-630", 4),
+    Adapter::new(GpuVendor::Intel, "Intel(R) Iris(R) Xe Graphics", 0x46a6, Tier::Entry, "iris-xe", 6),
+    Adapter::new(GpuVendor::Intel, "Intel(R) UHD Graphics 770", 0x4680, Tier::Mid, "uhd-770", 3),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon(TM) Graphics", 0x1638, Tier::Entry, "radeon-graphics", 4),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 580 Series", 0x67df, Tier::Mid, "rx-580", 2),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6600", 0x73ff, Tier::Mid, "rx-6600", 3),
+    Adapter::new(GpuVendor::Amd, "AMD Radeon RX 6700 XT", 0x73df, Tier::High, "rx-6700-xt", 2),
 ];
 
 /// Linux adapters, worded the way Mesa and the NVIDIA driver word them.
@@ -330,6 +374,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x3e9b,
         Tier::Entry,
         "uhd-630",
+        4,
     ),
     Adapter::new(
         GpuVendor::Intel,
@@ -337,6 +382,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x5917,
         Tier::Entry,
         "uhd-620",
+        3,
     ),
     Adapter::new(
         GpuVendor::Intel,
@@ -344,6 +390,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x9a49,
         Tier::Entry,
         "iris-xe",
+        6,
     ),
     Adapter::new(
         GpuVendor::Intel,
@@ -351,6 +398,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x4680,
         Tier::Mid,
         "uhd-770",
+        3,
     ),
     Adapter::new(
         GpuVendor::Amd,
@@ -358,6 +406,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x73ff,
         Tier::Mid,
         "rx-6600",
+        3,
     ),
     Adapter::new(
         GpuVendor::Amd,
@@ -365,6 +414,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x67df,
         Tier::Mid,
         "rx-580",
+        2,
     ),
     Adapter::new(
         GpuVendor::Amd,
@@ -372,6 +422,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x747e,
         Tier::High,
         "rx-7800-xt",
+        2,
     ),
     Adapter::new(
         GpuVendor::Nvidia,
@@ -379,6 +430,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x21c4,
         Tier::Mid,
         "gtx-1660-super",
+        2,
     ),
     Adapter::new(
         GpuVendor::Nvidia,
@@ -386,6 +438,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x2503,
         Tier::Mid,
         "rtx-3060",
+        4,
     ),
     Adapter::new(
         GpuVendor::Nvidia,
@@ -393,6 +446,7 @@ pub(super) static LINUX_ADAPTERS: [Adapter; 10] = [
         0x2786,
         Tier::High,
         "rtx-4070",
+        2,
     ),
 ];
 
@@ -404,87 +458,140 @@ pub(super) struct MacModel {
     pub(super) chip: &'static str,
     pub(super) cores: u32,
     pub(super) screen: Screen,
+    pub(super) weight: u32,
 }
 
 impl MacModel {
-    const fn new(name: &'static str, chip: &'static str, cores: u32, screen: Screen) -> Self {
+    const fn new(
+        name: &'static str,
+        chip: &'static str,
+        cores: u32,
+        screen: Screen,
+        weight: u32,
+    ) -> Self {
         Self {
             name,
             chip,
             cores,
             screen,
+            weight,
         }
     }
 }
 
-pub(super) static MAC_MODELS: [MacModel; 13] = [
-    MacModel::new("macbook-13-m1", "Apple M1", 8, Screen::new(1440, 900, 2.0)),
+pub(super) static MAC_MODELS: [MacModel; 17] = [
+    MacModel::new(
+        "macbook-13-m1",
+        "Apple M1",
+        8,
+        Screen::new(1440, 900, 2.0),
+        4,
+    ),
     MacModel::new(
         "macbook-pro-14-m1-pro",
         "Apple M1 Pro",
         10,
         Screen::new(1512, 982, 2.0),
+        2,
     ),
     MacModel::new(
         "macbook-pro-16-m1-max",
         "Apple M1 Max",
         10,
         Screen::new(1728, 1117, 2.0),
+        1,
     ),
     MacModel::new(
         "macbook-air-13-m2",
         "Apple M2",
         8,
         Screen::new(1470, 956, 2.0),
+        5,
     ),
     MacModel::new(
         "mac-mini-m2-1080p",
         "Apple M2",
         8,
         Screen::new(1920, 1080, 1.0),
+        2,
     ),
     MacModel::new(
         "macbook-pro-14-m2-pro",
         "Apple M2 Pro",
         12,
         Screen::new(1512, 982, 2.0),
+        3,
     ),
     MacModel::new(
         "macbook-pro-16-m2-max",
         "Apple M2 Max",
         12,
         Screen::new(1728, 1117, 2.0),
+        1,
     ),
     MacModel::new(
         "macbook-air-13-m3",
         "Apple M3",
         8,
         Screen::new(1470, 956, 2.0),
+        5,
     ),
-    MacModel::new("imac-24-m3", "Apple M3", 8, Screen::new(2240, 1260, 2.0)),
+    MacModel::new(
+        "macbook-air-15-m3",
+        "Apple M3",
+        8,
+        Screen::new(1710, 1107, 2.0),
+        3,
+    ),
+    MacModel::new("imac-24-m3", "Apple M3", 8, Screen::new(2240, 1260, 2.0), 2),
     MacModel::new(
         "macbook-pro-14-m3-pro",
         "Apple M3 Pro",
         12,
         Screen::new(1512, 982, 2.0),
+        3,
     ),
     MacModel::new(
         "macbook-pro-16-m3-max",
         "Apple M3 Max",
         16,
         Screen::new(1728, 1117, 2.0),
+        1,
+    ),
+    MacModel::new(
+        "macbook-air-13-m4",
+        "Apple M4",
+        10,
+        Screen::new(1470, 956, 2.0),
+        5,
+    ),
+    MacModel::new(
+        "mac-mini-m4",
+        "Apple M4",
+        10,
+        Screen::new(2560, 1440, 1.0),
+        2,
     ),
     MacModel::new(
         "macbook-pro-14-m4",
         "Apple M4",
         10,
         Screen::new(1512, 982, 2.0),
+        4,
     ),
     MacModel::new(
         "macbook-pro-16-m4-pro",
         "Apple M4 Pro",
         14,
         Screen::new(1728, 1117, 2.0),
+        3,
+    ),
+    MacModel::new(
+        "macbook-pro-16-m4-max",
+        "Apple M4 Max",
+        16,
+        Screen::new(1728, 1117, 2.0),
+        1,
     ),
 ];
 
@@ -497,7 +604,7 @@ pub(super) static MAC_MODELS: [MacModel; 13] = [
 /// Golden Gate 27 and 27.0.1, Tahoe 26.7.1 and Sequoia 15.8.1. The format is the
 /// one Chrome 155 reported on this Mac under macOS 27.0.1: `27.0.1`
 /// (`tests/client_hints_chrome.rs`).
-const MACOS_VERSIONS: [&str; 4] = ["15.8.1", "26.7.1", "27.0.0", "27.0.1"];
+const MACOS_VERSIONS: [&str; 6] = ["15.8.1", "26.7.1", "26.7.1", "27.0.0", "27.0.1", "27.0.1"];
 
 /// Windows platform versions as Client Hints report them (Windows 10, then
 /// successive Windows 11 releases).
@@ -506,18 +613,21 @@ const MACOS_VERSIONS: [&str; 4] = ["15.8.1", "26.7.1", "27.0.0", "27.0.1"];
 /// `Windows.Foundation.UniversalApiContract` followed by `.0.0`, with `1.0.0`
 /// to `10.0.0` for Windows 10 and `13.0.0` and above for Windows 11
 /// (<https://learn.microsoft.com/microsoft-edge/web-platform/how-to-detect-win11>).
-/// It gives no value per Windows 11 release, and no Windows Chrome was read for
-/// this table, so the list is unchanged; Windows 11 25H2 and 26H2 may report a
-/// version that is not here.
-const WINDOWS_VERSIONS: [&str; 4] = ["10.0.0", "13.0.0", "15.0.0", "19.0.0"];
+/// Repeating recent Windows 11 entries weights draws toward current hosts.
+const WINDOWS_VERSIONS: [&str; 9] = [
+    "10.0.0", "10.0.0", "13.0.0", "14.0.0", "15.0.0", "15.0.0", "19.0.0", "19.0.0", "19.0.0",
+];
 
 /// Linux kernel versions as Client Hints report them.
-const LINUX_VERSIONS: [&str; 3] = ["5.15.0", "6.5.0", "6.8.0"];
+const LINUX_VERSIONS: [&str; 8] = [
+    "5.15.0", "6.1.0", "6.5.0", "6.6.0", "6.8.0", "6.8.0", "6.11.0", "6.12.0",
+];
 
 /// A phone GPU as WebGL reports it: `UNMASKED_VENDOR_WEBGL` and
 /// `UNMASKED_RENDERER_WEBGL`.
 type PhoneGpu = (&'static str, &'static str);
 
+const ADRENO_750: PhoneGpu = ("Qualcomm", "Adreno (TM) 750");
 const ADRENO_740: PhoneGpu = ("Qualcomm", "Adreno (TM) 740");
 const MALI_G715: PhoneGpu = ("ARM", "Mali-G715");
 const MALI_G710: PhoneGpu = ("ARM", "Mali-G710");
@@ -533,6 +643,7 @@ pub(super) struct AndroidDevice {
     pub(super) android: &'static str,
     pub(super) screen: Screen,
     pub(super) gpu: PhoneGpu,
+    pub(super) weight: u32,
 }
 
 impl AndroidDevice {
@@ -542,6 +653,7 @@ impl AndroidDevice {
         android: &'static str,
         screen: Screen,
         gpu: PhoneGpu,
+        weight: u32,
     ) -> Self {
         Self {
             name,
@@ -549,19 +661,23 @@ impl AndroidDevice {
             android,
             screen,
             gpu,
+            weight,
         }
     }
 }
 
 #[rustfmt::skip]
-pub(super) static ANDROID_DEVICES: [AndroidDevice; 7] = [
-    AndroidDevice::new("pixel-8", "Pixel 8", "14.0.0", Screen::new(412, 915, 2.625), MALI_G715),
-    AndroidDevice::new("pixel-7", "Pixel 7", "14.0.0", Screen::new(412, 915, 2.625), MALI_G710),
-    AndroidDevice::new("pixel-7-pro", "Pixel 7 Pro", "14.0.0", Screen::new(412, 892, 3.5), MALI_G710),
-    AndroidDevice::new("galaxy-s23", "SM-S911B", "14.0.0", Screen::new(360, 780, 3.0), ADRENO_740),
-    AndroidDevice::new("galaxy-s23-ultra", "SM-S918B", "14.0.0", Screen::new(412, 883, 3.5), ADRENO_740),
-    AndroidDevice::new("oneplus-11", "CPH2449", "13.0.0", Screen::new(412, 919, 3.5), ADRENO_740),
-    AndroidDevice::new("galaxy-s21", "SM-G991B", "13.0.0", Screen::new(360, 800, 3.0), MALI_G78),
+pub(super) static ANDROID_DEVICES: [AndroidDevice; 10] = [
+    AndroidDevice::new("pixel-9", "Pixel 9", "15.0.0", Screen::new(412, 923, 2.625), MALI_G715, 4),
+    AndroidDevice::new("pixel-8", "Pixel 8", "14.0.0", Screen::new(412, 915, 2.625), MALI_G715, 4),
+    AndroidDevice::new("pixel-7", "Pixel 7", "14.0.0", Screen::new(412, 915, 2.625), MALI_G710, 2),
+    AndroidDevice::new("pixel-7-pro", "Pixel 7 Pro", "14.0.0", Screen::new(412, 892, 3.5), MALI_G710, 2),
+    AndroidDevice::new("galaxy-s24", "SM-S921B", "15.0.0", Screen::new(360, 780, 3.0), ADRENO_750, 4),
+    AndroidDevice::new("galaxy-s24-ultra", "SM-S928B", "15.0.0", Screen::new(412, 892, 3.5), ADRENO_750, 3),
+    AndroidDevice::new("galaxy-s23", "SM-S911B", "14.0.0", Screen::new(360, 780, 3.0), ADRENO_740, 3),
+    AndroidDevice::new("galaxy-s23-ultra", "SM-S918B", "14.0.0", Screen::new(412, 883, 3.5), ADRENO_740, 2),
+    AndroidDevice::new("oneplus-11", "CPH2449", "13.0.0", Screen::new(412, 919, 3.5), ADRENO_740, 2),
+    AndroidDevice::new("galaxy-s21", "SM-G991B", "13.0.0", Screen::new(360, 800, 3.0), MALI_G78, 1),
 ];
 
 /// An iPhone model with its screen.
@@ -569,22 +685,28 @@ pub(super) static ANDROID_DEVICES: [AndroidDevice; 7] = [
 pub(super) struct IphoneModel {
     pub(super) name: &'static str,
     pub(super) screen: Screen,
+    pub(super) weight: u32,
 }
 
 impl IphoneModel {
-    const fn new(name: &'static str, screen: Screen) -> Self {
-        Self { name, screen }
+    const fn new(name: &'static str, screen: Screen, weight: u32) -> Self {
+        Self {
+            name,
+            screen,
+            weight,
+        }
     }
 }
 
 /// iPhone models with their screen in CSS pixels.
-pub(super) static IPHONE_SCREENS: [IphoneModel; 6] = [
-    IphoneModel::new("iphone-se-3", Screen::new(375, 667, 2.0)),
-    IphoneModel::new("iphone-13-mini", Screen::new(375, 812, 3.0)),
-    IphoneModel::new("iphone-14", Screen::new(390, 844, 3.0)),
-    IphoneModel::new("iphone-15", Screen::new(393, 852, 3.0)),
-    IphoneModel::new("iphone-16-pro", Screen::new(402, 874, 3.0)),
-    IphoneModel::new("iphone-15-pro-max", Screen::new(430, 932, 3.0)),
+pub(super) static IPHONE_SCREENS: [IphoneModel; 7] = [
+    IphoneModel::new("iphone-se-3", Screen::new(375, 667, 2.0), 1),
+    IphoneModel::new("iphone-13-mini", Screen::new(375, 812, 3.0), 1),
+    IphoneModel::new("iphone-14", Screen::new(390, 844, 3.0), 3),
+    IphoneModel::new("iphone-15", Screen::new(393, 852, 3.0), 4),
+    IphoneModel::new("iphone-16-pro", Screen::new(402, 874, 3.0), 4),
+    IphoneModel::new("iphone-15-pro-max", Screen::new(430, 932, 3.0), 3),
+    IphoneModel::new("iphone-16-pro-max", Screen::new(440, 956, 3.0), 3),
 ];
 
 /// A place a generated identity may be in: a locale, its country, the time zone it is spoken
@@ -1802,7 +1924,7 @@ fn chromium_major(rng: &mut Rng, forced: Option<u32>) -> u32 {
 
 fn windows(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
     let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
-    let drawn_adapter = rng.pick(&WINDOWS_ADAPTERS);
+    let drawn_adapter = pick_weighted(rng, &WINDOWS_ADAPTERS, |a| a.weight);
     let adapter = match pins.machine {
         Some(MachineRow::Pc(OsType::Windows, a)) => a,
         _ => drawn_adapter,
@@ -1840,9 +1962,9 @@ fn windows(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
         drawn_screen
     };
     let user_agent = if matches!(pins.build.map(|b| b.brand), Some(Brand::Edge)) {
-        edge_user_agent("Windows NT 10.0; Win64; x64", major)
+        edge_user_agent_for_os(OsType::Windows, major)
     } else {
-        chromium_user_agent("Windows NT 10.0; Win64; x64", major, false)
+        chromium_user_agent_for_os(OsType::Windows, major)
     };
     Profile {
         browser_type: BrowserType::Chromium,
@@ -1861,7 +1983,7 @@ fn windows(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
 
 fn macos(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
     let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
-    let drawn_model = rng.pick(&MAC_MODELS);
+    let drawn_model = pick_weighted(rng, &MAC_MODELS, |m| m.weight);
     let model = match pins.machine {
         Some(MachineRow::Mac(m)) => m,
         _ => drawn_model,
@@ -1877,7 +1999,7 @@ fn macos(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
         browser_type: BrowserType::Chromium,
         core_version: Some(major),
         // Chromium freezes the macOS token at 10_15_7, even on Apple Silicon.
-        user_agent: chromium_user_agent("Macintosh; Intel Mac OS X 10_15_7", major, false),
+        user_agent: chromium_user_agent_for_os(OsType::Macos, major),
         vendor: CHROMIUM_VENDOR,
         client_hints: Some(client_hints),
         cores: model.cores,
@@ -1948,7 +2070,7 @@ pub fn locale_of_timezone(timezone: &str) -> Option<&'static Locale> {
 
 fn linux(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
     let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
-    let drawn_adapter = rng.pick(&LINUX_ADAPTERS);
+    let drawn_adapter = pick_weighted(rng, &LINUX_ADAPTERS, |a| a.weight);
     let adapter = match pins.machine {
         Some(MachineRow::Pc(OsType::Linux, a)) => a,
         _ => drawn_adapter,
@@ -1983,7 +2105,7 @@ fn linux(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
     Profile {
         browser_type: BrowserType::Chromium,
         core_version: Some(major),
-        user_agent: chromium_user_agent("X11; Linux x86_64", major, false),
+        user_agent: chromium_user_agent_for_os(OsType::Linux, major),
         vendor: CHROMIUM_VENDOR,
         client_hints: Some(client_hints),
         cores,
@@ -1997,7 +2119,7 @@ fn linux(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
 
 fn android(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
     let major = chromium_major(rng, pins.major.or_else(|| pins.build.map(|b| b.major)));
-    let drawn_device = rng.pick(&ANDROID_DEVICES);
+    let drawn_device = pick_weighted(rng, &ANDROID_DEVICES, |d| d.weight);
     let device = match pins.machine {
         Some(MachineRow::Android(d)) => d,
         _ => drawn_device,
@@ -2010,6 +2132,7 @@ fn android(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
         bitness: String::new(),
         model: device.model.to_owned(),
         mobile: true,
+        form_factors: vec!["Mobile".to_owned()],
         ..chromium_hints(major)
     };
     Profile {
@@ -2017,7 +2140,7 @@ fn android(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
         core_version: Some(major),
         // Chromium freezes the Android version and hides the model in the
         // user agent; both are only in the Client Hints.
-        user_agent: chromium_user_agent("Linux; Android 10; K", major, true),
+        user_agent: chromium_user_agent_for_os(OsType::Android, major),
         vendor: CHROMIUM_VENDOR,
         client_hints: Some(client_hints),
         cores: 8,
@@ -2041,7 +2164,7 @@ fn ios(rng: &mut Rng, pins: &Pins<'_>) -> Profile {
     } else {
         drawn_cores
     };
-    let drawn_screen = rng.pick(&IPHONE_SCREENS).screen;
+    let drawn_screen = pick_weighted(rng, &IPHONE_SCREENS, |m| m.weight).screen;
     let screen = match pins.machine {
         Some(MachineRow::Iphone(m)) => m.screen,
         _ => drawn_screen,
@@ -2076,6 +2199,25 @@ pub(super) fn chromium_user_agent(platform: &str, major: u32, mobile: bool) -> S
     )
 }
 
+/// A realistic Chromium / Google Chrome user agent string for `os` and `major`.
+///
+/// Desktop targets and Android use Chrome's frozen UA reduction tokens (`10_15_7`
+/// on macOS, `Android 10; K` on Android). iOS uses WebKit's `CriOS/` token.
+#[must_use]
+pub fn chromium_user_agent_for_os(os: OsType, major: u32) -> String {
+    match os {
+        OsType::Windows => chromium_user_agent("Windows NT 10.0; Win64; x64", major, false),
+        OsType::Macos => chromium_user_agent("Macintosh; Intel Mac OS X 10_15_7", major, false),
+        OsType::Linux => chromium_user_agent("X11; Linux x86_64", major, false),
+        OsType::Android => chromium_user_agent("Linux; Android 10; K", major, true),
+        OsType::Ios => format!(
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) \
+             AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/{major}.0.0.0 \
+             Mobile/15E148 Safari/604.1"
+        ),
+    }
+}
+
 /// A Microsoft Edge user agent: the Chromium one with Edge's own `Edg/` token
 /// after Safari's, as Edge sends it.
 #[must_use]
@@ -2084,6 +2226,77 @@ pub fn edge_user_agent(platform: &str, major: u32) -> String {
         "{} Edg/{major}.0.0.0",
         chromium_user_agent(platform, major, false)
     )
+}
+
+/// A realistic Microsoft Edge user agent string for `os` and `major`.
+///
+/// Uses `Edg/` on desktop platforms, `EdgA/` on Android, and `EdgiOS/` on iOS.
+#[must_use]
+pub fn edge_user_agent_for_os(os: OsType, major: u32) -> String {
+    match os {
+        OsType::Windows => edge_user_agent("Windows NT 10.0; Win64; x64", major),
+        OsType::Macos => edge_user_agent("Macintosh; Intel Mac OS X 10_15_7", major),
+        OsType::Linux => edge_user_agent("X11; Linux x86_64", major),
+        OsType::Android => format!(
+            "{} EdgA/{major}.0.0.0",
+            chromium_user_agent("Linux; Android 10; K", major, true)
+        ),
+        OsType::Ios => format!(
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) \
+             AppleWebKit/605.1.15 (KHTML, like Gecko) EdgiOS/{major}.0.0.0 \
+             Mobile/15E148 Safari/605.1.15"
+        ),
+    }
+}
+
+/// A realistic Mozilla Firefox user agent string for `os` and `major`.
+///
+/// Desktop Firefox uses Gecko's frozen `Gecko/20100101` build token; Android
+/// Firefox mirrors `{major}.0` in the Gecko token; iOS Firefox renders under
+/// WebKit with `FxiOS/{major}.0`.
+#[must_use]
+pub fn firefox_user_agent(os: OsType, major: u32) -> String {
+    match os {
+        OsType::Windows => format!(
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:{major}.0) Gecko/20100101 Firefox/{major}.0"
+        ),
+        OsType::Macos => format!(
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:{major}.0) Gecko/20100101 Firefox/{major}.0"
+        ),
+        OsType::Linux => format!(
+            "Mozilla/5.0 (X11; Linux x86_64; rv:{major}.0) Gecko/20100101 Firefox/{major}.0"
+        ),
+        OsType::Android => format!(
+            "Mozilla/5.0 (Android 14; Mobile; rv:{major}.0) Gecko/{major}.0 Firefox/{major}.0"
+        ),
+        OsType::Ios => format!(
+            "Mozilla/5.0 (iPhone; CPU iPhone OS 18_7 like Mac OS X) \
+             AppleWebKit/605.1.15 (KHTML, like Gecko) FxiOS/{major}.0 \
+             Mobile/15E148 Safari/605.1.15"
+        ),
+    }
+}
+
+/// The `navigator.oscpu` string Firefox reports on `os`, or `None` on iOS
+/// (where Firefox uses WebKit and `navigator.oscpu` is `undefined`).
+#[must_use]
+pub const fn gecko_oscpu(os: OsType) -> Option<&'static str> {
+    match os {
+        OsType::Windows => Some("Windows NT 10.0; Win64; x64"),
+        OsType::Macos => Some("Intel Mac OS X 10.15"),
+        OsType::Linux => Some("Linux x86_64"),
+        OsType::Android => Some("Linux aarch64"),
+        OsType::Ios => None,
+    }
+}
+
+/// The frozen `navigator.buildID` reported by desktop and Android Firefox.
+///
+/// Firefox froze `navigator.buildID` to `"20181001000000"` in Firefox 64 to
+/// prevent fingerprinting of exact build timestamps.
+#[must_use]
+pub const fn gecko_build_id() -> &'static str {
+    "20181001000000"
 }
 
 /// The Client Hints of a Microsoft Edge release.
@@ -2182,6 +2395,7 @@ pub fn chromium_hints(major: u32) -> ClientHints {
         brands: list(decoy_version.to_owned(), major.to_string()),
         full_version_list: list(format!("{decoy_version}.0.0.0"), full_version.clone()),
         ua_full_version: full_version,
+        form_factors: vec!["Desktop".to_owned()],
         ..ClientHints::default()
     }
 }
@@ -3097,6 +3311,121 @@ mod tests {
         assert_eq!(
             renderer,
             "ANGLE (Apple, ANGLE Metal Renderer: Apple M3, Unspecified Version)"
+        );
+    }
+
+    #[test]
+    fn firefox_user_agent_and_gecko_metadata_match_each_os() {
+        assert_eq!(
+            firefox_user_agent(OsType::Windows, 134),
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:134.0) Gecko/20100101 Firefox/134.0"
+        );
+        assert_eq!(
+            firefox_user_agent(OsType::Macos, 134),
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:134.0) Gecko/20100101 Firefox/134.0"
+        );
+        assert_eq!(
+            firefox_user_agent(OsType::Linux, 130),
+            "Mozilla/5.0 (X11; Linux x86_64; rv:130.0) Gecko/20100101 Firefox/130.0"
+        );
+        assert_eq!(
+            firefox_user_agent(OsType::Android, 134),
+            "Mozilla/5.0 (Android 14; Mobile; rv:134.0) Gecko/134.0 Firefox/134.0"
+        );
+        assert!(firefox_user_agent(OsType::Ios, 134).contains("FxiOS/134.0"));
+
+        assert_eq!(
+            gecko_oscpu(OsType::Windows),
+            Some("Windows NT 10.0; Win64; x64")
+        );
+        assert_eq!(gecko_oscpu(OsType::Macos), Some("Intel Mac OS X 10.15"));
+        assert_eq!(gecko_oscpu(OsType::Linux), Some("Linux x86_64"));
+        assert_eq!(gecko_oscpu(OsType::Android), Some("Linux aarch64"));
+        assert_eq!(gecko_oscpu(OsType::Ios), None);
+        assert_eq!(gecko_build_id(), "20181001000000");
+
+        let ff = crate::evasion::fingerprint::Fingerprint::builder()
+            .browser_type(BrowserType::Firefox)
+            .os_type(OsType::Linux)
+            .user_agent(firefox_user_agent(OsType::Linux, 134))
+            .platform("Linux x86_64")
+            .oscpu(gecko_oscpu(OsType::Linux).expect("Linux Firefox has oscpu"))
+            .build_id(gecko_build_id())
+            .locale("en-US")
+            .languages("en-US,en;q=0.9")
+            .timezone("America/New_York")
+            .build()
+            .expect("valid Firefox profile");
+        let report = ff.validate();
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
+        assert!(report.warnings.is_empty(), "{:?}", report.warnings);
+    }
+
+    #[test]
+    fn chromium_and_edge_helpers_and_form_factors_are_coherent() {
+        assert!(chromium_user_agent_for_os(OsType::Windows, 157).contains("Chrome/157.0.0.0"));
+        assert!(chromium_user_agent_for_os(OsType::Android, 157).contains("Android 10; K"));
+        assert!(chromium_user_agent_for_os(OsType::Ios, 157).contains("CriOS/157.0.0.0"));
+        assert!(edge_user_agent_for_os(OsType::Macos, 157).ends_with("Edg/157.0.0.0"));
+        assert!(edge_user_agent_for_os(OsType::Android, 157).ends_with("EdgA/157.0.0.0"));
+        assert!(edge_user_agent_for_os(OsType::Ios, 157).contains("EdgiOS/157.0.0.0"));
+
+        assert_eq!(chromium_hints(157).form_factors, ["Desktop"]);
+        assert_eq!(edge_hints(157).form_factors, ["Desktop"]);
+
+        for os in [
+            OsType::Windows,
+            OsType::Macos,
+            OsType::Linux,
+            OsType::Android,
+            OsType::Ios,
+        ] {
+            for seed in 1..=25 {
+                let fp = crate::evasion::fingerprint::Fingerprint::randomized(os, seed);
+                let report = fp.validate();
+                assert!(
+                    report.errors.is_empty(),
+                    "{os:?} seed {seed}: {:?}",
+                    report.errors
+                );
+                assert!(
+                    report.warnings.is_empty(),
+                    "{os:?} seed {seed}: {:?}",
+                    report.warnings
+                );
+                if os == OsType::Android {
+                    let ch = fp.client_hints().value().expect("Android client hints");
+                    assert_eq!(ch.form_factors, ["Mobile"]);
+                    assert!(ch.mobile);
+                } else if os != OsType::Ios {
+                    let ch = fp.client_hints().value().expect("Desktop client hints");
+                    assert_eq!(ch.form_factors, ["Desktop"]);
+                    assert!(!ch.mobile);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn weighted_draws_favor_common_hardware_over_legacy_tail() {
+        let mut rtx_common = 0usize;
+        let mut legacy_gt1030 = 0usize;
+        for seed in 0..300 {
+            let renderer = draw(OsType::Windows, seed, &Pins::default())
+                .profile
+                .graphics
+                .renderer
+                .unwrap_or_default();
+            if renderer.contains("RTX 4060") || renderer.contains("RTX 3060") {
+                rtx_common += 1;
+            }
+            if renderer.contains("GT 1030") {
+                legacy_gt1030 += 1;
+            }
+        }
+        assert!(
+            rtx_common > legacy_gt1030,
+            "expected weighted common GPUs ({rtx_common}) to outnumber GT 1030 ({legacy_gt1030})"
         );
     }
 }

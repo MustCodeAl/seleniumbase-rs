@@ -1204,6 +1204,7 @@ impl Fingerprint {
 
         self.check_graphics(&mut report);
         self.check_browser_persona(ua, &mut report);
+        self.check_client_hints(ua, &mut report);
         self.check_place(&mut report);
 
         report
@@ -1276,6 +1277,102 @@ impl Fingerprint {
         if self.0.browser_type == BrowserType::MobileSafari && ua.contains("Chrome/") {
             report.errors.push(
                 "browser persona MobileSafari but the user agent has a Chrome/ token".to_owned(),
+            );
+        }
+    }
+
+    /// Client Hints coherence against the OS, mobile flag, form factors,
+    /// core major version, and Chromium/Edge user agent brand.
+    fn check_client_hints(&self, ua: &str, report: &mut CoherenceReport) {
+        let Some(hints) = self.0.client_hints.value() else {
+            return;
+        };
+        let os = self.os_type();
+        if self.0.browser_type != BrowserType::Chromium {
+            report.warnings.push(format!(
+                "client hints are only supported by Chromium personas, not {:?}",
+                self.0.browser_type
+            ));
+        }
+        if !hints.platform.is_empty() {
+            let expected = match os {
+                OsType::Windows => "Windows",
+                OsType::Macos => "macOS",
+                OsType::Linux => "Linux",
+                OsType::Android => "Android",
+                OsType::Ios => "iOS",
+            };
+            if !hints.platform.eq_ignore_ascii_case(expected) {
+                report.warnings.push(format!(
+                    "client hints platform '{}' differs from os_type {os:?}",
+                    hints.platform
+                ));
+            }
+        }
+        if (!hints.platform.is_empty() || !hints.brands.is_empty())
+            && hints.mobile != os.is_mobile()
+        {
+            report.warnings.push(format!(
+                "client hints mobile={} disagrees with os_type {os:?}",
+                hints.mobile
+            ));
+        }
+        if !hints.form_factors.is_empty() {
+            let has_mobile = hints
+                .form_factors
+                .iter()
+                .any(|ff| ff.eq_ignore_ascii_case("Mobile") || ff.eq_ignore_ascii_case("Tablet"));
+            if os.is_mobile() && !has_mobile {
+                report.warnings.push(format!(
+                    "mobile os_type {os:?} has non-mobile client hints form_factors {:?}",
+                    hints.form_factors
+                ));
+            } else if !os.is_mobile()
+                && hints
+                    .form_factors
+                    .iter()
+                    .any(|ff| ff.eq_ignore_ascii_case("Mobile"))
+            {
+                report.warnings.push(format!(
+                    "desktop os_type {os:?} has mobile client hints form_factors {:?}",
+                    hints.form_factors
+                ));
+            }
+        }
+        if let Some(major) = self.0.core_version {
+            if let Some(full_major) = hints
+                .ua_full_version
+                .split('.')
+                .next()
+                .and_then(|s| s.parse::<u32>().ok())
+                && full_major != major
+            {
+                report.warnings.push(format!(
+                    "client hints ua_full_version '{}' disagrees with core_version {major}",
+                    hints.ua_full_version
+                ));
+            }
+            if let Some(chromium_brand) = hints.brands.iter().find(|b| b.brand == "Chromium")
+                && let Ok(brand_major) = chromium_brand.version.parse::<u32>()
+                && brand_major != major
+            {
+                report.warnings.push(format!(
+                    "client hints Chromium brand version '{}' disagrees with core_version {major}",
+                    chromium_brand.version
+                ));
+            }
+        }
+        let has_chrome_brand = hints.brands.iter().any(|b| b.brand == "Google Chrome");
+        let has_edge_brand = hints.brands.iter().any(|b| b.brand == "Microsoft Edge");
+        if ua.contains("Edg/") && has_chrome_brand {
+            report.warnings.push(
+                "user agent claims Microsoft Edge (Edg/) but client hints brand lists Google Chrome"
+                    .to_owned(),
+            );
+        } else if !ua.contains("Edg/") && ua.contains("Chrome/") && has_edge_brand {
+            report.warnings.push(
+                "user agent claims Chrome without Edg/ but client hints brand lists Microsoft Edge"
+                    .to_owned(),
             );
         }
     }
@@ -4010,5 +4107,76 @@ mod tests {
     fn a_screen_of_no_pixels_is_an_error() {
         let report = built(Fingerprint::builder().screen(0, 1080)).validate();
         assert!(report.errors.iter().any(|e| e.contains("screen")));
+    }
+
+    #[test]
+    fn client_hints_validation_catches_platform_mobile_form_factors_and_version_mismatches() {
+        let mut hints = randomize::chromium_hints(157);
+        hints.platform = "Linux".to_owned();
+        hints.mobile = true;
+        hints.form_factors = vec!["Mobile".to_owned()];
+
+        let mismatched = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .core_version(155)
+                .user_agent(randomize::edge_user_agent_for_os(OsType::Windows, 155))
+                .platform("Win32")
+                .client_hints(hints),
+        );
+        let report = mismatched.validate();
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|w| w.contains("client hints platform")),
+            "{:?}",
+            report.warnings
+        );
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|w| w.contains("client hints mobile=true")),
+            "{:?}",
+            report.warnings
+        );
+        assert!(
+            report.warnings.iter().any(|w| w.contains("form_factors")),
+            "{:?}",
+            report.warnings
+        );
+        assert!(
+            report
+                .warnings
+                .iter()
+                .any(|w| w.contains("core_version 155")),
+            "{:?}",
+            report.warnings
+        );
+        assert!(
+            report.warnings.iter().any(|w| w.contains("Edg/")),
+            "{:?}",
+            report.warnings
+        );
+
+        let mut clean_edge_hints = randomize::edge_hints(157);
+        clean_edge_hints.platform = "Windows".to_owned();
+        clean_edge_hints.platform_version = "15.0.0".to_owned();
+        clean_edge_hints.architecture = "x86".to_owned();
+        clean_edge_hints.bitness = "64".to_owned();
+        let coherent_edge = built(
+            Fingerprint::builder()
+                .os_type(OsType::Windows)
+                .core_version(157)
+                .user_agent(randomize::edge_user_agent_for_os(OsType::Windows, 157))
+                .platform("Win32")
+                .client_hints(clean_edge_hints),
+        );
+        assert!(
+            coherent_edge.validate().warnings.is_empty(),
+            "{:?}",
+            coherent_edge.validate().warnings
+        );
     }
 }

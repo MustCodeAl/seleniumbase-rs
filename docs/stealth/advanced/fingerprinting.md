@@ -10,9 +10,8 @@ extension matrices, audio frequency response curves, canvas font probe dimension
 Client Hints, screen color gamut and dynamic range (HDR), SVG/MathML metrics, and CDP evaluation
 stack traces.
 
-`seleniumbase-rs` bridges the high-level fingerprint generation capabilities of tools like
-Scrapfly, Browserforge, and Apify with low-level engine patches (Camoufox, ShardBrowser,
-Obscura, Cloak-CDP, Eoka) into a clean, idiomatic Rust API with strict type safety.
+`seleniumbase-rs` pairs hardware-coherent fingerprint generation with low-level browser
+prototype and protocol-level engine patching in an idiomatic, strictly typed Rust API.
 
 ---
 
@@ -83,7 +82,7 @@ When injected, `Emulation.setEmulatedMedia` overrides both `color-gamut` and `dy
 ## 3. WebGL Hardware Emulation & Extension Matrices
 
 Simply overriding `UNMASKED_VENDOR_WEBGL` (37445) and `UNMASKED_RENDERER_WEBGL` (37446) is a known
-detection vector on Pixelscan and CreepJS if auxiliary parameters disagree with the claimed hardware.
+detection vector on anti-bot fingerprinting probes if auxiliary parameters disagree with the claimed hardware.
 
 ### Full Parameter Emulation
 `WebglProvider` hooks `getParameter` on both `WebGLRenderingContext` and `WebGL2RenderingContext` to emulate:
@@ -197,7 +196,7 @@ Real desktop Chromium environments expose unique browser APIs that headless runn
 
 ---
 
-## 9. CDP Inspection & Stack Frame Sanitization (Cloak-CDP / Obscura)
+## 9. CDP Inspection & Stack Frame Sanitization
 
 When browser automation tools execute JavaScript via CDP `Runtime.evaluate`, internal stack traces expose automation scripts.
 

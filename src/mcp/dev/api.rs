@@ -97,7 +97,7 @@ pub(super) fn tools() -> Vec<ToolDef<NoBrowser>> {
         ToolDef::new(
             "parity_lookup",
             "Parity Lookup",
-            "Look up a Python SeleniumBase 4.55.2 name (a BaseCase or sb.cdp method, a Driver() \
+            "Look up a Python SeleniumBase 4.58.3 name (a BaseCase or sb.cdp method, a Driver() \
              method, a command, an option or an upstream MCP tool) and say what this library has \
              for it: its status (implemented, composed, not-applicable, planned), the Rust path, \
              and notes on any difference in behavior. With no exact match, lists close names.",
@@ -411,10 +411,11 @@ pub(super) fn lookup(table: &toml::Table, raw: &str) -> Value {
     if let Some(nearest) = nearest {
         result["did_you_mean"] = Value::from(nearest);
     }
-    result["note"] = Value::from(
-        "No Python SeleniumBase 4.55.2 name matches exactly. The close matches contain the name, \
+    result["note"] = Value::from(format!(
+        "No Python SeleniumBase {} name matches exactly. The close matches contain the name, \
          or look like a typo of it; find_api searches the Rust methods by name or by what they do.",
-    );
+        crate::UPSTREAM_SELENIUMBASE_VERSION,
+    ));
     result
 }
 
@@ -628,7 +629,10 @@ note = "Needs the pdf feature."
         assert_eq!(sections, ["basecase", "cdp"]);
         assert_eq!(answer["matches"][0]["rust"], "BaseCase::click");
         assert_eq!(answer["matches"][0]["status"], "implemented");
-        assert_eq!(answer["python_version"], "4.55.2");
+        assert_eq!(
+            answer["python_version"],
+            crate::UPSTREAM_SELENIUMBASE_VERSION
+        );
 
         let only_cdp = lookup(&table, "sb.cdp.click");
         assert_eq!(only_cdp["matches"].as_array().unwrap().len(), 1);

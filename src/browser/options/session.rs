@@ -149,7 +149,7 @@ pub struct SessionSettings {
     #[serde(skip_serializing_if = "FirefoxOptions::is_empty")]
     pub firefox: FirefoxOptions,
     /// Whether to enable the W3C WebDriver BiDi bidirectional protocol (`webSocketUrl: true`).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub bidi: bool,
     /// Whether to log DevTools Protocol events (`--log-cdp-events`).
     #[serde(skip_serializing_if = "CdpEventCapture::is_off")]

@@ -763,24 +763,6 @@ pub(super) static TABLE: &[Call] = &[
         "save_teardown_screenshot",
         &[],
     ),
-    act(&["uc_gui_click_captcha"], "uc_gui_click_captcha", &[]),
-    act(
-        &["uc_gui_handle_captcha"],
-        "uc_gui_handle_captcha",
-        &[s("selector")],
-    ),
-    call(
-        &["uc_gui_press_keys"],
-        "uc_gui_press_keys",
-        &[rest("keys")],
-        Flow::Try,
-        Ret::Unit,
-    ),
-    act(
-        &["gui_click_element"],
-        "gui_click_element",
-        &[s("selector")],
-    ),
     Call {
         py: &["scroll_down"],
         rust: "scroll_down",
@@ -796,13 +778,11 @@ pub(super) static TABLE: &[Call] = &[
         ret: Ret::Unit,
     },
     act(&["scroll_by_y"], "scroll_by_y", &[n("y")]),
-    get(&["get_endpoint_url"], "devtools_endpoint", &[], Ret::Other),
     act(
         &["switch_to_default_driver"],
         "switch_to_default_driver",
         &[],
     ),
-    act(&["reconnect"], "reconnect", &[drop("timeout")]),
     act(
         &["set_messenger_theme"],
         "set_messenger_theme",

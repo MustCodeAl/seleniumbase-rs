@@ -77,6 +77,7 @@ pub fn all() -> Vec<Box<dyn EvasionProvider>> {
         Box::new(WebglProvider),
         Box::new(WebGpuProvider),
         Box::new(CanvasNoiseProvider),
+        Box::new(DomRectProvider),
         Box::new(AudioNoiseProvider),
         Box::new(WebRtcProvider),
         Box::new(BatteryProvider),
@@ -272,8 +273,11 @@ impl EvasionProvider for CdpMarkerProvider {
         15
     }
     fn script(&self, _ctx: &EvasionContext) -> Option<String> {
-        Some(
+        // Strip DevTools/CDP evaluation frames via `Error.prototype.stack` while
+        // leaving `Error.prepareStackTrace` untouched (`tests/chrome/stealth_providers_chrome.rs` asserts it stays undefined).
+        Some(render(
             r##"(function() {
+  @SB@
   const patterns = [/^\$?cdc_[a-zA-Z0-9]{22}_/, /^\$?cdc_/, /__webdriver/, /__selenium/, /__driver/, /\$chrome_/, /__fxdriver/];
   function scrub(obj) {
     if (!obj) return;
@@ -290,33 +294,48 @@ impl EvasionProvider for CdpMarkerProvider {
     while (d) { scrub(d); d = Object.getPrototypeOf(d); }
   }
 
-  // Cloak-CDP & Eoka stack cleaner: filter out CDP evaluation artifacts from Error().stack
+  const frameFilters = [
+    '__puppeteer_evaluation_script__',
+    '__playwright_evaluation_script__',
+    '__cdp_',
+    'pptr:',
+    'UtilityScript.',
+    '__webdriver_evaluate',
+    '__driver_evaluate',
+    '__selenium_evaluate',
+    '__fxdriver_evaluate',
+    'evaluate (at <anonymous>:',
+    'devtools://',
+    'inspector://',
+    'chrome-devtools://',
+    '__sbcdp',
+    'ExecutionContext.evaluate',
+    'InjectedScript.',
+  ];
   try {
     const originalStackDesc = Object.getOwnPropertyDescriptor(Error.prototype, 'stack');
     if (originalStackDesc && typeof originalStackDesc.get === 'function') {
       const origGet = originalStackDesc.get;
       Object.defineProperty(Error.prototype, 'stack', {
-        get: function() {
+        get: sb.native(function stack() {
           const raw = origGet.call(this);
           if (typeof raw !== 'string') return raw;
           return raw
             .split('\n')
             .filter(function(line) {
-              return !line.includes('__puppeteer_evaluation_script__') &&
-                     !line.includes('__playwright_evaluation_script__') &&
-                     !line.includes('__cdp_') &&
-                     !line.includes('pptr:');
+              return !frameFilters.some(function(needle) { return line.includes(needle); });
             })
             .join('\n');
-        },
+        }, 'get stack', origGet),
+        set: originalStackDesc.set,
         configurable: true,
         enumerable: originalStackDesc.enumerable
       });
     }
   } catch (e) {}
-})();"##
-                .to_owned(),
-        )
+})();"##,
+            &[],
+        ))
     }
 }
 
@@ -703,15 +722,19 @@ impl EvasionProvider for WindowGeometryProvider {
         let ratio = fp.pixel_ratio().value().copied();
         if native {
             // Width/height/scale are handled by CDP Emulation.setDeviceMetricsOverride.
-            // Only colorDepth is not covered by CDP, so patch it minimally, alongside orientation.
-            let depth = depth?.to_string();
+            // Only colorDepth, screen bounds, extended flag, and orientation are patched in JS.
+            let depth_lines = depth.map_or_else(String::new, |d| {
+                format!(
+                    "  try {{ sb.getter(Screen.prototype, 'colorDepth', function () {{ return {d}; }}); }} catch (e) {{}}\n\
+                     \x20 try {{ sb.getter(Screen.prototype, 'pixelDepth', function () {{ return {d}; }}); }} catch (e) {{}}\n"
+                )
+            });
             return Some(render(
                 r##"(function () {
   @SB@
-  try { sb.getter(Screen.prototype, 'colorDepth', function () { return @DEPTH@; }); } catch (e) {}
-  try { sb.getter(Screen.prototype, 'pixelDepth', function () { return @DEPTH@; }); } catch (e) {}
-  try { sb.getter(Screen.prototype, 'availTop', function () { return 0; }); } catch (e) {}
+@DEPTH_LINES@  try { sb.getter(Screen.prototype, 'availTop', function () { return 0; }); } catch (e) {}
   try { sb.getter(Screen.prototype, 'availLeft', function () { return 0; }); } catch (e) {}
+  try { sb.getter(Screen.prototype, 'isExtended', function () { return false; }); } catch (e) {}
   try {
     if (typeof ScreenOrientation !== 'undefined') {
       sb.getter(ScreenOrientation.prototype, 'type', function () {
@@ -721,7 +744,7 @@ impl EvasionProvider for WindowGeometryProvider {
     }
   } catch (e) {}
 })();"##,
-                &[("DEPTH", &depth)],
+                &[("DEPTH_LINES", &depth_lines)],
             ));
         }
         let mut defs = Vec::new();
@@ -769,6 +792,7 @@ impl EvasionProvider for WindowGeometryProvider {
   const defs = { @DEFS@ };
   if (!('availTop' in defs)) { defs.availTop = 0; }
   if (!('availLeft' in defs)) { defs.availLeft = 0; }
+  if (!('isExtended' in defs)) { defs.isExtended = false; }
   Object.keys(defs).forEach(function (k) {
     try { sb.getter(Screen.prototype, k, function () { return defs[k]; }); } catch (e) {}
   });
@@ -860,6 +884,18 @@ impl EvasionProvider for WebglProvider {
         let phone = webgl
             .and_then(|gl| gl.renderer.as_deref())
             .is_some_and(is_mobile_gpu);
+        let is_apple_gpu = webgl.is_some_and(|gl| {
+            gl.renderer
+                .as_deref()
+                .is_some_and(|r| gpu_maker(r) == Some("apple"))
+                || gl
+                    .vendor
+                    .as_deref()
+                    .is_some_and(|v| gpu_maker(v) == Some("apple"))
+        });
+        let compact_caps = phone || is_apple_gpu || ctx.fingerprint.os_type().is_mobile();
+        let max_vertex_uniform_vectors: u32 = if compact_caps { 1024 } else { 4096 };
+        let max_combined_tex_units: u32 = if compact_caps { 32 } else { 80 };
         let max_tex = webgl
             .and_then(|gl| gl.max_texture_size)
             .unwrap_or(if phone { 8192 } else { 16384 });
@@ -894,13 +930,68 @@ impl EvasionProvider for WebglProvider {
             String::new()
         };
 
+        let canvas_mode = ctx.fingerprint.policy().canvas_noise;
+        let (noise_setup, read_pixels_patch) = if ctx.fingerprint.is_masked(Dimension::Canvas)
+            && canvas_mode.adds_noise()
+        {
+            let seed = if canvas_mode == CanvasNoise::Random {
+                ctx.seed ^ fresh_entropy()
+            } else {
+                ctx.seed
+            };
+            let setup = render(
+                "  const seed = @SEED@ >>> 0;\n  const density = @DENSITY@;\n  @HASH@",
+                &[
+                    ("SEED", &seed.to_string()),
+                    ("DENSITY", &canvas_mode.density().to_string()),
+                    ("HASH", NOISE_HASH),
+                ],
+            );
+            let patch = r#"
+    const origReadPixels = context.prototype.readPixels;
+    if (origReadPixels) {
+      context.prototype.readPixels = sb.native(function readPixels(x, y, w, h, format, type, pixels, dstOffset) {
+        origReadPixels.apply(this, arguments);
+        if (!pixels || !ArrayBuffer.isView(pixels)) { return; }
+        if (!(pixels instanceof Uint8Array || pixels instanceof Uint8ClampedArray)) { return; }
+        const width = Math.max(0, Math.floor(Number(w)) || 0);
+        const height = Math.max(0, Math.floor(Number(h)) || 0);
+        if (!width || !height) { return; }
+        const x0 = Math.floor(Number(x)) || 0;
+        const y0 = Math.floor(Number(y)) || 0;
+        const stride = format === 6407 ? 3 : (format === 6406 || format === 6409) ? 1 : format === 6410 ? 2 : 4;
+        const channels = stride === 4 ? 3 : stride;
+        const start = Math.max(0, Math.floor(Number(dstOffset)) || 0);
+        const total = width * height;
+        for (let p = 0; p < total; p++) {
+          const base = start + p * stride;
+          if (base + stride > pixels.length) { break; }
+          const col = p % width;
+          const row = (p - col) / width;
+          const key = (y0 + row) * 65536 + x0 + col;
+          if (density > 1 && hash(key + 7919) % density !== 0) { continue; }
+          const bits = hash(key);
+          for (let c = 0; c < channels; c++) {
+            if ((bits >>> c) & 1) { pixels[base + c] ^= 1; }
+          }
+        }
+      }, 'readPixels', origReadPixels);
+    }"#;
+            (setup, patch)
+        } else {
+            (String::new(), "")
+        };
+
         Some(render(
             r##"(function () {
   @SB@
   const vendor = @VENDOR@;
   const renderer = @RENDERER@;
   const maxTex = @MAX_TEX@;
-  function patch(context) {
+  const maxVertexUniformVectors = @MAX_VERTEX_UNIFORM_VECTORS@;
+  const maxCombinedTexUnits = @MAX_COMBINED_TEX_UNITS@;
+@NOISE_SETUP@
+  function patch(context, isWebGL2) {
     if (!context || !context.prototype) { return; }
     const original = context.prototype.getParameter;
     context.prototype.getParameter = sb.native(function getParameter(parameter) {
@@ -908,13 +999,18 @@ impl EvasionProvider for WebglProvider {
       if (parameter === 37446 && renderer !== null) { return renderer; }
       if (parameter === 7936) { return 'WebKit'; }
       if (parameter === 7937) { return 'WebKit WebGL'; }
-      if (parameter === 35724) { return 'WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)'; }
+      if (parameter === 35724) {
+        return isWebGL2
+          ? 'WebGL GLSL ES 3.00 (OpenGL ES GLSL ES 3.00 Chromium)'
+          : 'WebGL GLSL ES 1.0 (OpenGL ES GLSL ES 1.0 Chromium)';
+      }
       if (parameter === 3379 || parameter === 34024 || parameter === 34076) { return maxTex; }
       if (parameter === 3386) { return new Int32Array([maxTex, maxTex]); }
       if (parameter === 34921) { return 16; }
       if (parameter === 34930) { return 32; }
       if (parameter === 34929 || parameter === 34931) { return 16; }
-      if (parameter === 36347) { return 4096; }
+      if (parameter === 35661) { return maxCombinedTexUnits; }
+      if (parameter === 36347) { return maxVertexUniformVectors; }
       if (parameter === 36348) { return 30; }
       if (parameter === 36349) { return 1024; }
       if (parameter === 33902) { return new Float32Array([1, 1]); }
@@ -922,10 +1018,16 @@ impl EvasionProvider for WebglProvider {
       if (parameter === 3414) { return 24; }
       if (parameter === 3415) { return 8; }
       if (parameter === 34047) { return 4294967295; }
-      if (parameter === 32883 || parameter === 35864) { return 2048; }
-      if (parameter === 36063 || parameter === 34852) { return 8; }
-      if (parameter === 35380) { return 256; }
-      if (parameter === 35377) { return 65536; }
+      if (isWebGL2) {
+        if (parameter === 32883 || parameter === 35071) { return 2048; }
+        if (parameter === 36063 || parameter === 34852) { return 8; }
+        if (parameter === 35380) { return 256; }
+        if (parameter === 35376 || parameter === 35377) { return 65536; }
+        if (parameter === 35375) { return 84; }
+        if (parameter === 37154 || parameter === 37157) { return 64; }
+        if (parameter === 35076) { return -8; }
+        if (parameter === 35077) { return 7; }
+      }
       return original.apply(this, arguments);
     }, 'getParameter', original);
     const origPrecision = context.prototype.getShaderPrecisionFormat;
@@ -935,15 +1037,25 @@ impl EvasionProvider for WebglProvider {
         return { rangeMin: res.rangeMin, rangeMax: res.rangeMax, precision: res.precision };
       }
       return { rangeMin: 127, rangeMax: 127, precision: 23 };
-    }, 'getShaderPrecisionFormat', origPrecision);@EXTENSIONS@
+    }, 'getShaderPrecisionFormat', origPrecision);@READ_PIXELS@@EXTENSIONS@
   }
-  patch(window.WebGLRenderingContext);
-  patch(window.WebGL2RenderingContext);
+  patch(window.WebGLRenderingContext, false);
+  patch(window.WebGL2RenderingContext, true);
 })();"##,
             &[
                 ("VENDOR", &vendor),
                 ("RENDERER", &renderer),
                 ("MAX_TEX", &max_tex.to_string()),
+                (
+                    "MAX_VERTEX_UNIFORM_VECTORS",
+                    &max_vertex_uniform_vectors.to_string(),
+                ),
+                (
+                    "MAX_COMBINED_TEX_UNITS",
+                    &max_combined_tex_units.to_string(),
+                ),
+                ("NOISE_SETUP", &noise_setup),
+                ("READ_PIXELS", read_pixels_patch),
                 ("EXTENSIONS", &extensions),
             ],
         ))
@@ -953,7 +1065,7 @@ impl EvasionProvider for WebglProvider {
 /// Makes the WebGPU adapter name the GPU the WebGL renderer names.
 ///
 /// `GPUAdapterInfo.vendor` and `architecture` are what a page reads from
-/// `navigator.gpu.requestAdapter()`; fpscanner, CreepJS and ThumbmarkJS hold
+/// `navigator.gpu.requestAdapter()`; browser consistency detectors hold
 /// them against the WebGL renderer, and one machine has one GPU. The vendor is
 /// the maker the `WebGl` value names (`nvidia`, `apple`, `qualcomm`), the
 /// architecture the family Dawn reports for it (`lovelace`, `metal-3`,
@@ -1024,7 +1136,8 @@ impl EvasionProvider for WebGpuProvider {
     }
 }
 
-/// Canvas noise on `toDataURL` / `toBlob` / `getImageData`.
+/// Canvas noise on `toDataURL`, `toBlob`, `getImageData`, `measureText`, and
+/// `OffscreenCanvas` readback APIs.
 ///
 /// Runs for every [`CanvasNoise`]
 /// of the policy that adds noise: `Persistent` uses the profile seed, `Random`
@@ -1033,8 +1146,9 @@ impl EvasionProvider for WebGpuProvider {
 ///
 /// The noise is a function of the seed and the pixel's position, so reading
 /// the same canvas twice gives the same bytes, and a sub-rectangle carries the
-/// noise of the same pixels as the whole canvas. `toDataURL` and `toBlob`
-/// read a noisy copy: the canvas itself is never changed.
+/// noise of the same pixels as the whole canvas. `toDataURL`, `toBlob`, and
+/// `OffscreenCanvas.convertToBlob` read a noisy copy: the canvas itself is
+/// never changed.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CanvasNoiseProvider;
 
@@ -1075,49 +1189,254 @@ impl EvasionProvider for CanvasNoiseProvider {
       if (nudge !== 0) { data[i] = Math.max(0, Math.min(255, data[i] + nudge)); }
     }
   }
-  const createElement = Document.prototype.createElement;
-  const getContext = HTMLCanvasElement.prototype.getContext;
-  const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
-  const putImageData = CanvasRenderingContext2D.prototype.putImageData;
-  const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
-  const originalToBlob = HTMLCanvasElement.prototype.toBlob;
-  // A noisy copy of a canvas, or null when it cannot be read (empty, or tainted
-  // by another origin); then the genuine canvas answers, or throws, as it would.
-  function noisyCopy(canvas) {
-    try {
-      if (!canvas.width || !canvas.height) { return null; }
-      const copy = createElement.call(document, 'canvas');
-      copy.width = canvas.width;
-      copy.height = canvas.height;
-      const context = getContext.call(copy, '2d');
-      context.drawImage(canvas, 0, 0);
-      const image = originalGetImageData.call(context, 0, 0, copy.width, copy.height);
-      perturb(image.data, image.width, 0, 0);
-      putImageData.call(context, image, 0, 0);
-      return copy;
-    } catch (e) {
-      return null;
+  function textKey(font, text) {
+    const input = String(font || '') + '|' + String(text);
+    let h = (seed ^ 0x811c9dc5) >>> 0;
+    for (let i = 0; i < input.length; i++) {
+      h ^= input.charCodeAt(i);
+      h = Math.imul(h, 0x01000193) >>> 0;
     }
+    return h >>> 0;
   }
-  HTMLCanvasElement.prototype.toDataURL = sb.native(function toDataURL() {
-    return originalToDataURL.apply(noisyCopy(this) || this, arguments);
-  }, 'toDataURL', originalToDataURL);
-  if (originalToBlob) {
-    HTMLCanvasElement.prototype.toBlob = sb.native(function toBlob() {
-      return originalToBlob.apply(noisyCopy(this) || this, arguments);
-    }, 'toBlob', originalToBlob);
+  function microJitter(key) {
+    return ((hash(key) / 4294967296) - 0.5) * 2e-4;
   }
-  CanvasRenderingContext2D.prototype.getImageData = sb.native(function getImageData(sx, sy) {
-    const image = originalGetImageData.apply(this, arguments);
-    perturb(image.data, image.width, Math.floor(Number(sx)) || 0, Math.floor(Number(sy)) || 0);
-    return image;
-  }, 'getImageData', originalGetImageData);
+  function wrapTextMetrics(tm, font, text) {
+    if (!tm || typeof tm.width !== 'number' || tm.width === 0 || String(text).length === 0) {
+      return tm;
+    }
+    const k = textKey(font, text);
+    const width = tm.width + microJitter(k);
+    const hasLeft = typeof tm.actualBoundingBoxLeft === 'number';
+    const hasRight = typeof tm.actualBoundingBoxRight === 'number';
+    const left = hasLeft ? tm.actualBoundingBoxLeft + microJitter(k + 1) : undefined;
+    const right = hasRight ? tm.actualBoundingBoxRight + microJitter(k + 2) : undefined;
+    return new Proxy(tm, {
+      get: function (target, prop) {
+        if (prop === 'width') { return width; }
+        if (prop === 'actualBoundingBoxLeft' && hasLeft) { return left; }
+        if (prop === 'actualBoundingBoxRight' && hasRight) { return right; }
+        const val = Reflect.get(target, prop, target);
+        return typeof val === 'function' ? val.bind(target) : val;
+      }
+    });
+  }
+  function patchMeasureText(proto) {
+    if (!proto || typeof proto.measureText !== 'function') { return; }
+    const origMeasure = proto.measureText;
+    proto.measureText = sb.native(function measureText(text) {
+      const tm = origMeasure.apply(this, arguments);
+      return wrapTextMetrics(tm, this.font, text);
+    }, 'measureText', origMeasure);
+  }
+  if (typeof HTMLCanvasElement !== 'undefined' && typeof CanvasRenderingContext2D !== 'undefined' && typeof Document !== 'undefined') {
+    const createElement = Document.prototype.createElement;
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    const originalGetImageData = CanvasRenderingContext2D.prototype.getImageData;
+    const putImageData = CanvasRenderingContext2D.prototype.putImageData;
+    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    const originalToBlob = HTMLCanvasElement.prototype.toBlob;
+    // A noisy copy of a canvas, or null when it cannot be read (empty, or tainted
+    // by another origin); then the genuine canvas answers, or throws, as it would.
+    function noisyCopy(canvas) {
+      try {
+        if (!canvas.width || !canvas.height) { return null; }
+        const copy = createElement.call(document, 'canvas');
+        copy.width = canvas.width;
+        copy.height = canvas.height;
+        const context = getContext.call(copy, '2d');
+        context.drawImage(canvas, 0, 0);
+        const image = originalGetImageData.call(context, 0, 0, copy.width, copy.height);
+        perturb(image.data, image.width, 0, 0);
+        putImageData.call(context, image, 0, 0);
+        return copy;
+      } catch (e) {
+        return null;
+      }
+    }
+    HTMLCanvasElement.prototype.toDataURL = sb.native(function toDataURL() {
+      return originalToDataURL.apply(noisyCopy(this) || this, arguments);
+    }, 'toDataURL', originalToDataURL);
+    if (originalToBlob) {
+      HTMLCanvasElement.prototype.toBlob = sb.native(function toBlob() {
+        return originalToBlob.apply(noisyCopy(this) || this, arguments);
+      }, 'toBlob', originalToBlob);
+    }
+    CanvasRenderingContext2D.prototype.getImageData = sb.native(function getImageData(sx, sy) {
+      const image = originalGetImageData.apply(this, arguments);
+      perturb(image.data, image.width, Math.floor(Number(sx)) || 0, Math.floor(Number(sy)) || 0);
+      return image;
+    }, 'getImageData', originalGetImageData);
+    patchMeasureText(CanvasRenderingContext2D.prototype);
+  }
+  const origOffscreenGetImageData = typeof OffscreenCanvasRenderingContext2D !== 'undefined'
+    ? OffscreenCanvasRenderingContext2D.prototype.getImageData
+    : null;
+  const origOffscreenPutImageData = typeof OffscreenCanvasRenderingContext2D !== 'undefined'
+    ? OffscreenCanvasRenderingContext2D.prototype.putImageData
+    : null;
+  if (typeof OffscreenCanvasRenderingContext2D !== 'undefined' && origOffscreenGetImageData) {
+    OffscreenCanvasRenderingContext2D.prototype.getImageData = sb.native(function getImageData(sx, sy) {
+      const image = origOffscreenGetImageData.apply(this, arguments);
+      perturb(image.data, image.width, Math.floor(Number(sx)) || 0, Math.floor(Number(sy)) || 0);
+      return image;
+    }, 'getImageData', origOffscreenGetImageData);
+    patchMeasureText(OffscreenCanvasRenderingContext2D.prototype);
+  }
+  if (typeof OffscreenCanvas !== 'undefined' && OffscreenCanvas.prototype.convertToBlob) {
+    const originalConvertToBlob = OffscreenCanvas.prototype.convertToBlob;
+    const offscreenGetContext = OffscreenCanvas.prototype.getContext;
+    function noisyOffscreenCopy(offscreen) {
+      try {
+        if (!offscreen.width || !offscreen.height || !origOffscreenGetImageData || !origOffscreenPutImageData) { return null; }
+        const copy = new OffscreenCanvas(offscreen.width, offscreen.height);
+        const context = offscreenGetContext.call(copy, '2d');
+        if (!context) { return null; }
+        context.drawImage(offscreen, 0, 0);
+        const image = origOffscreenGetImageData.call(context, 0, 0, copy.width, copy.height);
+        perturb(image.data, image.width, 0, 0);
+        origOffscreenPutImageData.call(context, image, 0, 0);
+        return copy;
+      } catch (e) {
+        return null;
+      }
+    }
+    OffscreenCanvas.prototype.convertToBlob = sb.native(function convertToBlob() {
+      return originalConvertToBlob.apply(noisyOffscreenCopy(this) || this, arguments);
+    }, 'convertToBlob', originalConvertToBlob);
+  }
 })();"##,
             &[
                 ("SEED", &seed.to_string()),
                 ("DENSITY", &mode.density().to_string()),
                 ("HASH", NOISE_HASH),
             ],
+        ))
+    }
+}
+
+/// Deterministic micro-jitter on `DOMRect` geometry (`getBoundingClientRect` and
+/// `getClientRects` on `Element` and `Range`).
+///
+/// Perturbs coordinates by ~`1e-4` CSS pixels derived from the session seed and
+/// rect geometry while keeping `right = left + width` and `bottom = top + height`
+/// exact, preserving >0.1px font measurement deltas and click hit-testing.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct DomRectProvider;
+
+impl EvasionProvider for DomRectProvider {
+    fn name(&self) -> &str {
+        "dom_rect"
+    }
+    fn priority(&self) -> i32 {
+        58
+    }
+    fn applies(&self, fp: &Fingerprint) -> bool {
+        fp.is_masked(Dimension::Canvas) || fp.is_masked(Dimension::Fonts)
+    }
+    fn script(&self, ctx: &EvasionContext) -> Option<String> {
+        let seed = if ctx.fingerprint.policy().canvas_noise == CanvasNoise::Random {
+            ctx.seed ^ fresh_entropy()
+        } else {
+            ctx.seed
+        };
+        Some(render(
+            r##"(function () {
+  @SB@
+  const seed = @SEED@ >>> 0;
+  @HASH@
+  function mixRect(r) {
+    const a = Math.round(r.left * 4096) | 0;
+    const b = Math.round(r.top * 4096) | 0;
+    const c = Math.round(r.width * 4096) | 0;
+    const d = Math.round(r.height * 4096) | 0;
+    let k = seed;
+    k = (Math.imul(k ^ a, 0x9E3779B1) + 0x85EBCA77) >>> 0;
+    k = (Math.imul(k ^ b, 0x85EBCA77) + 0xC2B2AE3D) >>> 0;
+    k = (Math.imul(k ^ c, 0xC2B2AE3D) + 0x27D4EB2F) >>> 0;
+    k = (Math.imul(k ^ d, 0x165667B1) + 0x9E3779B1) >>> 0;
+    return k >>> 0;
+  }
+  function jitter(index) {
+    return ((hash(index) / 4294967296) - 0.5) * 2e-4;
+  }
+  function jitterRect(r) {
+    if (!r || (r.left === 0 && r.top === 0 && r.width === 0 && r.height === 0)) {
+      return r;
+    }
+    const k = mixRect(r);
+    const x = r.left + jitter(k);
+    const y = r.top + jitter(k + 1);
+    const w = r.width === 0 ? 0 : r.width + jitter(k + 2);
+    const h = r.height === 0 ? 0 : r.height + jitter(k + 3);
+    if (typeof DOMRect === 'function') {
+      return new DOMRect(x, y, w, h);
+    }
+    const plain = {
+      x: x, y: y, width: w, height: h,
+      top: y, left: x, right: x + w, bottom: y + h
+    };
+    plain.toJSON = function () { return plain; };
+    return plain;
+  }
+  function wrapRectList(list) {
+    if (!list || typeof list.length !== 'number') { return list; }
+    const rects = [];
+    for (let i = 0; i < list.length; i++) {
+      rects.push(jitterRect(list[i]));
+    }
+    return new Proxy(list, {
+      get: function (target, prop) {
+        if (typeof prop === 'string' && /^(?:0|[1-9]\d*)$/.test(prop)) {
+          const idx = Number(prop);
+          if (idx < rects.length) { return rects[idx]; }
+        }
+        if (prop === 'item') {
+          return sb.native(function item(index) {
+            const origRes = target.item.apply(target, arguments);
+            if (!origRes) { return null; }
+            const idx = Number(index) >>> 0;
+            return idx < rects.length ? rects[idx] : jitterRect(origRes);
+          }, 'item', target.item);
+        }
+        if (prop === Symbol.iterator) {
+          return sb.native(function values() {
+            return rects.values();
+          }, 'values', target[Symbol.iterator]);
+        }
+        const val = Reflect.get(target, prop, target);
+        return typeof val === 'function' ? val.bind(target) : val;
+      },
+      getOwnPropertyDescriptor: function (target, prop) {
+        if (typeof prop === 'string' && /^(?:0|[1-9]\d*)$/.test(prop)) {
+          const idx = Number(prop);
+          if (idx < rects.length) {
+            return { value: rects[idx], writable: false, enumerable: true, configurable: true };
+          }
+        }
+        return Reflect.getOwnPropertyDescriptor(target, prop);
+      }
+    });
+  }
+  function patchProto(proto) {
+    if (!proto) { return; }
+    if (typeof proto.getBoundingClientRect === 'function') {
+      const origRect = proto.getBoundingClientRect;
+      proto.getBoundingClientRect = sb.native(function getBoundingClientRect() {
+        return jitterRect(origRect.apply(this, arguments));
+      }, 'getBoundingClientRect', origRect);
+    }
+    if (typeof proto.getClientRects === 'function') {
+      const origRects = proto.getClientRects;
+      proto.getClientRects = sb.native(function getClientRects() {
+        return wrapRectList(origRects.apply(this, arguments));
+      }, 'getClientRects', origRects);
+    }
+  }
+  if (typeof Element !== 'undefined') { patchProto(Element.prototype); }
+  if (typeof Range !== 'undefined') { patchProto(Range.prototype); }
+})();"##,
+            &[("SEED", &seed.to_string()), ("HASH", NOISE_HASH)],
         ))
     }
 }
@@ -1134,11 +1453,13 @@ fn fresh_entropy() -> u64 {
 }
 
 /// Deterministic audio noise on `AudioBuffer.getChannelData`,
-/// `AudioBuffer.copyFromChannel` and `AnalyserNode.getFloatFrequencyData`.
+/// `AudioBuffer.copyFromChannel`, `AnalyserNode` readouts, and audio latency/channel
+/// properties on prototypes.
 ///
 /// A buffer's samples are perturbed once, the first time any of them is read,
 /// so later reads see the same values; the analyser's noise depends only on the
-/// seed and the bin.
+/// seed and the bin. All overrides live on prototypes so instance own-property
+/// checks (e.g. on an `AnalyserNode`) remain empty.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct AudioNoiseProvider;
 
@@ -1171,8 +1492,44 @@ impl EvasionProvider for AudioNoiseProvider {
   const sampleRate = @SAMPLE_RATE@;
   @HASH@
   function noise(index) { return hash(index) / 4294967296 - 0.5; }
-  if (sampleRate && window.AudioContext) {
-    try { sb.getter(AudioContext.prototype, 'sampleRate', function () { return sampleRate; }); } catch (e) {}
+  if (window.AudioContext) {
+    if (sampleRate) {
+      try { sb.getter(AudioContext.prototype, 'sampleRate', function () { return sampleRate; }); } catch (e) {}
+    }
+    try {
+      const baseDesc = Object.getOwnPropertyDescriptor(AudioContext.prototype, 'baseLatency');
+      if (baseDesc && baseDesc.get) {
+        const origBase = baseDesc.get;
+        sb.getter(AudioContext.prototype, 'baseLatency', function () {
+          origBase.call(this);
+          const sr = sampleRate || this.sampleRate || 48000;
+          return Math.round(((256 + (hash(41) % 3) * 128) / sr) * 1e6) / 1e6;
+        });
+      }
+    } catch (e) {}
+    try {
+      const outDesc = Object.getOwnPropertyDescriptor(AudioContext.prototype, 'outputLatency');
+      if (outDesc && outDesc.get) {
+        const origOut = outDesc.get;
+        sb.getter(AudioContext.prototype, 'outputLatency', function () {
+          origOut.call(this);
+          const sr = sampleRate || this.sampleRate || 48000;
+          return Math.round(((512 + (hash(42) % 3) * 256) / sr) * 1e6) / 1e6;
+        });
+      }
+    } catch (e) {}
+  }
+  if (window.AudioDestinationNode) {
+    try {
+      const chDesc = Object.getOwnPropertyDescriptor(AudioDestinationNode.prototype, 'maxChannelCount');
+      if (chDesc && chDesc.get) {
+        const origCh = chDesc.get;
+        sb.getter(AudioDestinationNode.prototype, 'maxChannelCount', function () {
+          origCh.call(this);
+          return 2;
+        });
+      }
+    } catch (e) {}
   }
   if (window.OfflineAudioContext) {
     const originalStartRendering = OfflineAudioContext.prototype.startRendering;
@@ -1206,11 +1563,40 @@ impl EvasionProvider for AudioNoiseProvider {
     }
   }
   if (window.AnalyserNode) {
-    const originalFloat = AnalyserNode.prototype.getFloatFrequencyData;
-    AnalyserNode.prototype.getFloatFrequencyData = sb.native(function getFloatFrequencyData(array) {
-      originalFloat.apply(this, arguments);
-      for (let i = 0; i < array.length; i++) { array[i] += noise(i) * 0.0002; }
-    }, 'getFloatFrequencyData', originalFloat);
+    const originalFloatFreq = AnalyserNode.prototype.getFloatFrequencyData;
+    if (originalFloatFreq) {
+      AnalyserNode.prototype.getFloatFrequencyData = sb.native(function getFloatFrequencyData(array) {
+        originalFloatFreq.apply(this, arguments);
+        for (let i = 0; i < array.length; i++) { array[i] += noise(i) * 0.0002; }
+      }, 'getFloatFrequencyData', originalFloatFreq);
+    }
+    const originalByteFreq = AnalyserNode.prototype.getByteFrequencyData;
+    if (originalByteFreq) {
+      AnalyserNode.prototype.getByteFrequencyData = sb.native(function getByteFrequencyData(array) {
+        originalByteFreq.apply(this, arguments);
+        for (let i = 0; i < array.length; i++) {
+          const delta = (hash(i + 131072) % 3) - 1;
+          if (delta !== 0) { array[i] = Math.max(0, Math.min(255, array[i] + delta)); }
+        }
+      }, 'getByteFrequencyData', originalByteFreq);
+    }
+    const originalFloatTime = AnalyserNode.prototype.getFloatTimeDomainData;
+    if (originalFloatTime) {
+      AnalyserNode.prototype.getFloatTimeDomainData = sb.native(function getFloatTimeDomainData(array) {
+        originalFloatTime.apply(this, arguments);
+        for (let i = 0; i < array.length; i++) { array[i] += noise(i + 262144) * 1e-7; }
+      }, 'getFloatTimeDomainData', originalFloatTime);
+    }
+    const originalByteTime = AnalyserNode.prototype.getByteTimeDomainData;
+    if (originalByteTime) {
+      AnalyserNode.prototype.getByteTimeDomainData = sb.native(function getByteTimeDomainData(array) {
+        originalByteTime.apply(this, arguments);
+        for (let i = 0; i < array.length; i++) {
+          const delta = (hash(i + 393216) % 3) - 1;
+          if (delta !== 0) { array[i] = Math.max(0, Math.min(255, array[i] + delta)); }
+        }
+      }, 'getByteTimeDomainData', originalByteTime);
+    }
   }
 })();"##,
             &[
@@ -1886,6 +2272,19 @@ impl EvasionProvider for ClientHintsProvider {
                 .collect::<Vec<_>>()
                 .join(", ")
         };
+        let form_factors = if ch.form_factors.is_empty() {
+            if ch.mobile {
+                quoted("Mobile")
+            } else {
+                quoted("Desktop")
+            }
+        } else {
+            ch.form_factors
+                .iter()
+                .map(|f| quoted(f))
+                .collect::<Vec<_>>()
+                .join(", ")
+        };
         Some(render(
             r##"(function () {
   @SB@
@@ -1896,6 +2295,7 @@ impl EvasionProvider for ClientHintsProvider {
     architecture: @ARCH@, bitness: @BITNESS@, model: @MODEL@,
     platform: @PLATFORM@, platformVersion: @PLATFORM_VERSION@,
     uaFullVersion: @UA_FULL@, fullVersionList: fullList, brands: brands, mobile: @MOBILE@,
+    wow64: @WOW64@, formFactors: [@FORM_FACTORS@],
   };
   const uaData = {
     brands: brands, mobile: @MOBILE@, platform: @PLATFORM@,
@@ -1918,6 +2318,8 @@ impl EvasionProvider for ClientHintsProvider {
                 ("PLATFORM_VERSION", &quoted(&ch.platform_version)),
                 ("UA_FULL", &quoted(&ch.ua_full_version)),
                 ("MOBILE", if ch.mobile { "true" } else { "false" }),
+                ("WOW64", if ch.wow64 { "true" } else { "false" }),
+                ("FORM_FACTORS", &form_factors),
             ],
         ))
     }
@@ -2672,7 +3074,7 @@ mod tests {
 
     fn all_providers_are_priority_ordered() {
         let providers = all();
-        assert_eq!(providers.len(), 33);
+        assert_eq!(providers.len(), 34);
         let mut last = i32::MIN;
         for p in &providers {
             assert!(p.priority() >= last, "provider {} out of order", p.name());
@@ -3402,5 +3804,187 @@ mod tests {
         assert_eq!(render("no markers", &[]), "no markers");
         assert_eq!(render("trailing @", &[]), "trailing @");
         assert!(render("@SB@", &[]).starts_with("const sb ="));
+    }
+
+    #[test]
+    fn dom_rect_provider_is_priority_58_deterministic_and_patches_element_and_range() {
+        assert_eq!(DomRectProvider.name(), "dom_rect");
+        assert_eq!(DomRectProvider.priority(), 58);
+
+        assert!(!DomRectProvider.applies(&Fingerprint::default()));
+        let canvas_only = built(
+            Fingerprint::builder()
+                .canvas_noise(crate::evasion::fingerprint::CanvasNoise::Persistent),
+        );
+        let fonts_only = built(Fingerprint::builder().fonts(["Arial"]));
+        assert!(DomRectProvider.applies(&canvas_only));
+        assert!(DomRectProvider.applies(&fonts_only));
+
+        let a = built(
+            Fingerprint::builder()
+                .canvas_noise(crate::evasion::fingerprint::CanvasNoise::Persistent)
+                .seed(42),
+        );
+        let b = built(
+            Fingerprint::builder()
+                .canvas_noise(crate::evasion::fingerprint::CanvasNoise::Persistent)
+                .seed(43),
+        );
+        let script_a1 = DomRectProvider.script(&ctx_for(&a)).unwrap();
+        let script_a2 = DomRectProvider.script(&ctx_for(&a)).unwrap();
+        let script_b = DomRectProvider.script(&ctx_for(&b)).unwrap();
+        assert_eq!(script_a1, script_a2);
+        assert_ne!(script_a1, script_b);
+
+        for needle in [
+            "Element.prototype",
+            "Range.prototype",
+            "getBoundingClientRect",
+            "getClientRects",
+            "new DOMRect(x, y, w, h)",
+            "right: x + w, bottom: y + h",
+            "2e-4",
+            "sb.native(",
+        ] {
+            assert!(script_a1.contains(needle), "missing {needle}");
+        }
+    }
+
+    #[test]
+    fn canvas_noise_provider_patches_measure_text_and_offscreen_canvas() {
+        let fp = windows_with(|b| {
+            b.canvas_noise(crate::evasion::fingerprint::CanvasNoise::Persistent)
+                .seed(1234)
+        });
+        let script = CanvasNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        for needle in [
+            "measureText",
+            "actualBoundingBoxLeft",
+            "actualBoundingBoxRight",
+            "OffscreenCanvasRenderingContext2D",
+            "OffscreenCanvas",
+            "convertToBlob",
+            "CanvasRenderingContext2D.prototype.getImageData",
+        ] {
+            assert!(script.contains(needle), "missing {needle}");
+        }
+    }
+
+    #[test]
+    fn audio_noise_provider_patches_analyser_methods_and_latency_on_prototypes() {
+        let fp = windows_with(|b| {
+            b.audio_noise(crate::evasion::fingerprint::AudioNoise::Persistent)
+                .seed(77)
+        });
+        let script = AudioNoiseProvider.script(&ctx_for(&fp)).unwrap();
+        for needle in [
+            "AnalyserNode.prototype.getFloatFrequencyData",
+            "AnalyserNode.prototype.getByteFrequencyData",
+            "AnalyserNode.prototype.getFloatTimeDomainData",
+            "AnalyserNode.prototype.getByteTimeDomainData",
+            "AudioContext.prototype, 'baseLatency'",
+            "AudioContext.prototype, 'outputLatency'",
+            "AudioDestinationNode.prototype, 'maxChannelCount'",
+            "return 2;",
+        ] {
+            assert!(script.contains(needle), "missing {needle}");
+        }
+    }
+
+    #[test]
+    fn webgl_provider_fixes_webgl2_enums_separates_gpu_caps_and_noises_read_pixels() {
+        let desktop_no_canvas =
+            windows_with(|b| b.canvas_noise(crate::evasion::fingerprint::CanvasNoise::Natural));
+        let desktop_script = WebglProvider.script(&ctx_for(&desktop_no_canvas)).unwrap();
+        assert!(!desktop_script.contains("35864"));
+        for needle in [
+            "parameter === 32883 || parameter === 35071",
+            "parameter === 35376 || parameter === 35377",
+            "return 65536;",
+            "parameter === 35375",
+            "return 84;",
+            "parameter === 37154 || parameter === 37157",
+            "return 64;",
+            "parameter === 35076",
+            "return -8;",
+            "parameter === 35077",
+            "return 7;",
+            "const maxVertexUniformVectors = 4096;",
+            "const maxCombinedTexUnits = 80;",
+        ] {
+            assert!(desktop_script.contains(needle), "missing {needle}");
+        }
+        assert!(!desktop_script.contains("context.prototype.readPixels"));
+
+        let mac = Fingerprint::macos_desktop();
+        let mac_script = WebglProvider.script(&ctx_for(&mac)).unwrap();
+        assert!(mac_script.contains("const maxVertexUniformVectors = 1024;"));
+        assert!(mac_script.contains("const maxCombinedTexUnits = 32;"));
+
+        let android = Fingerprint::android_mobile();
+        let android_script = WebglProvider.script(&ctx_for(&android)).unwrap();
+        assert!(android_script.contains("const maxVertexUniformVectors = 1024;"));
+        assert!(android_script.contains("const maxCombinedTexUnits = 32;"));
+
+        let with_canvas = windows_with(|b| {
+            b.canvas_noise(crate::evasion::fingerprint::CanvasNoise::Persistent)
+                .seed(999)
+        });
+        let canvas_script = WebglProvider.script(&ctx_for(&with_canvas)).unwrap();
+        assert!(canvas_script.contains("context.prototype.readPixels"));
+        assert!(canvas_script.contains("const channels = stride === 4 ? 3 : stride;"));
+    }
+
+    #[test]
+    fn cdp_marker_provider_filters_eval_frames_without_prepare_stack_trace() {
+        let fp = Fingerprint::windows_desktop();
+        let script = CdpMarkerProvider.script(&ctx_for(&fp)).unwrap();
+        for needle in [
+            "UtilityScript.",
+            "__webdriver_evaluate",
+            "evaluate (at <anonymous>:",
+            "devtools://",
+            "ExecutionContext.evaluate",
+            "InjectedScript.",
+        ] {
+            assert!(script.contains(needle), "missing {needle}");
+        }
+        for provider in all() {
+            if let Some(body) = provider.script(&ctx_for(&everything())) {
+                assert!(
+                    !body.contains("prepareStackTrace"),
+                    "{} must never touch Error.prepareStackTrace",
+                    provider.name()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn window_geometry_sets_is_extended_and_client_hints_include_wow64_and_form_factors() {
+        let non_native = windows_with(|b| {
+            b.policy(StealthPolicy::balanced())
+                .client_hints(ClientHints {
+                    platform: "Windows".to_owned(),
+                    wow64: true,
+                    form_factors: vec!["Desktop".to_owned()],
+                    ..ClientHints::default()
+                })
+        });
+        let geom_js = WindowGeometryProvider
+            .script(&ctx_for(&non_native))
+            .unwrap();
+        assert!(geom_js.contains("isExtended"));
+        let ch_js = ClientHintsProvider.script(&ctx_for(&non_native)).unwrap();
+        assert!(ch_js.contains("wow64: true"));
+        assert!(ch_js.contains("formFactors: ['Desktop']"));
+
+        let native = windows_with(|b| {
+            let mut p = StealthPolicy::balanced();
+            p.native_spoofing = true;
+            b.policy(p)
+        });
+        let native_geom_js = WindowGeometryProvider.script(&ctx_for(&native)).unwrap();
+        assert!(native_geom_js.contains("Screen.prototype, 'isExtended'"));
     }
 }

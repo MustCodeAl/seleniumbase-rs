@@ -9,7 +9,7 @@ Network Patching is SeleniumBase-RS's low-level browser impersonation engine. Ra
 
 <Visibility for="agents">
 
-Summary for AI coding agents: Network patching operates below WebDriver and CDP. It provides byte-accurate browser impersonation using measured TLS handshakes (JA3, JA4, BoringSSL cipher order, extension permutations), HTTP/2 frame hierarchies (SETTINGS, WINDOW_UPDATE, pseudo-header order), and HTTP/3 QUIC profiles. It includes an Ephemeral-CA MITM engine (`seleniumbase_rs_stealth::wire::mitm`) that dynamically signs leaf certificates, an egress `Ledger` / `JsonLedger` event sink for transaction auditing, and native-level engine patches inspired by ShardBrowser, Camoufox, Obscura, Cloak-CDP, Eoka, Browser_Oxide, Chromiumfish, DonutBrowser, and Fury.
+Summary for AI coding agents: Network patching operates below WebDriver and CDP. It provides byte-accurate browser impersonation using measured TLS handshakes (JA3, JA4, BoringSSL cipher order, extension permutations), HTTP/2 frame hierarchies (SETTINGS, WINDOW_UPDATE, pseudo-header order), and HTTP/3 QUIC profiles. It includes an Ephemeral-CA MITM engine (`seleniumbase_rs_stealth::wire::mitm`) that dynamically signs leaf certificates, an egress `Ledger` / `JsonLedger` event sink for transaction auditing, and native-level binary and protocol engine patching.
 
 </Visibility>
 
@@ -264,21 +264,17 @@ Network Patching natively manages all standard Web and API authorization paradig
 
 ---
 
-## 9. Native-Level Spoofing & Engine Patch References
+## 9. Native-Level Spoofing & Engine Patching
 
-When driving real browser binaries (Chromium or Firefox) rather than the raw wire HTTP client, JavaScript prototype shims alone are vulnerable to modern detectors. Anti-bot scripts inspect V8 internal structures, heap snapshots, and native C++ WebIDL bindings.
+When driving real browser binaries (Chromium or Firefox) rather than the raw wire HTTP client, naive JavaScript property overrides alone are fragile against modern detectors that inspect V8 internal structures, error stack traces, and WebIDL prototype chains.
 
-SeleniumBase-RS incorporates native and binary-level spoofing techniques inspired by top antidetect and evasion research:
+SeleniumBase-RS implements native-layer and binary-level patching across these core surfaces:
 
-### Reference Implementations & Inspirations:
-- **ShardBrowser** ([GitHub](https://github.com/ProxyShard/ShardBrowser)): Patches WebIDL bindings in Chromium source to eliminate automation flags at the native C++ level.
-- **Camoufox** ([GitHub](https://github.com/daijro/camoufox/tree/main/browser/patches)): Native C++ patch set for Firefox, injecting randomized hardware profiles, WebGL constants, and font enumeration defenses.
-- **Obscura** ([GitHub](https://github.com/donutbrowser/donutbrowser)): Deterministic, hardware-consistent noise injection for WebGL readback and Canvas manipulation.
-- **Cloak-CDP** ([GitHub](https://github.com/enowdev/cloak-cdp)): Intercepts CDP protocol evaluate calls and cleans `Error.prototype.stack` to eliminate `__puppeteer_evaluation_script__` and CDP inspector stack artifacts.
-- **Eoka** ([GitHub](https://github.com/shrimp-software/eoka)): Binary patcher for chromedriver and chromium executables, replacing `$cdc_` markers and `features::kAutomationControlled`.
-- **Browser_Oxide** ([GitHub](https://github.com/yfedoseev/browser_oxide)): Strict V8 native function simulation ensuring `Function.prototype.toString` and `Symbol.toStringTag` conform to native engine specifications.
-- **Chromiumfish & Fury** ([GitHub](https://github.com/arman-bd/chromiumfish)): Direct ANGLE/OpenGL shader parameter, extension spoofing, and low-level canvas readback timing mitigations.
-- **DonutBrowser** ([GitHub](https://github.com/donutbrowser/donutbrowser)): Comprehensive cross-platform hardware profile simulation and audio buffer noise synthesis.
+- **Native WebIDL & Function Integrity**: Wrappers live on prototypes with faithful `Function.prototype.toString` (`function () { [native code] }`), length/name descriptors, and own-property hygiene so instance inspection sees empty property lists.
+- **Deterministic Hardware & Readback Noise**: Deterministic per-seed micro-noise covers 2D/Offscreen Canvas pixels and text metrics, `DOMRect` geometry, WebGL `readPixels`, and `AudioBuffer`/`AnalyserNode` frequency and time-domain outputs.
+- **CDP Stack & Automation Scrubbing**: Filters DevTools evaluation frames (`UtilityScript.`, `__webdriver_evaluate`, `ExecutionContext.evaluate`) from `Error.prototype.stack` without touching `Error.prepareStackTrace`, while scrubbing driver globals (`$cdc_`, `__webdriver_*`).
+- **Binary Driver & Browser Patching**: Operates directly on chromedriver and Chromium binaries to neutralize `$cdc_` variables, `kAutomationControlled`, and `--enable-automation` checks before launch.
+- **ANGLE/OpenGL Parameter Coherence**: Aligns shader precision, WebGL2 limits, hardware-tier uniform/texture unit caps, and mobile vs. desktop compressed texture extensions with the spoofed GPU renderer.
 
 ### Binary Engine Patcher (`ChromedriverPatcher` & `ChromeBinaryPatcher`)
 

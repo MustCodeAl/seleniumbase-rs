@@ -37,11 +37,11 @@ pub struct EnginePatch {
     pub patch_navigator_webdriver: bool,
     /// Replace `HeadlessChrome` user-agent markers with `Chrome`.
     pub patch_headless_user_agent: bool,
-    /// Replace `kAutomationControlled` Chromium feature flags (ShardBrowser / Camoufox).
+    /// Replace `kAutomationControlled` Chromium feature flags.
     pub scrub_k_automation_controlled: bool,
-    /// Replace `--enable-automation` command line checks (Eoka / ShardBrowser).
+    /// Replace `--enable-automation` command line checks.
     pub scrub_enable_automation: bool,
-    /// Replace CDP evaluation isolation script markers (Cloak-CDP).
+    /// Replace CDP evaluation isolation script markers.
     pub patch_cdp_runtime_isolate: bool,
     /// Create a `.orig` backup before patching.
     pub backup: bool,

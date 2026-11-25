@@ -331,8 +331,8 @@ that names the other machine or that every detector reads; `medium`; `low`: a
 quiet preference). The persona is the one the capture's own user agent names,
 so no expected fingerprint is needed: `compare_to` answers whether the page
 matches a fingerprint, `contradictions` whether it matches itself. The rules
-are the ones the open-source detectors apply (fpscanner, CreepJS, BotD,
-FingerprintJS, rebrowser-bot-detector, fp-collect, ThumbmarkJS); the inventory
+are the ones open-source consistency detectors apply (fpscanner, CreepJS, BotD,
+FingerprintJS, fp-collect, ThumbmarkJS); the inventory
 with the sources and the ranked gaps is
 [Fingerprint consistency](/design/fingerprint_consistency).
 

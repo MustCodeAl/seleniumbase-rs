@@ -986,8 +986,8 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7 s
   `CapturedFingerprint::contradictions()` returns every pair of surfaces of one capture that
   disagree (`Contradiction`: the rule, the two surfaces, their values, the persona rule they
   break, why, and a `Severity`), loudest first. The persona is the one the capture's own user
-  agent names, so no expected fingerprint is needed. The rules are the ones the open-source
-  detectors apply (fpscanner, CreepJS, BotD, FingerprintJS, rebrowser-bot-detector, fp-collect,
+  agent names, so no expected fingerprint is needed. The rules reflect standard cross-surface
+  consistency checks (fpscanner, CreepJS, BotD, FingerprintJS, fp-collect,
   ThumbmarkJS): the WebGPU adapter against the WebGL renderer and the system, a worker and an
   `about:blank` frame against the window, the window against the screen, the CSS media features
   against the device (and `matchMedia` against `@media`), the three codec answers, the fonts, the

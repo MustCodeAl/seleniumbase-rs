@@ -977,6 +977,50 @@ impl Tr<'_> {
                     Ty::Unit,
                 ));
             }
+            "get_endpoint_url" => {
+                return Ok(Rendered::awaiting(
+                    "sb.devtools_endpoint().await?".to_owned(),
+                    Ty::Unknown,
+                ));
+            }
+            "uc_gui_click_captcha" => {
+                return Ok(Rendered::awaiting(
+                    "sb.uc_gui_click_captcha().await?".to_owned(),
+                    Ty::Unit,
+                ));
+            }
+            "uc_gui_handle_captcha" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("sb.uc_gui_handle_captcha({selector}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "gui_click_element" => {
+                let selector = self.one_selector(method, args)?;
+                return Ok(Rendered::awaiting(
+                    format!("sb.gui_click_element({selector}).await?"),
+                    Ty::Unit,
+                ));
+            }
+            "uc_gui_press_keys" => {
+                let mut pos = Vec::new();
+                for arg in args {
+                    match arg {
+                        Arg::Pos(value) => pos.push(value),
+                        _ => {
+                            return Err(Skip::error(
+                                "uc_gui_press_keys takes positional key strings",
+                            ));
+                        }
+                    }
+                }
+                let keys = self.rest_argument(&pos)?;
+                return Ok(Rendered::plain(
+                    format!("sb.uc_gui_press_keys({keys})?"),
+                    Ty::Unit,
+                ));
+            }
             "set_messenger_theme" => {
                 let theme = match args.first() {
                     Some(Arg::Pos(t)) => self.str_arg(t)?,

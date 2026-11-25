@@ -419,7 +419,7 @@ mod tests {
                     .map(|tool| tool["name"].as_str().unwrap())
                     .collect();
                 assert_eq!(names, expected);
-                assert_eq!(names.len(), 12);
+                assert_eq!(names.len(), 13);
 
                 send(
                     &mut client,

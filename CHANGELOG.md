@@ -27,12 +27,14 @@ work, `docs/parity.md` the per-API status).
   - Stripped 100% of legacy serde aliases (`alias = ...`) from `src/profile_payloads/profile.rs` and `seleniumbase-rs-stealth/src/fingerprint.rs`.
   - Unified JSON schema strictly matching Rust `Fingerprint` and `FingerprintBuilder` API: `webrtc_policy`, `proxy`, `audio_noise`, `canvas_noise`, `ports`, `navigator`, `localization`, `timezone`, `webgl`, `fonts`, `media_devices`, `screen`, `geolocation`, `audio_sample_rate`.
 - **Advanced Fingerprinting & Native Low-Level Browser Impersonation**:
-  - Native browser spoofing enhancements inspired by Camoufox, ShardBrowser, Obscura/Cloak-CDP, Eoka/Browser_Oxide, Chromiumfish, DonutBrowser, and Fury.
+  - Native browser spoofing enhancements across prototype chains, WebIDL getters, binary markers, error stack scrubbing, deterministic media/canvas/audio noise, and hardware-coherent profiles:
+    - Added `DomRectProvider` (`"dom_rect"`, priority 58) with deterministic ~`1e-4` px micro-jitter on `Element` and `Range` `getBoundingClientRect`/`getClientRects`, extended `CanvasNoiseProvider` to `measureText` (`TextMetrics` bounds) and `OffscreenCanvas`/`OffscreenCanvasRenderingContext2D`, extended `AudioNoiseProvider` to `AnalyserNode` byte/float readouts and prototype `baseLatency`/`outputLatency`/`maxChannelCount`, fixed WebGL2 `MAX_ARRAY_TEXTURE_LAYERS` (`35071`) with uniform/component/texel-offset enums, desktop vs. Apple/mobile GPU caps, and `readPixels` 1-LSB jitter, expanded `CdpMarkerProvider` eval frame filtering without adding `Error.prepareStackTrace`, and set `Screen.prototype.isExtended` plus `ClientHints` `wow64`/`formFactors`.
+    - Added `firefox_user_agent(os, major)`, `gecko_oscpu(os)`, `gecko_build_id()`, `chromium_user_agent_for_os`, and `edge_user_agent_for_os` in `evasion::randomize`, expanded weighted Chromium/platform/GPU/device tables, and added `ClientHints` coherence checks in `Fingerprint::validate()`.
   - Display characteristics & media features: `ColorGamut`, `HdrMode`, `dynamic_range` (`Standard` / `High`), `pointer` (`Fine` / `Coarse`), and `hover` emulation across CDP `Emulation.setEmulatedMedia`.
   - WebGL 1/2 parameter tables, ANGLE D3D11 / Metal / Mesa extension matrices, and shader precision format emulation (`getShaderPrecisionFormat`).
   - Web Audio sample rate alignment (`48000` Hz for macOS/Windows, `44100` Hz for Linux) and buffer perturbation on `OfflineAudioContext.prototype.startRendering` and `AudioBuffer`.
   - Font canvas probe shield: `CanvasRenderingContext2D.prototype.measureText` interceptor preventing stealth font enumeration attacks.
-  - SVG / MathML subpixel normalization and Cloak-CDP error stack scrubbing.
+  - SVG / MathML subpixel normalization and CDP/DevTools evaluation error stack scrubbing.
   - New comprehensive documentation: `docs/stealth/advanced/fingerprinting.md` and updated `docs/stealth/advanced/wire-formats.md`.
 - **Python Importer Modernization (`sbrs import-python`, `src/utilities/importer`)**:
   - Python 3.10-3.16 pattern matching (`match ... case ...`) translated into idiomatic Rust `match` expressions with pattern guards, bindings, and wildcards.
@@ -1055,8 +1057,8 @@ work, `docs/parity.md` the per-API status).
   `CapturedFingerprint::contradictions()` returns every pair of surfaces of one capture that
   disagree (`Contradiction`: the rule, the two surfaces, their values, the persona rule they
   break, why, and a `Severity`), loudest first. The persona is the one the capture's own user
-  agent names, so no expected fingerprint is needed. The rules are the ones the open-source
-  detectors apply (fpscanner, CreepJS, BotD, FingerprintJS, rebrowser-bot-detector, fp-collect,
+  agent names, so no expected fingerprint is needed. The rules reflect standard cross-surface
+  consistency checks (fpscanner, CreepJS, BotD, FingerprintJS, fp-collect,
   ThumbmarkJS): the WebGPU adapter against the WebGL renderer and the system, a worker and an
   `about:blank` frame against the window, the window against the screen, the CSS media features
   against the device (and `matchMedia` against `@media`), the three codec answers, the fonts, the

@@ -9,8 +9,8 @@
 //! break. The persona is the one the capture's own user agent names, so no
 //! expected fingerprint is needed.
 //!
-//! The rules are the ones the open-source detectors apply (fpscanner, CreepJS,
-//! BotD, FingerprintJS, rebrowser-bot-detector, fp-collect, ThumbmarkJS); the
+//! The rules reflect standard cross-surface browser consistency checks
+//! (fpscanner, CreepJS, BotD, FingerprintJS, fp-collect, ThumbmarkJS); the
 //! inventory with the sources is `docs/design/fingerprint_consistency.md`. A
 //! rule whose readings the capture lacks says nothing: an older reading, or a
 //! page whose policy blocked a worker, is not a contradiction.

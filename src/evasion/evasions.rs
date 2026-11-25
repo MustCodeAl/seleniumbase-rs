@@ -11,8 +11,8 @@
 //! * execution by a [`BrowserSession`](crate::browser::session::BrowserSession)
 //!   helper.
 //!
-//! The evasions are inspired by `chromiumoxide_stealth`, `eoka`,
-//! `chaser-oxide`, and `undetected-chromedriver`.
+//! The evasions operate at the prototype and protocol layers to maintain coherent
+//! browser surfaces and strip automation markers.
 
 use std::collections::HashMap;
 

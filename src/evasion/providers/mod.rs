@@ -269,7 +269,7 @@ mod tests {
                 |b| b.media_device_counts(1, 1, 1),
                 &["media_devices"],
             ),
-            ("fonts", |b| b.fonts(["Arial"]), &["fonts"]),
+            ("fonts", |b| b.fonts(["Arial"]), &["fonts", "dom_rect"]),
             (
                 "webrtc",
                 |b| b.webrtc(("203.0.113.9", "10.0.0.2")),
@@ -279,7 +279,7 @@ mod tests {
             (
                 "canvas_noise",
                 |b| b.canvas_noise(CanvasNoise::Persistent),
-                &["canvas_noise"],
+                &["canvas_noise", "dom_rect"],
             ),
             (
                 "audio_noise",
@@ -568,6 +568,7 @@ mod tests {
         webgl_passes_the_audit => "webgl",
         webgpu_passes_the_audit => "webgpu",
         canvas_noise_passes_the_audit => "canvas_noise",
+        dom_rect_passes_the_audit => "dom_rect",
         audio_noise_passes_the_audit => "audio_noise",
         webrtc_passes_the_audit => "webrtc",
         battery_passes_the_audit => "battery",
@@ -617,6 +618,7 @@ mod tests {
         let fp = with_seed(41);
         let noisy = [
             &builtin::CanvasNoiseProvider as &dyn EvasionProvider,
+            &builtin::DomRectProvider,
             &builtin::AudioNoiseProvider,
         ];
 

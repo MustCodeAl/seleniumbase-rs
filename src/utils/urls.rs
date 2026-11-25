@@ -129,7 +129,11 @@ pub fn is_same_page_url(current: &str, wanted: &str) -> bool {
         return true;
     }
     match (u1.query(), u2.query()) {
-        (Some(q1), Some(q2)) => q1.split('&').next() == q2.split('&').next(),
+        // Only search queries (?q=term&source=hp vs ?q=term) ignore extra
+        // tracking parameters appended by a search engine.
+        (Some(q1), Some(q2)) => {
+            q1.starts_with("q=") && !q2.contains('&') && q1.split('&').next() == Some(q2)
+        }
         _ => false,
     }
 }
@@ -310,6 +314,10 @@ mod tests {
         assert!(is_same_page_url(
             "https://example.com/search?q=rust&src=hp",
             "https://example.com/search?q=rust"
+        ));
+        assert!(!is_same_page_url(
+            "https://example.com/list?page=2&sort=asc",
+            "https://example.com/list?page=2"
         ));
         assert!(!is_same_page_url(
             "https://example.com/a",
