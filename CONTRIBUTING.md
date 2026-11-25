@@ -79,7 +79,7 @@ checkout gets its own target and they share compiled work through its cache.
 ## Development Environment
 
 With [mise](https://mise.jdx.dev), `mise install` sets up the tools below from
-`mise.toml` (Rust 1.99 with clippy and rustfmt, Python 3.14 for the parity
+`mise.toml` (Rust 1.100 with clippy and rustfmt, Python 3.14 for the parity
 scripts, Node for the Tauri example, mdBook and cargo-deny), and
 `mise run gate` runs the checks a change has to pass; `mise tasks ls` lists the
 rest (`chrome`, `docs`, `mdx`, `smoke`, `parity-docs`, `contracts`, ...). mise is
@@ -87,7 +87,7 @@ the repository's task runner; there is no `justfile`.
 
 ### Required
 
-- [Rust](https://rustup.rs/) 1.99 or newer (stable channel); `rust-version` in
+- [Rust](https://rustup.rs/) 1.100 or newer (stable channel); `rust-version` in
   `Cargo.toml` is the newest stable release and the `msrv` CI job enforces it.
 - `cargo`, `rustfmt` and `clippy`.
 - Python 3.10+ only for the scripts in `tools/` (the parity tables). The crate

@@ -5,7 +5,7 @@
 **Browser automation and testing in Rust, with the SeleniumBase API you know.**
 
 [![Release](https://img.shields.io/github/v/release/MustCodeAl/seleniumbase-rs?label=release)](https://github.com/MustCodeAl/seleniumbase-rs/releases)
-[![Rust 1.99](https://img.shields.io/badge/rust-1.99-orange?logo=rust)](./rust-toolchain.toml)
+[![Rust 1.100](https://img.shields.io/badge/rust-1.100-orange?logo=rust)](./rust-toolchain.toml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)](./docs/platforms.md)
 [![Parity](https://img.shields.io/badge/SeleniumBase%204.58.3-parity%20tracked-brightgreen)](./docs/parity.md)
@@ -21,7 +21,7 @@ server. It gives you `BaseCase`, the familiar test API, on WebDriver, plus a pur
 Chrome DevTools engine that needs no driver at all.
 
 > [!NOTE]
-> Young and moving fast: version `0.7.0`, installed from GitHub (not on
+> Young and moving fast: version `0.9.3`, installed from GitHub (not on
 > crates.io). See [Project status](#project-status) for what is verified and what
 > is not.
 
@@ -131,11 +131,11 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag =
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.7", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.9.3", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]
-> Building needs Rust 1.99 and a C compiler, and some features need system
+> Building needs Rust 1.100 and a C compiler, and some features need system
 > packages (`gui` needs GTK and X11 on Linux, for example). Every command is in
 > [Building and installing](./docs/building.md#what-you-need); the platform
 > notes are in [Operating systems](./docs/platforms.md), and the Docker image in
