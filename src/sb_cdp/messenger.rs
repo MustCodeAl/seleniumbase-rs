@@ -482,6 +482,38 @@ pub(crate) fn post_markup_script(markup: &str, options: &MessageOptions) -> Stri
     )
 }
 
+/// A self-contained inline DOM toast used when a page's Content Security Policy
+/// (or offline environment) blocks loading the Messenger CDN assets.
+pub(crate) fn fallback_toast_script(markup: &str, options: &MessageOptions) -> String {
+    let (bg, border) = match options.style {
+        MessageStyle::Info => ("#1e293b", "#38bdf8"),
+        MessageStyle::Success => ("#14532d", "#4ade80"),
+        MessageStyle::Error => ("#7f1d1d", "#f87171"),
+    };
+    let millis = options.duration.as_millis();
+    format!(
+        "(() => {{
+            const root = document.body || document.documentElement;
+            if (!root) {{ return false; }}
+            const toast = document.createElement('div');
+            toast.className = 'sbcdp-fallback-toast';
+            toast.style.cssText = 'position:fixed;right:20px;bottom:20px;z-index:2147483647;'
+                + 'max-width:420px;padding:12px 16px;border-radius:6px;'
+                + 'font-family:\"open-sans\",Arial,sans-serif;font-size:16px;color:#fff;'
+                + 'background:{bg};border-left:4px solid {border};'
+                + 'box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+            toast.innerHTML = {message};
+            root.appendChild(toast);
+            setTimeout(() => {{ if (toast.parentNode) {{ toast.parentNode.removeChild(toast); }} }}, {millis});
+            return true;
+        }})()",
+        bg = bg,
+        border = border,
+        message = js_string(markup),
+        millis = millis,
+    )
+}
+
 impl Page {
     /// Loads Messenger, and the jQuery it needs, into the page.
     ///
@@ -540,9 +572,19 @@ impl Page {
         message: &str,
         options: &MessageOptions,
     ) -> Result<(), SeleniumBaseError> {
-        let script = post_markup_script(&html_escape(message), options);
-        self.run_with_messenger(&script, MessengerSettings::default())
-            .await?;
+        let escaped = html_escape(message);
+        let script = post_markup_script(&escaped, options);
+        if let Err(err) = self
+            .run_with_messenger(&script, MessengerSettings::default())
+            .await
+        {
+            if err.to_string().contains("the page could not load") {
+                self.evaluate(fallback_toast_script(&escaped, options))
+                    .await?;
+            } else {
+                return Err(err);
+            }
+        }
         if options.pause {
             tokio::time::sleep(options.duration).await;
         }
@@ -907,6 +949,42 @@ mod tests {
         };
         let error = page.post_message("x", &options).await.unwrap_err();
         assert!(error.to_string().contains("Messenger"), "{error}");
+    }
+
+    #[tokio::test]
+    async fn post_message_falls_back_to_inline_toast_when_csp_blocks_cdn() {
+        let (browser, mock) = Browser::new_mocked();
+        mock.on("Runtime.evaluate", move |params| {
+            let expression = params["expression"].as_str().unwrap_or_default();
+            if expression.contains("https://code.jquery.com") {
+                return Ok(json!({
+                    "exceptionDetails": {
+                        "text": "Uncaught",
+                        "exception": {
+                            "description": "Error: the page could not load https://cdnjs.cloudflare.com/ajax/libs/messenger/1.5.0/css/messenger.min.css"
+                        }
+                    }
+                }));
+            }
+            if expression.contains("sbcdp-fallback-toast") {
+                return Ok(json!({ "result": { "value": true } }));
+            }
+            Ok(json!({ "result": { "value": false } }))
+        });
+        let page = browser.default_page().await.unwrap();
+        let options = MessageOptions {
+            pause: false,
+            style: MessageStyle::Success,
+            ..MessageOptions::default()
+        };
+        page.post_message("Cleared!", &options).await.unwrap();
+
+        let sent = expressions(&mock);
+        assert_eq!(sent.len(), 3, "{sent:?}");
+        assert!(sent[0].contains("hideOnNavigate"), "{}", sent[0]);
+        assert!(sent[1].contains("code.jquery.com"), "{}", sent[1]);
+        assert!(sent[2].contains("sbcdp-fallback-toast"), "{}", sent[2]);
+        assert!(sent[2].contains("Cleared!"), "{}", sent[2]);
     }
 
     #[tokio::test]
