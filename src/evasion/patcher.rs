@@ -195,6 +195,16 @@ impl BinaryPatchRule {
         })
     }
 
+    /// Builds an equal-length ASCII/UTF-8 byte replacement rule.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Patcher`] when `needle` is empty or its byte length
+    /// differs from `replacement`.
+    pub fn ascii(needle: &str, replacement: &str) -> Result<Self, SeleniumBaseError> {
+        Self::try_new(needle.as_bytes().to_vec(), replacement.as_bytes().to_vec())
+    }
+
     /// Builds a rule that overwrites `needle` with ASCII space bytes of the same length.
     ///
     /// # Errors
@@ -204,6 +214,32 @@ impl BinaryPatchRule {
         let needle = needle.as_ref().to_vec();
         let spaces = vec![b' '; needle.len()];
         Self::try_new(needle, spaces)
+    }
+
+    /// Builds a rule that overwrites `needle` with NUL (`0x00`) bytes of the same length.
+    ///
+    /// Useful for zeroing C-string automation markers inside ELF/Mach-O/PE `.rodata`
+    /// sections without altering section sizes or offsets.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Patcher`] when `needle` is empty.
+    pub fn neutralize_nul(needle: impl AsRef<[u8]>) -> Result<Self, SeleniumBaseError> {
+        let needle = needle.as_ref().to_vec();
+        let nuls = vec![0u8; needle.len()];
+        Self::try_new(needle, nuls)
+    }
+
+    /// Builds a rule from hex-encoded byte sequences (spaces and underscores ignored).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Patcher`] when either hex string is invalid,
+    /// empty, or has mismatched byte lengths.
+    pub fn from_hex(needle_hex: &str, replacement_hex: &str) -> Result<Self, SeleniumBaseError> {
+        let needle = decode_hex_bytes(needle_hex)?;
+        let replacement = decode_hex_bytes(replacement_hex)?;
+        Self::try_new(needle, replacement)
     }
 
     /// Pattern bytes matched literally in the binary.
@@ -217,6 +253,28 @@ impl BinaryPatchRule {
     pub fn replacement(&self) -> &[u8] {
         &self.replacement
     }
+}
+
+fn decode_hex_bytes(input: &str) -> Result<Vec<u8>, SeleniumBaseError> {
+    let cleaned: String = input
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace() && *c != '_')
+        .collect();
+    if cleaned.is_empty() || !cleaned.len().is_multiple_of(2) {
+        return Err(SeleniumBaseError::patcher(
+            input,
+            "hex patch sequence must be non-empty with an even number of hex digits",
+        ));
+    }
+    let mut out = Vec::with_capacity(cleaned.len() / 2);
+    for chunk in cleaned.as_bytes().chunks_exact(2) {
+        let pair = std::str::from_utf8(chunk)
+            .map_err(|_| SeleniumBaseError::patcher(input, "invalid UTF-8 in hex sequence"))?;
+        let byte = u8::from_str_radix(pair, 16)
+            .map_err(|_| SeleniumBaseError::patcher(input, format!("invalid hex byte '{pair}'")))?;
+        out.push(byte);
+    }
+    Ok(out)
 }
 
 /// Breakdown of known automation and CDP markers detected inside a binary.
