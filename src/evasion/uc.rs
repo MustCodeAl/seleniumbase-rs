@@ -281,13 +281,16 @@ pub const UC_STEALTH_SCRIPT: &str = r#"
               const win = contentWindowProp.get.call(this);
               if (win) {
                 try {
-                  delete win.navigator.webdriver;
-                  const winProto = win.Navigator.prototype || Object.getPrototypeOf(win.navigator);
-                  if (winProto) {
-                    Object.defineProperty(winProto, 'webdriver', {
-                      get: markNative(() => false, 'get webdriver'),
-                      configurable: true
-                    });
+                  if (win.navigator && win.navigator.webdriver !== false) {
+                    delete win.navigator.webdriver;
+                    const winProto = win.Navigator.prototype || Object.getPrototypeOf(win.navigator);
+                    if (winProto && win.navigator.webdriver !== false) {
+                      Object.defineProperty(winProto, 'webdriver', {
+                        get: markNative(() => false, 'get webdriver'),
+                        configurable: true,
+                        enumerable: true
+                      });
+                    }
                   }
                 } catch (e) {}
               }

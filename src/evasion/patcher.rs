@@ -542,7 +542,9 @@ impl EnginePatch {
             scrub_testing_brand_markers: true,
             scrub_software_renderer_markers: true,
             scrub_automation_bindings: true,
-            scrub_debug_flag_markers: true,
+            // Opt-in only: scrubbing `--remote-debugging-port`/`--test-type` in a live
+            // Chrome or chromedriver binary disables CDP attachment and infobar suppression.
+            scrub_debug_flag_markers: false,
             custom_rules: Vec::new(),
             backup: true,
         }
@@ -587,7 +589,8 @@ impl EnginePatch {
             scrub_testing_brand_markers: true,
             scrub_software_renderer_markers: false,
             scrub_automation_bindings: true,
-            scrub_debug_flag_markers: true,
+            // Opt-in only: keeps `--remote-debugging-port` and `--test-type` functional.
+            scrub_debug_flag_markers: false,
             custom_rules: Vec::new(),
             backup: false,
         }
@@ -608,7 +611,8 @@ impl EnginePatch {
     }
 
     /// Full browser-binary stealth preset scrubbing headless/testing brands, software renderer tells,
-    /// automation bindings, debug flags, and webdriver markers without modifying `cdc_` driver properties.
+    /// automation bindings, and webdriver markers without modifying `cdc_` driver properties or
+    /// disabling CDP `--remote-debugging-port` / `--test-type` CLI flags.
     #[must_use]
     pub fn stealth_browser() -> Self {
         Self {
@@ -2249,17 +2253,29 @@ mod advanced_patcher_tests {
         assert!(spec.scrub_testing_brand_markers);
         assert!(spec.scrub_software_renderer_markers);
         assert!(spec.scrub_automation_bindings);
-        assert!(spec.scrub_debug_flag_markers);
+        assert!(
+            !spec.scrub_debug_flag_markers,
+            "default presets must preserve --remote-debugging-port and --test-type"
+        );
 
         let (patched, count) = patch_bytes(payload, &spec);
         assert_eq!(patched.len(), payload.len());
-        assert!(count >= 20);
+        assert!(count >= 17);
 
         let after = BinaryMarkerReport::from_bytes("chrome", &patched);
         assert_eq!(after.counts.testing_brand_markers, 0);
         assert_eq!(after.counts.software_renderer_markers, 0);
         assert_eq!(after.counts.automation_bindings, 0);
-        assert_eq!(after.counts.debug_flag_markers, 0);
+        // `--enable-automation` was scrubbed by `scrub_enable_automation`, while
+        // `--test-type`, `--remote-debugging-port`, and `--remote-debugging-pipe` stay intact.
+        assert_eq!(after.counts.debug_flag_markers, 3);
         assert_eq!(after.counts.cdc_properties, 1);
+
+        // Opting into `scrub_debug_flag_markers` scrubs all 4 debug CLI flag strings.
+        let mut opt_in = spec;
+        opt_in.scrub_debug_flag_markers = true;
+        let (patched_opt_in, _) = patch_bytes(payload, &opt_in);
+        let after_opt_in = BinaryMarkerReport::from_bytes("chrome", &patched_opt_in);
+        assert_eq!(after_opt_in.counts.debug_flag_markers, 0);
     }
 }
