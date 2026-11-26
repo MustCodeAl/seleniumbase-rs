@@ -685,7 +685,7 @@ mod tests {
     use serde_json::json;
 
     use super::*;
-    use crate::evasion::behavior::Behavior;
+    use crate::sb_cdp::human::Behavior;
 
     /// One thing the solver did to the scripted tab.
     #[derive(Debug, Clone, PartialEq)]

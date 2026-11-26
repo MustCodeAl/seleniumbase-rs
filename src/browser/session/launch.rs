@@ -306,51 +306,8 @@ fn missing_browser_message(browser: Browser) -> String {
 }
 
 async fn patch_chrome_binary_if_needed(
-    config: &mut BrowserConfig,
+    _config: &mut BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
-    if !config.native_spoofing_enabled() {
-        return Ok(());
-    }
-    if !matches!(
-        config.browser.kind,
-        Browser::Chrome | Browser::Chromium | Browser::Edge
-    ) {
-        return Ok(());
-    }
-    if config.browser.executable_path.is_some() {
-        return Ok(());
-    }
-
-    // A bad unrelated variable must not hide SB_CHROME_BIN.
-    let runtime = crate::config::RuntimeConfig::from_env_lenient().0;
-    let source = crate::config::env_vars::text("SB_CHROME_BIN")
-        .map(std::path::PathBuf::from)
-        .or_else(crate::evasion::patcher::find_system_chrome)
-        .ok_or_else(|| {
-            SeleniumBaseError::invalid_config(
-                "native_spoofing requires a Chrome/Chromium binary but none was found. \
-                 Set SB_CHROME_BIN or BrowserConfigBuilder::browser_binary_path."
-                    .to_owned(),
-            )
-        })?;
-
-    let source_str = source.display().to_string();
-    tracing::info!(source = %source_str, "native_spoofing enabled: patching chrome binary");
-
-    let patched = tokio::task::spawn_blocking(move || {
-        let mut patcher = crate::evasion::patcher::ChromeBinaryPatcher::new(source);
-        if let Some(cache) = runtime.patch_cache_dir {
-            patcher = patcher.cache_dir(cache);
-        }
-        patcher.patch(crate::evasion::patcher::EnginePatch::chrome_binary())
-    })
-    .await
-    .map_err(|e| {
-        SeleniumBaseError::patcher(source_str.clone(), format!("patch task panicked: {e}"))
-    })??;
-
-    tracing::info!(path = %patched.display(), "using patched chrome binary");
-    config.browser.executable_path = Some(patched);
     Ok(())
 }
 

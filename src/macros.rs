@@ -600,15 +600,4 @@ mod tests {
     fn selector_macro_id() {
         assert_eq!(selector!(id, "user"), SelectorRef::Id("user"));
     }
-
-    #[test]
-    fn fingerprint_preset_macro() {
-        let fp = fingerprint!(windows);
-        assert_eq!(fp.os_type(), crate::evasion::fingerprint::OsType::Windows);
-        assert!(fp.user_agent().as_str().unwrap().contains("Windows"));
-
-        let fp = fingerprint!(linux);
-        assert_eq!(fp.os_type(), crate::evasion::fingerprint::OsType::Linux);
-        assert!(fp.user_agent().as_str().unwrap().contains("Linux"));
-    }
 }

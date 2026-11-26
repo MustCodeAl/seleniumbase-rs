@@ -5,7 +5,6 @@ use std::sync::{Arc, Mutex};
 
 use serde_json::{json, Value};
 
-use super::navigate_for_client;
 use crate::error::SeleniumBaseError;
 use crate::mcp::devtools::DevSession;
 use crate::mcp::failure::shorten;

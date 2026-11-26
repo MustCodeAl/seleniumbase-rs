@@ -69,11 +69,12 @@ pub(crate) fn task_plugin_candidates<P>(
 }
 
 /// The completer of `sbrs fingerprint export --preset NAME`: the presets the library ships.
+#[allow(dead_code)]
 pub(crate) fn preset_candidates<P>(
     _partial: &P,
     _ctx: &CompleteCtx<'_>,
 ) -> Vec<Candidate<'static>> {
-    seleniumbase_rs::cli::fingerprint_cmd::PRESET_NAMES
+    ["windows", "edge", "macos", "linux", "android", "ios"]
         .iter()
         .map(|name| Candidate::new(*name))
         .collect()

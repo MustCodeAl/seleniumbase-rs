@@ -30,7 +30,7 @@ use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{
     Settings, SettingsOverrides, FINGERPRINT_ENV, START_PAGE_ENV,
 };
-use seleniumbase_rs::evasion::patcher::find_system_chrome;
+use seleniumbase_rs::undetected::patcher::find_system_chrome;
 use seleniumbase_rs::resources::assets;
 use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
 use seleniumbase_rs::utilities::importer::{
@@ -61,7 +61,6 @@ mod diagnostic;
 mod failure;
 
 mod fig;
-mod fingerprint;
 mod info;
 
 mod plugin_catalog;
@@ -86,7 +85,6 @@ mod test_args;
 mod test_session;
 
 use failure::ArgumentError;
-use fingerprint::{FingerprintArgs, FingerprintCommand};
 use recorder_flags::RecorderFlags;
 use test_args::TestArgs;
 
@@ -2167,15 +2165,6 @@ enum Commands {
         example = "sbrs trace show traces/checkout"
     )]
     Trace(TraceArgs),
-    /// Capture, write, check and compare browser fingerprints.
-    ///
-    /// A fingerprint file is what a browser claims to be: the user agent, the screen, the
-    /// language, the graphics card and the rest, as one JSON file. `capture` reads it from
-    /// a real browser; `export` writes a preset or a random identity; `check` and `diff`
-    /// read files. The global --fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint]
-    /// table of the settings file) makes every browser a command starts present one.
-    #[usage(help_heading = "Security", example = "sbrs fingerprint presets")]
-    Fingerprint(FingerprintArgs),
 }
 
 /// The error of a token that would not open. The library's own error names the cipher and its
@@ -2342,7 +2331,6 @@ impl Commands {
                 | Self::PrintPdf { .. }
                 | Self::PdfText { .. }
                 | Self::AssertPdfText { .. }
-                | Self::Fingerprint(_)
         )
     }
 
@@ -3398,13 +3386,6 @@ async fn run_devtools(args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         extension_dir: args.extension_dir.as_deref().map(PathBuf::from),
         url: page.as_deref().map(start_page_url).transpose()?,
         plugins: choice.into_selection(),
-        // The flag, else SB_FINGERPRINT, else the `[fingerprint]` table of the settings file.
-        fingerprint: Settings::resolve_fingerprint_file(
-            args.config.as_deref(),
-            args.fingerprint.as_deref(),
-        )?
-        .map(seleniumbase_rs::Fingerprint::load)
-        .transpose()?,
     };
     if args.uc || args.cdp {
         rich_helper::print_notice(
@@ -3895,13 +3876,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             0 => return Ok(()),
             status => std::process::exit(status),
         },
-        // The subcommands that start no browser end here; `capture` goes on to start one.
-        Commands::Fingerprint(fingerprint) => match fingerprint::run_offline(&fingerprint.command)?
-        {
-            Some(0) => return Ok(()),
-            Some(status) => std::process::exit(status),
-            None => {}
-        },
         _ => {}
     }
 
@@ -4088,12 +4062,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     let selection = choice.map_or_else(PluginSelection::new, PluginChoice::into_selection);
 
     match args.command {
-        Commands::Fingerprint(FingerprintArgs {
-            command: FingerprintCommand::Capture(capture),
-        }) => fingerprint::capture(capture, config).await?,
-        Commands::Fingerprint(_) => {
-            unreachable!("the other fingerprint subcommands return before a browser starts")
-        }
         Commands::Open { url } => {
             let mut sb = BaseCase::new(config).await?;
             sb.open(&url).await?;

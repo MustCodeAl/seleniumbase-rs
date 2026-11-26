@@ -287,7 +287,8 @@ pub(crate) fn browser() -> Vec<PromptDef> {
             ],
             |arguments| {
                 let target = text(arguments, "file_or_preset", "");
-                let (key, launch, kind) = if crate::cli::fingerprint_cmd::preset(target).is_some() {
+                let (key, launch, kind) =
+                    if matches!(target, "windows" | "edge" | "macos" | "linux" | "android" | "ios") {
                     ("preset", "fingerprint_preset", "preset")
                 } else {
                     ("path", "fingerprint_path", "file")

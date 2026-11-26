@@ -9,7 +9,6 @@ use crate::browser::options::emulated_phone;
 use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
 use crate::error::SeleniumBaseError;
 
-use super::fingerprint::fingerprint_overrides;
 use super::BrowserSession;
 
 impl BrowserSession {
@@ -160,13 +159,8 @@ pub(crate) fn blocked_patterns<M: AsRef<str>>(commands: &[(M, Value)]) -> Vec<St
 
 /// The URL patterns the fingerprint of `config` makes the first window block
 /// (`block_trackers`); none when no fingerprint is applied in this mode.
-pub(super) fn fingerprint_blocklist(config: &BrowserConfig) -> Vec<String> {
-    match config.fingerprint.as_ref() {
-        Some(fp) if config.is_uc_enabled() || config.is_cdp_enabled() => {
-            blocked_patterns(&fingerprint_overrides(fp))
-        }
-        _ => Vec::new(),
-    }
+pub(super) fn fingerprint_blocklist(_config: &BrowserConfig) -> Vec<String> {
+    Vec::new()
 }
 
 /// The DevTools commands that make a session refuse the hosts `config` blocks,
@@ -399,67 +393,6 @@ mod ad_block_tests {
                 ("Network.setBlockedURLs", json!({ "urls": own_patterns() })),
             ]
         );
-    }
-
-    #[test]
-    fn the_trackers_of_a_fingerprint_go_with_the_ad_block_list() {
-        use crate::evasion::fingerprint::Fingerprint;
-
-        let fingerprint = Fingerprint::builder()
-            .block_trackers(true)
-            .build()
-            .expect("the builder builds");
-        let tracker = format!("*{}*", fingerprint.tracker_hosts()[0]);
-
-        let mut config = BrowserConfig::builder()
-            .ad_block_list(own_list())
-            .fingerprint(fingerprint)
-            .build()
-            .expect("a valid config");
-        // A plain WebDriver session does not apply the fingerprint, so it has no trackers.
-        assert!(fingerprint_blocklist(&config).is_empty());
-        let plain = ad_block_commands(&config).unwrap();
-        assert_eq!(plain[1].1, json!({ "urls": own_patterns() }));
-
-        config.session.mode = Some(DriverMode::Cdp);
-        let commands = ad_block_commands(&config).unwrap();
-        let urls = blocked_patterns(&commands);
-        let own: Vec<String> = serde_json::from_value(own_patterns()).unwrap();
-        assert_eq!(urls[..own.len()], own[..]);
-        assert!(urls.contains(&tracker), "{urls:?}");
-        assert!(fingerprint_blocklist(&config).contains(&tracker));
-    }
-
-    #[test]
-    fn the_block_keeps_what_the_fingerprint_blocks_where_the_fingerprint_is_applied() {
-        let fingerprint = crate::evasion::fingerprint::Fingerprint::builder()
-            .blocked_ports(vec![9222])
-            .build()
-            .expect("the builder builds");
-        let urls = |mode: DriverMode| {
-            let config = BrowserConfig::builder()
-                .mode(mode)
-                .ad_block_list(own_list())
-                .fingerprint(fingerprint.clone())
-                .build()
-                .expect("a valid config");
-            ad_block_commands(&config).unwrap()[1].1["urls"]
-                .as_array()
-                .unwrap()
-                .clone()
-        };
-
-        // A later `Network.setBlockedURLs` replaces the fingerprint's, so the
-        // list that is sent holds both.
-        for mode in [DriverMode::Cdp, DriverMode::Uc] {
-            let urls = urls(mode);
-            assert!(urls.contains(&json!("*://localhost:9222/*")), "{mode:?}");
-            for own in own_patterns().as_array().unwrap() {
-                assert!(urls.contains(own), "{mode:?}: {own}");
-            }
-        }
-        // Plain WebDriver applies no fingerprint, so there is nothing to join.
-        assert_eq!(json!(urls(DriverMode::WebDriver)), own_patterns());
     }
 
     #[test]

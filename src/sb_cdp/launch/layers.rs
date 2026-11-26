@@ -15,7 +15,6 @@
 //! keeps them. A switch the builder turns on or off is decided by the builder.
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::fmt;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -23,43 +22,13 @@ use std::time::Duration;
 use serde_json::{Map, Value};
 
 use super::{
-    bridge, proxy_of, BrowserSource, LaunchOptions, ProfileMode, Proxy, Redacted,
-    DEFAULT_STARTUP_TIMEOUT,
+    bridge, BrowserSource, LaunchOptions, ProfileMode, Proxy, Redacted, DEFAULT_STARTUP_TIMEOUT,
 };
 use crate::browser::options::{
     chrome_preferences, emulated_phone, DeviceMetrics, LaunchSwitch, PacUrl, ProxyBypassList,
-    VirtualDisplay, MOBILE_USER_AGENT,
+    VirtualDisplay, WebRtcPolicy, MOBILE_USER_AGENT,
 };
 use crate::error::SeleniumBaseError;
-use crate::evasion::evasions::{pdf_viewer_enabled, window_size};
-use crate::evasion::fingerprint::{Dimension, Fingerprint, WebRtcPolicy};
-
-use crate::sb_cdp::identity::StealthPlan;
-
-/// A fingerprint the layers and the options built from them share. Its `Debug` is short: the
-/// fingerprint is long, and the plan made from it is what the options show.
-#[derive(Clone)]
-pub(super) struct SharedFingerprint {
-    pub(super) fingerprint: Arc<Fingerprint>,
-    pub(super) plan: Arc<StealthPlan>,
-}
-
-impl SharedFingerprint {
-    /// Holds a copy of `fingerprint` and the plan worked out from it, once, so that making the
-    /// options again does not work it out again.
-    pub(super) fn new(fingerprint: &Fingerprint) -> Self {
-        Self {
-            fingerprint: Arc::new(fingerprint.clone()),
-            plan: Arc::new(StealthPlan::new(fingerprint)),
-        }
-    }
-}
-
-impl fmt::Debug for SharedFingerprint {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("Fingerprint(..)")
-    }
-}
 
 /// A proxy as the caller wrote it, and whether it is read as Python reads one (when it came from
 /// a `BrowserConfig`) or as the pure CDP engine does.
@@ -91,7 +60,6 @@ pub(super) struct Layer {
     pub(super) window_position: Option<(i32, i32)>,
     pub(super) webrtc: Option<WebRtcPolicy>,
     pub(super) shield_webrtc: Option<bool>,
-    pub(super) fingerprint: Option<SharedFingerprint>,
     pub(super) mobile: Option<bool>,
     pub(super) device_metrics: Option<DeviceMetrics>,
     pub(super) proxy_bypass_list: Option<ProxyBypassList>,
@@ -151,7 +119,6 @@ impl Layer {
             window_position: self.window_position.or(lower.window_position),
             webrtc: self.webrtc.or(lower.webrtc),
             shield_webrtc: self.shield_webrtc.or(lower.shield_webrtc),
-            fingerprint: self.fingerprint.or(lower.fingerprint),
             mobile: self.mobile.or(lower.mobile),
             device_metrics: self.device_metrics.or(lower.device_metrics),
             proxy_bypass_list: self.proxy_bypass_list.or(lower.proxy_bypass_list),
@@ -170,29 +137,6 @@ impl Layer {
             host_resolver_rules: joined(lower.host_resolver_rules, self.host_resolver_rules),
             #[cfg(feature = "plugins")]
             selection,
-        }
-    }
-
-    /// What a fingerprint implies for a launch: its user agent, language, window size, WebRTC
-    /// policy and proxy, as the settings that are lowest in the rule.
-    fn of_fingerprint(fingerprint: &Fingerprint) -> Self {
-        Self {
-            user_agent: fingerprint.user_agent().value().cloned(),
-            lang: fingerprint.locale().value().cloned(),
-            window_size: window_size(fingerprint),
-            // Only a fingerprint that masks WebRTC passes the policy flag, which a policy, an
-            // address or turning WebRTC off makes it; an empty one leaves Chrome's own
-            // behaviour alone.
-            webrtc: fingerprint
-                .is_masked(Dimension::WebRtc)
-                .then(|| fingerprint.policy().webrtc_policy.unwrap_or_default()),
-            proxy: proxy_of(fingerprint).map(|url| ProxySpec {
-                text: Redacted(url),
-                checked: false,
-            }),
-            switches: pdf_switches(fingerprint),
-
-            ..Self::default()
         }
     }
 
@@ -226,17 +170,6 @@ impl Layer {
     }
 }
 
-/// The switches a fingerprint turns on: a persona with no PDF viewer (a phone) has the browser
-/// open PDFs outside it, which empties `navigator.plugins` and makes `pdfViewerEnabled` false.
-/// The preference is native and holds for every browser context of the profile.
-fn pdf_switches(fingerprint: &Fingerprint) -> BTreeMap<LaunchSwitch, bool> {
-    let mut switches = BTreeMap::new();
-    if !pdf_viewer_enabled(fingerprint) {
-        switches.insert(LaunchSwitch::ExternalPdf, true);
-    }
-    switches
-}
-
 /// The browser one layer asks for: a binary, Chromium, or (when asked not to) Chrome. The two
 /// settings go together, so a layer that names a browser replaces the one a lower layer names.
 fn browser_of(layer: &Layer) -> Option<BrowserSource> {
@@ -258,11 +191,10 @@ pub(super) struct Layers {
 
 /// What the layers say once they are merged, and what follows from it.
 struct View {
-    /// The layers merged by the rule, the fingerprint's included.
+    /// The builder's and the config's layers merged: what was asked for by name.
     merged: Layer,
     /// The builder's and the config's layers merged: what was asked for by name.
     asked: Layer,
-    fingerprint: Option<SharedFingerprint>,
     /// Whether the phone is asked for by name (`mobile`, a screen of the builder, a config's
     /// `mobile`), and not switched off.
     mobile: bool,
@@ -274,13 +206,7 @@ struct View {
 impl View {
     fn of(layers: &Layers) -> Self {
         let asked = layers.set.clone().over(layers.config.clone());
-        let fingerprint = asked.fingerprint.clone();
-        let merged = match &fingerprint {
-            Some(shared) => asked
-                .clone()
-                .over(Layer::of_fingerprint(&shared.fingerprint)),
-            None => asked.clone(),
-        };
+        let merged = asked.clone();
         // `mobile(false)` of the builder turns the phone off whatever else asks for one.
         let switched_off = asked.mobile == Some(false);
         let metrics = if switched_off {
@@ -296,7 +222,6 @@ impl View {
         Self {
             merged,
             asked,
-            fingerprint,
             mobile,
             metrics,
             source,
@@ -313,37 +238,25 @@ impl View {
         self.merged.switches.get(&switch).copied()
     }
 
-    fn check_phone_and_fingerprint(&self) -> Result<(), SeleniumBaseError> {
-        if self.fingerprint.is_some() && self.phone() {
-            return Err(SeleniumBaseError::invalid_config(
-                "mobile emulation and a fingerprint both set the screen and the user agent; \
-                 use one of them",
-            ));
-        }
-        Ok(())
-    }
-
     /// Refuses what a browser that is only attached to cannot be given.
     ///
     /// The browser is the app's. A proxy would need a launch flag (and a login would turn on
     /// request interception in every tab with nothing to answer it, hanging the app's own
     /// requests). A user agent or locale given as a launch flag would be dropped without a
-    /// word, so it is only taken when a fingerprint (or a phone, for the user agent) applies it
-    /// to the tabs that are prepared.
+    /// word, so it is only taken when a phone applies the user agent to the tabs that are prepared.
     fn check_attachable(&self) -> Result<(), SeleniumBaseError> {
         if self.merged.proxy.is_some() || self.merged.proxy_pac_url.is_some() {
             return Err(SeleniumBaseError::invalid_config(
                 "a proxy cannot be set on an attached browser: it belongs to the app, whose \
-                 network settings are not changed (this covers a PAC file and the proxy of a \
-                 fingerprint); set the proxy where the app starts its browser",
+                 network settings are not changed (this covers a PAC file); \
+                 set the proxy where the app starts its browser",
             ));
         }
         let unapplied_agent = self.asked.user_agent.is_some() && !self.phone();
-        if self.fingerprint.is_none() && (unapplied_agent || self.asked.lang.is_some()) {
+        if unapplied_agent || self.asked.lang.is_some() {
             return Err(SeleniumBaseError::invalid_config(
-                "a user agent or locale needs a fingerprint on an attached browser: they are \
-                 launch flags, which cannot reach a running app, and a fingerprint applies \
-                 both to the windows it prepares",
+                "a user agent or locale cannot be set on an attached browser: they are \
+                 launch flags, which cannot reach a running app",
             ));
         }
         Ok(())
@@ -424,19 +337,9 @@ struct Parsed {
 }
 
 impl Layers {
-    /// The fingerprint of the builder or else the config's.
-    pub(super) fn fingerprint(&self) -> Option<&Fingerprint> {
-        self.set
-            .fingerprint
-            .as_ref()
-            .or(self.config.fingerprint.as_ref())
-            .map(|shared| shared.fingerprint.as_ref())
-    }
-
     /// Checks the combination and merges the layers into the options a launch reads.
     pub(super) fn resolve(self) -> Result<LaunchOptions, SeleniumBaseError> {
         let view = View::of(&self);
-        view.check_phone_and_fingerprint()?;
         if view.merged.cdp_url.is_some() {
             view.check_attachable()?;
         }
@@ -493,7 +396,6 @@ impl Layers {
     fn assemble(self, view: View, parsed: Parsed) -> LaunchOptions {
         let View {
             merged,
-            fingerprint,
             mobile,
             metrics,
             source,
@@ -568,7 +470,7 @@ impl Layers {
             no_sandbox,
             webrtc,
             shield_webrtc: shield_webrtc.unwrap_or(false),
-            identity: fingerprint.map(|shared| shared.plan),
+            identity: None,
             extra_args,
             extensions,
             prefs: merged_prefs,
@@ -596,7 +498,6 @@ mod tests {
 
     use super::*;
     use crate::browser::config::{Browser as BrowserKind, BrowserConfig};
-    use crate::evasion::fingerprint::{OsType, ProxyConfig};
     use crate::sb_cdp::LaunchOptionsBuilder;
 
     fn built(builder: LaunchOptionsBuilder) -> LaunchOptions {
@@ -610,44 +511,8 @@ mod tests {
             .expect("a valid config")
     }
 
-    fn fingerprint(seed: u64) -> Fingerprint {
-        Fingerprint::randomized(OsType::Linux, seed)
-    }
 
     #[test]
-    fn a_phone_fingerprint_opens_pdfs_outside_the_browser() {
-        let phone = Fingerprint::android_mobile();
-        let desktop = Fingerprint::windows_desktop();
-
-        let phone_options = built(LaunchOptions::builder().fingerprint(&phone));
-        let desktop_options = built(LaunchOptions::builder().fingerprint(&desktop));
-        let overridden = built(
-            LaunchOptions::builder()
-                .fingerprint(&phone)
-                .switch(LaunchSwitch::ExternalPdf, false),
-        );
-
-        assert_eq!(
-            phone_options.prefs["plugins.always_open_pdf_externally"],
-            serde_json::json!(true),
-            "Chrome on Android has no PDF viewer"
-        );
-        assert!(
-            !desktop_options
-                .prefs
-                .contains_key("plugins.always_open_pdf_externally"),
-            "a desktop keeps its viewer"
-        );
-        assert!(
-            !overridden
-                .prefs
-                .contains_key("plugins.always_open_pdf_externally"),
-            "a switch of the builder wins over the fingerprint's"
-        );
-    }
-
-    #[test]
-
     fn a_browser_the_builder_names_replaces_the_one_the_config_names() {
         let config = chromium_config();
         let path_config = BrowserConfig::builder()
@@ -816,51 +681,6 @@ mod tests {
     }
 
     #[test]
-    fn a_fingerprint_of_either_layer_is_refused_with_a_phone_unless_it_is_switched_off() {
-        let config = BrowserConfig::builder()
-            .mobile(true)
-            .fingerprint(fingerprint(3))
-            .build()
-            .expect("a valid config");
-        assert!(LaunchOptions::builder()
-            .browser_config(&config)
-            .build()
-            .is_err());
-        assert!(LaunchOptions::builder()
-            .mobile(true)
-            .fingerprint(&fingerprint(3))
-            .build()
-            .is_err());
-        assert!(LaunchOptions::builder()
-            .browser_config(&config)
-            .mobile(false)
-            .build()
-            .is_ok());
-    }
-
-    #[test]
-    fn the_builders_fingerprint_is_the_one_the_options_keep() {
-        let config = BrowserConfig {
-            fingerprint: Some(fingerprint(1)),
-            ..BrowserConfig::default()
-        };
-        let own = fingerprint(2);
-        for builder in [
-            LaunchOptions::builder()
-                .fingerprint(&own)
-                .browser_config(&config),
-            LaunchOptions::builder()
-                .browser_config(&config)
-                .fingerprint(&own),
-        ] {
-            assert_eq!(built(builder).fingerprint(), Some(&own));
-        }
-        let kept = built(LaunchOptions::builder().browser_config(&config));
-        assert_eq!(kept.fingerprint(), config.fingerprint.as_ref());
-    }
-
-    #[cfg(feature = "plugins")]
-    #[test]
     fn the_plugins_of_the_builder_replace_the_configs_and_named_ones_come_after() {
         use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
 
@@ -941,40 +761,6 @@ mod tests {
     }
 
     #[test]
-    fn the_webrtc_policy_of_the_builder_wins_over_the_fingerprints_in_either_order() {
-        // A fingerprint that masks WebRTC passes the policy flag of its own.
-        let masked = Fingerprint::randomized(OsType::Windows, 42);
-        let theirs = masked.policy().webrtc_policy.unwrap_or_default();
-        let mine = if theirs == WebRtcPolicy::PublicInterfaceOnly {
-            WebRtcPolicy::DisableNonProxiedUdp
-        } else {
-            WebRtcPolicy::PublicInterfaceOnly
-        };
-        assert_eq!(
-            built(LaunchOptions::builder().fingerprint(&masked)).webrtc,
-            Some(theirs)
-        );
-        for builder in [
-            LaunchOptions::builder()
-                .webrtc_policy(mine)
-                .fingerprint(&masked),
-            LaunchOptions::builder()
-                .fingerprint(&masked)
-                .webrtc_policy(mine),
-            LaunchOptions::builder().webrtc_policy(mine),
-        ] {
-            let options = built(builder);
-            assert_eq!(options.webrtc, Some(mine));
-            let flags = options.browser_args(Path::new("/tmp/profile"));
-            let policy_flags = flags
-                .iter()
-                .filter(|flag| flag.starts_with("--force-webrtc-ip-handling-policy="))
-                .count();
-            assert_eq!(policy_flags, 1, "{flags:?}");
-        }
-    }
-
-    #[test]
     fn an_unset_headless_follows_the_virtual_display_and_a_set_one_does_not() {
         let display = VirtualDisplay::default();
         let config = BrowserConfig::builder()
@@ -1005,55 +791,6 @@ mod tests {
             .headless,
             Some(true)
         );
-    }
-
-    #[test]
-    fn an_attached_browser_is_judged_on_what_was_asked_for_by_name() {
-        let print = fingerprint(4);
-        // A user agent needs a fingerprint, from either layer, in any order.
-        let with_print = BrowserConfig {
-            fingerprint: Some(print.clone()),
-            ..BrowserConfig::default()
-        };
-        assert!(LaunchOptions::builder()
-            .cdp_url("http://127.0.0.1:9222")
-            .user_agent("Agent/1")
-            .build()
-            .is_err());
-        assert!(LaunchOptions::builder()
-            .cdp_url("http://127.0.0.1:9222")
-            .user_agent("Agent/1")
-            .fingerprint(&print)
-            .build()
-            .is_ok());
-        assert!(LaunchOptions::builder()
-            .user_agent("Agent/1")
-            .browser_config(&with_print)
-            .cdp_url("http://127.0.0.1:9222")
-            .build()
-            .is_ok());
-        // The fingerprint's own user agent, language and window size are not asked for by name.
-        assert!(LaunchOptions::builder()
-            .cdp_url("http://127.0.0.1:9222")
-            .fingerprint(&print)
-            .build()
-            .is_ok());
-        // A proxy is refused whoever gives it, a fingerprint's included.
-        let proxied = print
-            .to_builder()
-            .proxy(ProxyConfig {
-                r#type: "http".to_owned(),
-                host: "proxy.example".to_owned(),
-                port: 8080,
-                ..ProxyConfig::default()
-            })
-            .build()
-            .unwrap();
-        assert!(LaunchOptions::builder()
-            .cdp_url("http://127.0.0.1:9222")
-            .fingerprint(&proxied)
-            .build()
-            .is_err());
     }
 
     #[test]
@@ -1135,38 +872,6 @@ mod tests {
         // The preference the config's locale implies yields to the one the builder sets.
         assert_eq!(options.prefs["intl.accept_languages"], "xx");
         assert_eq!(options.lang.as_deref(), Some("fr-FR"));
-    }
-
-    #[test]
-    fn the_options_show_no_secret_and_no_whole_fingerprint() {
-        let print = fingerprint(5)
-            .to_builder()
-            .proxy(ProxyConfig {
-                r#type: "http".to_owned(),
-                host: "proxy.example".to_owned(),
-                port: 8080,
-                username: Some("alice".to_owned()),
-                password: Some("s3cret".to_owned()),
-                ..ProxyConfig::default()
-            })
-            .build()
-            .unwrap();
-        let config = BrowserConfig::builder()
-            .proxy("bob:hunter2@config.example:9090")
-            .build()
-            .expect("a valid config");
-        for builder in [
-            LaunchOptions::builder().fingerprint(&print),
-            LaunchOptions::builder().browser_config(&config),
-        ] {
-            let shown = format!("{builder:?} {:?}", built(builder.clone()));
-            for secret in ["s3cret", "alice", "hunter2", "bob"] {
-                assert!(!shown.contains(secret), "{secret} in {shown}");
-            }
-        }
-        let shown = format!("{:?}", built(LaunchOptions::builder().fingerprint(&print)));
-        assert!(shown.contains("Fingerprint(..)"), "{shown}");
-        assert!(!shown.contains("navigator"), "{shown}");
     }
 
     #[test]

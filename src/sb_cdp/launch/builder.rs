@@ -10,12 +10,13 @@ use std::time::Duration;
 
 use serde_json::Value;
 
-use super::layers::{Layer, Layers, ProxySpec, SharedFingerprint};
+use super::layers::{Layer, Layers, ProxySpec};
 use super::{LaunchOptions, LaunchOptionsBuilder, Redacted};
 use crate::browser::config::BrowserConfig;
-use crate::browser::options::{DeviceMetrics, LaunchSwitch, ProxyBypassList, VirtualDisplay};
+use crate::browser::options::{
+    DeviceMetrics, LaunchSwitch, ProxyBypassList, VirtualDisplay, WebRtcPolicy,
+};
 use crate::error::SeleniumBaseError;
-use crate::evasion::fingerprint::{Fingerprint, WebRtcPolicy};
 
 impl LaunchOptionsBuilder {
     /// Attaches instead of launching, reusing the existing connection pipeline.
@@ -83,29 +84,6 @@ impl LaunchOptionsBuilder {
     #[must_use]
     pub fn webrtc_policy(mut self, policy: WebRtcPolicy) -> Self {
         self.given.set.webrtc = Some(policy);
-        self
-    }
-
-    /// Makes every tab look like `fingerprint` describes.
-    ///
-    /// The user agent, language, window size, WebRTC policy and proxy it names
-    /// become launch settings, and its script and protocol overrides are applied
-    /// to every tab as it opens, before the first navigation. A setting made on
-    /// the builder (a user agent, say), or read from a config with
-    /// [`browser_config`](Self::browser_config), wins over the fingerprint's,
-    /// whether it is made before this call or after it. A fingerprint set here
-    /// wins over the one of a config.
-    ///
-    /// Chrome flags listed in the fingerprint's `cmd_params` are not passed on:
-    /// a flag such as `--renderer-cmd-prefix` runs a command, and a fingerprint
-    /// often comes from a profile file. Add flags you trust with
-    /// [`arg`](Self::arg).
-    ///
-    /// See [`Page::apply_fingerprint`](crate::sb_cdp::Page::apply_fingerprint) for
-    /// what is applied and what is deliberately left out.
-    #[must_use]
-    pub fn fingerprint(mut self, fingerprint: &Fingerprint) -> Self {
-        self.given.set.fingerprint = Some(SharedFingerprint::new(fingerprint));
         self
     }
 

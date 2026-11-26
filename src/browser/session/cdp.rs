@@ -324,7 +324,7 @@ impl BrowserSession {
                 .await;
         }
         let cdp = self.cdp_client()?;
-        uc::override_geolocation(cdp, latitude, longitude, accuracy).await
+        uc::override_geolocation(cdp, latitude, longitude, Some(accuracy)).await
     }
 
     /// Sets the browser timezone via CDP.
@@ -342,7 +342,7 @@ impl BrowserSession {
         cdp.enable_default_domains().await?;
         uc::apply_uc_stealth(cdp).await?;
         if let Some(user_agent) = config.browser.user_agent.as_deref() {
-            uc::override_user_agent(cdp, user_agent, config.browser.lang.as_deref()).await?;
+            uc::override_user_agent(cdp, user_agent, None, config.browser.lang.as_deref()).await?;
         } else {
             if let Ok(version_info) = cdp.execute("Browser.getVersion", json!({})).await
                 && let Some(ua) = version_info["userAgent"].as_str()

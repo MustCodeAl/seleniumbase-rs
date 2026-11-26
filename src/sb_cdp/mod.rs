@@ -118,9 +118,7 @@ pub use channel::{CdpInbox, CdpRequest, CdpTransport, TransportError};
 #[doc(inline)]
 pub use client::{CdpEvent, Events};
 #[doc(inline)]
-pub use context::{
-    BrowserContext, ContextOptions, ContextOptionsBuilder, ContextRoute, IntoFingerprint,
-};
+pub use context::{BrowserContext, ContextOptions, ContextOptionsBuilder, ContextRoute};
 #[doc(inline)]
 pub use endpoint::{DevToolsEndpoint, CHROME_DEVTOOLS_MCP_VERSION, PLAYWRIGHT_MCP_VERSION};
 #[doc(inline)]

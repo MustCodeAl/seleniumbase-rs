@@ -1296,39 +1296,6 @@ impl Browser {
         // What this tab blocks so far: `Network.setBlockedURLs` replaces the
         // list, so each source adds to it and the whole is what gets sent.
         let mut blocked: Vec<String> = Vec::new();
-        if let Some(identity) = &self.inner.options.identity {
-            for (method, params) in identity.tab_commands() {
-                let mut params = params.clone();
-                if self.inner.options.cdp_url().is_some()
-                    && method == "Page.addScriptToEvaluateOnNewDocument"
-                {
-                    params["runImmediately"] = json!(true);
-                }
-                client
-                    .send(method, params.clone(), Some(session))
-                    .await
-                    .map_err(|error| super::identity::refused(method, &error))?;
-                if method == "Network.setBlockedURLs" {
-                    add_blocked(&mut blocked, &params);
-                }
-            }
-            // Permissions belong to a browser context, and which one this tab
-            // is in is only known to the browser.
-            if identity.permission_grant(None).is_some() {
-                let info = self
-                    .execute("Target.getTargetInfo", json!({ "targetId": target }))
-                    .await?;
-                let context = info["targetInfo"]["browserContextId"].as_str();
-                if let Some(grant) = identity.permission_grant(context) {
-                    self.execute("Browser.grantPermissions", grant)
-                        .await
-                        .map_err(|error| {
-                            super::identity::refused("Browser.grantPermissions", &error)
-                        })?;
-                    self.note_grant(context);
-                }
-            }
-        }
         // The phone, in this tab: its screen, its touch input and its agent.
         if let Some((metrics, user_agent)) = &self.inner.options.device {
             for (method, params) in metrics.emulation_commands(user_agent.as_deref()) {

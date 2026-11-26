@@ -602,10 +602,9 @@ impl std::str::FromStr for ColorScheme {
             "light" => Ok(Self::Light),
             "dark" => Ok(Self::Dark),
             "no-preference" | "no_preference" | "none" => Ok(Self::NoPreference),
-            other => Err(SeleniumBaseError::invalid_config(
-                "color_scheme",
-                format!("unknown color scheme {other:?}; expected light, dark, or no-preference"),
-            )),
+            other => Err(SeleniumBaseError::invalid_config(format!(
+                "color_scheme: unknown color scheme {other:?}; expected light, dark, or no-preference"
+            ))),
         }
     }
 }

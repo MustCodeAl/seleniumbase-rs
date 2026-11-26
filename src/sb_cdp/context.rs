@@ -33,52 +33,15 @@ use super::sync::locked;
 use super::{Browser, Page, Proxy};
 use crate::error::SeleniumBaseError;
 
-/// Helper trait allowing [`ContextOptionsBuilder::fingerprint`] and [`ContextOptions::with_fingerprint`]
-/// to accept either an owned [`Fingerprint`](crate::Fingerprint) or a borrowed `&Fingerprint`.
-pub trait IntoFingerprint: Send + Sync {
-    /// Converts `self` into an owned [`Fingerprint`](crate::Fingerprint).
-    fn into_fingerprint(self) -> crate::Fingerprint;
-}
-
-impl IntoFingerprint for crate::Fingerprint {
-    fn into_fingerprint(self) -> crate::Fingerprint {
-        self
-    }
-}
-
-impl IntoFingerprint for &crate::Fingerprint {
-    fn into_fingerprint(self) -> crate::Fingerprint {
-        self.clone()
-    }
-}
-
 /// Builds [`ContextOptions`].
-///
-/// # Examples
-///
-/// ```
-/// use seleniumbase_rs::sb_cdp::ContextOptions;
-/// use seleniumbase_rs::Fingerprint;
-///
-/// # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
-/// let fp = Fingerprint::windows_desktop();
-/// let options = ContextOptions::builder()
-///     .fingerprint(&fp)
-///     .bypass("*.internal.example.com")
-///     .build()?;
-/// assert!(options.fingerprint().is_some());
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct ContextOptionsBuilder {
     proxy: Option<Proxy>,
     bypass: Vec<String>,
-    fingerprint: Option<crate::Fingerprint>,
 }
 
 impl ContextOptionsBuilder {
-    /// A builder with no proxy or fingerprint configured.
+    /// A builder with no proxy configured.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -98,13 +61,6 @@ impl ContextOptionsBuilder {
         self
     }
 
-    /// Sets the per-context browser identity / fingerprint.
-    #[must_use]
-    pub fn fingerprint(mut self, fingerprint: impl IntoFingerprint) -> Self {
-        self.fingerprint = Some(fingerprint.into_fingerprint());
-        self
-    }
-
     /// Checks the values and builds the [`ContextOptions`].
     ///
     /// # Errors
@@ -114,7 +70,6 @@ impl ContextOptionsBuilder {
         Ok(ContextOptions {
             proxy: self.proxy,
             bypass: self.bypass,
-            fingerprint: self.fingerprint,
         })
     }
 }
@@ -138,11 +93,10 @@ impl ContextOptionsBuilder {
 pub struct ContextOptions {
     proxy: Option<Proxy>,
     bypass: Vec<String>,
-    fingerprint: Option<crate::Fingerprint>,
 }
 
 impl ContextOptions {
-    /// Default options: no proxy, no fingerprint.
+    /// Default options: no proxy.
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -160,7 +114,6 @@ impl ContextOptions {
         ContextOptionsBuilder {
             proxy: self.proxy,
             bypass: self.bypass,
-            fingerprint: self.fingerprint,
         }
     }
 
@@ -179,27 +132,6 @@ impl ContextOptions {
     pub fn bypass(mut self, host: impl Into<String>) -> Self {
         self.bypass.push(host.into());
         self
-    }
-
-    /// Sets an optional per-context [`Fingerprint`](crate::Fingerprint).
-    ///
-    /// Newly opened pages in this context will automatically adopt the specified identity.
-    #[must_use]
-    pub fn with_fingerprint(mut self, fingerprint: impl IntoFingerprint) -> Self {
-        self.fingerprint = Some(fingerprint.into_fingerprint());
-        self
-    }
-
-    /// Returns the context's configured fingerprint, if any.
-    #[must_use]
-    pub fn fingerprint(&self) -> Option<&crate::Fingerprint> {
-        self.fingerprint.as_ref()
-    }
-
-    /// Returns the context's configured fingerprint, if any (alias for [`fingerprint`](Self::fingerprint)).
-    #[must_use]
-    pub fn fingerprint_ref(&self) -> Option<&crate::Fingerprint> {
-        self.fingerprint.as_ref()
     }
 
     /// Returns the proxy server address, if configured.
@@ -291,8 +223,6 @@ pub struct BrowserContext {
     credentials: Option<Credentials>,
     /// The tabs opened through this handle, so disposing can forget them.
     pages: Arc<Mutex<Vec<String>>>,
-    /// The per-context fingerprint applied to newly opened pages, if any.
-    fingerprint: Option<crate::Fingerprint>,
     /// Set once the plugins have been told the context is gone, so that
     /// every handle to it tells them once.
     #[cfg(feature = "plugins")]
@@ -308,7 +238,6 @@ impl fmt::Debug for BrowserContext {
                 "proxy_credentials",
                 &self.credentials.as_ref().map(|_| "<redacted>"),
             )
-            .field("fingerprint", &self.fingerprint.is_some())
             .finish_non_exhaustive()
     }
 }
@@ -388,7 +317,6 @@ impl Browser {
                 .and_then(Proxy::credentials)
                 .map(|(user, pass)| (user.to_owned(), pass.to_owned())),
             pages: Arc::new(Mutex::new(Vec::new())),
-            fingerprint: options.fingerprint,
             #[cfg(feature = "plugins")]
             gone: Arc::new(AtomicBool::new(false)),
         })
@@ -406,12 +334,6 @@ impl BrowserContext {
     #[must_use]
     pub fn browser(&self) -> &Browser {
         &self.browser
-    }
-
-    /// The fingerprint configured for this context, if any.
-    #[must_use]
-    pub fn fingerprint(&self) -> Option<&crate::Fingerprint> {
-        self.fingerprint.as_ref()
     }
 
     /// Opens a blank tab in this context.
@@ -450,9 +372,6 @@ impl BrowserContext {
                 }),
             )
             .await?;
-        if let Some(ref fp) = self.fingerprint {
-            page.apply_fingerprint(fp).await?;
-        }
         locked(&self.pages).push(page.id().to_owned());
         Ok(page)
     }
@@ -641,43 +560,11 @@ mod settings_tests {
 #[cfg(test)]
 mod builder_tests {
     use super::*;
-    use crate::Fingerprint;
 
     #[test]
     fn context_options_builder_defaults() {
         let options = ContextOptionsBuilder::new().build().expect("valid");
-        assert!(options.fingerprint().is_none());
         assert!(options.proxy_server().is_none());
         assert_eq!(options.bypass_hosts(), [] as [String; 0]);
-    }
-
-    #[test]
-    fn context_options_builder_fingerprint_support() {
-        let fp = Fingerprint::windows_desktop();
-        let options = ContextOptionsBuilder::default()
-            .fingerprint(&fp)
-            .bypass("*.local")
-            .build()
-            .expect("valid options");
-
-        assert_eq!(options.fingerprint(), Some(&fp));
-        assert_eq!(options.fingerprint_ref(), Some(&fp));
-        assert_eq!(options.bypass_hosts(), ["*.local"]);
-
-        // Also test owned Fingerprint
-        let options2 = ContextOptionsBuilder::default()
-            .fingerprint(fp.clone())
-            .build()
-            .expect("valid options");
-        assert_eq!(options2.fingerprint(), Some(&fp));
-
-        // Test into_builder modification
-        let modified = options2
-            .into_builder()
-            .bypass("*.corp")
-            .build()
-            .expect("valid options");
-        assert_eq!(modified.fingerprint(), Some(&fp));
-        assert_eq!(modified.bypass_hosts(), ["*.corp"]);
     }
 }

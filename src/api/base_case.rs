@@ -3064,7 +3064,7 @@ impl BaseCase {
     // --- JS Code Execution Helpers ---
 
     pub async fn execute_active_css_js(&mut self) -> Result<(), SeleniumBaseError> {
-        let js = crate::evasion::js::active_css_js::ACTIVE_CSS_JS;
+        let js = crate::js_code::active_css_js::ACTIVE_CSS_JS;
         self.execute_script(js).await?;
         Ok(())
     }

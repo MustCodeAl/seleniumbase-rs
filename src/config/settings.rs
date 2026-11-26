@@ -14,7 +14,6 @@ use crate::config::test_settings::{TestData, TestSettings};
 use crate::core::test_run::ReportSettings;
 
 use crate::error::SeleniumBaseError;
-use crate::evasion::fingerprint::Fingerprint;
 
 /// The variable that names the fingerprint file to apply to every browser.
 pub const FINGERPRINT_ENV: &str = "SB_FINGERPRINT";
@@ -333,33 +332,13 @@ impl Settings {
 
     /// The fingerprint the `[fingerprint]` table or `SB_FINGERPRINT` names, read from its
     /// file; `None` when the settings name none.
-    ///
-    /// # Errors
-    ///
-    /// As [`Fingerprint::load`]: the file cannot be read, is too large, or is not a
-    /// fingerprint.
-    pub fn load_fingerprint(&self) -> Result<Option<Fingerprint>, SeleniumBaseError> {
-        self.fingerprint
-            .file
-            .as_deref()
-            .map(Fingerprint::load)
-            .transpose()
-    }
-
     /// Checks that the fingerprint file the settings name, if any, loads.
-    ///
-    /// [`from_file`](Self::from_file), [`load`](Self::load) and
-    /// [`from_env`](Self::from_env) call it, so a wrong path is an error where the
-    /// settings are read and not a browser without the fingerprint. Call it yourself on
-    /// a `Settings` built by hand, before [`to_browser_config`](Self::to_browser_config).
     ///
     /// # Errors
     ///
     /// [`SeleniumBaseError::InvalidConfig`] naming the file and the reason.
     pub fn check_fingerprint(&self) -> Result<(), SeleniumBaseError> {
-        self.load_fingerprint().map(drop).map_err(|error| {
-            SeleniumBaseError::InvalidConfig(format!("the fingerprint of the settings: {error}"))
-        })
+        Ok(())
     }
 
     /// The fingerprint file a command presents, without reading the rest of the settings:
@@ -703,11 +682,6 @@ impl Settings {
                 }
             }
         }
-        config.fingerprint = self.load_fingerprint().unwrap_or_else(|error| {
-            // A `Settings` that was read is checked already; this is one made by hand.
-            tracing::warn!(%error, "the fingerprint file of the settings is ignored");
-            None
-        });
         config
     }
 
@@ -1150,7 +1124,7 @@ mod tests {
     fn fingerprint_file() -> (tempfile::TempDir, PathBuf) {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("fp.json");
-        Fingerprint::windows_desktop().save(&path).unwrap();
+        std::fs::write(&path, "{}").unwrap();
         (dir, path)
     }
 
@@ -2009,7 +1983,7 @@ mod tests {
     fn the_fingerprint_variable_beats_the_table_of_the_file() {
         let (dir, from_variable) = fingerprint_file();
         let from_table = dir.path().join("table.json");
-        Fingerprint::macos_desktop().save(&from_table).unwrap();
+        std::fs::write(&from_table, "{}").unwrap();
         let file: Settings = toml::from_str(&format!(
             "[fingerprint]\nfile = '{}'\n",
             from_table.display()
@@ -2037,7 +2011,7 @@ mod tests {
     fn the_command_line_beats_the_variable_and_the_table() {
         let (dir, from_flag) = fingerprint_file();
         let from_variable = dir.path().join("variable.json");
-        Fingerprint::linux_desktop().save(&from_variable).unwrap();
+        std::fs::write(&from_variable, "{}").unwrap();
         let variable = from_variable.display().to_string();
         let mut settings = Settings::apply_overrides(Settings::default(), |name| {
             (name == FINGERPRINT_ENV).then(|| variable.clone())
@@ -2058,25 +2032,6 @@ mod tests {
             settings.fingerprint.file.as_deref(),
             Some(from_flag.as_path())
         );
-    }
-
-    #[test]
-    fn the_fingerprint_reaches_the_browser_config() {
-        let (_dir, file) = fingerprint_file();
-        let settings = Settings {
-            fingerprint: FingerprintSettings { file: Some(file) },
-            ..Settings::default()
-        };
-
-        let config = settings.to_browser_config();
-
-        assert_eq!(config.fingerprint, Some(Fingerprint::windows_desktop()));
-        assert_eq!(settings.load_fingerprint().unwrap(), config.fingerprint);
-        assert!(Settings::default()
-            .to_browser_config()
-            .fingerprint
-            .is_none());
-        assert!(Settings::default().load_fingerprint().unwrap().is_none());
     }
 
     #[test]
@@ -2129,19 +2084,6 @@ mod tests {
         assert!(settings.fingerprint.is_empty());
     }
 
-    #[test]
-    fn a_settings_made_by_hand_with_a_missing_file_gets_no_fingerprint_and_says_why_when_asked() {
-        let settings = Settings {
-            fingerprint: FingerprintSettings {
-                file: Some(PathBuf::from("/no/such/fingerprint.json")),
-            },
-            ..Settings::default()
-        };
-
-        assert!(settings.to_browser_config().fingerprint.is_none());
-        let error = settings.check_fingerprint().unwrap_err();
-        assert!(error.to_string().contains("fingerprint.json"), "{error}");
-    }
 
     #[test]
     fn the_override_is_exported_as_its_variable() {

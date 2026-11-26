@@ -67,13 +67,6 @@ fn configuration_macros() -> Result<()> {
         custom.browser.headless
     );
 
-    let persona = fingerprint!(windows);
-    println!(
-        "fingerprint!  -> {} / {}",
-        persona.os_type().platform(),
-        persona.user_agent().as_str().unwrap_or("no user agent")
-    );
-
     println!("selector!     -> {:?}", selector!(xpath, "//h1"));
     Ok(())
 }

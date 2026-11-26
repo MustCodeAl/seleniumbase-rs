@@ -104,22 +104,6 @@ pub mod macros;
     unused_lifetimes
 )]
 pub mod mcp;
-// The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
-#[cfg(feature = "ocr")]
-#[warn(
-    clippy::pedantic,
-    clippy::allow_attributes_without_reason,
-    clippy::clone_on_ref_ptr,
-    clippy::map_err_ignore,
-    clippy::semicolon_outside_block,
-    clippy::unused_result_ok,
-    clippy::too_long_first_doc_paragraph,
-    missing_debug_implementations,
-    redundant_imports,
-    redundant_lifetimes,
-    trivial_numeric_casts,
-    unused_lifetimes
-)]
 /// The plugin API of ADR 004, the crate `seleniumbase-rs-plugin` (feature
 /// `plugins`): the `Plugin` trait, `PluginSet`, `LaunchSettings` and the
 /// `BrowserHandle` and `PageHandle` traits.
@@ -255,8 +239,8 @@ pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseErr
 pub use browser::options::WebRtcPolicy;
 #[doc(inline)]
 pub use undetected::{
-    patch_chromedriver, BinaryFormat, BinaryMarkerReport, BinaryPatchRule, ChromedriverPatcher,
-    EnginePatch, MarkerCounts, PatchPreset,
+    patch_chromedriver, BinaryFormat, BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher,
+    ChromedriverPatcher, EnginePatch, MarkerCounts, PatchPreset,
 };
 #[doc(inline)]
 pub use sb_cdp::ResilientLocator;

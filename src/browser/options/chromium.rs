@@ -9,8 +9,6 @@ use crate::browser::options::{
     LocaleCode, SessionSettings,
 };
 use crate::error::SeleniumBaseError;
-use crate::evasion::evasions::pdf_viewer_enabled;
-use crate::evasion::fingerprint::Fingerprint;
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 use thirtyfour::LoggingPrefsLogLevel;
 
@@ -41,8 +39,6 @@ pub struct StealthOptions {
     /// `BrowserSession::apply_ad_block`.
     pub ad_block: bool,
     pub uc: bool,
-    /// Optional anti-detection fingerprint profile.
-    pub fingerprint: Option<Fingerprint>,
     /// Headers supplied to the CDP network reactor when intercepting requests.
     pub extra_headers: HashMap<String, String>,
     /// Extra Chromium/Edge command-line arguments supplied by integrations.
@@ -78,7 +74,6 @@ impl std::fmt::Debug for StealthOptions {
             .field("mobile", &self.mobile)
             .field("ad_block", &self.ad_block)
             .field("uc", &self.uc)
-            .field("fingerprint", &self.fingerprint)
             .field("extra_header_names", &header_names)
             .field("extra_args", &self.extra_args)
             .field("binary_path", &self.binary_path)
@@ -135,7 +130,6 @@ impl From<&BrowserConfig> for StealthOptions {
             mobile: config.browser.mobile,
             ad_block: config.browser.ad_block,
             uc: config.is_uc_enabled(),
-            fingerprint: config.fingerprint.clone(),
             extra_headers: HashMap::new(),
             extra_args: config.browser.chromium.args.clone(),
             binary_path: config.browser.executable_path.clone(),
@@ -165,24 +159,13 @@ impl StealthOptions {
             caps.add_arg("--headless=new")?;
         }
 
-        // Chrome takes the last of two arguments for one switch, and the
-        // fingerprint's come after these, so a switch the fingerprint also sets
-        // is left out here instead of being sent twice.
-        let fingerprint_args = self
-            .fingerprint
-            .as_ref()
-            .map(crate::evasion::evasions::launch_args)
-            .unwrap_or_default();
-        let set_by_fingerprint =
-            |switch: &str| fingerprint_args.iter().any(|arg| arg.starts_with(switch));
-
         // Maximized, a headed window takes the screen and no size is asked for.
         let maximize = !self.headless && self.browser.has(LaunchSwitch::Maximize);
         let size =
             self.window_size
                 .as_deref()
                 .unwrap_or(if self.mobile { "390,844" } else { "1280,720" });
-        if !set_by_fingerprint("--window-size=") && !maximize {
+        if !maximize {
             caps.add_arg(&format!("--window-size={size}"))?;
         }
         if let Some(position) = self.window_position.as_deref() {
@@ -193,24 +176,15 @@ impl StealthOptions {
         // channel once the session is connected (`BrowserSession::apply_ad_block`).
         // It used to turn images off here, which blocked no ad.
 
-        if let Some(locale) = self
-            .locale
-            .as_deref()
-            .filter(|_| !set_by_fingerprint("--lang="))
-        {
+        if let Some(locale) = self.locale.as_deref() {
             caps.add_arg(&format!("--lang={}", LocaleCode::normalise(locale)))?;
         }
 
-        let fingerprint_agent = set_by_fingerprint("--user-agent=");
-        if let Some(user_agent) = self.user_agent.as_deref().filter(|_| !fingerprint_agent) {
+        if let Some(user_agent) = self.user_agent.as_deref() {
             caps.add_arg(&format!("--user-agent={user_agent}"))?;
         }
 
-        if let Some(proxy) = self
-            .proxy
-            .as_deref()
-            .filter(|_| !set_by_fingerprint("--proxy-server="))
-        {
+        if let Some(proxy) = self.proxy.as_deref() {
             // Chrome reads no login here and a process list would show it.
             let server = proxy
                 .parse::<crate::browser::options::ProxyAddress>()?
@@ -236,7 +210,7 @@ impl StealthOptions {
         }
 
         // A phone user agent only where the caller named none.
-        if self.mobile && self.user_agent.is_none() && !fingerprint_agent {
+        if self.mobile && self.user_agent.is_none() {
             caps.add_arg(&format!("--user-agent={MOBILE_USER_AGENT}"))?;
         }
 
@@ -251,10 +225,6 @@ impl StealthOptions {
 
         if self.uc || self.session.driver_mode() == crate::browser::config::DriverMode::Cdp {
             apply_undetected_args(caps)?;
-        }
-
-        for arg in &fingerprint_args {
-            caps.add_arg(arg)?;
         }
 
         self.apply_launch_settings(caps)?;
@@ -291,24 +261,11 @@ impl StealthOptions {
         let mut preferences = chrome_preferences(launch.switches_on());
         // Python sets the language preference as well as `--lang`, so the
         // `Accept-Language` header follows the locale.
-        if let Some(locale) = self
-            .locale
-            .as_deref()
-            .filter(|_| self.fingerprint.is_none())
-        {
+        if let Some(locale) = self.locale.as_deref() {
             preferences.insert(
                 "intl.accept_languages".into(),
                 serde_json::json!(LocaleCode::normalise(locale)),
             );
-        }
-        // A phone persona's browser has no PDF viewer: PDFs open outside it, so
-        // `navigator.plugins` is empty and `pdfViewerEnabled` is false.
-        if self
-            .fingerprint
-            .as_ref()
-            .is_some_and(|fingerprint| !pdf_viewer_enabled(fingerprint))
-        {
-            preferences.extend(chrome_preferences([LaunchSwitch::ExternalPdf]));
         }
 
         if !preferences.is_empty() {
@@ -476,18 +433,6 @@ mod tests {
     use thirtyfour::DesiredCapabilities;
 
     #[test]
-    fn the_mobile_user_agent_claims_the_preset_major_in_chromes_frozen_format() {
-        let major = crate::evasion::randomize::PRESET_CHROMIUM_MAJOR;
-        assert_eq!(
-            MOBILE_USER_AGENT,
-            format!(
-                "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) \
-                 Chrome/{major}.0.0.0 Mobile Safari/537.36"
-            )
-        );
-    }
-
-    #[test]
     fn uc_args_contain_automation_switch() {
         let args = default_uc_args();
         assert!(args.contains(&"--disable-blink-features=AutomationControlled".to_owned()));
@@ -557,59 +502,6 @@ mod tests {
         let args = bare.args().unwrap();
         assert!(args.contains(&"--window-size=390,844".to_owned()));
         assert!(args.iter().any(|a| a.contains("Android")));
-    }
-
-    #[test]
-    fn a_switch_the_fingerprint_sets_is_sent_once_and_with_the_fingerprints_value() {
-        let fingerprint = Fingerprint::randomized(crate::evasion::fingerprint::OsType::Windows, 4);
-        let opts = StealthOptions {
-            user_agent: Some("MyAgent/1.0".to_owned()),
-            locale: Some("fr-FR".to_owned()),
-            window_size: Some("800,600".to_owned()),
-            fingerprint: Some(fingerprint.clone()),
-            ..Default::default()
-        };
-
-        let args = opts.args().unwrap();
-
-        for switch in ["--user-agent=", "--lang=", "--window-size="] {
-            assert_eq!(
-                args.iter().filter(|a| a.starts_with(switch)).count(),
-                1,
-                "{switch} is sent twice: {args:?}"
-            );
-        }
-        // Chrome takes the last of two, and the fingerprint's came last.
-        let user_agent = fingerprint.user_agent().as_str().unwrap();
-        assert!(args.contains(&format!("--user-agent={user_agent}")));
-        let locale = fingerprint.locale().as_str().unwrap();
-        assert!(args.contains(&format!("--lang={locale}")));
-    }
-
-    #[test]
-    fn what_the_fingerprint_leaves_alone_still_comes_from_the_options() {
-        // A fingerprint without a user agent adds none to the arguments, so the
-        // option's is the one sent.
-        let fingerprint = Fingerprint::builder()
-            .hardware_concurrency(8)
-            .build()
-            .unwrap();
-        let opts = StealthOptions {
-            user_agent: Some("MyAgent/1.0".to_owned()),
-            fingerprint: Some(fingerprint),
-            ..Default::default()
-        };
-
-        let args = opts.args().unwrap();
-
-        assert!(
-            args.contains(&"--user-agent=MyAgent/1.0".to_owned()),
-            "{args:?}"
-        );
-        assert!(
-            !args.iter().any(|a| a.contains("FromFingerprint")),
-            "{args:?}"
-        );
     }
 
     #[test]
@@ -995,25 +887,8 @@ mod tests {
         assert!(plain.get("prefs").is_none(), "{plain}");
     }
 
-    #[test]
-    fn a_webdriver_session_with_a_phone_fingerprint_opens_pdfs_outside_the_browser() {
-        let opens_outside = |options: &StealthOptions| {
-            let prefs = chrome_options(options)["prefs"].clone();
-            prefs["plugins"]["always_open_pdf_externally"] == json!(true)
-                || prefs["plugins.always_open_pdf_externally"] == json!(true)
-        };
-        let mut phone = options_for(&BrowserConfig::default());
-        phone.fingerprint = Some(Fingerprint::android_mobile());
-        let mut desktop = options_for(&BrowserConfig::default());
-        desktop.fingerprint = Some(Fingerprint::windows_desktop());
-
-        assert!(opens_outside(&phone), "{}", chrome_options(&phone));
-        assert!(!opens_outside(&desktop));
-        assert!(!opens_outside(&options_for(&BrowserConfig::default())));
-    }
 
     #[test]
-
     fn chrome_sync_is_off_unless_it_was_asked_for() {
         let default = options_for(&BrowserConfig::default()).args().unwrap();
         assert!(

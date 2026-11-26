@@ -12,17 +12,15 @@ use serde_json::{Map, Value};
 use tempfile::TempDir;
 use tokio::process::{Child, Command};
 
-use super::identity::StealthPlan;
 use crate::browser::binaries::Platform;
 use crate::browser::options::{
-    DeviceMetrics, LaunchSwitch, PacUrl, ProxyBypassList, VirtualDisplay,
+    DeviceMetrics, LaunchSwitch, PacUrl, ProxyBypassList, VirtualDisplay, WebRtcPolicy,
 };
 use crate::browser::virtual_display::{self, BrowserWindow, XvfbProcess};
 
 use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
-use crate::evasion::fingerprint::{Fingerprint, ProxyConfig, WebRtcPolicy};
-use crate::evasion::patcher::find_system_chrome;
+use crate::undetected::patcher::find_system_chrome;
 
 mod bridge;
 mod builder;
@@ -207,7 +205,8 @@ pub struct LaunchOptions {
     pub(crate) webrtc: Option<WebRtcPolicy>,
     pub(crate) shield_webrtc: bool,
     /// What every tab is made to look like, if a fingerprint was given.
-    pub(crate) identity: Option<Arc<StealthPlan>>,
+    #[allow(dead_code, reason = "retained for stealth plugin hook")]
+    pub(crate) identity: Option<()>,
     /// The settings these options were made from, kept so that one of them can change and the
     /// options be made again ([`into_builder`](Self::into_builder)). The fields above are
     /// what they came to.
@@ -267,13 +266,6 @@ impl LaunchOptions {
     #[must_use]
     pub fn cdp_target(&self) -> Option<&str> {
         self.cdp_target.as_deref()
-    }
-
-    /// The fingerprint the options were built with
-    /// ([`LaunchOptionsBuilder::fingerprint`]), if any.
-    #[must_use]
-    pub fn fingerprint(&self) -> Option<&Fingerprint> {
-        self.given.fingerprint()
     }
 
     /// A builder holding the settings these options were made from, to change
@@ -534,11 +526,6 @@ impl fmt::Debug for Redacted {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str("Redacted(..)")
     }
-}
-
-/// The proxy a fingerprint asks for, as a URL, when it asks for one.
-fn proxy_of(fingerprint: &Fingerprint) -> Option<String> {
-    fingerprint.proxy().value().map(ProxyConfig::to_url)
 }
 
 /// Builds [`LaunchOptions`]. Setters never fail and never read each other, so the
@@ -1019,20 +1006,6 @@ mod tests {
             .proxy("user:pass@")
             .build()
             .is_err());
-    }
-
-    #[test]
-    fn the_options_keep_the_fingerprint_they_were_given() {
-        use crate::evasion::fingerprint::OsType;
-
-        let fingerprint = Fingerprint::randomized(OsType::Linux, 3);
-        let options = LaunchOptions::builder()
-            .fingerprint(&fingerprint)
-            .build()
-            .unwrap();
-        assert_eq!(options.fingerprint(), Some(&fingerprint));
-        assert!(options.identity.is_some(), "the plan is made from it");
-        assert_eq!(LaunchOptions::default().fingerprint(), None);
     }
 
     #[test]

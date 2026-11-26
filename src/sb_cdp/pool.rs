@@ -394,12 +394,8 @@ impl BrowserPool {
         };
 
         let opened = async {
-            let fp = context.fingerprint_ref().cloned();
             let context = browser.new_context_with(context).await?;
             let page = context.new_page().await?;
-            if let Some(ref fp) = fp {
-                page.apply_fingerprint(fp).await?;
-            }
             Ok::<_, SeleniumBaseError>((context, page))
         }
         .await;
@@ -486,12 +482,6 @@ impl Lease {
     #[must_use]
     pub fn browser(&self) -> &Browser {
         self.context.browser()
-    }
-
-    /// The fingerprint configured for this lease's context, if any.
-    #[must_use]
-    pub fn fingerprint(&self) -> Option<&crate::Fingerprint> {
-        self.context.fingerprint()
     }
 
     /// The pool's shared sessions.

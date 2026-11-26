@@ -47,10 +47,6 @@ pub struct DevtoolsRequest {
     /// The built-in plugins to run in the browser, by name, with their options
     /// (the `[plugins]` table, `SB_PLUGINS`, `--plugin` and `--plugin-opt`).
     pub plugins: PluginSelection,
-    /// The fingerprint every tab presents (`--fingerprint`, `SB_FINGERPRINT`, the
-    /// `[fingerprint]` table). The user agent, language and proxy given above win over
-    /// the fingerprint's.
-    pub fingerprint: Option<Fingerprint>,
 }
 
 impl DevtoolsRequest {
@@ -89,10 +85,6 @@ impl DevtoolsRequest {
         }
         if let Some(dir) = &self.extension_dir {
             builder = builder.extension(dir);
-        }
-        // What was asked for by name (user agent, language, proxy) wins over the fingerprint's.
-        if let Some(fingerprint) = &self.fingerprint {
-            builder = builder.fingerprint(fingerprint);
         }
         if let Some(url) = &self.url {
             builder = builder.url(url);
@@ -249,57 +241,6 @@ mod tests {
         ] {
             assert!(args.contains(&expected.to_owned()), "{expected}: {args:?}");
         }
-    }
-
-    #[test]
-    fn the_fingerprint_reaches_the_launch_and_what_was_named_wins_over_it() {
-        let fingerprint = Fingerprint::windows_desktop();
-        let own_agent = fingerprint
-            .user_agent()
-            .as_str()
-            .unwrap_or_default()
-            .to_owned();
-
-        let given = DevtoolsRequest {
-            fingerprint: Some(fingerprint.clone()),
-            ..DevtoolsRequest::default()
-        };
-        let args = given
-            .launch_options()
-            .expect("options")
-            .browser_args(std::path::Path::new("/tmp/p"));
-        assert!(
-            args.contains(&format!("--user-agent={own_agent}")),
-            "{args:?}"
-        );
-        assert!(args.contains(&"--lang=en-US".to_owned()), "{args:?}");
-
-        let named = DevtoolsRequest {
-            user_agent: Some("Agent/1.0".to_owned()),
-            locale: Some("de-DE".to_owned()),
-            fingerprint: Some(fingerprint),
-            ..DevtoolsRequest::default()
-        };
-        let args = named
-            .launch_options()
-            .expect("options")
-            .browser_args(std::path::Path::new("/tmp/p"));
-        assert!(
-            args.contains(&"--user-agent=Agent/1.0".to_owned()),
-            "{args:?}"
-        );
-        assert!(args.contains(&"--lang=de-DE".to_owned()), "{args:?}");
-
-        let none = DevtoolsRequest::default()
-            .launch_options()
-            .expect("options");
-        assert!(
-            !none
-                .browser_args(std::path::Path::new("/tmp/p"))
-                .iter()
-                .any(|arg| arg.starts_with("--user-agent=")),
-            "no fingerprint, no user agent"
-        );
     }
 
     #[cfg(feature = "plugin-shield")]

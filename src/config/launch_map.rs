@@ -69,8 +69,8 @@ impl Settings {
                 "the pure CDP engine starts Chrome or Chromium; set chrome_bin to run {browser}"
             )));
         }
+        #[cfg_attr(not(feature = "plugins"), allow(unused_mut))]
         let mut config = self.to_browser_config();
-        config.fingerprint = self.load_fingerprint()?;
         #[cfg(feature = "plugins")]
         {
             config = config

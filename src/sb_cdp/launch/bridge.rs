@@ -8,7 +8,7 @@ use std::net::{Ipv4Addr, TcpListener};
 
 use serde_json::{json, Map};
 
-use super::layers::{Layer, ProxySpec, SharedFingerprint};
+use super::layers::{Layer, ProxySpec};
 use super::{Proxy, Redacted};
 use crate::browser::config::{Browser as BrowserKind, BrowserConfig};
 use crate::browser::options::{
@@ -136,17 +136,6 @@ impl Layer {
                 .or_else(|| config.cdp_discovery.then(|| config.session.webdriver_url()))
                 .map(Redacted),
             cdp_target: config.cdp_target.clone(),
-            fingerprint: config
-                .fingerprint
-                .clone()
-                .or_else(|| {
-                    (config.is_uc_enabled()
-                        || (config.session.driver_mode() == crate::DriverMode::Cdp
-                            && config.cdp_url.is_none()))
-                    .then(crate::Fingerprint::default)
-                })
-                .as_ref()
-                .map(SharedFingerprint::new),
             #[cfg(feature = "plugins")]
             plugins: Some(config.plugins().clone()),
             ..Self::of_browser(&config.browser)

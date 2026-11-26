@@ -23,7 +23,7 @@ use crate::config::RuntimeConfig;
 use crate::error::{DriverError, DriverErrorKind, SeleniumBaseError};
 use crate::mcp::devtools::redact_setting;
 use crate::mcp::failure::FailureReport;
-use crate::mcp::support::json_output;
+use crate::mcp::support::{json_output, nonempty};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 
 /// The common-problems page.
@@ -1483,120 +1483,4 @@ mod tests {
     // check_fingerprint
     // ------------------------------------------------------------------
 
-    #[test]
-    fn a_preset_fingerprint_parses_and_is_coherent() {
-        let text = serde_json::to_string(&Fingerprint::windows_desktop()).unwrap();
-
-        let report = fingerprint_report(&text).unwrap();
-
-        assert_eq!(report["parsed"], true);
-        assert_eq!(report["format"], "fingerprint");
-        assert_eq!(report["coherent"], true, "{report}");
-        assert_eq!(report["errors"], json!([]));
-        assert_eq!(report["fingerprint"]["os"], "Windows");
-        assert!(report["fingerprint"]["user_agent"]
-            .as_str()
-            .unwrap()
-            .contains("Windows"));
-    }
-
-    #[test]
-    fn the_report_is_the_one_validate_fingerprint_gives() {
-        let fingerprint = Fingerprint::macos_desktop();
-        let text = serde_json::to_string(&fingerprint).unwrap();
-
-        let report = fingerprint_report(&text).unwrap();
-
-        let shared = coherence_report(&fingerprint);
-        for key in ["coherent", "errors", "warnings"] {
-            assert_eq!(report[key], shared[key], "{key}");
-        }
-    }
-
-    #[test]
-    fn a_contradiction_is_found() {
-        let fingerprint = Fingerprint::windows_desktop()
-            .to_builder()
-            .platform("MacIntel")
-            .build()
-            .unwrap();
-        let text = serde_json::to_string(&fingerprint).unwrap();
-
-        let report = fingerprint_report(&text).unwrap();
-
-        assert_eq!(report["coherent"], false);
-        assert!(
-            report["errors"][0].as_str().unwrap().contains("MacIntel"),
-            "{report}"
-        );
-    }
-
-    #[test]
-    fn a_profile_payload_is_converted_and_checked() {
-        let payload = json!({
-            "name": "Windows Chromium",
-            "browser_type": "chromium",
-            "os_type": "windows",
-            "folder_id": "work",
-            "parameters": { "fingerprint": {
-                "navigator": {
-                    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-                    "platform": "Win32",
-                    "hardware_concurrency": 8
-                },
-                "screen": { "width": 1920, "height": 1200, "pixel_ratio": 1 }
-            } }
-        });
-
-        let report = fingerprint_report(&payload.to_string()).unwrap();
-
-        assert_eq!(report["parsed"], true);
-        assert_eq!(report["format"], "profile_payload");
-        assert_eq!(
-            report["coherent"], false,
-            "a Mac agent on a Windows persona: {report}"
-        );
-    }
-
-    #[test]
-    fn a_document_that_is_neither_is_described_not_guessed_at() {
-        let report = fingerprint_report(r#"{"user_agent": "x", "unknown_field": 1}"#).unwrap();
-
-        assert_eq!(report["parsed"], false);
-        assert!(
-            report["as_fingerprint"]
-                .as_str()
-                .unwrap()
-                .contains("unknown"),
-            "{report}"
-        );
-        assert!(report["as_profile_payload"]
-            .as_str()
-            .unwrap()
-            .contains("not tried"));
-        assert!(report.get("coherent").is_none());
-    }
-
-    #[test]
-    fn text_that_is_not_json_names_the_argument() {
-        let error = fingerprint_report("{not json").unwrap_err();
-        assert!(
-            matches!(&error, ToolError::InvalidArgument { name, .. } if name == "json"),
-            "{error}"
-        );
-    }
-
-    #[tokio::test]
-    async fn a_huge_document_is_refused() {
-        let error = call(
-            "check_fingerprint",
-            json!({ "json": "x".repeat(MAX_TEXT_BYTES + 1) }),
-        )
-        .await
-        .unwrap_err();
-        assert!(
-            matches!(error, ToolError::InvalidArgument { .. }),
-            "{error}"
-        );
-    }
 }

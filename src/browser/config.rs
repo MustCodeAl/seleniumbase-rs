@@ -274,7 +274,6 @@ impl std::fmt::Debug for BrowserConfig {
             .field("session", &session)
             .field("run", &self.run)
             .field("test_data", &self.test_data)
-            .field("fingerprint", &self.fingerprint)
             .field("cdp_url", &self.cdp_url.as_ref().map(|_| "<configured>"))
             .field("cdp_discovery", &self.cdp_discovery)
             .field("cdp_target", &self.cdp_target)

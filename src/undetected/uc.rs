@@ -73,7 +73,7 @@ pub const CLEAR_CDC_SCRIPT: &str = r#"
 ///
 /// Returns [`SeleniumBaseError::CdpDriver`] if the CDP command fails.
 pub async fn apply_uc_stealth(cdp: &CdpClient) -> Result<(), SeleniumBaseError> {
-    cdp.send(
+    cdp.execute(
         "Page.addScriptToEvaluateOnNewDocument",
         json!({ "source": UC_STEALTH_SCRIPT }),
     )
@@ -87,7 +87,7 @@ pub async fn apply_uc_stealth(cdp: &CdpClient) -> Result<(), SeleniumBaseError> 
 ///
 /// Returns [`SeleniumBaseError::CdpDriver`] if `Runtime.evaluate` fails.
 pub async fn clear_cdc_properties(cdp: &CdpClient) -> Result<(), SeleniumBaseError> {
-    cdp.send(
+    cdp.execute(
         "Runtime.evaluate",
         json!({
             "expression": CLEAR_CDC_SCRIPT,
@@ -116,7 +116,7 @@ pub async fn override_user_agent(
     if let Some(lang) = accept_language {
         params["acceptLanguage"] = json!(lang);
     }
-    cdp.send("Network.setUserAgentOverride", params).await?;
+    cdp.execute("Network.setUserAgentOverride", params).await?;
     Ok(())
 }
 
@@ -126,7 +126,7 @@ pub async fn override_user_agent(
 ///
 /// Returns [`SeleniumBaseError::CdpDriver`] if the CDP command fails.
 pub async fn override_timezone(cdp: &CdpClient, timezone_id: &str) -> Result<(), SeleniumBaseError> {
-    cdp.send(
+    cdp.execute(
         "Emulation.setTimezoneOverride",
         json!({ "timezoneId": timezone_id }),
     )
@@ -145,7 +145,7 @@ pub async fn override_geolocation(
     longitude: f64,
     accuracy: Option<f64>,
 ) -> Result<(), SeleniumBaseError> {
-    cdp.send(
+    cdp.execute(
         "Emulation.setGeolocationOverride",
         json!({
             "latitude": latitude,
