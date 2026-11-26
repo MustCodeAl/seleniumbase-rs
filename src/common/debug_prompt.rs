@@ -456,6 +456,21 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
                 Command::JsUsage => {
                     self.say("usage: js <expression>   (p and pp take an expression too)\n")?;
                 }
+                Command::FindUsage => {
+                    self.say("usage: find <css selector>   (t [css] shows text, html [css] shows HTML)\n")?;
+                }
+                Command::Find(selector) => {
+                    let report = evaluate(page, &find_script(selector), true).await;
+                    self.say(&format!("{report}\n"))?;
+                }
+                Command::Text(selector) => {
+                    let report = evaluate(page, &text_script(selector, false), false).await;
+                    self.say(&format!("{report}\n"))?;
+                }
+                Command::Html(selector) => {
+                    let report = evaluate(page, &text_script(selector, true), false).await;
+                    self.say(&format!("{report}\n"))?;
+                }
                 Command::List => self.say(&listing(kind, scene, false, color))?,
                 Command::LongList => self.say(&listing(kind, scene, true, color))?,
                 Command::Where => {
@@ -506,6 +521,13 @@ enum Command<'a> {
     /// `p <expr>`: the value on one line.
     Print(&'a str),
     JsUsage,
+    /// `find <css>`: how many elements match, and what the first one is.
+    Find(&'a str),
+    /// `text [css]`: the visible text of an element, or of the page.
+    Text(&'a str),
+    /// `html [css]`: the HTML of an element, or of the page.
+    Html(&'a str),
+    FindUsage,
     List,
     LongList,
     Where,
@@ -532,6 +554,10 @@ fn parse(line: &str) -> Command<'_> {
         "js" | "p" | "pp" if rest.is_empty() => Command::JsUsage,
         "js" | "pp" => Command::Js(rest),
         "p" => Command::Print(rest),
+        "f" | "find" if rest.is_empty() => Command::FindUsage,
+        "f" | "find" => Command::Find(rest),
+        "t" | "text" => Command::Text(rest),
+        "html" => Command::Html(rest),
         "l" | "list" => Command::List,
         "ll" | "longlist" => Command::LongList,
         "w" | "where" => Command::Where,
@@ -698,6 +724,42 @@ impl PageInfo {
     }
 }
 
+/// The expression `find` evaluates: the number of elements that match `selector`
+/// and what the first one is (its tag, text, visibility, box and whether it is
+/// in the viewport), or the selector's syntax error.
+fn find_script(selector: &str) -> String {
+    let selector = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_owned());
+    format!(
+        "(function(s){{var n;try{{n=document.querySelectorAll(s)}}catch(e){{return {{error:String(e)}}}}\
+         var r={{selector:s,count:n.length}};\
+         if(n.length){{var e=n[0],b=e.getBoundingClientRect(),c=getComputedStyle(e);\
+         r.first={{tag:e.tagName.toLowerCase(),id:e.id||null,\
+         text:(e.innerText||e.textContent||'').trim().slice(0,160),\
+         visible:!!(b.width&&b.height)&&c.visibility!=='hidden'&&c.display!=='none',\
+         enabled:!e.disabled,\
+         box:[Math.round(b.x),Math.round(b.y),Math.round(b.width),Math.round(b.height)],\
+         inViewport:b.bottom>0&&b.right>0&&b.top<innerHeight&&b.left<innerWidth}}}}\
+         return r}})({selector})"
+    )
+}
+
+/// The expression `text` and `html` evaluate: the first 2000 characters of the
+/// visible text or the HTML of `selector`, or of the whole page when it is empty.
+fn text_script(selector: &str, html: bool) -> String {
+    let selector = serde_json::to_string(selector).unwrap_or_else(|_| "\"\"".to_owned());
+    let read = if html {
+        "e.outerHTML"
+    } else {
+        "(e.innerText||e.textContent||'')"
+    };
+    format!(
+        "(function(s){{var e;try{{e=s?document.querySelector(s):\
+         (document.body||document.documentElement)}}catch(x){{return 'error: '+x}}\
+         if(!e)return 'no element matches '+s;\
+         var t=String({read});return t.length>2000?t.slice(0,2000)+' ... ('+t.length+' characters)':t}})({selector})"
+    )
+}
+
 /// The answer to `h`.
 fn help(kind: PromptKind, color: bool) -> String {
     let mut text = format!("{}\n", palette::DIM.paint(commands(kind), color));
@@ -706,7 +768,7 @@ fn help(kind: PromptKind, color: bool) -> String {
         text.push_str("  r, retry      run the test again with a new browser\n");
     }
     text.push_str(
-        "  s, screenshot save the viewport as breakpoint_<n>.png\n  src, source   save the page's HTML as page_source_<n>.html\n  u, url        show the page's address and title\n  js <expr>     evaluate a JavaScript expression and show its value\n  pp <expr>     the same as js\n  p <expr>      the same, on one line\n  l, list       list the code around the pause again\n  ll, longlist  list more of it\n  w, where      show where in the test the pause is\n  dt, devtools  show the address of Chrome's DevTools for this tab\n  q, quit       stop the test\n",
+        "  s, screenshot save the viewport as breakpoint_<n>.png\n  src, source   save the page's HTML as page_source_<n>.html\n  u, url        show the page's address and title\n  js <expr>     evaluate a JavaScript expression and show its value\n  pp <expr>     the same as js\n  p <expr>      the same, on one line\n  find <css>    count the elements that match and describe the first (f)\n  text [css]    the visible text of an element or the page (t)\n  html [css]    the HTML of an element or the page\n  l, list       list the code around the pause again\n  ll, longlist  list more of it\n  w, where      show where in the test the pause is\n  dt, devtools  show the address of Chrome's DevTools for this tab\n  q, quit       stop the test\n",
     );
     text
 }
@@ -1317,6 +1379,14 @@ mod tests {
         assert_eq!(parse("pp obj"), Command::Js("obj"));
         assert_eq!(parse("p"), Command::JsUsage);
         assert_eq!(parse("pp"), Command::JsUsage);
+        assert_eq!(parse("find #go"), Command::Find("#go"));
+        assert_eq!(parse("f .a .b"), Command::Find(".a .b"));
+        assert_eq!(parse("find"), Command::FindUsage);
+        assert_eq!(parse("t"), Command::Text(""));
+        assert_eq!(parse("text h1"), Command::Text("h1"));
+        assert_eq!(parse("html #x"), Command::Html("#x"));
+        let script = find_script("a[href=\"x\"]");
+        assert!(script.ends_with("(\"a[href=\\\"x\\\"]\")"), "{script}");
     }
 
     // ---- the frame, the source listing and the short commands ----

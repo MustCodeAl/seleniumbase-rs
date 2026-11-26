@@ -81,7 +81,7 @@ impl private::TargetAttachment for Page {
     }
 }
 
-impl sealed::Sealed for BaseCase {
+impl private::TargetAttachment for BaseCase {
     async fn attachment(&self) -> Result<Attachment, SeleniumBaseError> {
         let endpoint = self.devtools_endpoint().await?;
         Ok(Attachment {
