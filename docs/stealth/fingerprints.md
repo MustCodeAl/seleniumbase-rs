@@ -336,9 +336,8 @@ FingerprintJS, fp-collect, ThumbmarkJS); the inventory
 with the sources and the ranked gaps is
 [Fingerprint consistency](/design/fingerprint_consistency).
 
-The same list is the `contradictions` field of the MCP tools
-`compare_fingerprint` and `explain_fingerprint`, and the summary of
-`sbrs fingerprint capture` prints it (`--readings` writes it). A rule whose
+The same list is returned by `CapturedFingerprint::contradictions()` in `seleniumbase-rs-evasion` and the MCP tools
+`compare_fingerprint` and `explain_fingerprint`. A rule whose
 readings the capture lacks says nothing: a page whose policy blocked a worker is
 not a contradiction.
 
@@ -432,11 +431,12 @@ conditions), for the values the fingerprint holds:
 
 When managing high-throughput browser fleets with `BrowserPool`, restarting browser processes to rotate fingerprints introduces unacceptable latency.
 
-Instead, configure per-lease fingerprints using `ContextOptions::default().fingerprint(fp)`:
+Instead, configure per-lease fingerprints by applying `PageFingerprintExt::apply_fingerprint` (from `seleniumbase-rs-evasion` / `seleniumbase-rs-stealth`) to each leased page:
 
 ```rust
-use seleniumbase_rs::evasion::Fingerprint;
-use seleniumbase_rs::sb_cdp::{BrowserPool, ContextOptions, LaunchOptions, PoolOptions};
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::evasion::identity::PageFingerprintExt;
+use seleniumbase_rs_stealth::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
 
 let pool = BrowserPool::new(
     LaunchOptions::builder().headless(true).build()?,
@@ -444,14 +444,14 @@ let pool = BrowserPool::new(
 );
 
 // Lease 1: Random desktop identity
-let fp1 = Fingerprint::random();
-let options1 = ContextOptions::default().fingerprint(fp1);
-let lease1 = pool.acquire_with(&options1).await?;
+let fp1 = Fingerprint::randomized(OsType::Windows, 1);
+let lease1 = pool.acquire().await?;
+lease1.page().apply_fingerprint(&fp1).await?;
 
 // Lease 2: Distinct identity running concurrently in the same browser process
-let fp2 = Fingerprint::random();
-let options2 = ContextOptions::default().fingerprint(fp2);
-let lease2 = pool.acquire_with(&options2).await?;
+let fp2 = Fingerprint::randomized(OsType::Macos, 2);
+let lease2 = pool.acquire().await?;
+lease2.page().apply_fingerprint(&fp2).await?;
 ```
 
 Each lease executes inside an isolated browser context with its own cookies, storage, and spoofed device identity.

@@ -302,10 +302,8 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutFile name="error.rs" highlight note="SeleniumBaseError: hints, exit codes, selector advice" />
 <LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours" />
 <LayoutDir name="browser" note="BrowserConfig, the launcher, the WebDriver session, driver access and downloads" />
-<LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, pool, mock" />
-<LayoutDir name="crawler" note="concurrent crawler, RFC 9309 robots.txt parser, XML sitemap discovery, and recursive spider" />
-<LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor" />
-<LayoutDir name="extract" note="token-efficient HTML-to-Markdown conversion, JSON-LD, table, and typed form extraction" />
+<LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, human input, pool, mock" />
+<LayoutDir name="undetected" note="undetected-Chrome launch helpers, binary patching, detached processes and the CDP reactor" />
 <LayoutDir name="mcp" note="the MCP servers cdp, driver, sb and dev, and their tools" />
 <LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/" />
 <LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
@@ -317,7 +315,6 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="storage" note="ResultStore and ProfileVault (feature turso)" />
 <LayoutDir name="utilities" note="RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer" />
 <LayoutDir name="utils" note="selectors, shadow DOM, URLs, geometry, bundled extensions, translations" />
-<LayoutDir name="profile_payloads" note="parses external browser-profile JSON into a Fingerprint" />
 <LayoutDir name="resources" note="files the crate manages on disk, such as downloaded browser drivers" />
 <LayoutDir name="js_code" note="building blocks for the JavaScript the crate sends to a page" />
 <LayoutFile name="artifacts.rs" note="where the files of a test run go (latest_logs) and how they are named" />
@@ -325,7 +322,6 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutFile name="drivers.rs" note="the WebDriver types behind BaseCase, under this crate's name" />
 <LayoutFile name="json.rs" note="JSON values and json!, under this crate's name" />
 <LayoutFile name="macros.rs" note="convenience macros for tests, such as sb_test!" />
-<LayoutFile name="ocr.rs" note="reading text from screenshots (feature ocr)" />
 <LayoutFile name="tracing_util.rs" note="tracing initialization helpers" />
 <LayoutFile name="visual.rs" note="feature visual: VisualBaseline, screenshot baselines compared by SSIM" />
 </LayoutDir>
@@ -379,9 +375,6 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutFile name="sbrs.1" note="generated; sbrs completions man prints it" />
 <LayoutFile name="sbrs-mcp.1" note="generated" />
 </LayoutDir>
-</LayoutDir>
-<LayoutDir name="schemas" note="JSON Schemas">
-<LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
 </LayoutDir>
 <LayoutDir name="contrib" note="files that are not part of the crate">
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />

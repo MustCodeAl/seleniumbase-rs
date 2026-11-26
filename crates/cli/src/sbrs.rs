@@ -741,7 +741,7 @@ struct Cli {
     config: Option<String>,
     /// Make every browser the command starts present the fingerprint in FILE (SB_FINGERPRINT)
     ///
-    /// The file is the fingerprint JSON that `sbrs fingerprint capture` and `export` write.
+    /// The file is a fingerprint JSON file (for example, exported by seleniumbase-rs-evasion).
     /// A Chromium browser then runs in the CDP mode unless --uc or another mode is given.
     /// The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of
     /// the settings file. The user agent, language and proxy named by their own options win

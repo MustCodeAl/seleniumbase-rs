@@ -14,7 +14,7 @@ description: "HTTP/3 and QUIC specification parameters: transport parameters, SE
 
 ```rust
 use seleniumbase_rs_stealth::codec::H3Spec;
-use seleniumbase_rs::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 
 // Current stable Chromium HTTP/3 spec
 let spec = H3Spec::current_stable();

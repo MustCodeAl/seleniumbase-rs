@@ -101,10 +101,10 @@ it starts, so `patch` signs the driver again ad hoc afterwards (see
 ## One-shot helper
 
 If you only need the default patch, use the `patch_chromedriver` function, which
-lives in the `evasion::patcher` module (it is not re-exported at the crate root):
+lives in the `undetected::patcher` module (it is not re-exported at the crate root):
 
 ```rust,no_run
-use seleniumbase_rs::evasion::patcher::patch_chromedriver;
+use seleniumbase_rs::undetected::patcher::patch_chromedriver;
 
 fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     patch_chromedriver("/path/to/chromedriver")?;
@@ -168,7 +168,7 @@ let config = BrowserConfig::builder()
 Or apply them through `StealthOptions`, whose `args()` is the launch it builds:
 
 ```rust
-use seleniumbase_rs::evasion::options::StealthOptions;
+use seleniumbase_rs::browser::options::StealthOptions;
 use seleniumbase_rs::engine_spoofing_args;
 
 fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {

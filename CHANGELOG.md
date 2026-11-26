@@ -6,12 +6,13 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.58.3 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
-## [0.10.0] - unreleased
+## [0.10.0] - 2026-11-26
 
 ### Changed
 
-- **Core Split**: Moved fingerprint spoofing, profile payloads, mimic specimens, capture/comparison, and JS evasion providers out of `seleniumbase-rs` core into `seleniumbase-rs-evasion` (`seleniumbase-rs-stealth`). Core retains `undetected` (`patcher`, `dprocess`, `reactor`, `uc`) and `sb_cdp::human` (`behavior`, `humanize`).
-- **Moved Optional Pipelines to Plugins**: Moved `crawler`, `extract`, `ocr`, and `cloud` modules out of core into `seleniumbase-rs-plugins`.
+- **BREAKING: Core Split (`seleniumbase-rs-evasion`)**: Moved fingerprint spoofing, profile payloads, mimic specimens, capture/comparison, and JS evasion providers out of `seleniumbase-rs` core into `seleniumbase-rs-evasion` (in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth), re-exported as `seleniumbase_rs_stealth::evasion`). Core retains `seleniumbase_rs::undetected` (`patcher`, `dprocess`, `reactor`, `uc`) and `seleniumbase_rs::sb_cdp::human` (`behavior`, `humanize`).
+- **BREAKING: Moved Optional Pipelines to Plugins**: Moved `crawler`, `extract`, `ocr`, and `cloud` modules out of core into [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins) (`seleniumbase-rs-plugin-crawler`, `seleniumbase-rs-plugin-extractor`, `seleniumbase-rs-plugin-ocr`, `seleniumbase-rs-plugin-cloud-logging`).
+- **BREAKING: CLI Fingerprint Subcommand Removed**: Removed the `sbrs fingerprint` subcommand and MCP `check_fingerprint` tool from core (`--fingerprint FILE` / `SB_FINGERPRINT` file validation remains in `sbrs` and `Settings`).
 
 ### Added
 

@@ -89,10 +89,10 @@ async fn extract_article_body_only(sb_cdp: SbCdp) -> Result<()> {
 
 ### Custom Markdown Options (`MarkdownOptions`)
 
-For offline processing or custom token limits, call `extract::html_to_markdown_with`:
+For offline processing or custom token limits (moved in v0.10.0 to `seleniumbase-rs-plugin-extractor` in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)), call `html::html_to_markdown_with`:
 
 ```rust
-use seleniumbase_rs::extract::{html_to_markdown_with, MarkdownOptions};
+use seleniumbase_rs_plugin_extractor::html::{html_to_markdown_with, MarkdownOptions};
 
 let html = r#"
     <article>

@@ -408,13 +408,13 @@ them. It is not a list of dependencies to add.
 
 | Crate | What it is |
 |---|---|
+| `seleniumbase-rs-evasion` (`crates/evasion`) | Browser fingerprint synthesis (`Fingerprint`, `Spoof`, `StealthPolicy`, `mimic` specimens, `profile_payloads`), 32 built-in JS `EvasionProvider`s, capture/consistency diagnostics, and the `identity` bridge (`StealthPlan`, `FingerprintPlugin`, `LaunchOptionsFingerprintExt`, `PageFingerprintExt`, `BaseCaseFingerprintExt`). Re-exported as `seleniumbase_rs_stealth::evasion`. |
 | `seleniumbase-rs-codec` (`crates/codec`) | Pure wire formats, no I/O: a TLS `ClientHello` parser, JA3, JA4 and peetprint, the Akamai HTTP/2 fingerprint, HTTP/2 frame and HPACK reading, the TLS, HTTP/2 and header specs, and the measured browser table (`measurement`) embedded from `src/measured/*.json`. |
 | `seleniumbase-rs-scrape` (`crates/scrape`) | Stealth scraping without TLS spoofing, over the pure CDP engine of this crate. Pure modules for challenge detection, egress, an RFC 6265 cookie jar, the per-site ledger and the stealth identity; `runtime` holds the I/O (`BrowserScraper`, `JsonLedger`, the identity file, the capture tools). No BoringSSL. |
-| `seleniumbase-rs-wire` (`crates/wire`) | Browser-identical TLS and HTTP/2 through wreq `6.0.0-rc.31` and BoringSSL (`btls` and `tokio-btls` `0.5.6`): `WireFormat`, `HttpSession`, `MitmProxy`, `StealthSession`, `EphemeralCa` and the HTTP/2 capture tool. Needs cmake and a C/C++ toolchain. |
+| `seleniumbase-rs-wire` (`crates/wire`) | Browser-identical TLS and HTTP/2/3 through wreq `6.0.0-rc.31` and BoringSSL (`btls` and `tokio-btls` `0.5.6`): `WireFormat`, `HttpSession`, `MitmProxy`, `StealthSession`, `EphemeralCa` and the HTTP/2 capture tool. Needs cmake and a C/C++ toolchain. |
 
-`wire` depends on `scrape`, which depends on `codec`; all three depend on
-this crate, and they need some items here to stay public (`sb_cdp`,
-`evasion::randomize`). All three declare `#![forbid(unsafe_code)]`. They are
+`wire` depends on `scrape`, which depends on `codec` and `evasion`; all four depend on
+this crate (`sb_cdp` and `undetected`). All four declare `#![forbid(unsafe_code)]`. They are
 MIT; BoringSSL carries its own licences. This crate's own HTTP uses `reqwest`
 with `rustls`, and the CDP engine talks to Chrome over a plain WebSocket.
 

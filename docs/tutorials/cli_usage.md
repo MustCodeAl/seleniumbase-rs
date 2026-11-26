@@ -1157,9 +1157,8 @@ offers the global flags that start with `--hea`.
 
 Some words are not in the script or in any spec, because they depend on the
 binary in hand: `sbrs --plugin <Tab>` and `sbrs plugin info <Tab>` list the
-built-in plugins this build has, each with its summary, `sbrs plugin run <Tab>`
-the ones that offer a task, and `sbrs fingerprint export --preset <Tab>` the presets
-of the library. The script asks `sbrs` for them when you press Tab, so they always
+built-in plugins this build has, each with its summary, and `sbrs plugin run <Tab>`
+lists the ones that offer a task. The script asks `sbrs` for them when you press Tab, so they always
 match the version you run.
 
 The commands are not all in the declarations either: each plugin that offers a task is a

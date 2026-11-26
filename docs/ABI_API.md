@@ -8,7 +8,7 @@ guarantees that apply, and how to integrate the crate with foreign code.
 
 <Visibility for="agents">
 
-Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `SelectorRef`, `Fingerprint`, `StealthPolicy`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. `evasion::providers::session_registry` is experimental.
+Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `SelectorRef`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. Fingerprints and JS evasion providers moved in 0.10.0 to `seleniumbase-rs-evasion` (`seleniumbase-rs-stealth`).
 
 </Visibility>
 
@@ -29,16 +29,15 @@ The crate root exposes the following modules:
 | `drivers` | The raw WebDriver types of the escape hatches: `WebElement` behind an `Element` (`as_webdriver_element()`), `WebDriver` behind a session (`BrowserSession::webdriver()`), and `WebDriverError` for the calls made on them, so a project needs no `thirtyfour` line. Extra capabilities are `browser::options::CapabilityOverrides`, given to `BrowserConfigBuilder::capabilities`. See [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies). |
 
 | `error` | `SeleniumBaseError` and the `Result<T>` alias. |
-| `evasion` | Undetected-chrome options, evasions, the evasion **provider registry**, fingerprint profiles, humanization helpers, binary patcher, and CDP reactor. `session_registry` (the registry the Pure CDP engine runs) is <Badge color="orange">Experimental</Badge>: it serves the stealth layer, which lives in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) since 0.3.0. |
 | `js_code` | `quote`, which turns a Rust string into a JavaScript string literal for the scripts the crate builds. |
 | `json` | `json!`, `Value` and the parsing functions of `serde_json` that the API uses, so a project needs no `serde_json` line. |
 
 | `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |
-| `mcp` | MCP servers (`cdp`, `driver`, `sb`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
-| `profile_payloads` | External browser profile payload parsing and conversion. |
-| `plugins` | Cloud/logging plugin interfaces. |
+| `mcp` | MCP servers (`cdp`, `driver`, `sb`, `dev`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
+| `plugins` | Reporting and logging plugin interfaces (S3, screenshots, page source, driver manager, observer). |
 | `resources` | Where downloaded browser drivers live and how a chromedriver is found. |
-| `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input, cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
+| `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input (`sb_cdp::human`), cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
+| `undetected` | Undetected-Chrome launch helpers (`uc`), binary patching (`patcher`), detached process management (`dprocess`), and CDP request reactor (`reactor`). |
 | `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
 | `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
 
@@ -249,9 +248,9 @@ fn read_config(path: &str) -> Result<String> {
 
 <Warning>
 
-**`evasion::providers::session_registry` is not yet a stable API.** It serves the
-experimental stealth layer of seleniumbase-rs-stealth: its names and behaviour may
-change in any release, even a patch release, as measurements and reviews come in.
+**`seleniumbase_rs_evasion::providers::session_registry` is not yet a stable API.** It lives in
+the experimental stealth layer of `seleniumbase-rs-stealth` (moved from core in 0.10.0): its names
+and behaviour may change in any release, even a patch release, as measurements and reviews come in.
 
 </Warning>
 

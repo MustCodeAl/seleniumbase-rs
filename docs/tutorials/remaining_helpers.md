@@ -150,34 +150,19 @@ itself (`save_screenshot_to_logs`) never replace an earlier one.
 
 ## Reading text from the screen (OCR)
 
-<Badge color="blue">Feature: ocr</Badge>
+<Badge color="purple">Plugin: seleniumbase-rs-plugin-ocr</Badge>
 
-With the `ocr` feature, `seleniumbase_rs::ocr::Ocr` reads the text a page
-shows from its screenshot, including text drawn on a canvas or inside an image,
-which the DOM does not hold as text. It runs
-[ocrs](https://github.com/robertknight/ocrs), pure Rust, so nothing has to be
-installed.
-
-```rust
-use seleniumbase_rs::ocr::Ocr;
-
-let ocr = Ocr::load().await?; // slow: load once and clone it
-let text = ocr.read_page(&sb).await?; // works with an sb_cdp::Page too
-assert!(text.contains("Welcome"));
-
-let from_file = ocr.text_in_png(&std::fs::read("home.png")?).await?;
-```
-
-The text comes back one line per line of text, top to bottom.
+Since v0.10.0, OCR model resolution and PNG text extraction live in
+`seleniumbase-rs-plugin-ocr` inside
+[seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)
+(moved out of `seleniumbase-rs` core). Add `seleniumbase-rs-plugin-ocr` from
+`seleniumbase-rs-plugins` to read text from page screenshots or PNG bytes via its
+task or library helpers (`OCR_MODELS`, `resolve_models_dir`, `validate_png_header`).
 
 <Info>
 
-The first
-`Ocr::load` downloads the two models (about 12 MB) into the cache folder (below)
-and checks them against pinned SHA-256 hashes; later runs use the saved copies.
 On a machine without network access, set `SB_OCR_MODELS` to a folder that holds
-`text-detection.rten` and `text-recognition.rten`. Build with
-`--features ocr`; `tests/ocr_chrome.rs` reads a heading from a real Chrome.
+`text-detection.rten` and `text-recognition.rten`.
 
 </Info>
 

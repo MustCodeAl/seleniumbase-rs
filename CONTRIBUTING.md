@@ -145,10 +145,8 @@ seleniumbase-rs/               # the workspace root
 │   ├── error.rs               # SeleniumBaseError: hints, exit codes, selector advice
 │   ├── api/                   # BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours
 │   ├── browser/               # BrowserConfig, the launcher, the WebDriver session, driver access and downloads
-│   ├── sb_cdp/                # the pure CDP engine: Browser, Page, Locator, pool, mock
-│   ├── crawler/               # concurrent crawler, RFC 9309 robots.txt parser, XML sitemap discovery, and recursive spider
-│   ├── evasion/               # fingerprints, evasion providers, humanize, binary patching and the CDP reactor
-│   ├── extract/               # token-efficient HTML-to-Markdown conversion, JSON-LD, table, and typed form extraction
+│   ├── sb_cdp/                # the pure CDP engine: Browser, Page, Locator, human input, pool, mock
+│   ├── undetected/            # undetected-Chrome launch helpers, binary patching, detached processes and the CDP reactor
 │   ├── mcp/                   # the MCP servers cdp, driver, sb and dev, and their tools
 │   ├── cli/                   # the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/
 │   ├── testing/               # the rstest sb fixtures; bdd/: Gherkin through rstest-bdd
@@ -160,7 +158,6 @@ seleniumbase-rs/               # the workspace root
 │   ├── storage/               # ResultStore and ProfileVault (feature turso)
 │   ├── utilities/             # RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer
 │   ├── utils/                 # selectors, shadow DOM, URLs, geometry, bundled extensions, translations
-│   ├── profile_payloads/      # parses external browser-profile JSON into a Fingerprint
 │   ├── resources/             # files the crate manages on disk, such as downloaded browser drivers
 │   ├── js_code/               # building blocks for the JavaScript the crate sends to a page
 │   ├── artifacts.rs           # where the files of a test run go (latest_logs) and how they are named
@@ -168,7 +165,6 @@ seleniumbase-rs/               # the workspace root
 │   ├── drivers.rs             # the WebDriver types behind BaseCase, under this crate's name
 │   ├── json.rs                # JSON values and json!, under this crate's name
 │   ├── macros.rs              # convenience macros for tests, such as sb_test!
-│   ├── ocr.rs                 # reading text from screenshots (feature ocr)
 │   ├── tracing_util.rs        # tracing initialization helpers
 │   └── visual.rs              # feature visual: VisualBaseline, screenshot baselines compared by SSIM
 ├── crates/                    # the workspace members besides the library
@@ -193,7 +189,6 @@ seleniumbase-rs/               # the workspace root
 ├── parity/                    # the Python parity manifests
 ├── completions/               # the usage spec of sbrs
 ├── man/                       # the man pages of sbrs and sbrs-mcp, generated from their usage specs
-├── schemas/                   # JSON Schemas
 ├── contrib/                   # files that are not part of the crate
 ├── scripts/                   # helper scripts
 ├── tools/                     # scripts for the docs, the parity manifests, the Linux check and the release archives

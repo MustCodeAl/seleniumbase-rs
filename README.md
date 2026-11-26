@@ -21,7 +21,7 @@ server. It gives you `BaseCase`, the familiar test API, on WebDriver, plus a pur
 Chrome DevTools engine that needs no driver at all.
 
 > [!NOTE]
-> Young and moving fast: version `0.9.4`, installed from GitHub (not on
+> Young and moving fast: version `0.10.0`, installed from GitHub (not on
 > crates.io). See [Project status](#project-status) for what is verified and what
 > is not.
 
@@ -54,7 +54,7 @@ Chrome DevTools engine that needs no driver at all.
 | 🌐 **Every major browser** | Chrome, Edge, Firefox, Safari, Brave and Opera on WebDriver; chromedriver, msedgedriver and geckodriver are downloaded to match your browser. |
 | 🤖 **Built for AI agents** | MCP servers (`cdp`, `driver`, `sb`) with page inspection, selector diagnosis, console and network views, a debug bundle and export to a Rust test, and a browserless `dev` server that finds API methods, converts Python tests, explains `sbrs` commands, errors and settings, and installs drivers. See [Vibe coding](./docs/tutorials/vibe_coding.md). |
 | 🔁 **Bring your old tests** | Importers for Python SeleniumBase and Selenium, Playwright (JS, TS, Python), Puppeteer and Chrome Recorder files, plus a recorder that writes Rust. |
-| 🕵️ **Stealth** | Undetected-Chrome mode, binary patching, fingerprint presets and evasions. Browser-identical TLS and HTTP/2 is a separate, experimental project: [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). |
+| 🕵️ **Stealth** | Undetected-Chrome mode, binary patching, and humanized input in core. Fingerprint spoofing, JS evasion providers, and browser-identical TLS and HTTP/2/3 live in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). |
 | 🛠️ **Batteries included** | The `sbrs` CLI, shell completions, a Docker image, `SB_*` configuration, tracing and cloud artifact uploads. |
 | 🧩 **Errors that help** | Every error carries a hint, and `sbrs` exits with a status that says what kind of failure it was. |
 
@@ -125,13 +125,13 @@ the getting-started guide lists the exceptions and why.
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.9.4" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0" }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.9.4", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]
@@ -153,8 +153,8 @@ seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag =
 │  BrowserSession  ──►  thirtyfour WebDriver + CDP session     │
 │  sb_cdp (pure CDP) ──►  Chrome directly, no driver           │
 ├─────────────────────────────────────────────────────────────┤
-│  Stealth layer: patcher, evasion registry, fingerprint       │
-│  presets, CDP overrides, engine-spoofing args                │
+│  Undetected layer: patcher, UC mode, CDP reactor,           │
+│  human-paced input, engine-spoofing launch args             │
 ├─────────────────────────────────────────────────────────────┤
 │  Drivers: chromedriver, msedgedriver, geckodriver, Playwright│
 └─────────────────────────────────────────────────────────────┘
@@ -219,18 +219,20 @@ let config = BrowserConfig::builder()
 
 ### Stealth and fingerprinting
 
-UC mode and the standalone fingerprint system work together:
+Core UC mode and the companion `seleniumbase-rs-evasion` crate (in
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth))
+work together:
 
-1. `ChromedriverPatcher` strips `cdc_` and `__webdriver` markers from the driver
-   executable before launch.
+1. `ChromedriverPatcher` and `ChromeBinaryPatcher` (in `seleniumbase_rs::undetected::patcher`)
+   strip `cdc_` and `__webdriver` markers before launch.
 2. `EnginePatch::balanced()` and `engine_spoofing_args()` disable automation
    telemetry at the Chromium launch level.
-3. `Fingerprint` presets set coherent user agent, platform, screen size, WebGL
-   vendor, timezone, geolocation, and other signals.
-4. `EvasionProvider`s inject JavaScript to mask `navigator.webdriver`, plugins,
-   permissions, canvas/audio noise, WebRTC, and more.
-5. `native_spoofing` moves whatever it can out of JavaScript and into CDP
-   (`Network.setUserAgentOverride`, `Emulation.setDeviceMetricsOverride`, etc.).
+3. `sb_cdp::human` (`Behavior`, `Humanizer`) generates curved pointer paths and
+   Gaussian keystroke pacing.
+4. `Fingerprint`, `EvasionProvider`s, `StealthPlan`, and `FingerprintPlugin` (moved in
+   v0.10.0 to `seleniumbase-rs-evasion`, re-exported as `seleniumbase_rs_stealth::evasion`)
+   supply coherent identities, JS masking, and CDP overrides via
+   `LaunchOptionsFingerprintExt::with_fingerprint`.
 
 See the [Fingerprint & Stealth Profiles](./docs/stealth/introduction.md)
 and [Binary Patching](./docs/stealth/advanced/binary-patching.md) tutorials for the full
@@ -276,8 +278,7 @@ cargo run --bin sbrs -- --url https://seleniumbase.io save-source
 cargo run --bin sbrs -- --url https://seleniumbase.io assert-element --css "body"
 cargo run --bin sbrs -- --url https://seleniumbase.io wait-for-text --css "body" --text "SeleniumBase" --timeout 15
 
-# Capture a browser's fingerprint, then present it in any command
-cargo run --bin sbrs -- fingerprint capture https://seleniumbase.io -o fp.json
+# Pass a fingerprint JSON file to any command
 cargo run --bin sbrs -- --fingerprint fp.json --url https://seleniumbase.io get-title
 
 # Admin / binary patching
@@ -403,21 +404,15 @@ Example `scenario.json`:
 
 ### Cloud artifact uploads
 
-Upload screenshots or logs to S3, Azure Blob Storage, or Google Cloud Storage.
+Upload screenshots or logs to S3 directly from core (`s3` feature), or to Azure Blob
+Storage and Google Cloud Storage via `seleniumbase-rs-plugin-cloud-logging` in
+[seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins).
 
 ```bash
 # S3
 export AWS_ACCESS_KEY_ID=...
 export AWS_SECRET_ACCESS_KEY=...
 cargo run --example cloud_upload --features s3
-
-# Azure Blob Storage (SAS URL with write permission)
-export AZURE_BLOB_URL="https://myaccount.blob.core.windows.net/mycontainer/myblob?sv=...&sig=..."
-cargo run --example cloud_upload --features azure
-
-# Google Cloud Storage
-export GCS_ACCESS_TOKEN=$(gcloud auth print-access-token)
-cargo run --example cloud_upload --features gcp
 ```
 
 See [`examples/cloud_upload.rs`](./examples/cloud_upload.rs) for the full snippet.
@@ -436,7 +431,7 @@ Playwright engine and no `playwright` feature). It uses the
 Chrome that `sb_cdp` launches.
 
 ```bash
-cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.9.4
+cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0
 cargo run -p seleniumbase-rs-playwright --example playwright_mode
 ```
 
@@ -457,8 +452,8 @@ stdio. Pick a toolset with `--server`:
 | `dev` | No browser: the library, the `sbrs` command line and diagnosing problems | 12 |
 
 Load `dev` next to one browser server: `find_api`, `parity_lookup`,
-`python_to_rust`, `scaffold`, `cli_help`, `list_plugins`, `plugin_info`,
-`install_driver`, `explain_error`, `check_config`, `check_fingerprint` and
+`python_to_rust`, `scaffold`, `scaffold_plugin`, `cli_help`, `list_plugins`, `plugin_info`,
+`install_driver`, `explain_error`, `check_config` and
 `diagnose_environment`.
 
 ```bash
@@ -507,20 +502,19 @@ cookies, and execute JavaScript in the active page.
 | `tui` | The terminal apps `sbrs commander`, `sbrs caseplans` and `sbrs behave-gui`. |
 | `gui` | Native OS dialogs and GUI automation (links GTK and X11 on Linux). |
 | `s3` | AWS S3 artifact uploads. |
-| `azure` | Azure Blob Storage artifact uploads. |
-| `gcp` | Google Cloud Storage artifact uploads. |
 | `mcp-server` | Builds the `sbrs-mcp` binary using `rmcp`. |
 | `turso` | Embedded database: `ResultStore`, `ProfileVault`, and `sbrs report history`. |
 | `test-util` | The scripted mock browser, for tests without Chrome. |
 | `full-tracing` | Verbose `tracing` span events for debugging. |
 | `error-backtrace` | Backtraces attached to `SeleniumBaseError`. |
 
-No feature is on by default. The features `scrape` and `impersonate` were removed
-in 0.3.0: the stealth scraping layer (JA3/JA4/Akamai, the measured Chrome table,
-`BrowserScraper`, `HttpSession`, `MitmProxy`, `StealthSession`) is now the crates
-`seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-wire`
-in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-(see [Stealth Scraping](./docs/scraping/stealthy/first-fetch.md)).
+No feature is on by default. In 0.10.0, fingerprint spoofing and JS evasion providers moved
+into `seleniumbase-rs-evasion` inside
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (alongside
+`seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-wire` moved in 0.3.0;
+see [Stealth Scraping](./docs/scraping/stealthy/first-fetch.md)), and standalone crawling,
+HTML extraction, OCR, and GCS/Azure cloud uploads moved into
+[seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins).
 
 ## Documentation
 
@@ -604,7 +598,7 @@ comments for manual review.
 
 | Repository | What it is |
 |---|---|
-| [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) | The experimental stealth scraping layer: wire fingerprints, `BrowserScraper`, browser-identical TLS and HTTP/2 (`HttpSession`, `MitmProxy`, `StealthSession`) |
+| [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) | The stealth and evasion workspace: `seleniumbase-rs-evasion` (fingerprints, JS evasion providers, `StealthPlan`), wire fingerprints, `BrowserScraper`, browser-identical TLS and HTTP/2/3 (`HttpSession`, `MitmProxy`, `StealthSession`) |
 | [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins) | The plugin API (`seleniumbase-rs-plugin`), test fakes, official plugins and a template for your own ([ADR 004](./docs/adr/004-plugin-framework.md)) |
 | [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation) | Test a Tauri app's window with `BaseCase` on macOS, Windows and Linux (a WebDriver endpoint inside the app) |
 | [seleniumbase-rs-browser-extension](https://github.com/MustCodeAl/seleniumbase-rs-browser-extension) | Browser extension: recorder, inspector, export to Rust tests |

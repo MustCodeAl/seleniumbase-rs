@@ -156,12 +156,13 @@ async fn stream_network_to_disk(sb_cdp: SbCdp) -> Result<()> {
 
 When scraping at scale with a [`BrowserPool`](/tutorials/pure_cdp), recycling full browser processes to change identity is expensive.
 
-With per-lease fingerprinting, each leased browser context (tab) can be configured with an independent `Fingerprint`:
+With per-lease fingerprinting (via `seleniumbase-rs-stealth` / `seleniumbase-rs-evasion`), each leased browser context (tab) can be configured with an independent `Fingerprint`:
 
 ```rust
-use seleniumbase_rs::evasion::{Fingerprint, Spoof};
-use seleniumbase_rs::sb_cdp::{BrowserPool, ContextOptions, LaunchOptions, PoolOptions};
-use seleniumbase_rs::{tokio, Result};
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::evasion::identity::PageFingerprintExt;
+use seleniumbase_rs_stealth::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
+use seleniumbase_rs_stealth::{tokio, Result};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -171,17 +172,17 @@ async fn main() -> Result<()> {
     );
 
     // Lease 1: Configured with a randomized fingerprint
-    let fp1 = Fingerprint::random();
-    let options1 = ContextOptions::default().fingerprint(fp1);
-    let lease1 = pool.acquire_with(&options1).await?;
+    let fp1 = Fingerprint::randomized(OsType::Windows, 1);
+    let lease1 = pool.acquire().await?;
+    lease1.page().apply_fingerprint(&fp1).await?;
 
     lease1.page().goto("https://httpbin.org/user-agent").await?;
     lease1.release().await;
 
     // Lease 2: Configured with a distinct specific spoof identity
-    let fp2 = Fingerprint::random();
-    let options2 = ContextOptions::default().fingerprint(fp2);
-    let lease2 = pool.acquire_with(&options2).await?;
+    let fp2 = Fingerprint::randomized(OsType::Macos, 2);
+    let lease2 = pool.acquire().await?;
+    lease2.page().apply_fingerprint(&fp2).await?;
 
     lease2.page().goto("https://httpbin.org/user-agent").await?;
     lease2.release().await;

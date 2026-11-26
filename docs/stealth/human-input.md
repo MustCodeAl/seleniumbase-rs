@@ -11,16 +11,16 @@ DevTools Protocol, and UC mode has `uc_click` and `uc_type` with human timing
 
 
 Detectors look for input that is too regular. The
-`evasion::behavior` module plans input that is not: curved
+`sb_cdp::human::behavior` module plans input that is not: curved
 pointer paths with a bell-shaped speed profile, Fitts's-law timing, tremor and
 overshoot, and Gaussian typing with word and sentence pauses. It is pure and
 seedable:
 
 ```rust
-use seleniumbase_rs_stealth::sb_cdp::Point;
-use seleniumbase_rs_stealth::evasion::behavior::{Behavior, Humanizer};
+use seleniumbase_rs::sb_cdp::human::behavior::{Behavior, Humanizer};
+use seleniumbase_rs::sb_cdp::Point;
 
-fn main() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
+fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
     let mut person = Humanizer::new(Behavior::builder().typing_wpm(70.0).seed(7).build()?);
     let path = person.mouse_path(Point::new(0.0, 0.0), Point::new(200.0, 90.0), 60.0);
     let keys = person.typing_plan("hello");
@@ -43,7 +43,7 @@ behaviour.
 
 <Tip>
 
-The older `evasion::humanize` helpers (`bezier_mouse_path`,
+The older `sb_cdp::human::humanize` helpers (`bezier_mouse_path`,
 `keystroke_delays`) remain, but they sample a Bézier curve at evenly spaced
 parameter values and draw delays uniformly between two bounds; prefer
 `behavior`.

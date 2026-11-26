@@ -317,10 +317,8 @@ prompt that runs the checks, is in
 <LayoutFile name="error.rs" highlight note="SeleniumBaseError: hints, exit codes, selector advice" />
 <LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours" />
 <LayoutDir name="browser" note="BrowserConfig, the launcher, the WebDriver session, driver access and downloads" />
-<LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, pool, mock" />
-<LayoutDir name="crawler" note="concurrent crawler, RFC 9309 robots.txt parser, XML sitemap discovery, and recursive spider" />
-<LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor" />
-<LayoutDir name="extract" note="token-efficient HTML-to-Markdown conversion, JSON-LD, table, and typed form extraction" />
+<LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, human input, pool, mock" />
+<LayoutDir name="undetected" note="undetected-Chrome launch helpers, binary patching, detached processes and the CDP reactor" />
 <LayoutDir name="mcp" note="the MCP servers cdp, driver, sb and dev, and their tools" />
 <LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/" />
 <LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
@@ -332,7 +330,6 @@ prompt that runs the checks, is in
 <LayoutDir name="storage" note="ResultStore and ProfileVault (feature turso)" />
 <LayoutDir name="utilities" note="RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer" />
 <LayoutDir name="utils" note="selectors, shadow DOM, URLs, geometry, bundled extensions, translations" />
-<LayoutDir name="profile_payloads" note="parses external browser-profile JSON into a Fingerprint" />
 <LayoutDir name="resources" note="files the crate manages on disk, such as downloaded browser drivers" />
 <LayoutDir name="js_code" note="building blocks for the JavaScript the crate sends to a page" />
 <LayoutFile name="artifacts.rs" note="where the files of a test run go (latest_logs) and how they are named" />
@@ -340,7 +337,6 @@ prompt that runs the checks, is in
 <LayoutFile name="drivers.rs" note="the WebDriver types behind BaseCase, under this crate's name" />
 <LayoutFile name="json.rs" note="JSON values and json!, under this crate's name" />
 <LayoutFile name="macros.rs" note="convenience macros for tests, such as sb_test!" />
-<LayoutFile name="ocr.rs" note="reading text from screenshots (feature ocr)" />
 <LayoutFile name="tracing_util.rs" note="tracing initialization helpers" />
 <LayoutFile name="visual.rs" note="feature visual: VisualBaseline, screenshot baselines compared by SSIM" />
 </LayoutDir>
@@ -394,9 +390,6 @@ prompt that runs the checks, is in
 <LayoutFile name="sbrs.1" note="generated; sbrs completions man prints it" />
 <LayoutFile name="sbrs-mcp.1" note="generated" />
 </LayoutDir>
-</LayoutDir>
-<LayoutDir name="schemas" note="JSON Schemas">
-<LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
 </LayoutDir>
 <LayoutDir name="contrib" note="files that are not part of the crate">
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
@@ -708,18 +701,18 @@ MCP server) exists here or has a stated reason why not.
 
 ## Adding a Stealth Evasion Provider
 
-The stealth layer uses a provider registry. `evasions::bootstrap_script(fp)` is
+The stealth layer uses a provider registry in `seleniumbase-rs-evasion` (in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)). `evasions::bootstrap_script(fp)` is
 a thin wrapper over the registry.
 
 <Steps>
 
 <Step title="Implement EvasionProvider" icon="code">
 
-Open `src/evasion/providers/builtin.rs` and implement `EvasionProvider`:
+Open `crates/evasion/src/providers/builtin.rs` in `seleniumbase-rs-stealth` and implement `EvasionProvider`:
 
-```rust src/evasion/providers/builtin.rs
-use seleniumbase_rs::evasion::providers::{EvasionContext, EvasionProvider};
-use seleniumbase_rs::evasion::fingerprint::Dimension;
+```rust crates/evasion/src/providers/builtin.rs
+use seleniumbase_rs_evasion::providers::{EvasionContext, EvasionProvider};
+use seleniumbase_rs_evasion::fingerprint::Dimension;
 
 pub struct MyEvasionProvider;
 
@@ -734,7 +727,7 @@ impl EvasionProvider for MyEvasionProvider {
         100
     }
 
-    fn applies(&self, fp: &crate::evasion::fingerprint::Fingerprint) -> bool {
+    fn applies(&self, fp: &seleniumbase_rs_evasion::fingerprint::Fingerprint) -> bool {
         // The one predicate: on when the fingerprint holds a value for the
         // dimension, or its flag says Mask; off when the flag says Natural.
         fp.is_masked(Dimension::Navigator)

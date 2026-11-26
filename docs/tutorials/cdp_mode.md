@@ -185,7 +185,7 @@ sequenceDiagram
 
 ```rust
 use std::collections::HashMap;
-use seleniumbase_rs::evasion::reactor::CdpReactor;
+use seleniumbase_rs::undetected::reactor::CdpReactor;
 use seleniumbase_rs::tokio;
 
 #[tokio::main]

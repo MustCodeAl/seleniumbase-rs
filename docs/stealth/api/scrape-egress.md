@@ -118,7 +118,7 @@ pub struct GeoInfo {
 }
 ```
 
-What a geo lookup learned about an egress. `coordinates` is the core's `Geolocation` (`seleniumbase_rs::evasion::fingerprint::Geolocation`), the type a fingerprint's `geolocation` takes.
+What a geo lookup learned about an egress. `coordinates` is `Geolocation` (`seleniumbase_rs_stealth::evasion::fingerprint::Geolocation`), the type a fingerprint's `geolocation` takes.
 
 ### `GeoResolver`
 

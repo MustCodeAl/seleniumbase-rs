@@ -6,7 +6,7 @@ description: "LangChain integration plugin providing SeleniumBaseLoader (Markdow
 
 <Badge color="purple">Community plugin</Badge>
 
-`seleniumbase-rs-plugin-langchain` (`plugins/langchain` in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)) connects browser automation cleanly to LLM, RAG, and agent tool-calling workflows using `seleniumbase_rs::extract::html_to_markdown_with` and `PageMetadata`.
+`seleniumbase-rs-plugin-langchain` (`plugins/langchain` in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)) connects browser automation cleanly to LLM, RAG, and agent tool-calling workflows using `seleniumbase_rs_plugin_extractor::html::html_to_markdown_with` and `PageMetadata`.
 
 ## Install
 

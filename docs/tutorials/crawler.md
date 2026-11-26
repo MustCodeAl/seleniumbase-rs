@@ -6,7 +6,13 @@ description: "Concurrent web crawling with Tokio and BrowserPool, RFC 9309 robot
 
 Web scraping at scale requires balancing throughput, polite adherence to server guidelines, bounded memory consumption, and browser context isolation.
 
-`seleniumbase-rs` includes an autonomous crawling and spidering engine (`seleniumbase_rs::crawler`) designed specifically for high-throughput headless browser workloads:
+<Note>
+
+Since v0.10.0, crawling, `robots.txt` evaluation, XML sitemap parsing, and spidering live in `seleniumbase-rs-plugin-crawler` inside [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins) (enabled via `features = ["plugin-crawler"]` or directly as a crate dependency; see the [crawler Plugin](/plugins/crawler) reference).
+
+</Note>
+
+`seleniumbase-rs-plugin-crawler` provides crawling and spidering utilities designed for headless browser workloads:
 
 - **Concurrent Crawler (`Crawler`, `CrawlerBuilder`)**: Manages bounded concurrent browser contexts, rate limiting, and automatic retry backoff on top of [`BrowserPool`](/tutorials/pure_cdp).
 - **XML Sitemap Discovery (`sitemap`)**: Zero-dependency extraction of URL sets and sitemap indexes from XML documents.
@@ -26,7 +32,7 @@ Web scraping at scale requires balancing throughput, polite adherence to server 
 
 <Visibility for="agents">
 
-Summary for AI exports: The `seleniumbase_rs::crawler` module provides `CrawlerBuilder` and `Crawler` for concurrent browser page tasks over `BrowserPool`. `RobotsPolicy::parse(str)` and `fetch_robots_txt(&client, base_url).await?` implement RFC 9309 `robots.txt` evaluation via `is_allowed(ua, path)`, `crawl_delay(ua)`, and `sitemaps()`. `sitemap::parse_sitemap_urls(xml)` extracts `<loc>` tags from XML sitemaps or sitemap indexes. `Spider::new(config)` maintains a breadth-first frontier with `seed(url)`, `pop() -> Option<(String, usize)>`, and `extract_and_enqueue_links(html, base_url, depth)` enforcing `max_depth`, `allowed_domains`, `allow_patterns`, `block_patterns`, and `robots_policy`. `crawler.crawl_spider(&pool, &mut spider, visitor).await` executes autonomous crawling across the spider's discovered link graph.
+Summary for AI exports: Since v0.10.0, crawling moved out of `seleniumbase-rs` core into `seleniumbase-rs-plugin-crawler` (see `/plugins/crawler`). It provides `CrawlerPlugin` (`[plugins.crawler]`), self-contained RFC 9309 `robots` evaluation, XML `sitemap::parse_sitemap_urls`, and breadth-first crawling over pure CDP.
 
 </Visibility>
 
@@ -38,7 +44,7 @@ The `Crawler` engine executes a list of target URLs across a [`BrowserPool`](/tu
 
 ```rust
 use std::time::Duration;
-use seleniumbase_rs::crawler::{Crawler, CrawlItem};
+use seleniumbase_rs_plugin_crawler::{Crawler, CrawlItem};
 use seleniumbase_rs::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
 use seleniumbase_rs::{tokio, Result};
 
@@ -88,10 +94,10 @@ async fn main() -> Result<()> {
 
 ## XML Sitemap Discovery (`sitemap`)
 
-Many sites publish complete indices of their content in standard XML sitemaps. `seleniumbase_rs::crawler::sitemap` extracts all `<loc>` entries without pulling in heavyweight XML libraries.
+Many sites publish complete indices of their content in standard XML sitemaps. `seleniumbase_rs_plugin_crawler::sitemap` extracts all `<loc>` entries without pulling in heavyweight XML libraries.
 
 ```rust
-use seleniumbase_rs::crawler::sitemap::{fetch_sitemap_urls, parse_sitemap_urls};
+use seleniumbase_rs_plugin_crawler::sitemap::parse_sitemap_urls;
 use seleniumbase_rs::{tokio, Result};
 
 #[tokio::main]
@@ -124,7 +130,7 @@ async fn main() -> Result<()> {
 Well-behaved scrapers respect website crawl permissions. `RobotsPolicy` evaluates whether a path is accessible for a specific user-agent, respects crawl delays, and discovers linked sitemaps:
 
 ```rust
-use seleniumbase_rs::crawler::RobotsPolicy;
+use seleniumbase_rs_plugin_crawler::RobotsPolicy;
 use seleniumbase_rs::{tokio, Result};
 
 #[tokio::main]
@@ -182,7 +188,7 @@ Features:
 
 ```rust
 use std::time::Duration;
-use seleniumbase_rs::crawler::{Crawler, RobotsPolicy, Spider, SpiderConfig};
+use seleniumbase_rs_plugin_crawler::{Crawler, RobotsPolicy, Spider, SpiderConfig};
 use seleniumbase_rs::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
 use seleniumbase_rs::{tokio, Result};
 

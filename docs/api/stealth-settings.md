@@ -6,7 +6,7 @@ description: "Fingerprint, Spoof and StealthPolicy in this crate, and the launch
 
 <Note>
 
-These types live in this crate (`seleniumbase_rs::evasion` and the root re-exports). They are not `BaseCase` methods. Names below are the public items. Argument names and return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Since 0.10.0, these types live in `seleniumbase-rs-evasion` inside [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (re-exported as `seleniumbase_rs_stealth::evasion`). They are not `BaseCase` methods. Names below are the public items. Argument names and return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
 
 </Note>
 
@@ -38,8 +38,8 @@ UC mode is separate. It does not build a fingerprint and it does not patch chrom
 In JSON a `Spoof` is `"natural"`, `"random"`, `"off"`, `{"mimic": "<specimen-name>"}`, or the value itself. `null` reads as `Natural`. On a string setting those three words are reserved: a value spelled like one of them reads as the keyword.
 
 ```rust
-use seleniumbase_rs::Spoof;
-use seleniumbase_rs::evasion::mimic::Machine;
+use seleniumbase_rs_stealth::evasion::mimic::Machine;
+use seleniumbase_rs_stealth::evasion::spoof::Spoof;
 
 let zone: Spoof<String> = "Europe/Berlin".into();
 assert_eq!(zone.value().map(String::as_str), Some("Europe/Berlin"));
@@ -205,19 +205,16 @@ assert_eq!(policy.canvas_noise, CanvasNoise::Low);
 
 | Call | What the browser does |
 |------|------------------------|
-| `BrowserConfigBuilder::fingerprint(fingerprint)` | Presents that fingerprint. Launch arguments go to every Chromium-based session. In `DriverMode::Cdp` and `DriverMode::Uc` the session also installs the page script and sends the protocol overrides. Plain `DriverMode::WebDriver` sends the launch arguments only. |
-| `LaunchOptionsBuilder::fingerprint(&fingerprint)` | Pure CDP. Launch settings (user agent, language, window size, WebRTC policy, proxy) come from the fingerprint unless you set them on the builder (or read them from a config), before or after this call. The script and protocol overrides run on every tab before the first navigation. Flags in the fingerprint's `cmd_params` are not passed; add flags you trust with `arg`. |
-| `sbrs --fingerprint FILE` | Global flag (`SB_FINGERPRINT`). `FILE` is the JSON that `sbrs fingerprint capture` and `sbrs fingerprint export` write. The command line wins over `SB_FINGERPRINT`, which wins over the `[fingerprint]` table of the settings file. A user agent, language or proxy named by its own option wins over the fingerprint. A Chromium browser then runs in CDP mode unless `--uc` or another mode is given. |
+| `LaunchOptionsFingerprintExt::with_fingerprint(&fingerprint)` | Pure CDP (from `seleniumbase_rs_stealth::evasion::identity`). Layers `FingerprintPlugin` onto `LaunchOptions` and copies launch settings (user agent, language, window size, WebRTC policy, proxy) unless you set them explicitly. The script and protocol overrides run on every tab before the first navigation. |
+| `PageFingerprintExt::apply_fingerprint(&fingerprint)` | Pure CDP (from `seleniumbase_rs_stealth::evasion::identity`). Applies a fingerprint's CDP overrides and init script to an open `sb_cdp::Page`. |
+| `BaseCaseFingerprintExt::apply_fingerprint(&fingerprint)` | WebDriver (from `seleniumbase_rs_stealth::evasion::identity`). Applies a fingerprint's overrides and init script to a `BaseCase` session. |
+| `sbrs --fingerprint FILE` | Global flag (`SB_FINGERPRINT`). `FILE` is a fingerprint JSON file. The command line wins over `SB_FINGERPRINT`, which wins over the `[fingerprint]` table of the settings file. |
 
 ```rust
-use seleniumbase_rs::sb_cdp::LaunchOptionsBuilder;
-use seleniumbase_rs::{BrowserConfig, DriverMode, Fingerprint};
+use seleniumbase_rs_stealth::evasion::fingerprint::Fingerprint;
+use seleniumbase_rs_stealth::evasion::identity::LaunchOptionsFingerprintExt;
+use seleniumbase_rs_stealth::sb_cdp::LaunchOptions;
 
 let fp = Fingerprint::windows_desktop();
-let webdriver = BrowserConfig::builder()
-    .mode(DriverMode::Uc)
-    .fingerprint(fp.clone())
-    .build()?;
-let _cdp = LaunchOptionsBuilder::default().fingerprint(&fp);
-let _ = webdriver;
+let _cdp = LaunchOptions::builder().build()?.with_fingerprint(&fp)?;
 ```

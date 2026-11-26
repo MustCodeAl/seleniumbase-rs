@@ -6,7 +6,7 @@ description: "Synthetic human-like web behavior generator and batch ML training 
 
 <Badge color="purple">Community plugin</Badge> <Badge color="green">no unsafe</Badge>
 
-`seleniumbase-rs-plugin-behavior-dataset` (`plugins/behavior-dataset` in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)) generates reproducible, synthetic human interaction timelines built on `seleniumbase_rs::evasion::behavior`, extracts kinematic and Fitts's-law ML features, optionally pairs them with synthetic linear baseline negatives, and exports training-ready datasets.
+`seleniumbase-rs-plugin-behavior-dataset` (`plugins/behavior-dataset` in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)) generates reproducible, synthetic human interaction timelines built on `seleniumbase_rs::sb_cdp::human::behavior`, extracts kinematic and Fitts's-law ML features, optionally pairs them with synthetic linear baseline negatives, and exports training-ready datasets.
 
 ## Install
 

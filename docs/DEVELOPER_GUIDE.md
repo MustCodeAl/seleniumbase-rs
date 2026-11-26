@@ -183,10 +183,8 @@ presentations, and optional stealth/CDP integrations.
 <LayoutFile name="error.rs" highlight note="SeleniumBaseError: hints, exit codes, selector advice" />
 <LayoutDir name="api" note="BaseCase (base_case.rs, base_case_impls/), the capability traits, recorder, scenario, charts, tours" />
 <LayoutDir name="browser" note="BrowserConfig, the launcher, the WebDriver session, driver access and downloads" />
-<LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, pool, mock" />
-<LayoutDir name="crawler" note="concurrent crawler, RFC 9309 robots.txt parser, XML sitemap discovery, and recursive spider" />
-<LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor" />
-<LayoutDir name="extract" note="token-efficient HTML-to-Markdown conversion, JSON-LD, table, and typed form extraction" />
+<LayoutDir name="sb_cdp" note="the pure CDP engine: Browser, Page, Locator, human input, pool, mock" />
+<LayoutDir name="undetected" note="undetected-Chrome launch helpers, binary patching, detached processes and the CDP reactor" />
 <LayoutDir name="mcp" note="the MCP servers cdp, driver, sb and dev, and their tools" />
 <LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/" />
 <LayoutDir name="testing" note="the rstest sb fixtures; bdd/: Gherkin through rstest-bdd" />
@@ -198,7 +196,6 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="storage" note="ResultStore and ProfileVault (feature turso)" />
 <LayoutDir name="utilities" note="RetryPolicy, the grid server, Selenium Grid and IDE, the Python importer" />
 <LayoutDir name="utils" note="selectors, shadow DOM, URLs, geometry, bundled extensions, translations" />
-<LayoutDir name="profile_payloads" note="parses external browser-profile JSON into a Fingerprint" />
 <LayoutDir name="resources" note="files the crate manages on disk, such as downloaded browser drivers" />
 <LayoutDir name="js_code" note="building blocks for the JavaScript the crate sends to a page" />
 <LayoutFile name="artifacts.rs" note="where the files of a test run go (latest_logs) and how they are named" />
@@ -206,7 +203,6 @@ presentations, and optional stealth/CDP integrations.
 <LayoutFile name="drivers.rs" note="the WebDriver types behind BaseCase, under this crate's name" />
 <LayoutFile name="json.rs" note="JSON values and json!, under this crate's name" />
 <LayoutFile name="macros.rs" note="convenience macros for tests, such as sb_test!" />
-<LayoutFile name="ocr.rs" note="reading text from screenshots (feature ocr)" />
 <LayoutFile name="tracing_util.rs" note="tracing initialization helpers" />
 <LayoutFile name="visual.rs" note="feature visual: VisualBaseline, screenshot baselines compared by SSIM" />
 </LayoutDir>
@@ -260,9 +256,6 @@ presentations, and optional stealth/CDP integrations.
 <LayoutFile name="sbrs.1" note="generated; sbrs completions man prints it" />
 <LayoutFile name="sbrs-mcp.1" note="generated" />
 </LayoutDir>
-</LayoutDir>
-<LayoutDir name="schemas" note="JSON Schemas">
-<LayoutFile name="fingerprint.schema.json" note="the schema of a Fingerprint file" />
 </LayoutDir>
 <LayoutDir name="contrib" note="files that are not part of the crate">
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
@@ -588,8 +581,6 @@ capability trait.
 <LayoutFile name="base_case_impl_element_tests.rs" note="tests of the element helpers" />
 <LayoutFile name="base_case_impl_esc.rs" note="ending a test when ESC is pressed" />
 <LayoutFile name="base_case_impl_extra.rs" note="extra helpers" />
-<LayoutFile name="base_case_impl_extract.rs" note="structured HTML, table, JSON-LD, and Markdown extraction" />
-<LayoutFile name="base_case_impl_fingerprint.rs" note="fingerprint helpers" />
 <LayoutFile name="base_case_impl_form_tests.rs" note="tests of the form helpers" />
 <LayoutFile name="base_case_impl_frame_tests.rs" note="tests of the frame helpers" />
 <LayoutFile name="base_case_impl_gui.rs" note="GUI helpers" />
@@ -699,6 +690,7 @@ Launch and session plumbing:
 <LayoutFile name="browser_settings.rs" note="BrowserSettings, what both engines start" />
 <LayoutFile name="capabilities.rs" note="capabilities added to the session" />
 <LayoutFile name="cdp_events.rs" note="which DevTools events are logged" />
+<LayoutFile name="chromium.rs" note="StealthOptions and engine spoofing launch arguments" />
 <LayoutFile name="chromium_args.rs" note="Chromium switches" />
 <LayoutFile name="chromium_settings.rs" note="Chromium settings with no switch of their own" />
 <LayoutFile name="device.rs" note="mobile device emulation" />
@@ -716,6 +708,7 @@ Launch and session plumbing:
 <LayoutFile name="session.rs" note="SessionSettings and GridSettings, what only a WebDriver session reads" />
 <LayoutFile name="switches.rs" note="browser switches" />
 <LayoutFile name="virtual_display.rs" note="a virtual display" />
+<LayoutFile name="webrtc.rs" note="WebRtcPolicy enum for Chromium IP handling" />
 <LayoutFile name="window.rs" note="window size and position" />
 </LayoutDir>
 <LayoutFile name="password_prompts.rs" note="password prompts" />
@@ -731,7 +724,6 @@ Launch and session plumbing:
 <LayoutFile name="dialogs.rs" note="the JavaScript dialog a direct CDP attachment has open" />
 <LayoutFile name="elements.rs" note="finding and using elements" />
 <LayoutFile name="emulation.rs" note="the ad block and the phone emulation" />
-<LayoutFile name="fingerprint.rs" note="the fingerprint of the session" />
 <LayoutFile name="launch.rs" note="the driver, the browser program and the virtual screen" />
 <LayoutFile name="lifecycle.rs" note="reconnect, quit and the cleanup on drop" />
 <LayoutFile name="mod.rs" note="the BrowserSession struct and its accessors" />
@@ -748,70 +740,17 @@ Launch and session plumbing:
 
 {/* layout-tree:end */}
 
-### `src/evasion/`
+### `src/undetected/`
 
-Anti-detection layer:
+Undetected-Chrome launch helpers, binary patching, detached process management,
+and the background CDP request reactor (fingerprints, `profile_payloads`, and JS
+evasion providers moved in v0.10.0 to `seleniumbase-rs-evasion` inside
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)):
 
-{/* layout-tree:start src/evasion */}
-
-<LayoutTree>
-<LayoutDir name="evasion" note="fingerprints, evasion providers, humanize, binary patching and the CDP reactor">
-<LayoutFile name="behavior.rs" note="human-like input" />
-<LayoutFile name="capture.rs" note="CapturedFingerprint: reading a real browser fingerprint" />
-<LayoutFile name="cdp.rs" note="the DevTools wrapper used from WebDriver" />
-<LayoutFile name="dprocess.rs" note="detached chromedriver and browser processes" />
-<LayoutFile name="evasions.rs" note="launch flags for the evasion layer" />
-<LayoutDir name="fingerprint" open note="parts of fingerprint.rs">
-<LayoutFile name="compare.rs" note="compares two fingerprints" />
-<LayoutFile name="consistency.rs" note="the rules behind CapturedFingerprint::contradictions" />
-<LayoutFile name="file.rs" note="reads and writes a fingerprint file" />
-<LayoutFile name="schema.rs" note="the fingerprint JSON schema" />
-</LayoutDir>
-<LayoutFile name="fingerprint.rs" note="Fingerprint, one Spoof per setting, ProxyConfig and ClientHints" />
-<LayoutFile name="humanize.rs" note="Bezier mouse paths, keystroke timing and the seedable Rng" />
-<LayoutDir name="js" open note="page scripts the evasion layer ships">
-<LayoutFile name="active_css_js.rs" note="the active CSS script" />
-<LayoutFile name="best_selector.js" note="picks a selector for an element" />
-<LayoutFile name="capture.js" note="reads a page fingerprint" />
-<LayoutFile name="capture_js.rs" note="the capture script as Rust" />
-<LayoutFile name="mod.rs" note="the js module" />
-<LayoutFile name="recorder_js.rs" note="the recorder script as Rust" />
-</LayoutDir>
-<LayoutFile name="mimic.rs" note="recorded Build, Machine, Place, and Rendering specimens" />
-<LayoutFile name="mod.rs" note="the evasion module" />
-<LayoutFile name="options.rs" note="StealthOptions: launch arguments and preferences" />
-<LayoutFile name="patcher.rs" note="ChromedriverPatcher and EnginePatch" />
-<LayoutFile name="policy.rs" note="StealthPolicy" />
-<LayoutDir name="providers" open note="the evasion registry and the built-in providers">
-<LayoutFile name="builtin.rs" note="the built-in providers" />
-<LayoutFile name="config.rs" note="provider configuration options" />
-<LayoutFile name="context.rs" note="evasion execution context passed to providers" />
-<LayoutFile name="mod.rs" note="EvasionRegistry and default_registry" />
-<LayoutFile name="registry.rs" note="ordered provider registry implementation" />
-</LayoutDir>
-<LayoutFile name="randomize.rs" note="the tables behind Fingerprint::randomized; the method is the API" />
-<LayoutFile name="reactor.rs" note="the background CDP Fetch interceptor" />
-<LayoutFile name="settings.rs" note="value types such as ScreenSize and WebGl" />
-<LayoutFile name="spoof.rs" note="Spoof, one value and how it is applied" />
-<LayoutFile name="uc.rs" note="undetected-chromedriver mode" />
-</LayoutDir>
-</LayoutTree>
-
-{/* layout-tree:end */}
-
-### `src/profile_payloads/`
-
-Parses external anti-detect profile JSON into `BrowserConfig` + `Fingerprint`.
-The mapping is explicit: every JSON field is declared in `ProfileParams`, then
-converted in `ProfileParams::to_browser_config()` and `browser()`.
-
-{/* layout-tree:start src/profile_payloads */}
+{/* layout-tree:start src/undetected */}
 
 <LayoutTree>
-<LayoutDir name="profile_payloads" note="parses external browser-profile JSON into a Fingerprint">
-<LayoutFile name="mod.rs" note="the profile_payloads module" />
-<LayoutFile name="profile.rs" note="ProfileParams: every JSON field, then to_browser_config and browser" />
-</LayoutDir>
+<LayoutDir name="undetected" note="undetected-Chrome launch helpers, binary patching, detached processes and the CDP reactor" />
 </LayoutTree>
 
 {/* layout-tree:end */}
@@ -827,7 +766,6 @@ tests share it. It has no command-line parser.
 <LayoutDir name="cli" note="the library half of sbrs, with no parser: commands.rs, scaffold.rs, scripts/">
 <LayoutFile name="commands.rs" note="what each sbrs command does, with no parser" />
 <LayoutFile name="devtools.rs" note="Chrome with an open DevTools endpoint" />
-<LayoutFile name="fingerprint_cmd.rs" note="sbrs fingerprint" />
 <LayoutFile name="mod.rs" note="the cli module" />
 <LayoutFile name="plugin_cmd.rs" note="sbrs plugin list and info, and the check of plugin names" />
 <LayoutFile name="plugin_scaffold.rs" note="plugin scaffolding generator for `sbrs plugin new`" />
@@ -934,7 +872,6 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutFile name="crypto.rs" note="sbrs encrypt and decrypt" />
 <LayoutFile name="diagnostic.rs" note="the miette report printed when a command fails" />
 <LayoutFile name="failure.rs" note="a command line that does not parse prints the command page, then the error" />
-<LayoutFile name="fingerprint.rs" note="sbrs fingerprint" />
 <LayoutFile name="history.rs" note="sbrs report history" />
 <LayoutFile name="info.rs" note="sbrs version and the info commands" />
 <LayoutDir name="mcp_client" open note="sbrs mcp, the MCP client">

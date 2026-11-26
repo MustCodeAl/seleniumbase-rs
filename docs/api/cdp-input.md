@@ -57,7 +57,7 @@ async fn search(page: &Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 
 ## Human
 
-`page.human(behavior)` returns a `Human` that moves and types at a person's pace. `behavior` is a `seleniumbase_rs::evasion::behavior::Behavior`. Cloning a `Human` shares the pointer position, so two tasks do not both start from where the pointer used to be.
+`page.human(behavior)` returns a `Human` that moves and types at a person's pace. `behavior` is a `seleniumbase_rs::sb_cdp::human::behavior::Behavior`. Cloning a `Human` shares the pointer position, so two tasks do not both start from where the pointer used to be.
 
 | Method | Description |
 |--------|-------------|

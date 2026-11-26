@@ -8,17 +8,17 @@ description: "Multi-layer browser identity synthesis and prototype-coherent spoo
 
 Modern anti-bot systems do not rely on a single flag like `navigator.webdriver`. They cross-check **graphics limits, shader precision, audio analyzer buffers, canvas font probe bounding boxes, subpixel `DOMRect` geometry, high-entropy Client Hints, display color gamut, and CDP evaluation stacks** for internal contradictions.
 
-`seleniumbase-rs` combines deterministic, hardware-coherent persona modeling (`src/evasion/fingerprint.rs`, `src/evasion/mimic.rs`, `src/evasion/randomize.rs`) with 32 prototype- and protocol-level `EvasionProvider` passes (`src/evasion/providers/builtin.rs`).
+`seleniumbase-rs-evasion` (in `seleniumbase-rs-stealth`, re-exported as `seleniumbase_rs_stealth::evasion`) combines deterministic, hardware-coherent persona modeling (`crates/evasion/src/fingerprint.rs`, `crates/evasion/src/mimic.rs`, `crates/evasion/src/randomize.rs`) with 32 prototype- and protocol-level `EvasionProvider` passes (`crates/evasion/src/providers/builtin.rs`).
 
 ## 1. Fluent builder, JSON profiles, and validation
 
 All fingerprint fields live on `Fingerprint` and serialize cleanly with JSON field names matching `FingerprintBuilder` setters:
 
 ```rust
-use seleniumbase_rs::evasion::fingerprint::{
+use seleniumbase_rs_stealth::evasion::fingerprint::{
     AudioNoise, CanvasNoise, Fingerprint, OsType, WebRtcPolicy,
 };
-use seleniumbase_rs::evasion::settings::{ColorGamut, DynamicRange, MediaFeatures, WebGl};
+use seleniumbase_rs_stealth::evasion::settings::{ColorGamut, DynamicRange, MediaFeatures, WebGl};
 
 let fp = Fingerprint::builder()
     .os_type(OsType::Windows)
@@ -61,7 +61,7 @@ Before launching a browser, `Fingerprint::validate()` produces a `CoherenceRepor
 You can also draw a complete, internally consistent persona from a single seed:
 
 ```rust
-use seleniumbase_rs::evasion::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
 
 let windows = Fingerprint::randomized(OsType::Windows, 42);
 let chrome_156 = Fingerprint::randomized_with_major(OsType::Macos, 99, 156);
@@ -71,7 +71,7 @@ assert_eq!(chrome_156.core_version(), Some(156));
 
 ## 2. Recorded specimens (`Spoof::Mimic`)
 
-Rather than assembling device parameters manually, `Spoof::Mimic(Specimen)` (`src/evasion/mimic.rs`) pins individual settings or entire dimensions to real, cataloged browser builds and hardware rows:
+Rather than assembling device parameters manually, `Spoof::Mimic(Specimen)` (`crates/evasion/src/mimic.rs`) pins individual settings or entire dimensions to real, cataloged browser builds and hardware rows:
 
 | Specimen kind | Example use | What it supplies |
 |---|---|---|
@@ -130,10 +130,10 @@ Modern detectors fingerprint rendering outside `<canvas>.toDataURL()` alone:
 For multi-profile orchestration or persisting profiles across browser and wire runs, `seleniumbase-rs-stealth` (`seleniumbase_rs_stealth::fingerprint`) adds:
 
 - **`FingerprintGenerator`**: One seeded builder producing a `GeneratedFingerprint` bundled with a `StealthScriptBundle` and coherent `ProfileFingerprint` (including `DisplayMetadata`, `GpuMetadata`, `WebGlParameters::for_gpu`, `WebGpuMetadata::for_gpu`, `MediaDeviceMetadata::synthetic`, `AudioMetadata`, `BatteryMetadata`, `NetworkMetadata`, and `ClientHintsHighEntropy::for_browser`).
-- **`ProfileFingerprint::to_fingerprint()` / `from_fingerprint()`**: Bidirectional conversion with `seleniumbase_rs::evasion::fingerprint::Fingerprint`.
+- **`ProfileFingerprint::to_fingerprint()` / `from_fingerprint()`**: Bidirectional conversion with `seleniumbase_rs_stealth::evasion::fingerprint::Fingerprint`.
 
 ```rust
-use seleniumbase_rs::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
 use seleniumbase_rs_stealth::fingerprint::FingerprintGenerator;
 
 let generated = FingerprintGenerator::new(2026)
