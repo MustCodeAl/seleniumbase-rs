@@ -80,6 +80,7 @@ impl BrowserSession {
             proxy_login: None,
             ad_block,
             reuse: None,
+            attached_debugger: false,
             #[cfg(feature = "plugins")]
             plugins: None,
         };
@@ -123,6 +124,7 @@ impl BrowserSession {
             emulation: launch_emulation_commands(config),
             remote_debug: config.browser.debugging_port,
             proxy_login: None,
+            attached_debugger: false,
             #[cfg(feature = "plugins")]
             plugins: None,
         })

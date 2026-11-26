@@ -12,7 +12,7 @@ use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
 
 use super::emulation::{ad_block_commands, launch_emulation_commands, mobile_commands};
-use super::launch::connect_driver;
+use super::launch::{connect_debugger, connect_driver};
 use super::BrowserSession;
 
 impl BrowserSession {
@@ -90,22 +90,62 @@ impl BrowserSession {
         if let Some(sidecar) = self.proxy_login.take() {
             sidecar.close().await;
         }
-        if let Some(driver) = self.driver.take() {
-            driver.quit().await?;
-        }
-        // A reused browser has just been closed: it leaves the registry, which
-        // stops its driver. The new session is this test's own.
-        if let Some(lease) = self.reuse.take() {
-            lease.discard();
-        }
-        tokio::time::sleep(Duration::from_millis(500)).await;
-        let display = self.virtual_display.as_ref().map(XvfbProcess::display);
-        let (driver, process) = connect_driver(config, display).await?;
-        self.driver = Some(driver);
-        if let Some(process) = process
-            && let Some(mut previous) = self.driver_process.replace(process)
-        {
-            previous.kill();
+        // In undetected (UC) mode on a Chromium session that reported a
+        // DevTools `debuggerAddress`, detach WebDriver without closing Chrome
+        // and re-attach a fresh WebDriver session to the same running browser
+        // so the current page, cookies, and form state survive `reconnect()`.
+        let uc_reattach = if config.is_uc_enabled() && config.browser.kind.is_chromium_based() {
+            self.driver.as_ref().and_then(|driver| {
+                let caps = serde_json::to_value(driver.handle().capabilities())
+                    .unwrap_or(serde_json::Value::Null);
+                let addr = proxy_auth::debugger_address(&caps)?;
+                let server_url = driver.handle().server_url().to_string();
+                Some((server_url, addr))
+            })
+        } else {
+            None
+        };
+
+        if let Some((driver_url, debugger_addr)) = uc_reattach {
+            if let Some(driver) = self.driver.take() {
+                if self.attached_debugger {
+                    // Already attached via debuggerAddress: deleting the
+                    // session detaches chromedriver without closing Chrome.
+                    driver.quit().await?;
+                } else {
+                    // Initial session launched by chromedriver: leaking avoids
+                    // sending DELETE /session which would terminate Chrome.
+                    let _ = driver.leak();
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            let driver = connect_debugger(config, &driver_url, &debugger_addr).await?;
+            self.driver = Some(driver);
+            self.attached_debugger = true;
+        } else {
+            if let Some(driver) = self.driver.take() {
+                if self.attached_debugger {
+                    let _ = CdpClient::new(&driver)
+                        .execute("Browser.close", serde_json::json!({}))
+                        .await;
+                }
+                driver.quit().await?;
+            }
+            self.attached_debugger = false;
+            // A reused browser has just been closed: it leaves the registry, which
+            // stops its driver. The new session is this test's own.
+            if let Some(lease) = self.reuse.take() {
+                lease.discard();
+            }
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            let display = self.virtual_display.as_ref().map(XvfbProcess::display);
+            let (driver, process) = connect_driver(config, display).await?;
+            self.driver = Some(driver);
+            if let Some(process) = process
+                && let Some(mut previous) = self.driver_process.replace(process)
+            {
+                previous.kill();
+            }
         }
         self.cdp = if config.is_cdp_enabled() {
             self.driver.as_ref().map(CdpClient::new)
@@ -144,7 +184,13 @@ impl BrowserSession {
         if let Some(plugins) = self.plugins.take() {
             plugins.close().await;
         }
+        let attached_debugger = std::mem::replace(&mut self.attached_debugger, false);
         if let Some(driver) = self.driver.take() {
+            if attached_debugger {
+                let _ = CdpClient::new(&driver)
+                    .execute("Browser.close", serde_json::json!({}))
+                    .await;
+            }
             driver.quit().await?;
         }
         if let Some(mut process) = self.driver_process.take() {
@@ -170,6 +216,7 @@ impl Drop for BrowserSession {
         if self.driver.is_none() {
             return;
         }
+        let attached_debugger = std::mem::replace(&mut self.attached_debugger, false);
         let driver = self.driver.take();
         let process = self.driver_process.take();
         let virtual_display = self.virtual_display.take();
@@ -184,6 +231,11 @@ impl Drop for BrowserSession {
                 plugins.close().await;
             }
             if let Some(driver) = driver {
+                if attached_debugger {
+                    let _ = CdpClient::new(&driver)
+                        .execute("Browser.close", serde_json::json!({}))
+                        .await;
+                }
                 let _ = driver.quit().await;
             }
             if let Some(mut process) = process {
@@ -270,5 +322,60 @@ mod quit_tests {
         session.quit().await.expect("still nothing to close");
 
         assert_eq!(session.session_id(), None);
+    }
+
+    #[tokio::test]
+    async fn uc_reconnect_reattaches_to_existing_debugger_address_without_killing_browser() {
+        let mock = MockWebDriver::start(
+            json!({
+                "browserName": "chrome",
+                "goog:chromeOptions": { "debuggerAddress": "localhost:54321" }
+            }),
+            |_| Reply::Value(json!({})),
+        );
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(mock.url())
+            .mode(crate::browser::config::DriverMode::Uc)
+            .build()
+            .expect("a valid config");
+        config.session.auto_start_driver = false;
+
+        let mut session = BrowserSession::connect(config.clone())
+            .await
+            .expect("connects");
+
+        // First UC reconnect must NOT delete the initial session (which would
+        // kill Chrome), and must request a new session attached to the same
+        // debuggerAddress.
+        session.reconnect(&config).await.expect("reconnects");
+        assert_eq!(deletes(&mock), 0);
+
+        let sessions = mock.requests("/session");
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(
+            sessions[1].body["capabilities"]["alwaysMatch"]["goog:chromeOptions"]
+                ["debuggerAddress"],
+            "localhost:54321"
+        );
+
+        // Second UC reconnect may safely delete the attached session (which
+        // only detaches chromedriver without closing Chrome) and re-attach.
+        session
+            .reconnect(&config)
+            .await
+            .expect("second reconnect succeeds");
+        assert_eq!(deletes(&mock), 1);
+        assert_eq!(mock.requests("/session").len(), 3);
+
+        // Quitting after UC re-attach closes Chrome via CDP Browser.close
+        // before deleting the attached WebDriver session.
+        session.quit().await.expect("quits cleanly");
+        assert_eq!(deletes(&mock), 2);
+        assert!(
+            mock.requests("/goog/cdp/execute")
+                .iter()
+                .any(|req| req.body["cmd"] == "Browser.close"),
+            "expected CDP Browser.close before detaching attached UC session"
+        );
     }
 }
