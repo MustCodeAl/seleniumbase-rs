@@ -362,6 +362,13 @@ impl LaunchOptions {
         self.platform.as_deref()
     }
 
+    /// The plugins whose hooks run at launch, for every tab, and at close (feature `plugins`).
+    #[cfg(feature = "plugins")]
+    #[must_use]
+    pub fn plugins(&self) -> &seleniumbase_rs_plugin::PluginSet {
+        &self.plugins
+    }
+
     /// The command-line arguments Chrome will be started with.
     ///
     /// `profile_dir` is the profile directory in use, which may be a

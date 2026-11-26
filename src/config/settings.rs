@@ -332,12 +332,35 @@ impl Settings {
 
     /// The fingerprint the `[fingerprint]` table or `SB_FINGERPRINT` names, read from its
     /// file; `None` when the settings name none.
-    /// Checks that the fingerprint file the settings name, if any, loads.
+    /// Checks that the fingerprint file the settings name, if any, exists and is a JSON object.
+    ///
+    /// Full fingerprint schema validation lives in `seleniumbase-rs-evasion`.
     ///
     /// # Errors
     ///
     /// [`SeleniumBaseError::InvalidConfig`] naming the file and the reason.
     pub fn check_fingerprint(&self) -> Result<(), SeleniumBaseError> {
+        let Some(path) = self.fingerprint.file.as_deref() else {
+            return Ok(());
+        };
+        let raw = fs::read_to_string(path).map_err(|error| {
+            SeleniumBaseError::InvalidConfig(format!(
+                "the fingerprint of the settings ({}): {error}",
+                path.display()
+            ))
+        })?;
+        let parsed: serde_json::Value = serde_json::from_str(&raw).map_err(|error| {
+            SeleniumBaseError::InvalidConfig(format!(
+                "the fingerprint of the settings ({}): {error}",
+                path.display()
+            ))
+        })?;
+        if !parsed.is_object() {
+            return Err(SeleniumBaseError::InvalidConfig(format!(
+                "the fingerprint of the settings ({}): expected a JSON object",
+                path.display()
+            )));
+        }
         Ok(())
     }
 
@@ -2039,7 +2062,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let missing = dir.path().join("missing.json").display().to_string();
         let garbage = dir.path().join("garbage.json");
-        fs::write(&garbage, "{ \"screen_width\": 1 }").unwrap();
+        fs::write(&garbage, "{ not valid json").unwrap();
         let garbage = garbage.display().to_string();
 
         let not_there = Settings::apply_overrides(Settings::default(), |name| {
@@ -2060,7 +2083,7 @@ mod tests {
             "{not_there}"
         );
         assert!(
-            not_a_fingerprint.to_string().contains("screen_width"),
+            not_a_fingerprint.to_string().contains("garbage.json"),
             "{not_a_fingerprint}"
         );
         assert_eq!(not_there.exit_code(), 2);

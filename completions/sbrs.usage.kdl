@@ -99,6 +99,9 @@ flagset test-options {
             choices "true" "false"
         }
     }
+    flag --fingerprint help="A fingerprint file every browser presents (SB_FINGERPRINT)" help_heading="Browser and page options" {
+        arg <PATH>
+    }
     flag --start-page help="The page every browser opens first (SB_START_PAGE)" help_heading="Browser and page options" {
         alias --url hide=#true
         arg <URL>

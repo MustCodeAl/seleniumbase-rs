@@ -6,7 +6,18 @@ All notable changes to `seleniumbase-rs`. The format follows
 Python SeleniumBase 4.58.3 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
-## [0.9.4] - unreleased
+## [0.10.0] - unreleased
+
+### Changed
+
+- **Core Split**: Moved fingerprint spoofing, profile payloads, mimic specimens, capture/comparison, and JS evasion providers out of `seleniumbase-rs` core into `seleniumbase-rs-evasion` (`seleniumbase-rs-stealth`). Core retains `undetected` (`patcher`, `dprocess`, `reactor`, `uc`) and `sb_cdp::human` (`behavior`, `humanize`).
+- **Moved Optional Pipelines to Plugins**: Moved `crawler`, `extract`, `ocr`, and `cloud` modules out of core into `seleniumbase-rs-plugins`.
+
+### Added
+
+- **`LaunchOptions::plugins()`**: Added public getter returning the configured `PluginSet` on `sb_cdp::LaunchOptions` (feature `plugins`), enabling downstream crates such as `seleniumbase-rs-evasion` to layer plugins while preserving caller-specified plugins.
+
+## [0.9.4] - 2026-11-26
 
 ### Added
 

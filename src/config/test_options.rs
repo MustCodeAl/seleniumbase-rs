@@ -754,6 +754,7 @@ macro_rules! sb_test_options {
             (browser.proxy.pac_url, "proxy-pac-url", ["pac-url"], [], "SB_PROXY_PAC_URL", [value(Url)], "A proxy auto-config URL (SB_PROXY_PAC_URL)"),
             (browser.switches, "esc-end", ["ee"], [], "SB_ESC_END", [switch_in(EscEnd, "esc-end")], "End the current test when ESC is pressed in the browser (SB_ESC_END)"),
             (browser.switches, "rec-sb-cdp", [], [], "SB_REC_SB_CDP", [switch_in(RecSbCdp, "rec-sb-cdp")], "Write recordings as pure CDP code (SB_REC_SB_CDP)"),
+            (fingerprint.file, "fingerprint", [], [], "SB_FINGERPRINT", [value(Path)], "A fingerprint file every browser presents (SB_FINGERPRINT)"),
             (browser.url, "start-page", ["url"], [], "SB_START_PAGE", [value(Url)], "The page every browser opens first (SB_START_PAGE)"),
             (settings_file, "settings-file", ["settings"], [], "SB_SETTINGS_FILE", [value(Path)], "The settings file to read instead of sbase_config.toml (SB_SETTINGS_FILE)"),
             // Which browser: shorthands for a value of SB_BROWSER, SB_HEADLESS and SB_MODE.

@@ -39,6 +39,7 @@ macro_rules! declared_at_the_root {
     ("extension-dir", $skip:tt, $keep:tt) => { declared_at_the_root!(@go $skip); };
     ("esc-end", $skip:tt, $keep:tt) => { declared_at_the_root!(@go $skip); };
     ("rec-sb-cdp", $skip:tt, $keep:tt) => { declared_at_the_root!(@go $skip); };
+    ("fingerprint", $skip:tt, $keep:tt) => { declared_at_the_root!(@go $skip); };
     ("start-page", $skip:tt, $keep:tt) => { declared_at_the_root!(@go $skip); };
     ("settings-file", $skip:tt, $keep:tt) => { declared_at_the_root!(@go $skip); };
     ($other:tt, $skip:tt, $keep:tt) => { declared_at_the_root!(@go $keep); };

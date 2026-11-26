@@ -24,7 +24,6 @@ mod cli_e2e;
 mod cli_env;
 mod cli_env_vars;
 mod cli_failure_pages;
-mod cli_fingerprint;
 mod cli_generators;
 mod cli_grid;
 mod cli_info;

@@ -4,7 +4,7 @@ expression: text
 ---
 {
   "server": "seleniumbase-dev",
-  "tool_count": 13,
+  "tool_count": 12,
   "tools": [
     {
       "annotations": {
@@ -435,31 +435,6 @@ expression: text
         "type": "object"
       },
       "name": "check_config",
-      "untrusted": false
-    },
-    {
-      "annotations": {
-        "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": false,
-        "readOnlyHint": true,
-        "title": "Check Fingerprint"
-      },
-      "description": "Check a fingerprint without starting a browser: parse JSON as a fingerprint of this library, or as the profile payload of an anti-detect browser tool, and report the errors and warnings of Fingerprint::validate (a platform that contradicts the user agent, a mobile agent without touch points, and the rest). A document that parses as neither is described, not guessed at.",
-      "inputSchema": {
-        "additionalProperties": false,
-        "properties": {
-          "json": {
-            "description": "The fingerprint or the profile payload, as JSON text",
-            "type": "string"
-          }
-        },
-        "required": [
-          "json"
-        ],
-        "type": "object"
-      },
-      "name": "check_fingerprint",
       "untrusted": false
     },
     {

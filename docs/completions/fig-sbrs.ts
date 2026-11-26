@@ -1711,6 +1711,14 @@ const completionSpec: Fig.Spec = {
           },
         },
         {
+          name: "--fingerprint",
+          description: "A fingerprint file every browser presents (SB_FINGERPRINT)",
+          args: {
+            name: "path",
+            template: "filepaths",
+          },
+        },
+        {
           name: ["--start-page", "--url"],
           description: "The page every browser opens first (SB_START_PAGE)",
           args: {

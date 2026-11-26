@@ -4220,6 +4220,12 @@ One of: `true`, `false`
 
 </ParamField>
 
+<ParamField query="--fingerprint <PATH>" type="string">
+
+A fingerprint file every browser presents (SB_FINGERPRINT)
+
+</ParamField>
+
 <ParamField query="--start-page <URL>" type="string">
 
 The page every browser opens first (SB_START_PAGE)
