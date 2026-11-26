@@ -80,6 +80,7 @@ hidden: true
 - [API Guide](tutorials/api_reference.md)
   - [Lifecycle and navigation](api/lifecycle-navigation.md)
   - [Interaction](api/interaction.md)
+  - [Keys](api/keys.md)
   - [Waits and assertions](api/waits-assertions.md)
   - [Queries](api/queries.md)
   - [Windows, frames and drivers](api/windows-frames.md)
