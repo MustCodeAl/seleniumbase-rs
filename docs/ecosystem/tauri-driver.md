@@ -47,7 +47,7 @@ the same test drives the app on every system.
 
 - A Tauri app that builds and runs. The plugin pins one Tauri 3 alpha exactly
   (`tauri` in its `Cargo.toml`): use that alpha in your app.
-- Rust 1.99 or newer. `seleniumbase-rs` needs it, and so does the plugin on its
+- Rust 1.100 or newer. `seleniumbase-rs` needs it, and so does the plugin on its
   `main` branch.
 - Port 4445 free on `127.0.0.1`, or another port in `SBRS_AUTOMATION_PORT`.
 

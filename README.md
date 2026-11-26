@@ -125,7 +125,7 @@ the getting-started guide lists the exceptions and why.
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.8.7" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.9.3" }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
@@ -436,7 +436,7 @@ Playwright engine and no `playwright` feature). It uses the
 Chrome that `sb_cdp` launches.
 
 ```bash
-cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.8.7
+cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.9.3
 cargo run -p seleniumbase-rs-playwright --example playwright_mode
 ```
 

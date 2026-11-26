@@ -19,7 +19,7 @@ give it a fingerprint, read [Drive your app's own webview](/ecosystem/tauri-brow
 
 <Visibility for="agents">
 
-Summary for AI exports: add `seleniumbase-rs` to the app's `src-tauri/Cargo.toml` (Rust 1.99 or newer), write an `async` `#[tauri::command]` that takes owned arguments and returns `Result<String, String>`, build `LaunchOptions::builder().headless(true).build()`, call `Browser::launch(options).await`, drive `browser.default_page().await` with `goto`, `title` and `locator`, and call `browser.close().await`. Register the command with `.invoke_handler(tauri::generate_handler![...])`. The window calls it with `window.__TAURI__.core.invoke`, which needs `app.withGlobalTauri` in `tauri.conf.json`. Chrome or Chromium must be installed on the machine that runs the app. The plugin `tauri-plugin-sbrs-automation` is not needed for this.
+Summary for AI exports: add `seleniumbase-rs` to the app's `src-tauri/Cargo.toml` (Rust 1.100 or newer), write an `async` `#[tauri::command]` that takes owned arguments and returns `Result<String, String>`, build `LaunchOptions::builder().headless(true).build()`, call `Browser::launch(options).await`, drive `browser.default_page().await` with `goto`, `title` and `locator`, and call `browser.close().await`. Register the command with `.invoke_handler(tauri::generate_handler![...])`. The window calls it with `window.__TAURI__.core.invoke`, which needs `app.withGlobalTauri` in `tauri.conf.json`. Chrome or Chromium must be installed on the machine that runs the app. The plugin `tauri-plugin-sbrs-automation` is not needed for this.
 
 </Visibility>
 
@@ -28,7 +28,7 @@ Summary for AI exports: add `seleniumbase-rs` to the app's `src-tauri/Cargo.toml
 - A Tauri app that builds and runs. On Tauri 3 the app names its runtime, with
   `.runtime(tauri_runtime_wry::Wry::default())` on the builder; without it, the
   app stops at start with `RuntimeNotConfigured`.
-- Rust 1.99 or newer, the minimum version of `seleniumbase-rs`.
+- Rust 1.100 or newer, the minimum version of `seleniumbase-rs`.
 - Google Chrome or Chromium on the machine that runs the app. The pure CDP
   engine launches it. It needs no driver and no container.
 - The plugin `tauri-plugin-sbrs-automation` is not needed here. It is for the
@@ -247,7 +247,7 @@ of the plugin.
 | `window.__TAURI__` is undefined | `app.withGlobalTauri` is not `true` | Set it in `tauri.conf.json`, or import `invoke` from `@tauri-apps/api/core`. |
 | The command fails with a `BrowserLaunch` error | No Chrome or Chromium was found, or it could not start | Install one, or name its binary with `LaunchOptions::builder().executable_path(path)`. |
 | The build fails on a borrowed argument in an `async` command | An `async` command cannot take `&str` | Take an owned `String`. |
-| The build fails on the Rust version | `seleniumbase-rs` needs Rust 1.99 | Update the toolchain. |
+| The build fails on the Rust version | `seleniumbase-rs` needs Rust 1.100 | Update the toolchain. |
 | A Chrome window opens | The browser is headed outside Linux unless `headless(true)` is set | Call `headless(true)`. |
 | The app stops at start with `RuntimeNotConfigured` | Tauri 3 starts no runtime unless the app names one | Call `.runtime(tauri_runtime_wry::Wry::default())` on the builder. |
 

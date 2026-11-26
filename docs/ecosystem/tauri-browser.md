@@ -24,7 +24,7 @@ from your app's Rust code, read
 
 <Visibility for="agents">
 
-Summary for AI exports: this applies to an app that owns a Chromium runtime, CEF (`tauri-runtime-cef`) or WebView2 on Windows. Attach from a test: enable the plugin's `cdp` Cargo feature, call `CdpStealthConfig::default()` and `unsafe { config.apply_env() }` before any thread or runtime start (CEF: pass the returned arguments to CEF), read the port from `GET /{token}/cdp`, and attach with `BrowserConfigBuilder::webdriver_url(..).cdp_discovery(true)` or `LaunchOptions::builder().cdp_url(..)` and `Browser::launch`. Fingerprint in a shipped app: enable the plugin's `stealth` feature (Rust 1.99), add `StealthPlan::new(&fingerprint)`'s init script with `.stealth_script(&plan)` on the `WebviewWindowBuilder`, send the overrides with `DevToolsChannel::apply`, and get a `Page` from `DevToolsChannel::page`. WKWebView and WebKitGTK speak no CDP: use the driver guide.
+Summary for AI exports: this applies to an app that owns a Chromium runtime, CEF (`tauri-runtime-cef`) or WebView2 on Windows. Attach from a test: enable the plugin's `cdp` Cargo feature, call `CdpStealthConfig::default()` and `unsafe { config.apply_env() }` before any thread or runtime start (CEF: pass the returned arguments to CEF), read the port from `GET /{token}/cdp`, and attach with `BrowserConfigBuilder::webdriver_url(..).cdp_discovery(true)` or `LaunchOptions::builder().cdp_url(..)` and `Browser::launch`. Fingerprint in a shipped app: enable the plugin's `stealth` feature (Rust 1.100), add `StealthPlan::new(&fingerprint)`'s init script with `.stealth_script(&plan)` on the `WebviewWindowBuilder`, send the overrides with `DevToolsChannel::apply`, and get a `Page` from `DevToolsChannel::page`. WKWebView and WebKitGTK speak no CDP: use the driver guide.
 
 </Visibility>
 
@@ -253,7 +253,7 @@ tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plug
 ```
 
 The feature brings the seleniumbase-rs library from git, at a release tag.
-Rust 1.99 is the library's minimum version. If your app also depends on
+Rust 1.100 is the library's minimum version. If your app also depends on
 `seleniumbase-rs`, name the same git tag as the plugin's `Cargo.toml`, so the
 app and the plugin share one copy of the library and its types.
 
