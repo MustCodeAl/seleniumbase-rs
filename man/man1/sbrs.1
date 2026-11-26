@@ -722,24 +722,6 @@ Look at a recorded trace.
 .TP
 \fBtrace show\fR
 Open the viewer of a trace folder in the system's default browser.
-.TP
-\fBfingerprint\fR
-Capture, write, check and compare browser fingerprints.
-.TP
-\fBfingerprint capture\fR
-Read the fingerprint of a real browser and write it as a fingerprint file.
-.TP
-\fBfingerprint export\fR
-Write a preset or a random identity as a fingerprint file.
-.TP
-\fBfingerprint check\fR
-Check that a fingerprint file loads and is coherent.
-.TP
-\fBfingerprint diff\fR
-Compare two fingerprint files.
-.TP
-\fBfingerprint presets\fR
-List the presets and what each claims.
 .SH "SBRS VERSION"
 Print the sbrs version, as `sbrs \-\-version` does.
 .PP
@@ -2402,9 +2384,6 @@ End the current test when ESC is pressed in the browser (SB_ESC_END)
 .TP
 \fB\-\-rec\-sb\-cdp\fR \fI<REC_SB_CDP>\fR
 Write recordings as pure CDP code (SB_REC_SB_CDP)
-.TP
-\fB\-\-fingerprint\fR \fI<PATH>\fR
-A fingerprint file every browser presents (SB_FINGERPRINT)
 .TP
 \fB\-\-start\-page\fR \fI<URL>\fR
 The page every browser opens first (SB_START_PAGE)
@@ -4295,151 +4274,4 @@ The trace folder, or its index.html.
 .PP
 .RS 4
 sbrs trace show traces/checkout
-.RE
-.SH "SBRS FINGERPRINT"
-Capture, write, check and compare browser fingerprints.
-
-A fingerprint file is what a browser claims to be: the user agent, the screen, the language, the graphics card and the rest, as one JSON file. `capture` reads it from a real browser; `export` writes a preset or a random identity; `check` and `diff` read files. The global \-\-fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint] table of the settings file) makes every browser a command starts present one.
-.PP
-\fBUsage:\fR sbrs fingerprint [OPTIONS] <COMMAND>
-.PP
-\fBOptions:\fR
-.PP
-.TP
-\fB\-h, \-\-help\fR
-Print help
-\fBExamples:\fR
-.PP
-.PP
-.RS 4
-sbrs fingerprint presets
-.RE
-.SH "SBRS FINGERPRINT CAPTURE"
-Read the fingerprint of a real browser and write it as a fingerprint file.
-
-Starts a browser as `sbrs open` does (the global \-\-browser, \-\-headless, \-\-proxy and the rest apply), opens URL (a blank page when there is none), reads what a page can see of the browser, and prints the fingerprint as JSON, or writes it to FILE. A summary goes to standard error. What no setting holds (window sizes, the automation markers, the canvas hash) stays out of the fingerprint; \-\-readings writes it to its own file.
-.PP
-\fBUsage:\fR sbrs fingerprint capture [OPTIONS] [<URL>]
-.PP
-\fBOptions:\fR
-.PP
-.TP
-\fB\-o, \-\-output\fR \fI<FILE>\fR
-Write the fingerprint to FILE instead of printing it.
-.TP
-\fB\-\-readings\fR \fI<FILE>\fR
-Also write the readings that no setting holds, and where the capture was taken, to FILE.
-.TP
-\fB\-h, \-\-help\fR
-Print help
-\fBArguments:\fR
-.PP
-.TP
-\fB<URL>\fR
-The page to open first (default: a blank page).
-\fBExamples:\fR
-.PP
-.PP
-.RS 4
-sbrs fingerprint capture https://example.com \-\-output seen.json
-.RE
-.SH "SBRS FINGERPRINT EXPORT"
-Write a preset or a random identity as a fingerprint file.
-
-Give \-\-preset NAME (windows, edge, macos, linux, android, ios) or \-\-random. A random identity follows \-\-seed, so the same seed gives the same file, and \-\-os, the system it claims (default: this machine's). The file goes to FILE, else to standard output.
-.PP
-\fBUsage:\fR sbrs fingerprint export [OPTIONS]
-.PP
-\fBOptions:\fR
-.PP
-.TP
-\fB\-\-preset\fR \fI<NAME>\fR
-The preset to write: windows, edge, macos, linux, android or ios (safari is ios).
-.TP
-\fB\-\-random\fR
-Write a random identity instead of a preset.
-.TP
-\fB\-\-seed\fR \fI<N>\fR
-With \-\-random, the seed of the draw: the same seed gives the same identity.
-.TP
-\fB\-\-os\fR \fI<OS>\fR
-With \-\-random, the system the identity claims (default: this machine's).
-.TP
-\fB\-o, \-\-output\fR \fI<FILE>\fR
-Write the fingerprint to FILE instead of printing it.
-.TP
-\fB\-h, \-\-help\fR
-Print help
-\fBExamples:\fR
-.PP
-.PP
-.RS 4
-sbrs fingerprint export \-\-preset windows \-\-output windows.json
-.RE
-.SH "SBRS FINGERPRINT CHECK"
-Check that a fingerprint file loads and is coherent.
-
-Prints how many settings the file gives, each error and warning, and the verdict. Exits with status 2 when there is an error or the file does not load.
-.PP
-\fBUsage:\fR sbrs fingerprint check [OPTIONS] <FILE>
-.PP
-\fBOptions:\fR
-.PP
-.TP
-\fB\-h, \-\-help\fR
-Print help
-\fBArguments:\fR
-.PP
-.TP
-\fB<FILE>\fR
-The fingerprint file to check.
-\fBExamples:\fR
-.PP
-.PP
-.RS 4
-sbrs fingerprint check windows.json
-.RE
-.SH "SBRS FINGERPRINT DIFF"
-Compare two fingerprint files.
-
-EXPECTED is what is expected and FOUND what is found: a setting that EXPECTED leaves natural is never compared. Prints each setting that differs. Exits with status 1 when any differs, 0 when none does, and 2 when a file does not load.
-
-To check that a browser presents a file: `sbrs \-\-fingerprint f.json fingerprint capture \-o seen.json`, then `sbrs fingerprint diff f.json seen.json`.
-.PP
-\fBUsage:\fR sbrs fingerprint diff [OPTIONS] <EXPECTED> <FOUND>
-.PP
-\fBOptions:\fR
-.PP
-.TP
-\fB\-h, \-\-help\fR
-Print help
-\fBArguments:\fR
-.PP
-.TP
-\fB<EXPECTED>\fR
-The file with what is expected.
-.TP
-\fB<FOUND>\fR
-The file with what is found.
-\fBExamples:\fR
-.PP
-.PP
-.RS 4
-sbrs fingerprint diff windows.json seen.json
-.RE
-.SH "SBRS FINGERPRINT PRESETS"
-List the presets and what each claims.
-.PP
-\fBUsage:\fR sbrs fingerprint presets [OPTIONS]
-.PP
-\fBOptions:\fR
-.PP
-.TP
-\fB\-h, \-\-help\fR
-Print help
-\fBExamples:\fR
-.PP
-.PP
-.RS 4
-sbrs fingerprint presets
 .RE

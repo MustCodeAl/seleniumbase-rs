@@ -72,7 +72,6 @@
 mod breakpoint;
 mod browser;
 mod captcha;
-pub mod human;
 mod channel;
 mod client;
 mod context;
@@ -83,6 +82,7 @@ mod frames;
 #[cfg(feature = "gui")]
 pub mod gui_captcha;
 mod har;
+pub mod human;
 mod inject;
 mod input;
 mod intercept;
@@ -130,9 +130,9 @@ pub use har::{
     HarRequest, HarResponse, HarStreamFormat, HarStreamStats, HarStreamWriter, HarTimings,
     SharedBuffer, DEFAULT_MAX_CONTENT_BYTES, MAX_CONTENT_BYTES,
 };
+pub(crate) use human::PointerSink;
 #[doc(inline)]
 pub use human::{Behavior, BehaviorBuilder, Human, Humanizer, KeyAction, Rng, Step};
-pub(crate) use human::PointerSink;
 #[doc(inline)]
 pub use inject::{InitScriptId, TagSource};
 #[doc(inline)]

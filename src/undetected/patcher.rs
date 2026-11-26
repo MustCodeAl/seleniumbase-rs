@@ -913,6 +913,7 @@ fn patch_to_cached_copy(
     Ok(())
 }
 
+#[allow(clippy::collapsible_if)]
 fn find_companion_binary_for(source: &Path) -> Option<PathBuf> {
     let parent = source.parent()?;
     if parent.file_name().and_then(|n| n.to_str()) == Some("MacOS") {

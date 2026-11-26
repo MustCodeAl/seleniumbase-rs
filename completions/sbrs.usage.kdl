@@ -1,6 +1,6 @@
 name sbrs
 bin sbrs
-version "0.9.3 (seleniumbase-rs)"
+version "0.10.0 (seleniumbase-rs)"
 about "SeleniumBaseRust CLI"
 long_about "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper."
 logo #"""
@@ -98,9 +98,6 @@ flagset test-options {
         arg "[REC_SB_CDP]" required=#false {
             choices "true" "false"
         }
-    }
-    flag --fingerprint help="A fingerprint file every browser presents (SB_FINGERPRINT)" help_heading="Browser and page options" {
-        arg <PATH>
     }
     flag --start-page help="The page every browser opens first (SB_START_PAGE)" help_heading="Browser and page options" {
         alias --url hide=#true
@@ -2709,94 +2706,4 @@ FOLDER is the folder the trace was written to, or its index.html. The viewer loa
         example "sbrs trace show traces/checkout"
     }
     example "sbrs trace show traces/checkout"
-}
-cmd fingerprint help_heading=Security help="Capture, write, check and compare browser fingerprints." subcommand_required=#true {
-    long_help #"""
-Capture, write, check and compare browser fingerprints.
-
-A fingerprint file is what a browser claims to be: the user agent, the screen, the language, the graphics card and the rest, as one JSON file. `capture` reads it from a real browser; `export` writes a preset or a random identity; `check` and `diff` read files. The global --fingerprint FILE (or SB_FINGERPRINT, or the [fingerprint] table of the settings file) makes every browser a command starts present one.
-"""#
-    flag "-h --help" help="Print help" action=help builtin=#true
-    cmd capture help="Read the fingerprint of a real browser and write it as a fingerprint file." args_override_self=#false {
-        long_help #"""
-Read the fingerprint of a real browser and write it as a fingerprint file.
-
-Starts a browser as `sbrs open` does (the global --browser, --headless, --proxy and the rest apply), opens URL (a blank page when there is none), reads what a page can see of the browser, and prints the fingerprint as JSON, or writes it to FILE. A summary goes to standard error. What no setting holds (window sizes, the automation markers, the canvas hash) stays out of the fingerprint; --readings writes it to its own file.
-"""#
-        flag "-o --output" help="Write the fingerprint to FILE instead of printing it." {
-            arg <FILE>
-        }
-        flag --readings help="Also write the readings that no setting holds, and where the capture was taken, to FILE." {
-            arg <FILE>
-        }
-        flag "-h --help" help="Print help" action=help builtin=#true
-        arg "[URL]" help="The page to open first (default: a blank page)."
-        complete url type=url
-        complete file type=path:json
-        example "sbrs fingerprint capture https://example.com --output seen.json"
-    }
-    cmd export help="Write a preset or a random identity as a fingerprint file." args_override_self=#false {
-        long_help #"""
-Write a preset or a random identity as a fingerprint file.
-
-Give --preset NAME (windows, edge, macos, linux, android, ios) or --random. A random identity follows --seed, so the same seed gives the same file, and --os, the system it claims (default: this machine's). The file goes to FILE, else to standard output.
-"""#
-        flag --preset help="The preset to write: windows, edge, macos, linux, android or ios (safari is ios)." {
-            arg <NAME>
-        }
-        flag --random help="Write a random identity instead of a preset." bool_value=#true
-        flag --seed help="With --random, the seed of the draw: the same seed gives the same identity." {
-            arg <N>
-        }
-        flag --os help="With --random, the system the identity claims (default: this machine's)." {
-            arg <OS> {
-                choices {
-                    choice windows
-                    choice macos
-                    choice linux
-                    choice android
-                    choice ios
-                }
-            }
-        }
-        flag "-o --output" help="Write the fingerprint to FILE instead of printing it." {
-            arg <FILE>
-        }
-        flag "-h --help" help="Print help" action=help builtin=#true
-        complete n type=none
-        complete file type=path:json
-        complete name run="sbrs __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
-        example "sbrs fingerprint export --preset windows --output windows.json"
-    }
-    cmd check help="Check that a fingerprint file loads and is coherent." {
-        long_help #"""
-Check that a fingerprint file loads and is coherent.
-
-Prints how many settings the file gives, each error and warning, and the verdict. Exits with status 2 when there is an error or the file does not load.
-"""#
-        flag "-h --help" help="Print help" action=help builtin=#true
-        arg <FILE> help="The fingerprint file to check."
-        complete file type=path:json
-        example "sbrs fingerprint check windows.json"
-    }
-    cmd diff help="Compare two fingerprint files." {
-        long_help #"""
-Compare two fingerprint files.
-
-EXPECTED is what is expected and FOUND what is found: a setting that EXPECTED leaves natural is never compared. Prints each setting that differs. Exits with status 1 when any differs, 0 when none does, and 2 when a file does not load.
-
-To check that a browser presents a file: `sbrs --fingerprint f.json fingerprint capture -o seen.json`, then `sbrs fingerprint diff f.json seen.json`.
-"""#
-        flag "-h --help" help="Print help" action=help builtin=#true
-        arg <EXPECTED> help="The file with what is expected."
-        arg <FOUND> help="The file with what is found."
-        complete expected type=path:json
-        complete found type=path:json
-        example "sbrs fingerprint diff windows.json seen.json"
-    }
-    cmd presets help="List the presets and what each claims." {
-        flag "-h --help" help="Print help" action=help builtin=#true
-        example "sbrs fingerprint presets"
-    }
-    example "sbrs fingerprint presets"
 }

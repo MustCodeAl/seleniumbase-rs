@@ -141,6 +141,7 @@ impl BrowserSession {
 
 /// The URL patterns of the `Network.setBlockedURLs` commands in `commands`,
 /// each once.
+#[allow(dead_code)]
 pub(crate) fn blocked_patterns<M: AsRef<str>>(commands: &[(M, Value)]) -> Vec<String> {
     let mut urls: Vec<String> = Vec::new();
     for (_, params) in commands
@@ -289,7 +290,7 @@ mod ad_block_tests {
 
     use super::*;
     use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
-    use crate::browser::config::{Browser, DriverMode};
+    use crate::browser::config::Browser;
     use crate::config::ad_block_list::MAX_URL_PATTERNS;
 
     const CHROMIUM: [Browser; 8] = [

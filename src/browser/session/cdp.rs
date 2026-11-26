@@ -10,8 +10,8 @@ use crate::browser::options::{CdpEvent, NetworkThrottle};
 use crate::browser::proxy_auth;
 use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
-use crate::undetected::uc;
 use crate::sb_cdp::DevToolsEndpoint;
+use crate::undetected::uc;
 
 use super::BrowserSession;
 
@@ -349,13 +349,9 @@ impl BrowserSession {
                 && ua.contains("HeadlessChrome")
             {
                 let stealth_ua = ua.replace("HeadlessChrome", "Chrome");
-                let _ = uc::override_user_agent(
-                    cdp,
-                    &stealth_ua,
-                    None,
-                    config.browser.lang.as_deref(),
-                )
-                .await;
+                let _ =
+                    uc::override_user_agent(cdp, &stealth_ua, None, config.browser.lang.as_deref())
+                        .await;
             }
         }
         // Also scrub any WebDriver markers from the current document for pages already loaded.

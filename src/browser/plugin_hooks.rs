@@ -28,9 +28,9 @@ use thirtyfour::WebDriver;
 
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::devtools::CdpClient;
+use crate::browser::options::chromium::without_credentials;
 use crate::browser::options::{FirefoxOptions, FirefoxPreference};
 use crate::error::SeleniumBaseError;
-use crate::browser::options::chromium::without_credentials;
 use crate::plugin_host::{convert, guard};
 use crate::sb_cdp::sync::locked;
 

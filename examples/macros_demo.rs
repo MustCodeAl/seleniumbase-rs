@@ -32,10 +32,10 @@ use local_site::{Site, DEMO_PATH};
 use seleniumbase_rs::tokio;
 
 use seleniumbase_rs::{
-    cdp_config, fingerprint, run_browser_test, sb_assert_text, sb_assert_title_contains,
-    sb_assert_url_contains, sb_assert_visible, sb_click, sb_config, sb_fill_form, sb_hover, sb_js,
-    sb_open, sb_screenshot, sb_scroll_to, sb_select, sb_wait_for, selector, uc_config, BaseCase,
-    BrowserConfig, DriverMode, Result, SeleniumBaseError,
+    cdp_config, run_browser_test, sb_assert_text, sb_assert_title_contains, sb_assert_url_contains,
+    sb_assert_visible, sb_click, sb_config, sb_fill_form, sb_hover, sb_js, sb_open, sb_screenshot,
+    sb_scroll_to, sb_select, sb_wait_for, selector, uc_config, BaseCase, BrowserConfig, DriverMode,
+    Result, SeleniumBaseError,
 };
 
 #[tokio::main]

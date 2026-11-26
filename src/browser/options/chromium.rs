@@ -887,7 +887,6 @@ mod tests {
         assert!(plain.get("prefs").is_none(), "{plain}");
     }
 
-
     #[test]
     fn chrome_sync_is_off_unless_it_was_asked_for() {
         let default = options_for(&BrowserConfig::default()).args().unwrap();

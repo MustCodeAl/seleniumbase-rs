@@ -572,12 +572,17 @@ fn invert_min_jerk(progress: f64) -> f64 {
     (low + high) / 2.0
 }
 
-fn cubic(p0: Point, p1: Point, p2: Point, p3: Point, s: f64) -> Point {
-    let m = 1.0 - s;
-    let (a, b, c, d) = (m * m * m, 3.0 * m * m * s, 3.0 * m * s * s, s * s * s);
+fn cubic(p0: Point, p1: Point, p2: Point, p3: Point, param: f64) -> Point {
+    let inv = 1.0 - param;
+    let (w0, w1, w2, w3) = (
+        inv * inv * inv,
+        3.0 * inv * inv * param,
+        3.0 * inv * param * param,
+        param * param * param,
+    );
     Point::new(
-        a * p0.x + b * p1.x + c * p2.x + d * p3.x,
-        a * p0.y + b * p1.y + c * p2.y + d * p3.y,
+        w0 * p0.x + w1 * p1.x + w2 * p2.x + w3 * p3.x,
+        w0 * p0.y + w1 * p1.y + w2 * p2.y + w3 * p3.y,
     )
 }
 

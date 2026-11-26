@@ -233,7 +233,8 @@ pub(crate) fn remote_debug(
     text: &str,
 ) -> Result<(), SeleniumBaseError> {
     let on = parse_bool(text)?;
-    browser.debugging_port = on.then_some(crate::browser::options::chromium::DEFAULT_REMOTE_DEBUG_PORT);
+    browser.debugging_port =
+        on.then_some(crate::browser::options::chromium::DEFAULT_REMOTE_DEBUG_PORT);
     browser.debugging_any_port = on;
     Ok(())
 }

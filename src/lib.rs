@@ -135,7 +135,6 @@ pub use seleniumbase_rs_plugin as plugin_api;
     feature = "plugin-crx"
 ))]
 pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
-pub mod undetected;
 /// Plugin names and options turned into a `PluginSet` (feature `plugins`): the
 /// registry of the built-in plugins, and the functions the launch builders
 /// call for `plugins_named` and `plugin_selection`.
@@ -145,6 +144,7 @@ pub mod plugins;
 pub mod resources;
 #[cfg(feature = "turso")]
 pub mod storage;
+pub mod undetected;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module.
 #[warn(
     clippy::pedantic,
@@ -220,6 +220,8 @@ pub use browser::element::Element;
 #[doc(inline)]
 pub use browser::options::NetworkThrottle;
 #[doc(inline)]
+pub use browser::options::WebRtcPolicy;
+#[doc(inline)]
 pub use browser::reuse::shutdown_reused_sessions;
 #[doc(inline)]
 pub use browser::session::BrowserSession;
@@ -236,13 +238,6 @@ pub use cookie::{Cookie, SameSite};
 #[doc(inline)]
 pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseError};
 #[doc(inline)]
-pub use browser::options::WebRtcPolicy;
-#[doc(inline)]
-pub use undetected::{
-    patch_chromedriver, BinaryFormat, BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher,
-    ChromedriverPatcher, EnginePatch, MarkerCounts, PatchPreset,
-};
-#[doc(inline)]
 pub use sb_cdp::ResilientLocator;
 #[doc(inline)]
 pub use sb_cdp::{Key, SelectBy};
@@ -252,6 +247,11 @@ pub use thirtyfour::bidi::BiDi;
 pub use tracing_util::{
     init_tracing, init_tracing_from_runtime, init_tracing_json, init_tracing_json_with_filter,
     init_tracing_with_filter,
+};
+#[doc(inline)]
+pub use undetected::{
+    patch_chromedriver, BinaryFormat, BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher,
+    ChromedriverPatcher, EnginePatch, MarkerCounts, PatchPreset,
 };
 #[doc(inline)]
 pub use utilities::python_importer::{

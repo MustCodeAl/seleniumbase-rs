@@ -2084,7 +2084,6 @@ mod tests {
         assert!(settings.fingerprint.is_empty());
     }
 
-
     #[test]
     fn the_override_is_exported_as_its_variable() {
         let only = SettingsOverrides {

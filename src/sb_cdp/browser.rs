@@ -1263,6 +1263,7 @@ impl Browser {
         reason = "wires full tab session domains and emulation overrides"
     )]
     async fn prepare_session(&self, target: &str, session: &str) -> Result<(), SeleniumBaseError> {
+        let _ = target;
         let client = &self.inner.client;
         let send = |method: &'static str, params: Value| client.send(method, params, Some(session));
         send("Page.enable", json!({})).await?;

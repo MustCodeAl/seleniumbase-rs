@@ -15,9 +15,9 @@ use super::{
     FirefoxOptions, GridProtocol, PageLoadStrategy,
 };
 use crate::browser::config::DriverMode;
+use crate::browser::options::chromium::without_credentials;
 use crate::browser::reuse::ReuseClass;
 use crate::error::SeleniumBaseError;
-use crate::browser::options::chromium::without_credentials;
 
 /// The WebDriver server a session connects to when nothing names another.
 pub const DEFAULT_WEBDRIVER_URL: &str = "http://localhost:4444";

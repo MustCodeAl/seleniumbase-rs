@@ -33,8 +33,8 @@ use tokio::time::{sleep, Instant};
 
 use super::{script, Captcha, Evidence, SolveOptions, Solved};
 use crate::error::SeleniumBaseError;
-use crate::sb_cdp::human::{Humanizer, Rng};
 use crate::sb_cdp::human::{plan_click, plan_drag, play_click, play_drag, PointerSink};
+use crate::sb_cdp::human::{Humanizer, Rng};
 use crate::sb_cdp::{Point, Rect};
 
 /// The longest gap between two readings of the page while verifying.

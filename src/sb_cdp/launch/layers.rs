@@ -511,7 +511,6 @@ mod tests {
             .expect("a valid config")
     }
 
-
     #[test]
     fn a_browser_the_builder_names_replaces_the_one_the_config_names() {
         let config = chromium_config();
@@ -680,6 +679,7 @@ mod tests {
         }
     }
 
+    #[cfg(feature = "plugins")]
     #[test]
     fn the_plugins_of_the_builder_replace_the_configs_and_named_ones_come_after() {
         use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};

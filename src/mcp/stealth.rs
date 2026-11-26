@@ -7,22 +7,20 @@ use crate::{ChromedriverPatcher, EnginePatch};
 
 /// The stealth tools, for a server whose session type is `S`.
 pub(super) fn tools<S: Send + 'static>() -> Vec<ToolDef<S>> {
-    vec![
-        ToolDef::new(
-            "patch_chromedriver",
-            "Patch Chromedriver",
-            "Patch a chromedriver binary in place to remove the markers that identify it as \
+    vec![ToolDef::new(
+        "patch_chromedriver",
+        "Patch Chromedriver",
+        "Patch a chromedriver binary in place to remove the markers that identify it as \
              automation.",
-            Effect::Overwrite,
-            Schema::new()
-                .required("path", Prop::string("Path of the chromedriver binary"))
-                .optional(
-                    "backup",
-                    Prop::boolean("Keep a backup copy first").default(true),
-                ),
-            patch_chromedriver::<S>,
-        ),
-    ]
+        Effect::Overwrite,
+        Schema::new()
+            .required("path", Prop::string("Path of the chromedriver binary"))
+            .optional(
+                "backup",
+                Prop::boolean("Keep a backup copy first").default(true),
+            ),
+        patch_chromedriver::<S>,
+    )]
 }
 
 async fn patch_chromedriver<S>(_ctx: Ctx<S>, args: Args) -> Result<Output, ToolError> {

@@ -24,7 +24,15 @@
 //! # }
 //! ```
 
+#[allow(
+    clippy::pedantic,
+    reason = "moved from evasion; pedantic cleanup tracked separately"
+)]
 pub mod behavior;
+#[allow(
+    clippy::pedantic,
+    reason = "moved from evasion; pedantic cleanup tracked separately"
+)]
 pub mod humanize;
 
 pub use behavior::{Behavior, BehaviorBuilder, Humanizer, KeyAction, Step};

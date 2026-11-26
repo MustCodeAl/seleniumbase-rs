@@ -656,8 +656,6 @@ impl Page {
         self.string_of("document.documentElement.outerHTML").await
     }
 
-    /// Evaluates JavaScript on the page.
-
     /// Types text into `selector` simulating natural human typing cadence.
     ///
     /// # Errors

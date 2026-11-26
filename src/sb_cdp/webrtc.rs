@@ -36,8 +36,8 @@ use std::net::IpAddr;
 use serde_json::json;
 
 use super::Page;
-use crate::error::SeleniumBaseError;
 use crate::browser::options::WebRtcPolicy;
+use crate::error::SeleniumBaseError;
 
 /// The Chrome flag that applies `policy` to every tab.
 pub(crate) fn chrome_flag(policy: WebRtcPolicy) -> &'static str {

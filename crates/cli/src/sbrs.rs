@@ -30,8 +30,8 @@ use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{
     Settings, SettingsOverrides, FINGERPRINT_ENV, START_PAGE_ENV,
 };
-use seleniumbase_rs::undetected::patcher::find_system_chrome;
 use seleniumbase_rs::resources::assets;
+use seleniumbase_rs::undetected::patcher::find_system_chrome;
 use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
 use seleniumbase_rs::utilities::importer::{
     import_playwright, import_puppeteer, ScriptImportOptions, ScriptLanguage,
