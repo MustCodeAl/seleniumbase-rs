@@ -703,4 +703,137 @@ mod dialog_input_tests {
             ]
         );
     }
+
+    #[tokio::test]
+    async fn mouse_and_keyboard_dispatch_all_event_shapes_and_dialog_fallbacks() {
+        let (browser, mock) = Browser::new_mocked();
+        let page = browser.default_page().await.expect("mock page");
+        let at = Point { x: 40.0, y: 80.0 };
+
+        page.mouse().move_to(at).await.expect("move_to");
+        page.mouse()
+            .down(at, Button::Middle)
+            .await
+            .expect("down middle");
+        page.mouse()
+            .up(at, Button::Middle)
+            .await
+            .expect("up middle");
+        page.mouse().click(at).await.expect("click");
+        page.mouse().double_click(at).await.expect("double_click");
+        page.mouse().right_click(at).await.expect("right_click");
+        page.mouse()
+            .drag(at, Point { x: 140.0, y: 180.0 })
+            .await
+            .expect("drag");
+        page.mouse().wheel(at, 10.0, -20.0).await.expect("wheel");
+
+        let mouse_calls = mock.calls_to("Input.dispatchMouseEvent");
+        assert!(mouse_calls.iter().any(|c| c.params["type"] == "mouseWheel"));
+        assert!(mouse_calls.iter().any(|c| c.params["button"] == "right"));
+        assert!(mouse_calls.iter().any(|c| c.params["button"] == "middle"));
+        assert!(mouse_calls.iter().any(|c| c.params["clickCount"] == 2));
+
+        // Keyboard: type_text with uppercase, lowercase, newline, tab, and insert_text.
+        page.keyboard()
+            .type_text("Ab\t\n")
+            .await
+            .expect("type_text");
+        page.keyboard()
+            .insert_text("pasted")
+            .await
+            .expect("insert_text");
+        assert_eq!(mock.calls_to("Input.insertText").len(), 1);
+
+        // Prompt insert_text buffers into the open dialog without sending Input.insertText.
+        page.record_open_dialog(PendingDialog::from_event(&json!({
+            "type": "prompt",
+            "defaultPrompt": "fallback"
+        })));
+        page.keyboard()
+            .insert_text("inserted-answer")
+            .await
+            .expect("buffers into prompt");
+        assert_eq!(mock.calls_to("Input.insertText").len(), 1);
+        page.keyboard()
+            .press(Key::Enter)
+            .await
+            .expect("submits prompt");
+        let handled = mock.calls_to("Page.handleJavaScriptDialog");
+        assert_eq!(
+            handled.last().unwrap().params,
+            json!({ "accept": true, "promptText": "inserted-answer" })
+        );
+
+        // Non-prompt open dialog does not swallow insert_text.
+        page.record_open_dialog(PendingDialog::from_event(&json!({ "type": "alert" })));
+        assert!(!page.append_dialog_text("ignored"));
+        let _ = page.take_open_dialog();
+
+        // If Page.handleJavaScriptDialog reports "No dialog is showing", fall back to dispatchKeyEvent.
+        mock.fail("Page.handleJavaScriptDialog", "No dialog is showing");
+        page.record_open_dialog(PendingDialog::from_event(&json!({ "type": "alert" })));
+        let keys_before = mock.calls_to("Input.dispatchKeyEvent").len();
+        page.keyboard()
+            .press(Key::Enter)
+            .await
+            .expect("falls back to key dispatch");
+        assert!(mock.calls_to("Input.dispatchKeyEvent").len() > keys_before);
+    }
+
+    #[test]
+    fn all_key_descriptors_are_non_empty() {
+        for key in [
+            Key::Enter,
+            Key::Tab,
+            Key::Escape,
+            Key::Backspace,
+            Key::Delete,
+            Key::ArrowUp,
+            Key::ArrowDown,
+            Key::ArrowLeft,
+            Key::ArrowRight,
+            Key::Home,
+            Key::End,
+            Key::PageUp,
+            Key::PageDown,
+            Key::Insert,
+            Key::Space,
+            Key::Pause,
+            Key::Shift,
+            Key::Control,
+            Key::Alt,
+            Key::Meta,
+            Key::F1,
+            Key::F2,
+            Key::F3,
+            Key::F4,
+            Key::F5,
+            Key::F6,
+            Key::F7,
+            Key::F8,
+            Key::F9,
+            Key::F10,
+            Key::F11,
+            Key::F12,
+            Key::NumPad0,
+            Key::NumPad1,
+            Key::NumPad2,
+            Key::NumPad3,
+            Key::NumPad4,
+            Key::NumPad5,
+            Key::NumPad6,
+            Key::NumPad7,
+            Key::NumPad8,
+            Key::NumPad9,
+            Key::Multiply,
+            Key::Add,
+            Key::Subtract,
+            Key::Decimal,
+            Key::Divide,
+        ] {
+            let (name, code, vk) = key.descriptor();
+            assert!(!name.is_empty() && !code.is_empty() && vk > 0);
+        }
+    }
 }

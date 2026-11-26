@@ -378,4 +378,52 @@ mod quit_tests {
             "expected CDP Browser.close before detaching attached UC session"
         );
     }
+
+    #[tokio::test]
+    async fn uc_reconnect_on_edge_uses_ms_edge_options_debugger_address() {
+        let mock = MockWebDriver::start(
+            json!({
+                "browserName": "msedge",
+                "ms:edgeOptions": { "debuggerAddress": "localhost:54322" }
+            }),
+            |_| Reply::Value(json!({})),
+        );
+        let mut config = BrowserConfig::builder()
+            .browser(crate::browser::config::Browser::Edge)
+            .webdriver_url(mock.url())
+            .mode(crate::browser::config::DriverMode::Uc)
+            .build()
+            .expect("valid edge config");
+        config.session.auto_start_driver = false;
+
+        let mut session = BrowserSession::connect(config.clone())
+            .await
+            .expect("connects");
+        session.reconnect(&config).await.expect("reconnects edge");
+        assert_eq!(deletes(&mock), 0);
+        let sessions = mock.requests("/session");
+        assert_eq!(sessions.len(), 2);
+        assert_eq!(
+            sessions[1].body["capabilities"]["alwaysMatch"]["ms:edgeOptions"]["debuggerAddress"],
+            "localhost:54322"
+        );
+        session.quit().await.expect("quits");
+    }
+
+    #[tokio::test]
+    async fn reconnect_cdp_refuses_config_without_cdp_url_or_discovery() {
+        let (browser, _mock) = crate::sb_cdp::Browser::new_mocked();
+        let page = browser.default_page().await.expect("mock page");
+        let mut session = BrowserSession::attach_page(page);
+        let config = BrowserConfig::default();
+
+        let err = session
+            .reconnect(&config)
+            .await
+            .expect_err("requires cdp_url or cdp_discovery");
+        assert!(
+            matches!(err, SeleniumBaseError::InvalidConfig(_)),
+            "{err:?}"
+        );
+    }
 }

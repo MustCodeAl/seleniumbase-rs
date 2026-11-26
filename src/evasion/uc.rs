@@ -474,6 +474,99 @@ mod tests {
         );
     }
 
+    #[tokio::test]
+    async fn cdp_uc_helpers_send_expected_protocol_commands_and_handle_errors() {
+        use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+        use crate::browser::config::{BrowserConfig, DriverMode};
+        use crate::browser::session::BrowserSession;
+
+        let mock = MockWebDriver::start(json!({ "browserName": "chrome" }), |req| {
+            if req.path == "/goog/cdp/execute" && req.body["cmd"] == "Runtime.evaluate" {
+                Reply::Value(json!({ "result": { "type": "undefined" } }))
+            } else {
+                Reply::Value(json!({}))
+            }
+        });
+        let mut config = BrowserConfig::builder()
+            .webdriver_url(mock.url())
+            .mode(DriverMode::WebDriver)
+            .build()
+            .expect("valid config");
+        config.session.auto_start_driver = false;
+        let mut session = BrowserSession::connect(config).await.expect("connects");
+        let cdp = session.devtools().expect("devtools client");
+
+        apply_uc_stealth(&cdp).await.expect("apply_uc_stealth");
+        override_user_agent(&cdp, "TestAgent/1.0", Some("en-US"))
+            .await
+            .expect("override_user_agent with locale");
+        override_user_agent(&cdp, "TestAgent/2.0", None)
+            .await
+            .expect("override_user_agent without locale");
+        override_timezone(&cdp, "America/Chicago")
+            .await
+            .expect("override_timezone");
+        override_geolocation(&cdp, 41.88, -87.63, 15.0)
+            .await
+            .expect("override_geolocation");
+        clear_cdc_properties(&cdp)
+            .await
+            .expect("clear_cdc_properties");
+
+        let cmds: Vec<serde_json::Value> = mock
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .map(|r| r.body)
+            .collect();
+        assert!(cmds
+            .iter()
+            .any(|c| c["cmd"] == "Page.addScriptToEvaluateOnNewDocument"));
+        assert!(cmds.iter().any(|c| {
+            c["cmd"] == "Network.setUserAgentOverride"
+                && c["params"]["userAgent"] == "TestAgent/1.0"
+                && c["params"]["acceptLanguage"] == "en-US"
+        }));
+        assert!(cmds.iter().any(|c| {
+            c["cmd"] == "Network.setUserAgentOverride"
+                && c["params"]["userAgent"] == "TestAgent/2.0"
+                && c["params"].get("acceptLanguage").is_none()
+        }));
+        assert!(cmds.iter().any(|c| {
+            c["cmd"] == "Emulation.setTimezoneOverride"
+                && c["params"]["timezoneId"] == "America/Chicago"
+        }));
+        assert!(cmds.iter().any(|c| {
+            c["cmd"] == "Emulation.setGeolocationOverride"
+                && c["params"]["latitude"] == 41.88
+                && c["params"]["longitude"] == -87.63
+                && c["params"]["accuracy"] == 15.0
+        }));
+        assert!(cmds.iter().any(|c| c["cmd"] == "Runtime.evaluate"));
+        session.quit().await.expect("quits");
+
+        // Verify exceptionDetails from Runtime.evaluate surfaces as Unsupported error.
+        let throwing = MockWebDriver::start(json!({ "browserName": "chrome" }), |req| {
+            if req.path == "/goog/cdp/execute" && req.body["cmd"] == "Runtime.evaluate" {
+                Reply::Value(json!({ "exceptionDetails": { "text": "ReferenceError" } }))
+            } else {
+                Reply::Value(json!({}))
+            }
+        });
+        let mut cfg2 = BrowserConfig::builder()
+            .webdriver_url(throwing.url())
+            .mode(DriverMode::WebDriver)
+            .build()
+            .expect("valid config");
+        cfg2.session.auto_start_driver = false;
+        let mut s2 = BrowserSession::connect(cfg2).await.expect("connects");
+        let cdp2 = s2.devtools().expect("devtools");
+        let err = clear_cdc_properties(&cdp2)
+            .await
+            .expect_err("exceptionDetails must error");
+        assert!(matches!(err, SeleniumBaseError::Unsupported(_)), "{err:?}");
+        s2.quit().await.expect("quits");
+    }
+
     #[test]
     fn clear_cdc_script_structure() {
         assert!(
