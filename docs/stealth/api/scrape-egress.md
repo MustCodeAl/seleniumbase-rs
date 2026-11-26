@@ -1,10 +1,10 @@
 ---
-title: "scrape::egress"
+title: "network::proxy"
 sidebarTitle: "Egress"
 description: "Proxy specs, the rotating pool, countries and locales, and URL redaction."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
 `egress` is where a scrape leaves the machine. `route` parses a proxy spec into a `ProxyRoute` and a `ProxyKey` that carries no credentials. `pool` rotates those keys. `geo` maps a country to a language and a time zone. `redact` builds a `RedactedUrl` so a log cannot echo a password.
 
@@ -13,9 +13,9 @@ How a clearance stays with the address that earned it is on [Identity and cookie
 <RequestExample>
 
 ```rust A country and a redacted URL
-use seleniumbase_rs_stealth::scrape::{CountryCode, RedactedUrl, ScrapeError};
+use seleniumbase_rs_stealth::session::{CountryCode, RedactedUrl, SessionError};
 
-fn main() -> Result<(), ScrapeError> {
+fn main() -> Result<(), SessionError> {
     let de = CountryCode::try_new("DE")?;
     let shown = RedactedUrl::new("https://user:secret@example.com/a?token=1");
     println!("{} {shown}", de.as_str());
@@ -118,7 +118,7 @@ pub struct GeoInfo {
 }
 ```
 
-What a geo lookup learned about an egress. `coordinates` is `Geolocation` (`seleniumbase_rs_stealth::evasion::fingerprint::Geolocation`), the type a fingerprint's `geolocation` takes.
+What a geo lookup learned about an egress. `coordinates` is `Geolocation` (`seleniumbase_rs_stealth::identity::fingerprint::Geolocation`), the type a fingerprint's `geolocation` takes.
 
 ### `GeoResolver`
 

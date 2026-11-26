@@ -2,13 +2,13 @@
 title: "HttpSession"
 ---
 
-Examples importing `seleniumbase_rs_stealth::wire` require the facade's
-`wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
+Examples importing `seleniumbase_rs_stealth::session::HttpSession` require the
+`network` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Badge color="orange">Experimental</Badge>
 
-`wire::http_session::HttpSession` sends plain HTTP requests that look like
+`session::HttpSession` (`session::http::HttpSession`) sends plain HTTP requests that look like
 the Chrome a browser page came from. A browser spends a second or more on a page;
 a request spends milliseconds. Once a page has earned its cookies (a login, a
 passed check), an `HttpSession` carries them on: the measured TLS `ClientHello`
@@ -19,13 +19,13 @@ approximated.
 
 <Visibility for="agents">
 
-Summary for AI exports: `HttpSession` (crate `seleniumbase-rs-wire`) sends plain HTTP requests that carry the cookies, the measured TLS and HTTP/2 start, the header names and order, the user agent, client hints and `Accept-Language` of a Chrome. Build one with `HttpSession::from_page` or `HttpSession::from_identity`; a browser or system that was not measured is refused. It does not run JavaScript or solve a challenge.
+Summary for AI exports: `session::HttpSession` (`seleniumbase-rs-stealth`, feature `network`) sends plain HTTP requests that carry the cookies, the measured TLS and HTTP/2 start, the header names and order, the user agent, client hints and `Accept-Language` of a Chrome. Build one with `HttpSession::from_page` or `HttpSession::from_identity`; a browser or system that was not measured is refused. It does not run JavaScript or solve a challenge.
 
 </Visibility>
 
 ```rust
-use seleniumbase_rs_stealth::wire::{HttpSessionOptions, HttpSession};
 use seleniumbase_rs_stealth::sb_cdp::Page;
+use seleniumbase_rs_stealth::session::{HttpSession, HttpSessionOptions};
 
 async fn demo(page: Page) -> Result<(), Box<dyn std::error::Error>> {
     let session = HttpSession::from_page(&page, None, HttpSessionOptions::new()).await?;
@@ -75,8 +75,8 @@ Both refuse, before any request, what would contradict the measured handshake:
 is reported there.
 
 ```rust
-use seleniumbase_rs_stealth::wire::{HttpSession, Method};
-use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
+use seleniumbase_rs_stealth::network::spec::RequestShape;
+use seleniumbase_rs_stealth::session::{HttpSession, Method};
 
 async fn demo(session: HttpSession) -> Result<(), Box<dyn std::error::Error>> {
     let reply = session
@@ -165,12 +165,10 @@ refuses a value out of range before a client exists.
   in one call (`HttpFetch { reply, verdict }`); `session.preflight(url, &identity,
   state, &rules)` asks, before a request, whether the identity's clearance is
   about to end so that the browser should take the URL first. They are the
-  pieces of your own loop; [`StealthSession`](/scraping/advanced-stealthy/stealth-session) is that loop.
+  pieces of your own loop; [`HybridSession`](/scraping/advanced-stealthy/stealth-session) is that loop.
 
   ```rust
-  use seleniumbase_rs_stealth::wire::http_session::{HttpAttempt, HttpRules};
-  use seleniumbase_rs_stealth::wire::HttpSession;
-  use seleniumbase_rs_stealth::scrape::Identity;
+  use seleniumbase_rs_stealth::session::{HttpAttempt, HttpRules, HttpSession, Identity};
 
   async fn demo(session: HttpSession, identity: Identity) -> Result<(), Box<dyn std::error::Error>> {
       let fetched = session
@@ -232,10 +230,10 @@ refused. The rest of `HttpSession` is tested against loopback sites
 ## Next steps
 
 `HttpSession`, `HttpSessionOptions`, `HttpResponse` and `HttpError` are re-exported at
-`seleniumbase_rs_stealth::wire`, which is what the example above imports. The
-module path `wire::http_session::HttpSession` is the same type. The types that
-judge a reply and read its headers have one name, in the module and at the
-root: `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict` and
+`seleniumbase_rs_stealth::session`, which is what the example above imports. The
+module path `session::http::HttpSession` is the same type. The types that
+judge a reply and read its headers have one name, in the module and at
+`session`: `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict` and
 `ResponseHeaders`.
 
 <Columns cols={2}>
@@ -246,7 +244,7 @@ Identity, session policy, the cookie jar and challenge detection.
 
 </Card>
 
-<Card color="#199f43" title="StealthSession" icon="shuffle" href="/scraping/advanced-stealthy/stealth-session">
+<Card color="#199f43" title="HybridSession" icon="shuffle" href="/scraping/advanced-stealthy/stealth-session">
 
 The loop built from `fetch`, `assess` and `preflight`.
 

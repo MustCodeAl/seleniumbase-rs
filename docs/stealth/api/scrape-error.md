@@ -1,25 +1,25 @@
 ---
 title: "scrape::error"
 sidebarTitle: "Errors"
-description: "ScrapeError, the one error enum seleniumbase-rs-scrape returns."
+description: "SessionError, the one error enum seleniumbase-rs-stealth (`session`) returns."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
-Every fallible call in the scrape crate returns `ScrapeError`. A URL on an error is a `RedactedUrl`. The enum is `non_exhaustive`. `ProxyRouteError`, `GeoError`, `LedgerError`, `IdentityError` and the core's `FingerprintError` convert into it.
+Every fallible call in the scrape crate returns `SessionError`. A URL on an error is a `RedactedUrl`. The enum is `non_exhaustive`. `ProxyRouteError`, `GeoError`, `LedgerError`, `IdentityError` and the core's `FingerprintError` convert into it.
 
-See [BrowserScraper](/scraping/stealthy/browser-scraper).
+See [CdpSession](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
 ```rust Match the scrape error
-use seleniumbase_rs_stealth::scrape::ScrapeError;
+use seleniumbase_rs_stealth::session::SessionError;
 
-fn explain(error: &ScrapeError) -> &'static str {
+fn explain(error: &SessionError) -> &'static str {
     match error {
-        ScrapeError::NoProxyLeft => "no other proxy",
-        ScrapeError::CoolingDown { .. } => "site cooldown",
-        ScrapeError::Unsolved { .. } => "challenge not passed",
+        SessionError::NoProxyLeft => "no other proxy",
+        SessionError::CoolingDown { .. } => "site cooldown",
+        SessionError::Unsolved { .. } => "challenge not passed",
         _ => "other scrape error",
     }
 }
@@ -27,12 +27,12 @@ fn explain(error: &ScrapeError) -> &'static str {
 
 </RequestExample>
 
-## `ScrapeError`
+## `SessionError`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum ScrapeError {
+pub enum SessionError {
     Proxy(#[from] ProxyRouteError),
     Geo(#[from] GeoError),
     Ledger(#[from] LedgerError),
@@ -73,4 +73,4 @@ Why a scrape did not produce a page.
 
 ## Related
 
-The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [CdpSession](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

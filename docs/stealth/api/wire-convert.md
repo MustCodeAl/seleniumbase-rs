@@ -1,10 +1,10 @@
 ---
-title: "wire::convert"
+title: "network::convert"
 sidebarTitle: "Convert"
 description: "Plain functions from the codec specs to wreq and BoringSSL options."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Feature: network</Badge>
 
 `convert` maps a codec spec onto what BoringSSL and wreq can emit. `tls_options`, `http2_options` and `wreq_headers` do the mapping. `check_emittable` reports a spec that cannot be sent. `ConvertError` names the gap. This module and `client` are the ones that name wreq types.
 
@@ -13,8 +13,8 @@ See [Wire formats](/stealth/advanced/wire-formats).
 <RequestExample>
 
 ```rust Can this TLS spec be sent?
-use seleniumbase_rs_stealth::codec::TlsSpec;
-use seleniumbase_rs_stealth::wire::convert::{check_emittable, ConvertError};
+use seleniumbase_rs_stealth::network::spec::TlsSpec;
+use seleniumbase_rs_stealth::network::convert::{check_emittable, ConvertError};
 
 fn can_send(spec: &TlsSpec) -> Result<(), ConvertError> {
     check_emittable(spec)

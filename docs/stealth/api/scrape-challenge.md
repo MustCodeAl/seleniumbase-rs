@@ -4,16 +4,16 @@ sidebarTitle: "Challenges"
 description: "Challenge detection, interstitial markers and the mitigation policy."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
 `challenge` decides what a response is and what to do next. `detect` reads a `ResponseView` and returns a `Detection`. `markers` holds the interstitial strings. `mitigation` turns a detection and an attempt into a `Mitigation`.
 
-`BrowserScraper` calls this on every load. See [BrowserScraper](/scraping/stealthy/browser-scraper).
+`CdpSession` calls this on every load. See [CdpSession](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
 ```rust Classify a response
-use seleniumbase_rs_stealth::scrape::challenge::detect::{detect, ResponseView};
+use seleniumbase_rs_stealth::session::challenge::detect::{detect, ResponseView};
 
 fn main() {
     let headers: [(String, String); 0] = [];
@@ -288,4 +288,4 @@ The cookie that proves a vendor's challenge was passed, once it is set.
 
 ## Related
 
-The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [CdpSession](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

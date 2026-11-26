@@ -4,7 +4,7 @@ sidebarTitle: "Identity"
 description: "Identity, the escalation policy and the wire measurement reference."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
 `passport` is the identity a scrape carries between the browser and plain HTTP: the fingerprint, the cookies (a core `Session`), the clearances and the wire measurement it claims. `EscalationPolicy` says when that identity should stay on HTTP and when it should go to the browser.
 
@@ -14,8 +14,8 @@ See [Identity and cookies](/scraping/advanced-stealthy/identity).
 
 ```rust The wire measurement an identity claims
 use seleniumbase_rs::browser::config::Browser;
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::scrape::WireMeasurementRef;
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::session::WireMeasurementRef;
 
 fn chrome_on_macos(major: u32) -> WireMeasurementRef {
     WireMeasurementRef {

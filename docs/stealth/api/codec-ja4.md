@@ -1,12 +1,12 @@
 ---
 title: "codec::ja4"
 sidebarTitle: "JA4"
-description: "JA4 in seleniumbase-rs-codec, after FoxIO's TLS-client definition: Ja4, Ja4Raw (JA4_r and JA4_ro), Ja4Facts, Ja4Order, Ja4Diff, Ja4AField, Ja4Section, Ja4Error and the a-section helpers."
+description: "JA4 in seleniumbase-rs-stealth (`network::spec`), after FoxIO's TLS-client definition: Ja4, Ja4Raw (JA4_r and JA4_ro), Ja4Facts, Ja4Order, Ja4Diff, Ja4AField, Ja4Section, Ja4Error and the a-section helpers."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
-`seleniumbase_rs_stealth::codec::ja4` computes `JA4` and `JA4_r` from a `ClientHello`,
+`seleniumbase_rs_stealth::network::spec::ja4` computes `JA4` and `JA4_r` from a `ClientHello`,
 following FoxIO's TLS-client definition. Only JA4 itself is implemented (the TLS
 client method, BSD-3-Clause); JA4H, JA4S, JA4X and the other JA4+ methods carry a
 different licence and are not part of the crate.
@@ -29,7 +29,7 @@ Chrome shuffles them on every connection.
 <RequestExample>
 
 ```rust Hash a JA4_r
-use seleniumbase_rs_stealth::codec::ja4::Ja4Raw;
+use seleniumbase_rs_stealth::network::spec::ja4::Ja4Raw;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // FoxIO's published example, unhashed.
@@ -44,7 +44,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust Compare two fingerprints
-use seleniumbase_rs_stealth::codec::ja4::{Ja4, Ja4AField};
+use seleniumbase_rs_stealth::network::spec::ja4::{Ja4, Ja4AField};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let chrome: Ja4 = "t13d1517h2_8daaf6152771_cb7bf5808d99".parse()?;
@@ -57,8 +57,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust From a parsed hello
-use seleniumbase_rs_stealth::codec::client_hello::ClientHello;
-use seleniumbase_rs_stealth::codec::ja4::Ja4;
+use seleniumbase_rs_stealth::network::spec::client_hello::ClientHello;
+use seleniumbase_rs_stealth::network::spec::ja4::Ja4;
 
 fn all_four(hello: &ClientHello) -> [String; 4] {
     [

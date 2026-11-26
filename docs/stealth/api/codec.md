@@ -1,26 +1,25 @@
 ---
-title: "seleniumbase-rs-codec"
-sidebarTitle: "codec"
-description: "API reference of seleniumbase-rs-codec: the pure wire formats of the stealth layer. ClientHello, JA3, JA4, peetprint, Akamai HTTP/2 strings, HTTP/2 frames and HPACK, the TLS, HTTP/2 and header specs, and the measured browser tables."
+title: "network::spec (wire formats)"
+sidebarTitle: "network::spec"
+description: "API reference of seleniumbase_rs_stealth::network::spec: the pure wire formats of the stealth layer. ClientHello, JA3, JA4, peetprint, Akamai HTTP/2 strings, HTTP/2 frames and HPACK, the TLS, HTTP/2, HTTP/3 and header specs, and the measured browser tables."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
-`seleniumbase_rs_stealth::codec` (implemented by `seleniumbase-rs-codec` in `crates/codec` of the
-[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-repository) holds the wire formats of the stealth layer. It is pure: no sockets,
-no clock, no files, and `#![forbid(unsafe_code)]`. Every parser bounds its input
+`seleniumbase_rs_stealth::network::spec` (`src/network/spec/` in
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth), feature `network-spec`, enabled by default through `session`) holds the wire formats of the stealth layer. It is pure: no sockets,
+no clock, no files, no BoringSSL, and `#![forbid(unsafe_code)]`. Every parser bounds its input
 and returns an error for hostile or truncated bytes instead of panicking. The
-measured browser table is embedded from `src/measured/*.json`; today it holds one
+measured browser table is embedded from `src/network/spec/measured/*.json`; today it holds one
 entry, Chrome 155.0.8059.40 on macOS. The guide that explains these formats is
 [Wire formats](/stealth/advanced/wire-formats).
 
 <RequestExample>
 
 ```rust The measured Chrome
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs::browser::config::Browser;
-use seleniumbase_rs_stealth::codec::{measurement, WireMeasurementError};
+use seleniumbase_rs_stealth::browser::config::Browser;
+use seleniumbase_rs_stealth::identity::OsType;
+use seleniumbase_rs_stealth::network::spec::{measurement, WireMeasurementError};
 
 fn main() -> Result<(), WireMeasurementError> {
     let chrome = measurement::get(Browser::Chrome, OsType::Macos)?;
@@ -30,7 +29,7 @@ fn main() -> Result<(), WireMeasurementError> {
 ```
 
 ```rust Parse wire strings
-use seleniumbase_rs_stealth::codec::{Akamai, Ja3, Ja4};
+use seleniumbase_rs_stealth::network::spec::{Akamai, Ja3, Ja4};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let akamai: Akamai = "1:65536;2:0;4:6291456;6:262144|15663105|0|m,a,s,p".parse()?;
@@ -53,28 +52,24 @@ Chrome 155.0.8059.40 t13d1517h2_8daaf6152771_cb7bf5808d99
 
 ## Depend on it
 
-Use the unified root facade from Git:
+Use `seleniumbase-rs-stealth` from Git (the default `session` feature includes `network-spec`, or turn off defaults and enable `network-spec` alone):
 
 ```toml Cargo.toml
 [dependencies]
 seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
-The default facade features expose `codec`, `scrape`, `fingerprint`, `sb_cdp`
-and `evasion`, without BoringSSL or cmake. Import all types through
-`seleniumbase_rs_stealth`; no separate core or implementation dependency is needed.
+No BoringSSL or cmake is required for `network-spec`. Import all types through
+`seleniumbase_rs_stealth::network::spec` (or `seleniumbase_rs_stealth::network`).
 
 ## Features
 
-The facade enables `codec` through its default `scrape` feature. The following
-test-support feature belongs to the implementation crate, not the facade.
+`default = ["session"]` enables `network-spec` automatically. To build only `identity` and `network::spec` without `client` or `session`, set `default-features = false, features = ["network-spec"]`.
 
 <ParamField body="test-fixtures" type="feature" default="off">
 
 Turns on the `ClientHello` byte builders of the tests
-(`client_hello::fixtures`, hidden from the documentation), for the tests of the
-crates built on this one. Test support only: no release build turns it on. The
-crate has no default features.
+(`network::spec::client_hello::fixtures`, hidden from the documentation). Test support only: no release build turns it on.
 
 </ParamField>
 
@@ -94,10 +89,10 @@ crate has no default features.
 | `header_spec` | Header names, order and values per request shape. | [HeaderSpec](/stealth/api/codec-header-spec) |
 | `ids` | IANA names of TLS and HTTP/2 ids, and what BoringSSL can emit. | Registries |
 
-## Re-exports at the root
+## Re-exports at `network::spec` and `network`
 
-The main types are re-exported, so `seleniumbase_rs_stealth::codec::Ja4` is
-`seleniumbase_rs_stealth::codec::ja4::Ja4`. Each root name is the item's own name; the lookups
+The main types are re-exported at both `seleniumbase_rs_stealth::network::spec` and `seleniumbase_rs_stealth::network`, so `seleniumbase_rs_stealth::network::spec::Ja4` is
+`seleniumbase_rs_stealth::network::spec::ja4::Ja4`. Each re-exported name is the item's own name; the lookups
 of `measurement` are called through the module (`measurement::all`, `measurement::for_kind`,
 `measurement::get`) and have no root alias.
 

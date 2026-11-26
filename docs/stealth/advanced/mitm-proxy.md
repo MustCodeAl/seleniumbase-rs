@@ -3,7 +3,7 @@ title: "TLS Server and MitmProxy"
 sidebarTitle: "MitmProxy"
 ---
 
-Examples importing `seleniumbase_rs_stealth::wire` require the facade's
+Examples importing `seleniumbase_rs_stealth::network` require the facade's
 `wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
@@ -11,13 +11,13 @@ this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Visibility for="agents">
 
-Summary for AI exports: `wire::tls_server` makes an ephemeral P-256 certificate authority in memory and issues one-day leaves for single host names. `wire::mitm::MitmProxy` is a loopback forward proxy that requires a random `Proxy-Authorization` token, ends Chrome's TLS with a leaf of that CA and replays each request through the impersonating client, so the origin sees the measured `ClientHello`, HTTP/2 start and header spelling. `configure_launch` points a Chrome launch at it. Only WebSocket upgrades are relayed; QUIC is off.
+Summary for AI exports: `network::tls_server` makes an ephemeral P-256 certificate authority in memory and issues one-day leaves for single host names. `network::mitm::MitmProxy` is a loopback forward proxy that requires a random `Proxy-Authorization` token, ends Chrome's TLS with a leaf of that CA and replays each request through the impersonating client, so the origin sees the measured `ClientHello`, HTTP/2 start and header spelling. `configure_launch` points a Chrome launch at it. Only WebSocket upgrades are relayed; QUIC is off.
 
 </Visibility>
 
 ## The ephemeral-CA TLS server
 
-`wire::tls_server` is the building block under `capture_h2` and under
+`network::tls_server` is the building block under `capture_h2` and under
 [`MitmProxy`](#mitmproxy). `EphemeralCa::generate()` creates a P-256
 certificate authority in memory for the life of one process. `leaf_for(host,
 now)` issues a leaf for one DNS name or IP address (never a wildcard), cached in
@@ -27,7 +27,7 @@ handshake and refuses the connection when the client's <Tooltip tip="Server Name
 
 ```rust
 use std::time::SystemTime;
-use seleniumbase_rs_stealth::wire::tls_server::{
+use seleniumbase_rs_stealth::network::tls_server::{
     accept, acceptor, EphemeralCa, ALPN_HTTP1, DEFAULT_HANDSHAKE_TIMEOUT,
 };
 
@@ -85,7 +85,7 @@ freed, not wiped, when the CA drops, because BoringSSL offers no zeroize hook.
 
 ## MitmProxy
 
-`HttpSession` covers the requests you make yourself. `wire::mitm::MitmProxy`
+`HttpSession` covers the requests you make yourself. `network::mitm::MitmProxy`
 covers the ones a real Chrome makes. It is a loopback forward proxy that ends
 the browser's TLS with a leaf of the [ephemeral CA](#the-ephemeral-ca-tls-server)
 and replays each request through the impersonating client, so the origin sees the
@@ -106,9 +106,9 @@ flowchart LR
 use std::sync::Arc;
 use std::time::Duration;
 
-use seleniumbase_rs_stealth::wire::{WireFormat, MitmOptions, MitmProxy};
+use seleniumbase_rs_stealth::network::{WireFormat, MitmOptions, MitmProxy};
 use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs_stealth::scrape::NoopEventSink;
+use seleniumbase_rs_stealth::session::NoopEventSink;
 use seleniumbase_rs::browser::config::Browser;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
@@ -383,7 +383,7 @@ in a cache that every tab of the browser context shares, and every later
 WebSocket as another tab's first request, goes through.
 
 So the proxy owns one page, `mitm.prime_url()`: `https://sb-mitm.invalid/`
-(`wire::mitm::PRIME_HOST`, under the reserved `.invalid` name) and a path
+(`network::mitm::PRIME_HOST`, under the reserved `.invalid` name) and a path
 of 128 random bits. After the token check, a `GET` of exactly that is answered by
 the proxy itself with an empty page that is never cached (`mitm.stats().primed`
 counts it). Any other request for that host, Chrome's `favicon.ico` included,
@@ -401,7 +401,7 @@ does not share the default context's (measured). Before a WebSocket in a context
 behind the proxy, load the priming page in its first tab:
 
 ```rust
-use seleniumbase_rs_stealth::wire::MitmProxy;
+use seleniumbase_rs_stealth::network::MitmProxy;
 use seleniumbase_rs_stealth::sb_cdp::{Browser, ContextOptions};
 
 async fn demo(browser: Browser, mitm: MitmProxy) -> Result<(), Box<dyn std::error::Error>> {
@@ -504,8 +504,8 @@ Only the first test compares the browser with the measured
 ## How these types are imported
 
 `MitmProxy`, `MitmOptions`, `MitmStats`, `MitmError`, `EphemeralCa`, `CaOptions`,
-`Leaf` and `TlsServerError` are re-exported at `seleniumbase_rs_stealth::wire`.
-The module paths used above (`wire::mitm`, `wire::tls_server`) are the same
+`Leaf` and `TlsServerError` are re-exported at `seleniumbase_rs_stealth::network`.
+The module paths used above (`network::mitm`, `network::tls_server`) are the same
 types. The feature is `wire`; without it the module does not exist, and the first
 build compiles BoringSSL.
 
@@ -513,7 +513,7 @@ build compiles BoringSSL.
 
 <Columns cols={2}>
 
-<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/scraping/advanced-stealthy/stealth-session">
+<Card title="HybridSession" icon="shuffle" color="#d32a61" href="/scraping/advanced-stealthy/stealth-session">
   The session that launches this proxy for you and moves cookies back to HTTP.
 </Card>
 

@@ -1,10 +1,10 @@
 ---
-title: "wire::mitm"
+title: "network::mitm"
 sidebarTitle: "MITM proxy"
 description: "MitmProxy: a loopback proxy that replays Chrome's requests with the measured handshake."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Feature: network</Badge>
 
 `MitmProxy` binds on loopback, ends Chrome's TLS with a leaf of an in-memory CA, and replays each request through the impersonating client. It requires a random proxy token, refuses destinations it will not intercept, and never tunnels blind.
 
@@ -13,7 +13,7 @@ The guide is [MITM proxy](/stealth/advanced/mitm-proxy). The CA is [TLS server](
 <RequestExample>
 
 ```rust Options for the loopback proxy
-use seleniumbase_rs_stealth::wire::MitmOptions;
+use seleniumbase_rs_stealth::network::MitmOptions;
 
 fn main() {
     let options = MitmOptions::default();

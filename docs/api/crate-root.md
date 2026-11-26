@@ -82,7 +82,6 @@ Macros exported at the crate root for concise test writing, configuration, and i
 | `uc_config!` | Builds a default `BrowserConfig` configured for undetected (UC) mode. |
 | `cdp_config!` | Builds a default `BrowserConfig` configured for pure CDP mode. |
 | `sb_config!` | Ergonomic macro for constructing `BrowserConfig` with chained settings (`mode`, `headless`, `browser`, etc.). |
-| `fingerprint!` | Instant constructor for built-in OS fingerprint presets (`fingerprint!(windows)`, `fingerprint!(macos)`, `fingerprint!(linux)`, `fingerprint!(android)`, `fingerprint!(ios)`). |
 | `sb_fill_form!` | Fills sequential form fields with key-value pairs (`sb_fill_form!(sb, "#user" => "alice", "#pass" => "secret")`). |
 | `sb_with_timeout!` | Runs an asynchronous block with a temporary override of the default wait timeout. |
 | Action macros | Ergonomic wrappers calling `BaseCase` methods: `sb_open!`, `sb_click!`, `sb_type!`, `sb_hover!`, `sb_scroll_to!`, `sb_wait_for!`, `sb_wait_and_click!`, `sb_select!`, `sb_assert_text!`, `sb_assert_title!`, `sb_assert_title_contains!`, `sb_assert_url!`, `sb_assert_url_contains!`, `sb_assert_visible!`, `sb_assert_not_visible!`, `sb_screenshot!`, `sb_js!`, `sb_quit!`. |
@@ -94,16 +93,13 @@ Macros exported at the crate root for concise test writing, configuration, and i
 | `Chart`, `ChartType` | A chart that renders to HTML with Chart.js: `Chart::new(title, chart_type)` with `ChartType::Pie`, `Bar` (horizontal), `Line`, `Area` or `Column` (vertical). Data points are `(label, i32)` pairs; extra series go in `extra_series`. See [Charts](/tutorials/charts). |
 | `TourTheme` | `SeleniumBase` (default), `Shepherd`, `IntroJs`, `DriverJs`, `Bootstrap`, `Hopscotch`; `as_str()` gives the lowercase name. See [Tours](/tutorials/tours). |
 
-### Fingerprint and stealth
+### Undetected patching and stealth
 
-These are re-exported for convenience; the [Fingerprint & Stealth Profiles](/stealth/introduction)
-tutorial is the reference for them.
+Binary patching and undetected-Chrome launch helpers stay in core (`seleniumbase_rs::undetected`, re-exported at the crate root). Fingerprint spoofing, `Spoof`, `StealthPolicy`, `EvasionRegistry`, `ProfileParams`, `StealthPlan`, and the `fingerprint!` macro moved in `v0.10.0` to [`seleniumbase-rs-stealth`](/stealth/api/evasion) (`seleniumbase-rs-stealth`).
 
 | Item | What it is |
 |---|---|
-| Fingerprint types | `Fingerprint` (built once with `Fingerprint::builder()`, read through accessors, changed with `to_builder()`), `FingerprintBuilder`, `FingerprintError`, `Spoof<T>` (each setting: `Natural`, `Random`, `Value(T)`, `Mimic(Specimen)` or `Off`), `Specimen` (mimic target profile), `StealthPolicy` (how the claims are delivered; presets `default()`, `balanced()`, `native_only()`, `max()`), `Dimension`, and the value types `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `ClientHints`, `BrandVersion`, `ProxyConfig`, `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `OsType`, `BrowserType`; the policy enums `CanvasNoise`, `AudioNoise`, `QuicMode`, `WebRtcPolicy`; `HumanizeConfig` and `CoherenceReport`. |
-| Evasion providers | `default_registry()` returns an `EvasionRegistry` with every built-in provider. `session_registry(&Fingerprint)` is the registry for a pure CDP tab: it leaves out the providers named in `SESSION_OMITTED_PROVIDERS` (`"plugins"` and `"connection"`), because Chrome already answers for those itself. `EvasionProvider` is the trait for your own, `EvasionContext` the data a provider's script is built from, `EvasionConfig` its settings. |
-| Patching | `find_system_chrome() -> Option<PathBuf>` and `find_system_chrome_with(...)` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, and `EnginePatch`. Diagnostic and rule types: `PatchPreset` (`Balanced`, `All`, `Aggressive`, `ChromeBinary`, with `as_str()`, `to_patch()`, and `FromStr`), `BinaryFormat` (`Elf`, `MachO`, `Pe`, `Unknown`, with `detect(bytes)` and `as_str()`), `BinaryPatchRule` (`try_new(needle, replacement)` and `neutralize(needle)` enforcing equal byte lengths), `MarkerCounts` (per-category counts across 12 marker families plus `total()`), `BinaryMarkerReport` (`inspect(path)`, `from_bytes(path, content)`, `needs_patch()`, `has_any_markers()`), and `PatchedBrowserBundle` (`executable` and optional `companion` library paths). See [Binary patching](/stealth/advanced/binary-patching). |
+| Patching | `find_system_chrome() -> Option<PathBuf>` and `find_system_chrome_with(...)` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, and `EnginePatch` (`balanced()`, `all()`, `aggressive()`, `chrome_binary()`, `headless_chrome()`, `stealth_browser()`, `custom_rule`, `custom_rules`, `from_rules`). Diagnostic and rule types: `PatchPreset`, `BinaryFormat`, `BinaryPatchRule` (`try_new`, `ascii`, `neutralize`, `neutralize_nul`, `from_hex`), `MarkerCounts`, `BinaryMarkerReport` (`inspect`, `from_bytes`, `needs_patch`, `has_markers`, `summary`), `PatchedBrowserBundle`, and in-memory `undetected::patcher::patch_bytes`. See [Binary patching](/stealth/advanced/binary-patching). |
 
 ### Python migration
 
@@ -119,16 +115,18 @@ diagnostic.
 
 ### Modules
 
-The remaining public API sits in modules: `api`, `artifacts`, `behave`,
-`browser`, `cli`, `common`, `config`, `core`, `drivers` (the raw `WebDriver`,
-`WebElement` and `WebDriverError` of the escape hatches), `error`, `evasion`, `js_code`, `json` (`json!` and `Value`), `macros`,
+The remaining public API sits in modules: `api`, `artifacts`,
+`browser` (including `browser::options::StealthOptions` and `WebRtcPolicy`), `cli`, `common`, `config`, `core`, `drivers` (the raw `WebDriver`,
+`WebElement` and `WebDriverError` of the escape hatches), `error`, `js_code`, `json` (`json!` and `Value`), `macros`,
 `tokio` (the runtime, re-exported so `#[tokio::main]` needs no `tokio` line; see
 [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies)),
-`plugins` (test-reporting plugins), `profile_payloads`, `resources`,
-`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp)), `tracing_util`,
-`utilities`, `utils`; and, behind features, `mcp` (`mcp-server`), `ocr` (`ocr`),
+`plugins` (test-reporting plugins, including `s3` feature), `resources`,
+`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp), including `sb_cdp::human::{behavior, humanize}`), `tracing_util`,
+`undetected` (`patcher`, `dprocess`, `reactor`, `uc`),
+`utilities`, `utils`; and, behind features, `mcp` (`mcp-server`),
 `plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
 `plugin-shield`, `plugin-block-resources`, `plugin-crx`, `plugin-fetcher`,
 `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor` or `plugins-builtin`: the
 official plugins and their `registry()`, see [Choosing plugins](/plugins/selecting)),
-`storage` (`turso`) and `visual` (`visual`).
+`storage` (`turso`), `testing` (`testing` / `bdd`), and `visual` (`visual`).
+Fingerprinting and JS evasions live in [`seleniumbase-rs-stealth`](/stealth/api/evasion), while OCR and GCS/Azure cloud uploads live in [`seleniumbase-rs-plugin-ocr`](/plugins/community/ocr) and [`seleniumbase-rs-plugin-cloud-logging`](/plugins/community/cloud-logging).

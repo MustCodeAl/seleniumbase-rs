@@ -12,9 +12,9 @@ repository.
 
 | Page | What it covers |
 |---|---|
-| [StealthSession](/scraping/advanced-stealthy/stealth-session) | A browser and an `HttpSession` sharing one identity, and moving between them |
+| [HybridSession](/scraping/advanced-stealthy/stealth-session) | A browser and an `HttpSession` sharing one identity, and moving between them |
 | [Cookies, identity and challenges](/scraping/advanced-stealthy/identity) | The cookie jar, the identity file and session policy, challenge detection |
-| [Runnable examples](/scraping/advanced-stealthy/examples) | The examples in the stealth repository, crate by crate |
+| [Runnable examples](/scraping/advanced-stealthy/examples) | The examples in the stealth repository, feature by feature |
 | [Limits and troubleshooting](/scraping/advanced-stealthy/limits) | What is measured and what is not, and what to do when a fetch fails |
 
 The stealth they build on is described once, in the Stealth sections:

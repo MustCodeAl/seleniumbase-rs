@@ -219,9 +219,7 @@ let config = BrowserConfig::builder()
 
 ### Stealth and fingerprinting
 
-Core UC mode and the companion `seleniumbase-rs-evasion` crate (in
-[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth))
-work together:
+Core UC mode and the layered [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) crate work together:
 
 1. `ChromedriverPatcher` and `ChromeBinaryPatcher` (in `seleniumbase_rs::undetected::patcher`)
    strip `cdc_` and `__webdriver` markers before launch.
@@ -229,10 +227,12 @@ work together:
    telemetry at the Chromium launch level.
 3. `sb_cdp::human` (`Behavior`, `Humanizer`) generates curved pointer paths and
    Gaussian keystroke pacing.
-4. `Fingerprint`, `EvasionProvider`s, `StealthPlan`, and `FingerprintPlugin` (moved in
-   v0.10.0 to `seleniumbase-rs-evasion`, re-exported as `seleniumbase_rs_stealth::evasion`)
+4. `seleniumbase_rs_stealth::identity` (`Fingerprint`, `ProfileFingerprint`,
+   `FingerprintGenerator`, `BayesianSampler`) and `seleniumbase_rs_stealth::client`
+   (`StealthLayer`, `StealthScriptBundle`, 32 `EvasionProvider`s, `StealthPlan`)
    supply coherent identities, JS masking, and CDP overrides via
-   `LaunchOptionsFingerprintExt::with_fingerprint`.
+   `LaunchOptionsFingerprintExt` (`with_fingerprint` / `with_stealth`) and
+   `BrowserConfigFingerprintExt`.
 
 See the [Fingerprint & Stealth Profiles](./docs/stealth/introduction.md)
 and [Binary Patching](./docs/stealth/advanced/binary-patching.md) tutorials for the full
@@ -598,7 +598,7 @@ comments for manual review.
 
 | Repository | What it is |
 |---|---|
-| [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) | The stealth and evasion workspace: `seleniumbase-rs-evasion` (fingerprints, JS evasion providers, `StealthPlan`), wire fingerprints, `BrowserScraper`, browser-identical TLS and HTTP/2/3 (`HttpSession`, `MitmProxy`, `StealthSession`) |
+| [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) | Layered stealth companion crate (`identity`, `client`, `network`, `session`) plus standalone `h3d/` HTTP/3 helper: fingerprints, JS evasion providers, `StealthLayer`, `StealthPlan`, wire specs, `MitmProxy`, `CdpSession`, `HttpSession`, and `HybridSession` |
 | [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins) | The plugin API (`seleniumbase-rs-plugin`), test fakes, official plugins and a template for your own ([ADR 004](./docs/adr/004-plugin-framework.md)) |
 | [tauri-plugin-sbrs-automation](https://github.com/MustCodeAl/tauri-plugin-sbrs-automation) | Test a Tauri app's window with `BaseCase` on macOS, Windows and Linux (a WebDriver endpoint inside the app) |
 | [seleniumbase-rs-browser-extension](https://github.com/MustCodeAl/seleniumbase-rs-browser-extension) | Browser extension: recorder, inspector, export to Rust tests |

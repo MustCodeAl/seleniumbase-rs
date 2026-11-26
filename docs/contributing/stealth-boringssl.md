@@ -8,7 +8,7 @@ keywords: ["boringssl", "btls", "btls-sys", "cmake", "mbx", "stealth", "wire", "
 This page is for contributors to the
 [stealth repository](https://github.com/MustCodeAl/seleniumbase-rs-stealth).
 This repository does not build BoringSSL: only the stealth repository's
-`wire` crate (`seleniumbase-rs-wire`) does, through btls (`=0.5.6`). Its
+`wire` crate (`seleniumbase-rs-stealth` (`network` / `session`)) does, through btls (`=0.5.6`). Its
 build script, `btls-sys`, compiles BoringSSL with cmake: about 280 C and C++
 files. A checkout or worktree with a fresh `target` compiles all of them again.
 The script that builds them once is `scripts/boringssl-prebuilt.sh` in that

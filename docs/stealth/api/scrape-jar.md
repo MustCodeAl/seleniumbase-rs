@@ -4,7 +4,7 @@ sidebarTitle: "Cookie jar"
 description: "The RFC 6265 cookie jar and the Set-Cookie parser."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
 `jar` stores cookies the way a browser does. `set_cookie` parses one `Set-Cookie` header. `CookieJar` is what a browser session and an `HttpSession` share.
 
@@ -13,7 +13,7 @@ The decision table is on [Identity and cookies](/scraping/advanced-stealthy/iden
 <RequestExample>
 
 ```rust An empty jar
-use seleniumbase_rs_stealth::scrape::CookieJar;
+use seleniumbase_rs_stealth::session::CookieJar;
 
 fn main() {
     let jar = CookieJar::new();

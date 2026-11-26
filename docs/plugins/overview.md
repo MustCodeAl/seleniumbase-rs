@@ -53,6 +53,8 @@ the plugins are also examples of how to write one.
 | [`tor`](/plugins/tor) | Routes the browser through a Tor SOCKS listener you run yourself, with circuits of their own for each browser context; names are resolved by Tor |
 | [`wasm`](/plugins/wasm) | Runs plugins written in any language that compiles to WebAssembly, sandboxed with wasmi (no host imports, fuel and memory limits) |
 
+Standalone and community plugin crates in the same repository (see [Community plugins](/plugins/community/overview)): [`antibot-detector`](/plugins/community/antibot-detector), [`behavior-dataset`](/plugins/community/behavior-dataset), [`cloud-logging`](/plugins/community/cloud-logging), [`langchain`](/plugins/community/langchain), [`ocr`](/plugins/community/ocr), and [`owasp`](/plugins/community/owasp).
+
 To add a plugin's crate, use `cargo add` with the revision shown, the one that
 seleniumbase-rs pins. `shield` is also the feature `plugin-shield`, and so on
 for each built-in plugin.

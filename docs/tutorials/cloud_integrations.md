@@ -4,18 +4,20 @@ sidebarTitle: "Cloud uploads"
 ---
 
 SeleniumBase for Rust can upload test artifacts (screenshots, logs, PDFs) to
-Amazon S3, Azure Blob Storage, and Google Cloud Storage. Each backend is behind
-an optional Cargo feature so the default build stays lightweight.
+Amazon S3 directly from core (`s3` feature), and to Azure Blob Storage and
+Google Cloud Storage via [`seleniumbase-rs-plugin-cloud-logging`](/plugins/community/cloud-logging)
+in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)
+(moved out of core in `v0.10.0`).
 
-These types are uploaders, not test hooks: call `upload_file` after a test, for
-example on the screenshot a failure plugin saved. See
-[Test Plugins](/tutorials/test_plugins) for the hooks.
+These types are uploaders (and, for `cloud-logging`, an optional `on_close` /
+`Task` plugin): call them after a test, for example on the screenshot a failure
+plugin saved. See [Test Plugins](/tutorials/test_plugins) for test lifecycle hooks.
 
 <Info>
 
 **What you will learn**
 
-- Which Cargo features enable each cloud backend.
+- How to enable the core `s3` feature and the `cloud-logging` plugin crate.
 - How to authenticate with AWS, Azure, and GCS.
 - How to upload files from a test.
 - How to run the included `cloud_upload` example.
@@ -24,23 +26,24 @@ example on the screenshot a failure plugin saved. See
 
 <Visibility for="agents">
 
-Summary for AI exports: these types are uploaders, not test hooks. `S3LoggingPlugin::upload_file(bucket, key, path, region)` needs feature `s3` and `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY` (optional `AWS_REGION` and `AWS_ENDPOINT_URL`). `AzureLoggingPlugin::upload_file(path)` needs feature `azure` and `AZURE_BLOB_URL`, a blob URL with a SAS token that has write permission. `GcpLoggingPlugin::upload_file(bucket, key, path)` needs feature `gcp` and `GCS_ACCESS_TOKEN`. Try them with `cargo run --example cloud_upload --features s3,azure,gcp`.
+Summary for AI exports: `S3LoggingPlugin::upload_file(bucket, key, path, region)` lives in `seleniumbase-rs` behind feature `s3` (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, optional `AWS_REGION` and `AWS_ENDPOINT_URL`). In v0.10.0, Azure Blob Storage and Google Cloud Storage uploaders moved to `seleniumbase-rs-plugin-cloud-logging` (`/plugins/community/cloud-logging`): `AzureBlobUploader::from_env()?.upload(path)` (`AZURE_BLOB_URL` SAS URL) and `GcsUploader::from_env()?.upload(path, object_name)` (`SB_GCS_BUCKET`, `GCS_ACCESS_TOKEN`).
 
 </Visibility>
 
 ## Enabling backends
 
-Add the features you need, in `Cargo.toml` or on the command line:
+Enable `s3` on `seleniumbase-rs` for AWS/S3-compatible uploads, and add `seleniumbase-rs-plugin-cloud-logging` for Azure Blob Storage or Google Cloud Storage:
 
 <CodeGroup>
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", features = ["s3", "azure", "gcp"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0", features = ["s3"] }
+seleniumbase-rs-plugin-cloud-logging = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", tag = "v0.10.0" }
 ```
 
 ```bash Command line
-cargo run --features s3
+cargo run --example cloud_upload --features s3
 ```
 
 </CodeGroup>
@@ -83,7 +86,7 @@ S3LoggingPlugin::upload_file(
 
 <View title="Azure Blob Storage" icon="microsoft" iconType="brands">
 
-<Badge color="blue">Feature: azure</Badge>
+<Badge color="purple">Plugin: seleniumbase-rs-plugin-cloud-logging</Badge>
 
 Azure support uses a blob URL that already contains a <Tooltip tip="Shared access signature: a token in the URL query string that grants limited, time-bound access to a blob.">SAS token</Tooltip> with write
 permission:
@@ -92,13 +95,13 @@ permission:
 export AZURE_BLOB_URL="https://myaccount.blob.core.windows.net/mycontainer/myblob?sv=...&sig=...&sp=rw"
 ```
 
-Upload from a test:
+Upload from a test using `AzureBlobUploader` (see [`cloud-logging`](/plugins/community/cloud-logging)):
 
 ```rust
-use seleniumbase_rs::plugins::azure_logging_plugin::AzureLoggingPlugin;
-use std::path::Path;
+use seleniumbase_rs_plugin_cloud_logging::AzureBlobUploader;
 
-AzureLoggingPlugin::upload_file(Path::new("latest_logs/last_run.log")).await?;
+let uploader = AzureBlobUploader::from_env()?;
+uploader.upload("latest_logs/last_run.log").await?;
 ```
 
 Generate a SAS token with the Azure CLI:
@@ -117,25 +120,24 @@ az storage blob generate-sas \
 
 <View title="Google Cloud Storage" icon="google" iconType="brands">
 
-<Badge color="blue">Feature: gcp</Badge>
+<Badge color="purple">Plugin: seleniumbase-rs-plugin-cloud-logging</Badge>
 
-GCS support uses an OAuth access token. The easiest way to obtain one is:
+GCS support uses a bucket name and an OAuth access token:
 
 ```bash
+export SB_GCS_BUCKET=my-bucket
 export GCS_ACCESS_TOKEN=$(gcloud auth print-access-token)
 ```
 
-Upload from a test:
+Upload from a test using `GcsUploader` (see [`cloud-logging`](/plugins/community/cloud-logging)):
 
 ```rust
-use seleniumbase_rs::plugins::gcp_logging_plugin::GcpLoggingPlugin;
-use std::path::Path;
+use seleniumbase_rs_plugin_cloud_logging::GcsUploader;
 
-GcpLoggingPlugin::upload_file(
-    "my-bucket",
-    "seleniumbase/logs/session.log",
-    Path::new("latest_logs/last_run.log"),
-).await?;
+let uploader = GcsUploader::from_env()?;
+uploader
+    .upload("latest_logs/last_run.log", "seleniumbase/logs/session.log")
+    .await?;
 ```
 
 </View>
@@ -143,21 +145,17 @@ GcpLoggingPlugin::upload_file(
 ## Running the example
 
 ```bash
-cargo run --example cloud_upload --features s3,azure,gcp
+cargo run --example cloud_upload --features s3
 ```
 
-The example writes a small log file to `latest_logs/` and only performs an
-upload when the corresponding feature is enabled and its environment variables
-are set. A backend that is compiled in but not configured is reported as
-skipped, with the variables to set; the example fails only when an upload it
-attempted fails. Besides the credentials described above, it reads the bucket
-name from the environment, so nothing is hard-coded:
+The example writes a small log file to `latest_logs/` and uploads to S3 when the
+`s3` feature is enabled and its environment variables are set:
 
-| Feature | Variables the example reads |
-|---|---|
-| `s3` | `SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `AWS_REGION` and `AWS_ENDPOINT_URL` |
-| `azure` | `AZURE_BLOB_URL` |
-| `gcp` | `SB_GCS_BUCKET`, `GCS_ACCESS_TOKEN` |
+| Backend | Crate / feature | Variables |
+|---|---|---|
+| Amazon S3 | `seleniumbase-rs` (`s3`) | `SB_S3_BUCKET`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`; optional `AWS_REGION` and `AWS_ENDPOINT_URL` |
+| Azure Blob Storage | `seleniumbase-rs-plugin-cloud-logging` | `AZURE_BLOB_URL` |
+| Google Cloud Storage | `seleniumbase-rs-plugin-cloud-logging` | `SB_GCS_BUCKET`, `GCS_ACCESS_TOKEN` |
 
 ## Troubleshooting
 

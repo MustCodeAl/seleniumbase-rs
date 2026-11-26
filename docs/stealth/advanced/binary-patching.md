@@ -249,6 +249,43 @@ Without `--cache-dir` the CLI caches under `sb-chrome-patches` in the platform
 cache directory. `sbrs doctor` reports the Chrome binary it finds, where the
 patched copy would be, and whether your chromedriver still has automation markers.
 
+## Expanded presets, custom rules, and in-memory dry runs
+
+`seleniumbase_rs::undetected::patcher` (re-exported at the crate root) includes additional browser presets, equal-length rule constructors, and an in-memory helper for inspecting or validating patch passes without touching disk:
+
+- **Additional `EnginePatch` presets**:
+  - `EnginePatch::headless_chrome()`: scrubs `HeadlessChrome`, `--enable-automation`, `kAutomationControlled`, and `navigator.webdriver` without modifying `cdc_` driver properties.
+  - `EnginePatch::stealth_browser()`: extends `EnginePatch::chrome_binary()` with software-renderer scrubbing and `sourceURL` neutralization while keeping `--remote-debugging-port` and `--test-type` working.
+  - `EnginePatch::from_rules(rules)` and `.custom_rules(rules)`: build a custom-only patch or append multiple rules after built-in passes.
+- **Additional `BinaryPatchRule` constructors** (every rule enforces equal byte lengths so binary offsets never shift):
+  - `BinaryPatchRule::ascii(needle, replacement)`
+  - `BinaryPatchRule::neutralize_nul(needle)` (overwrites bytes with NULs)
+  - `BinaryPatchRule::from_hex(needle_hex, replacement_hex)`
+- **Four expanded marker categories**:
+  - Testing and headless brand markers (`Chrome for Testing`, `HeadlessChrome`, `HeadlessEdg`).
+  - Software renderer markers (`Google SwiftShader`, `SwiftShader`, `Mesa OffScreen`, `llvmpipe`).
+  - Automation bindings and globals (`__playwright__binding__`, `__pwInitScripts`, `_Selenium_IDE_Recorder`, Watir/Phantom/asyncScriptInfo globals).
+  - Opt-in launch and debug flag markers (`--enable-automation`, `--test-type`, `--remote-debugging-port`, `--remote-debugging-pipe`).
+- **Reporting and in-memory dry run**:
+  - `BinaryMarkerReport::has_markers()` and `BinaryMarkerReport::summary()` format human-readable marker inventories.
+  - `patch_bytes(&mut buf, &patch)` runs any `EnginePatch` in memory and returns the patched byte count without writing a file.
+
+```rust
+use seleniumbase_rs::undetected::patcher::patch_bytes;
+use seleniumbase_rs::{BinaryMarkerReport, BinaryPatchRule, EnginePatch};
+
+fn dry_run() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let mut sample = b"HeadlessChrome/157.0 Google SwiftShader".to_vec();
+    let rule = BinaryPatchRule::ascii("SwiftShader", "AppleMetal0")?;
+    let patch = EnginePatch::stealth_browser().custom_rule(rule);
+    let hits = patch_bytes(&mut sample, &patch)?;
+    let report = BinaryMarkerReport::from_bytes("memory.bin", &sample);
+    assert!(hits > 0);
+    println!("{}", report.summary());
+    Ok(())
+}
+```
+
 ## Safety and licensing
 
 <Warning>

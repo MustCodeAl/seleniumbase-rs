@@ -1,24 +1,24 @@
 ---
-title: "scrape::runtime::browser_scraper"
-sidebarTitle: "BrowserScraper"
-description: "BrowserScraper, its builder, BrowserFetch and the Launcher."
+title: "session::cdp_session"
+sidebarTitle: "CdpSession"
+description: "CdpSession, its builder, CdpFetch and the Launcher."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
 `runtime::browser_scraper` drives one real Chrome through `sb_cdp`. It does no TLS spoofing: Chrome's own handshake leaves the machine. `fetch` loads a URL, reads the rendered page, and follows `MitigationPolicy`. `close` takes the scraper by value.
 
-Import the main types from `seleniumbase_rs_stealth::scrape`. The fetch loop is on [BrowserScraper](/scraping/stealthy/browser-scraper).
+Import the main types from `seleniumbase_rs_stealth::session`. The fetch loop is on [CdpSession](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
 ```rust A scraper behind a German proxy
-use seleniumbase_rs_stealth::scrape::{BrowserScraper, CountryCode, ScrapeError};
+use seleniumbase_rs_stealth::session::{CdpSession, CountryCode, SessionError};
 use seleniumbase_rs_stealth::tokio;
 
 #[tokio::main]
-async fn main() -> Result<(), ScrapeError> {
-    let mut scraper = BrowserScraper::builder()
+async fn main() -> Result<(), SessionError> {
+    let mut scraper = CdpSession::builder()
         .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
         .max_challenge_attempts(4)
         .build()
@@ -43,12 +43,12 @@ pub type Clock = Arc<dyn Fn() -> u64 + Send + Sync>;
 
 ## `runtime::browser_scraper`
 
-### `BrowserFetch`
+### `CdpFetch`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct BrowserFetch {
+pub struct CdpFetch {
     pub url: String,
     pub status: u16,
     pub headers: Vec<(String, String)>,
@@ -62,37 +62,37 @@ pub struct BrowserFetch {
 
 A page fetched through a real browser.
 
-### `BrowserScraper`
+### `CdpSession`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct BrowserScraper
+pub struct CdpSession
 ```
 
 A scraper that drives one real browser. See the [module documentation](/stealth/api/scrape).
 
-### `BrowserScraper` methods
+### `CdpSession` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn builder() -> BrowserScraperBuilder
+pub fn builder() -> CdpSessionBuilder
 pub fn page(&self) -> &Page
 pub fn browser(&self) -> &Browser
 pub fn fingerprint(&self) -> &Fingerprint
 pub fn seed(&self) -> u64
 pub fn proxy_route(&self) -> Option<&ProxyKey>
 pub fn session_store(&self) -> &SessionStore
-pub async fn close(self) -> Result<(), ScrapeError>
-pub async fn fetch(&mut self, url: &str) -> Result<BrowserFetch, ScrapeError>
-pub async fn solve_challenge(&mut self) -> Result<Detection, ScrapeError>
-pub async fn rotate_proxy(&mut self) -> Result<(), ScrapeError>
-pub async fn rotate_fingerprint(&mut self) -> Result<(), ScrapeError>
-pub async fn export_identity(&self) -> Result<Identity, ScrapeError>
-pub async fn import_identity(&mut self, identity: &Identity) -> Result<(), ScrapeError>
-pub async fn save_session(&self, name: impl Into<String>) -> Result<(), ScrapeError>
-pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
+pub async fn close(self) -> Result<(), SessionError>
+pub async fn fetch(&mut self, url: &str) -> Result<CdpFetch, SessionError>
+pub async fn solve_challenge(&mut self) -> Result<Detection, SessionError>
+pub async fn rotate_proxy(&mut self) -> Result<(), SessionError>
+pub async fn rotate_fingerprint(&mut self) -> Result<(), SessionError>
+pub async fn export_identity(&self) -> Result<Identity, SessionError>
+pub async fn import_identity(&mut self, identity: &Identity) -> Result<(), SessionError>
+pub async fn save_session(&self, name: impl Into<String>) -> Result<(), SessionError>
+pub async fn load_session(&self, name: &str) -> Result<bool, SessionError>
 ```
 
 
@@ -115,23 +115,23 @@ pub async fn load_session(&self, name: &str) -> Result<bool, ScrapeError>
 
 ## `runtime::browser_scraper::builder`
 
-### `BrowserScraperBuilder`
+### `CdpSessionBuilder`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct BrowserScraperBuilder
+pub struct CdpSessionBuilder
 ```
 
-Configures a [`BrowserScraper`]; see [`BrowserScraper::builder`].
+Configures a [`CdpSession`]; see [`CdpSession::builder`].
 
-### `BrowserScraperBuilder` methods
+### `CdpSessionBuilder` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
 pub fn launch_options(mut self, launch: LaunchOptions) -> Self
-pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, ScrapeError>
+pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, SessionError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
         S: AsRef<str>,
@@ -151,7 +151,7 @@ pub fn launcher<F, Fut>(mut self, launch: F) -> Self
         Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
 pub fn session_store(mut self, sessions: SessionStore) -> Self
 pub fn clock(mut self, clock: Clock) -> Self
-pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
+pub async fn build(self) -> Result<CdpSession, SessionError>
 ```
 
 
@@ -182,7 +182,7 @@ pub async fn build(self) -> Result<BrowserScraper, ScrapeError>
 pub struct Launcher(/* private */);
 ```
 
-Starts a browser for a `BrowserScraper` or a `StealthSession`: a launch closure, as core's `BrowserPool::with_launcher` takes. The default is core's `Browser::launch`; another closure can start a different build, reuse a browser, or hand out a scripted one in a test. It is cloneable, implements `Default` and `Debug`.
+Starts a browser for a `CdpSession` or a `HybridSession`: a launch closure, as core's `BrowserPool::with_launcher` takes. The default is core's `Browser::launch`; another closure can start a different build, reuse a browser, or hand out a scripted one in a test. It is cloneable, implements `Default` and `Debug`.
 
 ### `Launcher` methods
 
@@ -193,7 +193,7 @@ pub fn new<F, Fut>(launch: F) -> Self
     where
         F: Fn(LaunchOptions) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
-pub async fn launch(&self, options: LaunchOptions) -> Result<Browser, ScrapeError>
+pub async fn launch(&self, options: LaunchOptions) -> Result<Browser, SessionError>
 ```
 
 
@@ -202,4 +202,4 @@ pub async fn launch(&self, options: LaunchOptions) -> Result<Browser, ScrapeErro
 
 ## Related
 
-The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [CdpSession](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

@@ -14,7 +14,7 @@ and converts to and from CDP cookies. Every function that needs the time takes
 `now` in seconds since the Unix epoch.
 
 ```rust
-use seleniumbase_rs_stealth::scrape::jar::store::{CookieJar, SiteContext};
+use seleniumbase_rs_stealth::session::jar::store::{CookieJar, SiteContext};
 use url::Url;
 
 fn demo() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,7 +42,7 @@ checked against the same rules, so an edited file cannot smuggle in a cookie the
 jar would never store.
 
 `CookieJar::from_cdp(&cookies, now)` and `to_cdp(now)` convert to and from the
-cookies a CDP browser reports, which is how `BrowserScraper` moves an identity
+cookies a CDP browser reports, which is how `CdpSession` moves an identity
 between runs.
 
 ## Identity, session policy and the identity file
@@ -56,9 +56,9 @@ hints each origin asked for, the clearances found in the jar, and the proxy
 those cookies were earned through (`identity.proxy`).
 
 ```rust
-use seleniumbase_rs_stealth::scrape::passport::identity::{WireMeasurementRef, Identity};
-use seleniumbase_rs_stealth::scrape::runtime::identity_file;
-use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::session::passport::identity::{WireMeasurementRef, Identity};
+use seleniumbase_rs_stealth::session::io::identity_file;
+use seleniumbase_rs_stealth::identity::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs::browser::config::Browser;
 
 async fn demo(now: u64) -> Result<(), Box<dyn std::error::Error>> {
@@ -119,9 +119,9 @@ between plain HTTP and the browser, as a pure function of the mode, the identity
 the site's state and the time:
 
 ```rust
-use seleniumbase_rs_stealth::scrape::challenge::mitigation::FetchKind;
-use seleniumbase_rs_stealth::scrape::passport::identity::Identity;
-use seleniumbase_rs_stealth::scrape::passport::policy::{EscalationPolicy, Escalation};
+use seleniumbase_rs_stealth::session::challenge::mitigation::FetchKind;
+use seleniumbase_rs_stealth::session::passport::identity::Identity;
+use seleniumbase_rs_stealth::session::passport::policy::{EscalationPolicy, Escalation};
 
 fn demo(identity: &Identity, now: u64) {
     let policy = EscalationPolicy {
@@ -138,9 +138,9 @@ The defaults are a margin of 120 seconds before a clearance expires, demotion
 back to HTTP after a solve, and a preference for HTTP. `after_fetch` turns an
 `Mitigation::Escalate` seen in HTTP mode into an escalation and a solved challenge in
 the browser into a demotion when the identity now holds a clearance. The tables
-are in the module documentation. `BrowserScraper` stays in the browser and never
+are in the module documentation. `CdpSession` stays in the browser and never
 applies them. [`HttpSession`](/scraping/stealthy/http-session) offers `preflight` and `assess` for a
-caller that runs its own loop, and [`StealthSession`](/scraping/advanced-stealthy/stealth-session) applies
+caller that runs its own loop, and [`HybridSession`](/scraping/advanced-stealthy/stealth-session) applies
 them for you.
 
 ```mermaid
@@ -198,7 +198,7 @@ service.
 
 `CookieJar`, `Identity`, `EscalationPolicy`, `MitigationPolicy`, `Detection`,
 `ChallengeKind` and `CountryCode` are re-exported at
-`seleniumbase_rs_stealth::scrape`, so `use seleniumbase_rs_stealth::scrape::CookieJar`
+`seleniumbase_rs_stealth::session`, so `use seleniumbase_rs_stealth::session::CookieJar`
 is the same type as the module paths used above. `identity_file` is not
 re-exported: it stays `scrape::runtime::identity_file`. An identity file written
 before fingerprint API v2, in the flat layout (`screen_width`, `flags`), no longer
@@ -209,7 +209,7 @@ it. Make a new identity.
 
 <Columns cols={2}>
 
-<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
+<Card title="CdpSession" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
   The loop that stores these cookies and rotates this identity.
 </Card>
 

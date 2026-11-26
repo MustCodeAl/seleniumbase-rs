@@ -15,10 +15,12 @@ Community plugins can be distributed as independent crates (discovered on GitHub
 | Crate / Plugin | Repository | What it provides |
 |---|---|---|
 | [`antibot-detector`](/plugins/community/antibot-detector) | `MustCodeAl/seleniumbase-rs-plugins` | Multi-signal detection for Cloudflare, DataDome, Akamai, Kasada, PerimeterX, Imperva, AWS WAF, FingerprintJS, reCAPTCHA, and hCaptcha |
-| [`behavior-dataset`](/plugins/community/behavior-dataset) | `MustCodeAl/seleniumbase-rs-plugins` | Synthetic human kinematic & Fitts's-law interaction batch generator with JSON, JSONL, and CSV ML exports |
+| [`behavior-dataset`](/plugins/community/behavior-dataset) | `MustCodeAl/seleniumbase-rs-plugins` | Live-site user journey explorer (`SiteExplorer`) and synthetic human kinematic ML dataset exporter (JSON, JSONL, CSV) |
+| [`cloud-logging`](/plugins/community/cloud-logging) | `MustCodeAl/seleniumbase-rs-plugins` | Upload test artifacts to Google Cloud Storage (`GcsUploader`) or Azure Blob Storage (`AzureBlobUploader`) on `on_close` or `Task::run` |
 | [`langchain`](/plugins/community/langchain) | `MustCodeAl/seleniumbase-rs-plugins` | `SeleniumBaseLoader` (Markdown + head metadata for RAG) and `SeleniumBaseTool` (agent action schema & runner) |
-| [`owasp`](/plugins/community/owasp) | `MustCodeAl/seleniumbase-rs-plugins` | Passive OWASP Top 10:2021 auditor (headers, CSP, CORS, cookies, JWTs, DOM/storage, client-side SCA, SARIF 2.1.0, optional PTK integration) |
-| [`tauri-plugin-sbrs-automation`](/ecosystem/tauri) | `MustCodeAl/tauri-plugin-sbrs-automation` | Desktop app Tauri v2 integration for profile orchestration and browser automation |
+| [`ocr`](/plugins/community/ocr) | `MustCodeAl/seleniumbase-rs-plugins` | Pinned OCR model cache resolution (`OCR_MODELS`, `SB_OCR_MODELS`), PNG validation, and OCR `Task` orchestration |
+| [`owasp`](/plugins/community/owasp) | `MustCodeAl/seleniumbase-rs-plugins` | Passive OWASP Top 10:2021 auditor (headers, CSP, CORS, cookies, JWTs, DOM/storage, forms, client-side SCA, SARIF 2.1.0, async PTK bridge) |
+| [`tauri-plugin-sbrs-automation`](/ecosystem/tauri) | `MustCodeAl/tauri-plugin-sbrs-automation` | Desktop app Tauri 3 integration for WebDriver testing, CDP discovery, and `stealth` webview fingerprinting via `seleniumbase-rs-evasion` |
 
 ## Scaffold a new community plugin
 
@@ -58,12 +60,20 @@ See [Writing your own](/plugins/writing-your-own) for the step-by-step plugin tr
   Generate labeled synthetic human vs baseline trajectories for ML training.
 </Card>
 
+<Card title="cloud-logging" icon="cloud-arrow-up" color="#d47628" href="/plugins/community/cloud-logging">
+  Upload screenshots and logs to Google Cloud Storage and Azure Blob Storage.
+</Card>
+
 <Card title="langchain" icon="robot" color="#199f43" href="/plugins/community/langchain">
   Load web pages into Markdown documents and expose browser actions to LLM agents.
 </Card>
 
+<Card title="ocr" icon="eye" color="#1ca1c7" href="/plugins/community/ocr">
+  Resolve pinned OCR models, verify SHA-256 digests, and validate PNG screenshots.
+</Card>
+
 <Card title="owasp" icon="lock" color="#1a85d4" href="/plugins/community/owasp">
-  Passive headers, CSP, JWT, cookie, DOM, and SCA security auditing with SARIF output.
+  Passive headers, CSP, JWT, cookie, DOM, forms, and SCA security auditing with SARIF output.
 </Card>
 
 </Columns>

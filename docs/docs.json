@@ -508,7 +508,9 @@
                   "plugins/community/overview",
                   "plugins/community/antibot-detector",
                   "plugins/community/behavior-dataset",
+                  "plugins/community/cloud-logging",
                   "plugins/community/langchain",
+                  "plugins/community/ocr",
                   "plugins/community/owasp"
                 ]
               },
@@ -543,6 +545,7 @@
                     "pages": [
                       "api/lifecycle-navigation",
                       "api/interaction",
+                      "api/keys",
                       "api/waits-assertions",
                       "api/queries",
                       "api/windows-frames",
@@ -584,12 +587,14 @@
               {
                 "product": "Stealth settings and fixtures",
                 "icon": "fingerprint",
-                "description": "Fingerprint, Spoof, StealthPolicy, and the testing fixtures",
+                "description": "identity, client masking, StealthPolicy, and the testing fixtures",
                 "groups": [
                   {
                     "group": "Stealth settings and fixtures",
                     "pages": [
                       "api/stealth-settings",
+                      "stealth/api/evasion",
+                      "stealth/api/fingerprint",
                       "api/testing-fixtures"
                     ]
                   }
@@ -623,12 +628,12 @@
                 ]
               },
               {
-                "product": "Stealth API: codec",
+                "product": "Stealth API: network::spec",
                 "icon": "fingerprint",
-                "description": "TLS, HTTP/2 and header fingerprints",
+                "description": "Pure TLS, HTTP/2, HTTP/3 and header wire specs",
                 "groups": [
                   {
-                    "group": "Stealth API: codec",
+                    "group": "Stealth API: network::spec",
                     "pages": [
                       "stealth/api/codec",
                       "stealth/api/codec-tls-spec",
@@ -641,19 +646,18 @@
                       "stealth/api/codec-akamai",
                       "stealth/api/codec-header-spec",
                       "stealth/api/codec-measurement",
-                      "stealth/api/codec-ids",
-                      "stealth/api/fingerprint"
+                      "stealth/api/codec-ids"
                     ]
                   }
                 ]
               },
               {
-                "product": "Stealth API: scrape",
+                "product": "Stealth API: session",
                 "icon": "spider",
-                "description": "BrowserScraper and the scraping crate",
+                "description": "CdpSession, challenge mitigation, CookieJar, Ledger and Identity",
                 "groups": [
                   {
-                    "group": "Stealth API: scrape",
+                    "group": "Stealth API: session",
                     "pages": [
                       "stealth/api/scrape",
                       "stealth/api/scrape-browser-scraper",
@@ -669,12 +673,12 @@
                 ]
               },
               {
-                "product": "Stealth API: wire",
+                "product": "Stealth API: network & sessions",
                 "icon": "masks-theater",
-                "description": "HttpSession, the MITM proxy, StealthSession and the impersonating client",
+                "description": "WireFormat, MitmProxy, EphemeralCa, HttpSession and HybridSession",
                 "groups": [
                   {
-                    "group": "Stealth API: wire",
+                    "group": "Stealth API: network & sessions",
                     "pages": [
                       "stealth/api/wire",
                       "stealth/api/wire-client",

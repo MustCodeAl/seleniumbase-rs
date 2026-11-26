@@ -4,7 +4,7 @@ sidebarTitle: "Network patching"
 description: "Shape TLS ClientHello, HTTP/2 SETTINGS, HTTP/3 QUIC transport parameters, header casing, and loopback MitM interception to match real browser network signatures."
 ---
 
-Examples importing `seleniumbase_rs_stealth::wire` require the facade's
+Examples importing `seleniumbase_rs_stealth::network` require the facade's
 `wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
@@ -12,14 +12,14 @@ this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
 <Visibility for="agents">
 
-Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `crates/codec/src/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_codec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_wire` turns a measured `WireFormat` into a wreq client, and `WireFormat::builder()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
+Summary for AI exports: every wire value comes from a capture tool and is stored as JSON in `src/network/spec/measured`. Today the only entry is Chrome 155.0.8059.40 on macOS (captured 2026-10-11); any other system is refused with `NotMeasured`. `seleniumbase_rs_stealth::network::spec` parses the TLS `ClientHello`, JA3, JA4, peetprint and Akamai strings. `seleniumbase_rs_stealth::network` turns a measured `WireFormat` into a wreq client, and `WireFormat::builder()` layers your own inputs over it, refusing what BoringSSL and wreq cannot send.
 
 </Visibility>
 
 ## What is measured, and what is refused
 
 Every wire value this crate imitates was measured from a real browser by a
-capture tool and stored as JSON in `crates/codec/src/measured`. Nothing is typed by
+capture tool and stored as JSON in `src/network/spec/measured`. Nothing is typed by
 hand. The files are embedded with `include_str!`, parsed once, and looked up by
 browser and operating system.
 
@@ -29,8 +29,8 @@ uses for WebSocket), the HTTP/2 start, the header lists and their order, the
 client hints, and where it came from:
 
 ```rust
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::spec::measurement::{self, WireMeasurementError};
 use seleniumbase_rs::browser::config::Browser;
 
 fn demo() -> Result<(), WireMeasurementError> {
@@ -106,9 +106,9 @@ same file, named `<browser>-<major>-<os>.json`, and `capture_h2` refuses a
 Chrome of another version than the file it extends.
 
 ```text
-cargo run -p seleniumbase-rs-scrape      --example capture_tls
-cargo run -p seleniumbase-rs-scrape      --example capture_hints
-cargo run -p seleniumbase-rs-wire --example capture_h2
+cargo run -p seleniumbase-rs-stealth (`session`)      --example capture_tls
+cargo run -p seleniumbase-rs-stealth (`session`)      --example capture_hints
+cargo run --features network --example capture_h2
 ```
 
 - `capture_tls` points the browser at a loopback listener that records each
@@ -126,7 +126,7 @@ cargo run -p seleniumbase-rs-wire --example capture_h2
   navigation, a `fetch`, an image, a script, a stylesheet), once over HTTP/2
   and once over HTTP/1.1. `--h1` and `--h2` run one pass only.
 
-They share these options: `--out DIR` (default `crates/codec/src/measured`),
+They share these options: `--out DIR` (default `src/network/spec/measured`),
 `--fixtures DIR` (default `tests/fixtures/measured`, for the raw bytes),
 `--chrome PATH`, `--lang TAG` (sets `Accept-Language`, default `en-US`),
 `--probes N`, `--timeout SECS`, `--headless`, `--no-sandbox`, `--snippet` and
@@ -137,7 +137,7 @@ They share these options: `--out DIR` (default `crates/codec/src/measured`),
 <Step title="Register the new file" icon="file-code">
 
 Add the new file to the `SOURCES` list in `crates/codec/src/measurement.rs`. The test
-`crates/codec/tests/wire_measurement.rs` fails when a file in `crates/codec/src/measured` is missing
+`tests/wire_measurement.rs` fails when a file in `src/network/spec/measured` is missing
 from that list.
 
 </Step>
@@ -157,7 +157,7 @@ Safari has no tool yet beyond the `capture_hints` console snippet.
 
 ## Reading the wire formats
 
-All of `seleniumbase_rs_codec` is pure: no sockets, no clock, no files, and
+All of `seleniumbase_rs_stealth::network::spec` is pure: no sockets, no clock, no files, and
 `#![forbid(unsafe_code)]`. Every parser bounds its input and returns an error
 for hostile or truncated bytes instead of panicking.
 
@@ -174,9 +174,9 @@ Only JA4 itself is implemented. JA4H, JA4S, JA4X and the other JA4+ methods carr
 a different licence and are not part of this crate.
 
 ```rust
-use seleniumbase_rs_stealth::codec::akamai::Akamai;
-use seleniumbase_rs_stealth::codec::ja3::Ja3;
-use seleniumbase_rs_stealth::codec::ja4::Ja4;
+use seleniumbase_rs_stealth::network::spec::akamai::Akamai;
+use seleniumbase_rs_stealth::network::spec::ja3::Ja3;
+use seleniumbase_rs_stealth::network::spec::ja4::Ja4;
 
 fn demo() -> Result<(), Box<dyn std::error::Error>> {
     // The Akamai string measured from Chrome 155 on macOS.
@@ -214,10 +214,10 @@ BoringSSL and wreq stack can send it, and names what it cannot.
 The `wire` crate turns a measured profile into a wreq client:
 
 ```rust
-use seleniumbase_rs_stealth::wire::client::{
+use seleniumbase_rs_stealth::network::wire::{
     WireFormat::client_builder, WireFormat, WireProtocol,
 };
-use seleniumbase_rs_stealth::codec::header_spec::RequestShape;
+use seleniumbase_rs_stealth::network::spec::header_spec::RequestShape;
 use seleniumbase_rs::browser::config::Browser;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
@@ -265,8 +265,8 @@ the base: a JA3 has no signature algorithms, an Akamai string has no HEADERS
 priority, a header list has no TLS.
 
 ```rust
-use seleniumbase_rs_stealth::codec::header_spec::ClientHeaders;
-use seleniumbase_rs_stealth::wire::client::WireFormat;
+use seleniumbase_rs_stealth::network::spec::header_spec::ClientHeaders;
+use seleniumbase_rs_stealth::network::wire::WireFormat;
 
 fn demo() -> Result<(), Box<dyn std::error::Error>> {
     let profile = WireFormat::builder()
@@ -322,8 +322,8 @@ For example, a JA3 that adds `trust_anchors` and a signature algorithm BoringSSL
 cannot write:
 
 ```rust
-use seleniumbase_rs_stealth::wire::client::{WireFormatError, WireFormat};
-use seleniumbase_rs_stealth::codec::tls_spec::TlsSpecError;
+use seleniumbase_rs_stealth::network::wire::{WireFormatError, WireFormat};
+use seleniumbase_rs_stealth::network::spec::tls_spec::TlsSpecError;
 
 fn demo(ja3_with_trust_anchors: &str) {
     let refused = WireFormat::builder().ja3(ja3_with_trust_anchors);
@@ -350,15 +350,15 @@ fingerprint from the one you named.
 
 ## HTTP/3 and QUIC profiles
 
-When connecting to origins that advertise HTTP/3 (`WireProtocol::Http3`), `seleniumbase_rs_stealth::codec::H3Spec` captures QUIC transport parameter ordering, HTTP/3 `SETTINGS` frames, and pseudo-header ordering (`:method`, `:authority`, `:scheme`, `:path`), while `seleniumbase_rs_stealth::wire::Http3Client` (`Http3Options`, `Http3Request`, `Http3Response`) sends requests over QUIC. Enable HTTP/3 capture/sending support with the `http3` feature on the stealth wire layer; see [HTTP/3 and QUIC](/stealth/advanced/http3) for options and subprocess requirements, and [Network patching](/concepts/network-patching) for how TLS, HTTP/2, HTTP/3, and MitM layers work together.
+When connecting to origins that advertise HTTP/3 (`WireProtocol::Http3`), `seleniumbase_rs_stealth::network::spec::H3Spec` captures QUIC transport parameter ordering, HTTP/3 `SETTINGS` frames, and pseudo-header ordering (`:method`, `:authority`, `:scheme`, `:path`), while `seleniumbase_rs_stealth::network::Http3Client` (`Http3Options`, `Http3Request`, `Http3Response`) sends requests over QUIC. Enable HTTP/3 capture/sending support with the `http3` feature on the stealth wire layer; see [HTTP/3 and QUIC](/stealth/advanced/http3) for options and subprocess requirements, and [Network patching](/concepts/network-patching) for how TLS, HTTP/2, HTTP/3, and MitM layers work together.
 
 ## Where these types live
 
-The parsers and the measured table are `seleniumbase_rs_stealth::codec`, on by
+The parsers and the measured table are `seleniumbase_rs_stealth::network::spec`, on by
 default. `WireFormat`, `WireFormatBuilder`, `WireProtocol`, and
-`WireFormat::client_builder` are re-exported at `seleniumbase_rs_stealth::wire`, which
-needs `features = ["wire"]`. The module paths used above
-(`wire::client`, `codec::tls_spec`) are the same types. The item pages are
+`WireFormat::client_builder` are re-exported at `seleniumbase_rs_stealth::network`, which
+needs `features = ["network"]`. The module paths used above
+(`network::wire`, `codec::tls_spec`) are the same types. The item pages are
 [codec](/stealth/api/codec), [WireMeasurement](/stealth/api/codec-measurement),
 [TlsSpec](/stealth/api/codec-tls-spec) and [wire](/stealth/api/wire).
 

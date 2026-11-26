@@ -50,9 +50,9 @@ State these plainly to yourself before you build on any of this.
 
   `HttpSession` and `MitmProxy` send the handshake of this client, so the gaps
   apply to them. Behind the `MitmProxy` the origin sees our handshake, gaps
-  included, and not Chrome's own, which `BrowserScraper` leaves with unchanged.
-  That is the price of one wire identity in both modes of a `StealthSession`.
-- **No HTTP/3 in `HttpSession`, `StealthSession` or the proxy.** wreq has none,
+  included, and not Chrome's own, which `CdpSession` leaves with unchanged.
+  That is the price of one wire identity in both modes of a `HybridSession`.
+- **No HTTP/3 in `HttpSession`, `HybridSession` or the proxy.** wreq has none,
   and Chrome behind the proxy has QUIC switched off. HTTP/3 is sent only by the
   experimental `sbrs-h3d` helper, with no fallback and no proxy: see
   [HTTP/3](/stealth/advanced/http3).
@@ -66,16 +66,16 @@ State these plainly to yourself before you build on any of this.
   header**, in `HttpSession` and in `MitmProxy`, because the protocol is known
   only after the connection opens. Later requests to that origin do not carry it.
 - **Headless, one system.** The tests that drive Chrome through `MitmProxy`,
-  `HttpSession::from_page` and `StealthSession` launch it headless on macOS with
+  `HttpSession::from_page` and `HybridSession` launch it headless on macOS with
   Chrome 155; none drives them headed. The measured tables were captured from a
   headed Chrome, and headless and headed Chrome differ.
 - **`HttpSession` follows redirects where they point,** a private address
   included. Filter the URLs before the session sees them if they are not yours.
 - **Tested against local captures and servers, not against live services.** The
   wire layer is tested against committed captures and, in tests marked
-  `#[ignore]`, against a local Chrome. The `BrowserScraper` flows are tested with
+  `#[ignore]`, against a local Chrome. The `CdpSession` flows are tested with
   a scripted browser and with ignored tests that drive a local Chrome.
-  `HttpSession`, `MitmProxy` and `StealthSession` are tested against loopback TLS
+  `HttpSession`, `MitmProxy` and `HybridSession` are tested against loopback TLS
   sites and a challenge page written for the tests, with a scripted browser, and
   in ignored tests with the local Chrome. Nothing here was checked against a live
   bot-protection service. The identity file's permissions check is Unix only.
@@ -132,7 +132,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`ScrapeError::CoolingDown`" icon="hourglass-half">
+<Accordion title="`SessionError::CoolingDown`" icon="hourglass-half">
 
 **Likely cause.** The site answered with a block or rate limit and is being left alone.
 
@@ -140,7 +140,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`ScrapeError::Unsolved`" icon="puzzle-piece">
+<Accordion title="`SessionError::Unsolved`" icon="puzzle-piece">
 
 **Likely cause.** A challenge was still there after the attempts allowed.
 
@@ -148,7 +148,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`ScrapeError::NoProxyLeft`" icon="network-wired">
+<Accordion title="`SessionError::NoProxyLeft`" icon="network-wired">
 
 **Likely cause.** A rotation was asked for and the pool has nothing else in rotation.
 
@@ -156,7 +156,7 @@ State these plainly to yourself before you build on any of this.
 
 </Accordion>
 
-<Accordion title="`HttpError::VersionMismatch`, `StealthError::WireFormat`" icon="code-compare">
+<Accordion title="`HttpError::VersionMismatch`, `HybridError::WireFormat`" icon="code-compare">
 
 **Likely cause.** The page, the identity or the installed Chrome is another major than the measured one.
 
@@ -210,14 +210,14 @@ State these plainly to yourself before you build on any of this.
 
 Verified against commit `4184e74` and the re-exports added after it, by reading
 `crates/codec/src/**`, `crates/scrape/src/**`, `crates/wire/src/**`, `crates/scrape/examples/capture_*.rs`, `crates/wire/examples/capture_h2.rs`,
-`crates/codec/src/measured/chrome-155-macos.json` and the tests that pin the behaviour
+`src/network/spec/measured/chrome-155-macos.json` and the tests that pin the behaviour
 described here. The code samples were checked against the signatures in those
 files; they were not compiled or run for this check. The real-Chrome tests named
 here are `#[ignore]`d and were not run for this check.
 
-A later read of `seleniumbase-rs-stealth` at `0eb20629` (`src/lib.rs`,
-`crates/scrape/src/lib.rs`, `crates/wire/src/lib.rs`, `crates/scrape/src/error.rs`)
-confirmed the same refusals and added `ScrapeError::Fingerprint`, which a locale
+A later read of `seleniumbase-rs-stealth` at `7f55d7c1` (`src/lib.rs`,
+`src/session/mod.rs`, `src/network/mod.rs`, `crates/scrape/src/error.rs`)
+confirmed the same refusals and added `SessionError::Fingerprint`, which a locale
 move or a rotation returns when the core refuses to build the next fingerprint.
 The handshake gaps, the measured browser and the "not checked against a live
 service" limit were unchanged.
@@ -227,7 +227,7 @@ service" limit were unchanged.
 <Columns cols={2}>
 
 <Card title="A first fetch" icon="play" color="#199f43" href="/scraping/stealthy/first-fetch">
-  Pick a tool, depend on the facade, and run `BrowserScraper`.
+  Pick a tool, depend on the facade, and run `CdpSession`.
 </Card>
 
 <Card title="Overview" icon="layer-group" color="#d47628" href="/scraping/stealthy/overview">

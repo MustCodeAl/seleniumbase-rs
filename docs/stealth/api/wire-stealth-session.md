@@ -1,22 +1,22 @@
 ---
-title: "wire::stealth_session"
-sidebarTitle: "StealthSession"
-description: "StealthSession: one identity in plain HTTP or in a real Chrome."
+title: "session::hybrid"
+sidebarTitle: "HybridSession"
+description: "HybridSession: one identity in plain HTTP or in a real Chrome."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Feature: network</Badge>
 
-`StealthSession` keeps one `Identity` and moves it between `HttpSession` and a real Chrome behind `MitmProxy`. A challenge escalates to the browser. A clearance demotes back to plain HTTP.
+`HybridSession` keeps one `Identity` and moves it between `HttpSession` and a real Chrome behind `MitmProxy`. A challenge escalates to the browser. A clearance demotes back to plain HTTP.
 
-The guide is [StealthSession](/scraping/advanced-stealthy/stealth-session).
+The guide is [HybridSession](/scraping/advanced-stealthy/stealth-session).
 
 <RequestExample>
 
 ```rust Start the builder
-use seleniumbase_rs_stealth::wire::StealthSession;
+use seleniumbase_rs_stealth::session::HybridSession;
 
 fn main() {
-    let _builder = StealthSession::builder();
+    let _builder = HybridSession::builder();
 }
 ```
 
@@ -36,39 +36,39 @@ pub const MITM_SHUTDOWN_GRACE: Duration = Duration::from_secs(5);
 
 ## `stealth_session`
 
-### `StealthSession`
+### `HybridSession`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct StealthSession
+pub struct HybridSession
 ```
 
 A scraping session that moves between HTTP and a real browser. See the [module documentation](/stealth/api/wire).
 
-### `StealthSession` methods
+### `HybridSession` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-pub fn builder() -> StealthSessionBuilder
+pub fn builder() -> HybridSessionBuilder
 pub fn fetch_kind(&self) -> FetchKind
 pub fn identity(&self) -> &Identity
 pub fn proxy_route(&self) -> Option<&ProxyKey>
 pub fn seed(&self) -> u64
 pub fn http_session(&self) -> Option<&HttpSession>
 pub fn page(&self) -> Option<&Page>
-pub async fn close(self) -> Result<(), StealthError>
-pub async fn fetch(&mut self, url: &str) -> Result<StealthFetch, StealthError>
-pub async fn rotate_fingerprint(&mut self) -> Result<(), StealthError>
-pub async fn rotate_proxy(&mut self) -> Result<(), StealthError>
-pub async fn export_identity(&self) -> Result<Identity, StealthError>
+pub async fn close(self) -> Result<(), HybridError>
+pub async fn fetch(&mut self, url: &str) -> Result<HybridFetch, HybridError>
+pub async fn rotate_fingerprint(&mut self) -> Result<(), HybridError>
+pub async fn rotate_proxy(&mut self) -> Result<(), HybridError>
+pub async fn export_identity(&self) -> Result<Identity, HybridError>
 pub async fn import_identity(
         &mut self,
         identity: &Identity,
-    ) -> Result<(), StealthError>
-pub async fn escalate(&mut self) -> Result<(), StealthError>
-pub async fn demote(&mut self) -> Result<(), StealthError>
+    ) -> Result<(), HybridError>
+pub async fn escalate(&mut self) -> Result<(), HybridError>
+pub async fn demote(&mut self) -> Result<(), HybridError>
 ```
 
 
@@ -90,17 +90,17 @@ pub async fn demote(&mut self) -> Result<(), StealthError>
 
 ## `stealth_session::builder`
 
-### `StealthSessionBuilder`
+### `HybridSessionBuilder`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct StealthSessionBuilder
+pub struct HybridSessionBuilder
 ```
 
-Configures a [`StealthSession`]; see [`StealthSession::builder`].
+Configures a [`HybridSession`]; see [`HybridSession::builder`].
 
-### `StealthSessionBuilder` methods
+### `HybridSessionBuilder` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -110,7 +110,7 @@ pub fn launcher<F, Fut>(mut self, launch: F) -> Self
     where
         F: Fn(LaunchOptions) -> Fut + Send + Sync + 'static,
         Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
-pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, StealthError>
+pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, HybridError>
     where
         I: IntoIterator<Item = (S, CountryCode)>,
         S: AsRef<str>,
@@ -128,7 +128,7 @@ pub fn identity(mut self, identity: Identity) -> Self
 pub fn http_session_options(mut self, options: HttpSessionOptions) -> Self
 pub fn mitm_options(mut self, options: MitmOptions) -> Self
 pub fn clock(mut self, clock: Clock) -> Self
-pub async fn build(self) -> Result<StealthSession, StealthError>
+pub async fn build(self) -> Result<HybridSession, HybridError>
 ```
 
 
@@ -153,29 +153,29 @@ pub async fn build(self) -> Result<StealthSession, StealthError>
 
 ## `stealth_session::error`
 
-### `StealthError`
+### `HybridError`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum StealthError {
-    Scrape(#[from] ScrapeError),
+pub enum HybridError {
+    Scrape(#[from] SessionError),
     Http(#[from] HttpError),
     Mitm(#[from] MitmError),
     WireFormat(#[from] WireFormatError),
 }
 ```
 
-Why a `StealthSession` could not be made, moved or fetch a page.
+Why a `HybridSession` could not be made, moved or fetch a page.
 
 ## `stealth_session::fetch`
 
-### `StealthFetch`
+### `HybridFetch`
 
 <Badge color="blue" shape="pill">struct</Badge>
 
 ```rust
-pub struct StealthFetch {
+pub struct HybridFetch {
     pub url: String,
     pub status: u16,
     pub headers: Vec<(String, String)>,
@@ -188,8 +188,8 @@ pub struct StealthFetch {
 }
 ```
 
-A page fetched by a `StealthSession`, by whichever leg got it.
+A page fetched by a `HybridSession`, by whichever leg got it.
 
 ## Related
 
-The guide is [StealthSession](/scraping/advanced-stealthy/stealth-session). The overview is [wire](/stealth/api/wire).
+The guide is [HybridSession](/scraping/advanced-stealthy/stealth-session). The overview is [wire](/stealth/api/wire).

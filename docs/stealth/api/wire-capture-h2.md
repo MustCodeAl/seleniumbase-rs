@@ -1,10 +1,10 @@
 ---
-title: "wire::capture_h2"
+title: "network::capture::h2"
 sidebarTitle: "HTTP/2 capture"
 description: "capture_h2 records a local Chrome's HTTP/2 frames and header block."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Feature: network</Badge>
 
 `capture_h2` serves a local HTTPS site, points the local Chrome at it, and records the HTTP/2 frames and the header block, plus an HTTP/1.1 pass, so a new browser can be added to the measured table. It is a measurement tool, not a client you send traffic through.
 
@@ -13,7 +13,7 @@ The programs are on [Runnable examples](/scraping/advanced-stealthy/examples).
 <RequestExample>
 
 ```rust The pass flags
-use seleniumbase_rs_stealth::wire::capture_h2::{Passes, FLAG_H2};
+use seleniumbase_rs_stealth::network::capture::h2::{Passes, FLAG_H2};
 
 fn main() {
     assert_eq!(FLAG_H2, "--h2");

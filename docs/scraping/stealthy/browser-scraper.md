@@ -1,19 +1,19 @@
 ---
-title: "BrowserScraper"
-sidebarTitle: "BrowserScraper"
+title: "CdpSession"
+sidebarTitle: "CdpSession"
 ---
 
-<Badge color="blue">Crate: scrape</Badge>
+<Badge color="blue">Layer: session</Badge>
 
 <Note>
 
-`BrowserScraper` is re-exported at `seleniumbase_rs_stealth::scrape`. The path
-`scrape::runtime::browser_scraper::BrowserScraper` is the same type. Use either.
-`ScrapeError` and `CountryCode` are re-exported beside it. No BoringSSL.
+`CdpSession` is re-exported at `seleniumbase_rs_stealth::session`. The path
+`session::cdp_session::CdpSession` is the same type. Use either.
+`SessionError` and `CountryCode` are re-exported beside it. No BoringSSL.
 
 </Note>
 
-`scrape::runtime::browser_scraper::BrowserScraper` drives one real Chrome through
+`session::cdp_session::CdpSession` drives one real Chrome through
 the pure CDP engine.
 
 <Note>
@@ -25,11 +25,11 @@ around it.
 </Note>
 
 ```rust
-use seleniumbase_rs_stealth::scrape::egress::geo::CountryCode;
-use seleniumbase_rs_stealth::scrape::runtime::browser_scraper::BrowserScraper;
+use seleniumbase_rs_stealth::network::proxy::geo::CountryCode;
+use seleniumbase_rs_stealth::session::cdp_session::CdpSession;
 
-async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::error::ScrapeError> {
-    let mut scraper = BrowserScraper::builder()
+async fn demo() -> Result<(), seleniumbase_rs_stealth::session::error::SessionError> {
+    let mut scraper = CdpSession::builder()
         .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
         .max_challenge_attempts(4)
         .build()
@@ -46,7 +46,7 @@ async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::error::ScrapeErro
 `fetch(url)` loads the URL, reads the answer and the rendered page, runs
 `detect`, and asks the `MitigationPolicy` what to do:
 
-- a real page ends the loop and comes back as a `BrowserFetch` (URL after
+- a real page ends the loop and comes back as a `CdpFetch` (URL after
   redirects, status, headers, the rendered body, the `Detection`, how many loads
   it took, the challenge solved on the way, and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip>);
 - a challenge is solved in the browser (`solve_challenge`), then the page is
@@ -56,22 +56,22 @@ async fn demo() -> Result<(), seleniumbase_rs_stealth::scrape::error::ScrapeErro
   up before the profile ladder starts unless the site's stored streak was already
   high; raise `max_challenge_attempts` to let one fetch climb it;
 - a rate limit or a block with no egress to change to starts a cooldown for the
-  site, which the next fetch respects (`ScrapeError::CoolingDown`);
-- when the attempts run out the fetch fails: `ScrapeError::Unsolved` if a
-  challenge was still there, `ScrapeError::GaveUp` for another reason.
+  site, which the next fetch respects (`SessionError::CoolingDown`);
+- when the attempts run out the fetch fails: `SessionError::Unsolved` if a
+  challenge was still there, `SessionError::GaveUp` for another reason.
 
 In short:
 
 ```mermaid
 flowchart TD
     A["fetch(url): load the URL"] --> B["detect, then MitigationPolicy"]
-    B -->|a real page| C["BrowserFetch"]
+    B -->|a real page| C["CdpFetch"]
     B -->|a challenge| D["solve_challenge"]
     D -->|load again with the clearance| A
     B -->|repeated challenges| E["rotate_proxy, then rotate_fingerprint"]
     E --> A
     B -->|a rate limit, or a block with no egress to change to| F["cooldown for the site"]
-    B -->|the attempts run out| G["ScrapeError::Unsolved or ScrapeError::GaveUp"]
+    B -->|the attempts run out| G["SessionError::Unsolved or SessionError::GaveUp"]
 ```
 
 *One fetch, and where each answer leads*
@@ -110,7 +110,7 @@ failures in a row is out of rotation for ten minutes by default.
   earned it. When the new egress is in another country, the browser is also
   started again with the same profile in that country's language and time zone,
   because the fingerprint is written into every document before its scripts run.
-  It returns `ScrapeError::NoProxyLeft` when the pool has nothing else.
+  It returns `SessionError::NoProxyLeft` when the pool has nothing else.
 - `rotate_fingerprint()` derives a new seed, draws a new fingerprint for the same
   operating system that claims the version of the Chrome that is running, and
   starts the browser again behind the same egress, with empty cookies. What is
@@ -132,12 +132,12 @@ local storage in a `SessionStore`, the way a browser pool lease does.
 
 ## Events and errors
 
-The scraper reports what it does to an `EventSink`. A `ScrapeEvent` can hold a
+The scraper reports what it does to an `EventSink`. A `SessionEvent` can hold a
 URL only as a `RedactedUrl` (userinfo and sensitive query values removed) and a
 proxy only as a `ProxyKey`, so a password or token cannot reach a sink by
 construction. The default sink, `TracingEventSink`, writes each event to
-`tracing` on the target `seleniumbase_rs_scrape`; `CollectingEventSink` keeps
-the newest events for tests. Errors are `ScrapeError`, whose URLs are redacted
+`tracing` on the target `seleniumbase_rs_stealth::session`; `CollectingEventSink` keeps
+the newest events for tests. Errors are `SessionError`, whose URLs are redacted
 too, and which map to `SeleniumBaseError::Stealth` at the crate boundary.
 
 ## Lifetime
@@ -162,8 +162,8 @@ was. `ProxyLocale::localize` takes the time zone its egress reported. This is th
 move `rotate_proxy` makes when the new proxy is in another country.
 
 ```rust
-use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
-use seleniumbase_rs_stealth::scrape::egress::geo::{Locale, LocaleExt};
+use seleniumbase_rs_stealth::identity::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::network::proxy::geo::{Locale, LocaleExt};
 
 fn demo() -> Result<(), Box<dyn std::error::Error>> {
     let fingerprint = Fingerprint::randomized_with_major(OsType::Macos, 7, 155);
@@ -180,14 +180,14 @@ fn demo() -> Result<(), Box<dyn std::error::Error>> {
 
 Every other setting is kept, and a fingerprint that denies geolocation
 (`Spoof::Off`) keeps denying it instead of being handed a position. The move
-fails with `ScrapeError::Fingerprint` (`FingerprintError` for `LocaleExt`) when the
+fails with `SessionError::Fingerprint` (`FingerprintError` for `LocaleExt`) when the
 core refuses to build the result; a fingerprint that was built before does not
 cause that. To change anything else, start from `fingerprint.to_builder()`, change
 it and call `build()?`.
 
 ## The builder
 
-`BrowserScraper::builder()` returns a `BrowserScraperBuilder`. Every setting has
+`CdpSession::builder()` returns a `CdpSessionBuilder`. Every setting has
 a default, so `builder().build().await?` is a working scraper: Chrome, no proxy,
 state in memory, events on `tracing`, three attempts, a 30 second solve wait
 (the default policy's `DEFAULT_VERIFY_TIMEOUT`), and a profile drawn from a random seed. Unless
@@ -197,7 +197,7 @@ major and closes it before starting the browser it keeps.
 | Method | Default | What it sets |
 |---|---|---|
 | `launch_options` | the platform's | A built `LaunchOptions`. A user agent set here wins over the fingerprint's. |
-| `geo_proxies` | none | `(spec, country)` pairs. A bad spec is `ScrapeError::Proxy` and never echoes the password. |
+| `geo_proxies` | none | `(spec, country)` pairs. A bad spec is `SessionError::Proxy` and never echoes the password. |
 | `proxy_rotation` | `RoundRobin` | Also `Random { seed }`, `LeastFailures`, `StickyPerSite`. |
 | `max_challenge_attempts` | 3 | Zero is read as one. The default gives up before the profile ladder starts. |
 | `mitigation` | `MitigationPolicy::default()` | When to rotate, how long to cool down, and how long a solved challenge is waited for: pass a policy whose `solve` is `SolveOptions::new().verify_timeout(..)` (default 30 s). The attempts above still win. |
@@ -215,8 +215,8 @@ scraper takes core's path (`Browser::new_context_with` with `ContextOptions::pro
 the context before dropped), and `launcher` takes a launch closure, from the
 `LaunchOptions` to a `Browser`, as core's `BrowserPool::with_launcher` does (the
 default is core's `Browser::launch`). A program does not need to set them. `build` returns
-`ScrapeError::Browser` when no browser starts and `ScrapeError::Geo` when an
-egress's country has no locale. The methods and the fields of `BrowserFetch`
+`SessionError::Browser` when no browser starts and `SessionError::Geo` when an
+egress's country has no locale. The methods and the fields of `CdpFetch`
 are on [the API page](/stealth/api/scrape#re-exports-at-the-root).
 
 ## Where to go next
@@ -231,12 +231,12 @@ are on [the API page](/stealth/api/scrape#re-exports-at-the-root).
   Carry the cookies this scraper earned as plain HTTP. Needs `wire`.
 </Card>
 
-<Card title="StealthSession" icon="shuffle" color="#d32a61" href="/scraping/advanced-stealthy/stealth-session">
+<Card title="HybridSession" icon="shuffle" color="#d32a61" href="/scraping/advanced-stealthy/stealth-session">
   The same loop, with plain HTTP as the first move.
 </Card>
 
 <Card title="Limits" icon="triangle-exclamation" color="#d5a910" href="/scraping/advanced-stealthy/limits">
-  What a fetch refuses, and what each `ScrapeError` means.
+  What a fetch refuses, and what each `SessionError` means.
 </Card>
 
 </Columns>

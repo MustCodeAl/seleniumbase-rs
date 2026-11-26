@@ -1,12 +1,12 @@
 ---
 title: "codec::tls_spec"
 sidebarTitle: "TlsSpec"
-description: "The TLS profile in seleniumbase-rs-codec: TlsSpec, Alps, KnownGap and TlsSpecError, the reproducibility check against what BoringSSL can emit, and the custom JA3, JA4 and peetprint overlays."
+description: "The TLS profile in seleniumbase-rs-stealth (`network::spec`): TlsSpec, Alps, KnownGap and TlsSpecError, the reproducibility check against what BoringSSL can emit, and the custom JA3, JA4 and peetprint overlays."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
-`seleniumbase_rs_stealth::codec::tls_spec` holds the TLS specification a client should
+`seleniumbase_rs_stealth::network::spec::tls_spec` holds the TLS specification a client should
 reproduce. A `TlsSpec` is a whole TLS profile as plain data: the ids a
 `ClientHello` carries and the content of the extensions that have any.
 `TlsSpec::from_client_hello` records it from a parsed hello. A caller can layer a
@@ -25,8 +25,8 @@ in [Wire formats](/stealth/advanced/wire-formats#what-is-refused).
 <RequestExample>
 
 ```rust Fingerprints of the measured spec
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::measurement;
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::spec::measurement;
 use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -42,8 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust Overlay a custom JA3
-use seleniumbase_rs_stealth::codec::ja3::Ja3;
-use seleniumbase_rs_stealth::codec::tls_spec::{TlsSpecError, TlsSpec};
+use seleniumbase_rs_stealth::network::spec::ja3::Ja3;
+use seleniumbase_rs_stealth::network::spec::tls_spec::{TlsSpecError, TlsSpec};
 
 fn with_custom_ja3(base: &TlsSpec, text: &str) -> Result<TlsSpec, Box<dyn std::error::Error>> {
     let ja3 = Ja3::parse(text)?;

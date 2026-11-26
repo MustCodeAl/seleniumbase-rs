@@ -4,16 +4,16 @@ sidebarTitle: "Ledger"
 description: "Per-site state, event sinks and the events a scraper reports."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
 `ledger` is the memory of a scrape. `state` keeps what each site has done behind `Ledger`. `events` is what the scraper reports, with URLs and proxies already redacted, behind `EventSink`.
 
-See [BrowserScraper](/scraping/stealthy/browser-scraper).
+See [CdpSession](/scraping/stealthy/browser-scraper).
 
 <RequestExample>
 
 ```rust The in-memory store
-use seleniumbase_rs_stealth::scrape::InMemoryLedger;
+use seleniumbase_rs_stealth::session::InMemoryLedger;
 
 fn main() {
     let _store = InMemoryLedger::new();
@@ -39,12 +39,12 @@ pub const MAX_STATE_SITES: usize = 10_000;
 
 ## `ledger::events`
 
-### `ScrapeEvent`
+### `SessionEvent`
 
 <Badge color="blue" shape="pill">enum</Badge>
 
 ```rust
-pub enum ScrapeEvent {
+pub enum SessionEvent {
     Request {
             /// The URL requested, redacted.
             url: RedactedUrl,
@@ -126,7 +126,7 @@ pub enum ScrapeEvent {
 
 Something a scrape did or decided, with nothing secret in it.
 
-### `ScrapeEvent` methods
+### `SessionEvent` methods
 
 <Badge color="yellow" shape="pill">method</Badge>
 
@@ -152,7 +152,7 @@ Where scraper events go.
 <Badge color="yellow" shape="pill">method</Badge>
 
 ```rust
-fn emit(&self, event: &ScrapeEvent)
+fn emit(&self, event: &SessionEvent)
 ```
 
 
@@ -184,8 +184,8 @@ A sink that keeps the newest [`MAX_COLLECTED_EVENTS`] events, for tests and shor
 
 ```rust
 pub fn new() -> Self
-pub fn events(&self) -> Vec<ScrapeEvent>
-pub fn take(&self) -> Vec<ScrapeEvent>
+pub fn events(&self) -> Vec<SessionEvent>
+pub fn take(&self) -> Vec<SessionEvent>
 pub fn len(&self) -> usize
 pub fn is_empty(&self) -> bool
 ```
@@ -319,4 +319,4 @@ pub fn new() -> Self
 
 ## Related
 
-The guide is [BrowserScraper](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).
+The guide is [CdpSession](/scraping/stealthy/browser-scraper). The overview is [scrape](/stealth/api/scrape).

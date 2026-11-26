@@ -128,7 +128,9 @@ plugin's URL, with a trailing slash, and turns discovery on. With a direct CDP
 attachment the whole `BaseCase` API runs through the pure CDP engine:
 
 ```rust A test with BaseCase
-use seleniumbase_rs::{BaseCase, BrowserConfig, Fingerprint, SeleniumBaseError};
+use seleniumbase_rs_stealth::{
+    BaseCase, BrowserConfig, BrowserConfigFingerprintExt, Fingerprint, SeleniumBaseError,
+};
 
 async fn drive_the_app() -> Result<(), SeleniumBaseError> {
     let fingerprint = Fingerprint::windows_desktop()
@@ -138,8 +140,8 @@ async fn drive_the_app() -> Result<(), SeleniumBaseError> {
     let config = BrowserConfig::builder()
         .webdriver_url("http://127.0.0.1:4445/secret/")
         .cdp_discovery(true)
-        .fingerprint(fingerprint)
-        .build()?;
+        .build()?
+        .with_fingerprint(&fingerprint)?;
     let mut sb = BaseCase::new(config).await?;
     let title = sb.title().await?;
     println!("{title}");
@@ -156,15 +158,15 @@ For the full `Page` and `Browser` API, attach with `Browser::launch`, which
 launches no process when the options name a `cdp_url`:
 
 ```rust A test with Browser and Page
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::{Fingerprint, SeleniumBaseError};
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt, SeleniumBaseError};
 
 async fn drive_the_page() -> Result<(), SeleniumBaseError> {
     let options = LaunchOptions::builder()
         // `cdpUrl` from GET /<token>/cdp, or ws://127.0.0.1:{port}/devtools/browser/<id>.
         .cdp_url("http://127.0.0.1:53412")
-        .fingerprint(&Fingerprint::windows_desktop())
-        .build()?;
+        .build()?
+        .with_fingerprint(&Fingerprint::windows_desktop())?;
     let browser = Browser::launch(options).await?; // Attaches; launches no process.
     let page = browser.default_page().await?;
     page.locator("#save").click().await?;
@@ -252,10 +254,12 @@ the automation gate nor the `cdp` feature's launch flags.
 tauri-plugin-sbrs-automation = { git = "https://github.com/MustCodeAl/tauri-plugin-sbrs-automation", features = ["stealth"] }
 ```
 
-The feature brings the seleniumbase-rs library from git, at a release tag.
-Rust 1.100 is the library's minimum version. If your app also depends on
-`seleniumbase-rs`, name the same git tag as the plugin's `Cargo.toml`, so the
-app and the plugin share one copy of the library and its types.
+The feature brings `seleniumbase-rs` and [`seleniumbase-rs-stealth`](/stealth/api/evasion)
+(`default-features = false, features = ["client"]`, pure Rust, zero BoringSSL) over plain git URLs and re-exports `Fingerprint`,
+`OsType`, `StealthPlan`, `Browser`, and `Page` from `tauri_plugin_sbrs_automation::stealth`.
+Rust 1.100 is the minimum version. If your app also depends on `seleniumbase-rs`
+or `seleniumbase-rs-stealth`, use the same plain git URLs so Cargo resolves one
+shared copy of every type.
 
 </Step>
 

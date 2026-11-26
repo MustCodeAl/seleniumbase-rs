@@ -1,53 +1,51 @@
 ---
-title: "seleniumbase-rs-scrape"
-sidebarTitle: "scrape"
-description: "API reference of seleniumbase-rs-scrape: stealth scraping without TLS spoofing, over a real Chrome."
+title: "session (CdpSession, challenge, jar, ledger, passport)"
+sidebarTitle: "session"
+description: "API reference of seleniumbase_rs_stealth::session: CdpSession, challenge detection and mitigation, CookieJar, Ledger, Identity, and (with feature network) HttpSession and HybridSession."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
-`seleniumbase_rs_stealth::scrape` (implemented by `seleniumbase-rs-scrape` in `crates/scrape` of
-[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth))
-does stealth scraping without TLS spoofing. A real Chrome, driven through `sb_cdp`, loads the page.
-The pure modules decide what the response is, which proxy to use, and which cookies and identity
-to keep. The `runtime` module does the I/O. The crate builds no BoringSSL and runs wherever Chrome does.
+`seleniumbase_rs_stealth::session` (`src/session/` in
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth), enabled by default)
+owns stateful anti-bot sessions. With default features (zero BoringSSL), `CdpSession` drives a real Chrome through `sb_cdp` with challenge solving, proxy/fingerprint rotation, cookie jar, per-site ledger, and passport persistence. Enabling `features = ["network"]` unlocks `HttpSession` and `HybridSession` inside the same `session` module.
 
 ## When to use it
 
-Reach for scrape when a real browser has to load the page: a challenge that runs in the document,
-a script that must execute, or the DOM after render. `BrowserScraper` is the entry point.
+Reach for `session::CdpSession` when a real browser has to load the page: a challenge that runs in the document,
+a script that must execute, or the DOM after render. It builds no BoringSSL and runs wherever Chrome does.
 
-Reach for [wire](/stealth/api/wire) when the site judges the wire fingerprint, or when a
-browser's cookies should continue over plain HTTP. That crate is a separate facade feature and
-needs cmake.
+Reach for `features = ["network"]` ([network & sessions](/stealth/api/wire)) when the site judges the wire fingerprint, or when a
+browser's cookies should continue over plain HTTP (`session::HttpSession`) or escalate automatically between HTTP and Chrome behind `MitmProxy` (`session::HybridSession`). That feature builds BoringSSL and needs cmake.
 
 <RequestExample>
 
-```rust A scraper behind a German proxy
-use seleniumbase_rs_stealth::scrape::{BrowserScraper, CountryCode, ScrapeError};
+```rust A CdpSession behind a German proxy
+use seleniumbase_rs_stealth::network::CountryCode;
+use seleniumbase_rs_stealth::session::{CdpSession, SessionError};
 use seleniumbase_rs_stealth::tokio;
 
 #[tokio::main]
-async fn main() -> Result<(), ScrapeError> {
-    let mut scraper = BrowserScraper::builder()
+async fn main() -> Result<(), SessionError> {
+    let mut session = CdpSession::builder()
         .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
         .max_challenge_attempts(4)
         .build()
         .await?;
-    let page = scraper.fetch("https://example.com/").await?;
+    let page = session.fetch("https://example.com/").await?;
     println!("{} bytes, status {}", page.body.len(), page.status);
-    scraper.close().await
+    session.close().await
 }
 ```
 
 </RequestExample>
 
-`BrowserScraper::builder` returns `BrowserScraperBuilder`. `geo_proxies` takes
+`CdpSession::builder` returns `CdpSessionBuilder`. `geo_proxies` takes
 `(spec, CountryCode)` pairs and returns `Result`. `CountryCode::try_new` returns
-`Result<CountryCode, egress::geo::GeoError>`, and that error converts into `ScrapeError`.
-`fetch(&mut self, url)` returns `BrowserFetch` (`body: String`, `status: u16`).
-`close(self)` takes the scraper by value. Every signature is on
-[BrowserScraper](/stealth/api/scrape-browser-scraper).
+`Result<CountryCode, network::proxy::geo::GeoError>`, and that error converts into `SessionError`.
+`fetch(&mut self, url)` returns `CdpFetch` (`body: String`, `status: u16`).
+`close(self)` takes the session by value. Every signature is on
+[CdpSession](/stealth/api/scrape-browser-scraper).
 
 ## Depend on it
 
@@ -56,58 +54,51 @@ async fn main() -> Result<(), ScrapeError> {
 seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
-The facade's default feature is `scrape`, which also enables `codec`. That build has no
-BoringSSL. `sb_cdp`, `evasion` and `fingerprint` are modules re-exported from `seleniumbase-rs`,
-which the facade always depends on. They are not Cargo features. Import through
-`seleniumbase_rs_stealth`.
+The default feature is `session`, which turns on `client` and `network-spec` with zero BoringSSL.
+`sb_cdp` and core types are re-exported from `seleniumbase-rs`.
 
 ## Features
 
-`default = ["scrape"]` in the stealth repository's root `Cargo.toml`. `scrape` turns on `codec`.
-`wire` stays off unless the dependency asks for it.
-
-`seleniumbase-rs-scrape` declares no Cargo features of its own. Its tests enable `test-util` on
-`seleniumbase-rs` and `test-fixtures` on `seleniumbase-rs-codec`.
+`default = ["session"]` in `Cargo.toml`. `session` turns on `client` and `network-spec`.
+`network` and `http3` stay off unless enabled.
 
 ## Module map
 
 | Module | What it holds | Page |
 |---|---|---|
-| `runtime::browser_scraper` | `BrowserScraper`, its builder, `BrowserFetch`, the launcher. | [BrowserScraper](/stealth/api/scrape-browser-scraper) |
-| `challenge` | Detection, interstitial markers, the mitigation policy. | [Challenges](/stealth/api/scrape-challenge) |
-| `egress` | Proxy specs, the pool, countries, URL redaction. | [Egress](/stealth/api/scrape-egress) |
-| `jar` | The cookie jar and `Set-Cookie`. | [Cookie jar](/stealth/api/scrape-jar) |
-| `passport` | `Identity` and `EscalationPolicy`. | [Identity](/stealth/api/scrape-passport) |
-| `ledger` | Per-site state and events. | [Ledger](/stealth/api/scrape-ledger) |
-| `runtime` (the rest) | Egress switch, identity file, stores, capture tools. | [Runtime](/stealth/api/scrape-runtime) |
-| `error` | `ScrapeError`. | [Errors](/stealth/api/scrape-error) |
+| `session::cdp_session` | `CdpSession`, `CdpSessionBuilder`, `CdpFetch`, `Launcher`. | [CdpSession](/stealth/api/scrape-browser-scraper) |
+| `session::http` *(feature `network`)* | `HttpSession`, `HttpSessionOptions`, `HttpRequest`, `HttpResponse`. | [HttpSession](/stealth/api/wire-http-session) |
+| `session::hybrid` *(feature `network`)* | `HybridSession`, `HybridSessionBuilder`, `HybridFetch`, `HybridError`. | [HybridSession](/stealth/api/wire-stealth-session) |
+| `session::challenge` | Detection, interstitial markers, the mitigation policy. | [Challenges](/stealth/api/scrape-challenge) |
+| `network::proxy` | Proxy specs, the pool, countries, URL redaction, `ProxySwitch`. | [Proxy routing](/stealth/api/scrape-egress) |
+| `session::jar` | The cookie jar and `Set-Cookie`. | [Cookie jar](/stealth/api/scrape-jar) |
+| `session::passport` | `Identity` and `EscalationPolicy`. | [Identity](/stealth/api/scrape-passport) |
+| `session::ledger` | Per-site state and `SessionEvent`. | [Ledger](/stealth/api/scrape-ledger) |
+| `session::io` / `network::capture` | `JsonLedger`, `identity_file`, `TracingEventSink`, capture tools. | [I/O & capture](/stealth/api/scrape-runtime) |
+| `session::error` | `SessionError`. | [Errors](/stealth/api/scrape-error) |
 
-## Re-exports at the root
+## Re-exports at `session`
 
-| Root name | Module |
+| Re-export | Module |
 |---|---|
-| `ChallengeKind`, `Detection`, `ChallengeEvidence`, `ResponseView`, `ProtectionVendor` | `challenge::detect` |
-| `Mitigation`, `AttemptContext`, `GiveUpReason`, `MitigationPolicy`, `FetchKind` | `challenge::mitigation` |
-| `CountryCode`, `GeoResolver`, `LocaleExt`, `StaticGeoResolver` | `egress::geo` |
-| `ProxyPool`, `RotationStrategy` | `egress::pool` |
-| `RedactedUrl`, `Secret` | `egress::redact` |
-| `ProxyKey`, `ProxyRoute` | `egress::route` |
-| `ScrapeError` | `error` |
-| `CookieJar` | `jar::store` |
-| `CollectingEventSink`, `EventSink`, `NoopEventSink`, `ScrapeEvent` | `ledger::events` |
-| `SiteRecord`, `InMemoryLedger`, `Ledger` | `ledger::state` |
-| `WireMeasurementRef`, `IdentityError`, `Identity` | `passport::identity` |
-| `EscalationPolicy`, `Escalation` | `passport::policy` |
-| `BrowserFetch`, `BrowserScraper`, `BrowserScraperBuilder`, `Launcher` | `runtime::browser_scraper` |
-| `ProxySwitch` | `runtime::proxy_switch` |
-| `JsonLedger` | `runtime::json_store` |
-| `TracingEventSink` | `runtime::tracing_sink` |
+| `ChallengeKind`, `Detection`, `ChallengeEvidence`, `ResponseView`, `ProtectionVendor` | `session::challenge::detect` |
+| `Mitigation`, `AttemptContext`, `GiveUpReason`, `MitigationPolicy`, `FetchKind` | `session::challenge::mitigation` |
+| `SessionError` | `session::error` |
+| `CookieJar` | `session::jar::store` |
+| `CollectingEventSink`, `EventSink`, `NoopEventSink`, `SessionEvent` | `session::ledger::events` |
+| `SiteRecord`, `InMemoryLedger`, `Ledger` | `session::ledger::state` |
+| `WireMeasurementRef`, `IdentityError`, `Identity` | `session::passport::identity` |
+| `EscalationPolicy`, `Escalation` | `session::passport::policy` |
+| `CdpFetch`, `CdpSession`, `CdpSessionBuilder`, `Launcher` | `session::cdp_session` |
+| `JsonLedger` | `session::io::json_store` |
+| `TracingEventSink` | `session::io::tracing_sink` |
+| `HttpSession`, `HttpSessionOptions`, `HttpRequest`, `HttpResponse`, `HttpError`, `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `Method`, `ResponseHeaders` *(feature `network`)* | `session::http` |
+| `HybridSession`, `HybridSessionBuilder`, `HybridFetch`, `HybridError` *(feature `network`)* | `session::hybrid` |
 
-`detect`, `GeoError` and `LedgerError` stay in their modules: `challenge::detect::detect`,
-`egress::geo::GeoError`, `ledger::state::LedgerError`.
+Proxy types (`CountryCode`, `GeoResolver`, `LocaleExt`, `StaticGeoResolver`, `ProxyPool`, `ProxyKey`, `ProxyRoute`, `ProxySwitch`, `RedactedUrl`, `Secret`) live at `seleniumbase_rs_stealth::network`.
 
 ## Guides
 
-[BrowserScraper](/scraping/stealthy/browser-scraper) is the fetch loop. [Identity and cookies](/scraping/advanced-stealthy/identity)
-is the jar and the decision table. [Runnable examples](/scraping/advanced-stealthy/examples) is the programs.
-[Limits](/scraping/advanced-stealthy/limits) is what is measured.
+[CdpSession](/scraping/stealthy/browser-scraper) is the fetch loop. [Identity and cookies](/scraping/advanced-stealthy/identity)
+is the jar and the decision table. [Runnable examples](/scraping/advanced-stealthy/examples) lists the programs.
+[Limits](/scraping/advanced-stealthy/limits) covers what is measured.

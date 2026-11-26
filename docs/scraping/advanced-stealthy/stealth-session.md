@@ -1,14 +1,14 @@
 ---
-title: "StealthSession"
+title: "HybridSession"
 ---
 
-Examples importing `seleniumbase_rs_stealth::wire` require the facade's
+Examples importing `seleniumbase_rs_stealth::network` require the facade's
 `wire` feature. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on);
 this feature builds BoringSSL and needs cmake and a C/C++ toolchain.
 
-<Badge color="blue">Crate: wire</Badge>
+<Badge color="blue">Feature: network</Badge>
 
-`wire::stealth_session::StealthSession` joins the pieces. It presents one
+`session::hybrid::HybridSession` joins the pieces. It presents one
 `Identity` (the fingerprint, the measured browser it belongs to, the
 cookies it earned and the <Tooltip tip="The exit address a request leaves through: one of your proxies, or the direct connection.">egress</Tooltip> they were earned through) in one of two modes
 and moves between them by the policies:
@@ -20,11 +20,11 @@ and moves between them by the policies:
   handshake. A clearance earned here is valid in the other mode.
 
 ```rust
-use seleniumbase_rs_stealth::wire::StealthSession;
-use seleniumbase_rs_stealth::scrape::CountryCode;
+use seleniumbase_rs_stealth::session::HybridSession;
+use seleniumbase_rs_stealth::network::CountryCode;
 
 async fn demo() -> Result<(), Box<dyn std::error::Error>> {
-    let mut session = StealthSession::builder()
+    let mut session = HybridSession::builder()
         .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
         .build()
         .await?;
@@ -70,7 +70,7 @@ clearance hands the identity back to HTTP (a demotion), which carries it on.
 
 </Steps>
 
-Every change of mode emits `ScrapeEvent::FetchKindChanged` with its reason. The
+Every change of mode emits `SessionEvent::FetchKindChanged` with its reason. The
 browser is closed when the session goes back to HTTP and started again, with the
 same identity and egress, when it is needed. **The MITM proxy is started the first
 time a browser is needed** (at `build()` when the policy prefers the browser) and
@@ -84,7 +84,7 @@ whether the fetch worked or not. The attempts per fetch default to 4
 challenge over HTTP, one in the browser solves it, and one over HTTP uses the
 clearance.
 
-`fetch` returns a `StealthFetch`: `url` after redirects, `status`, `headers`, the
+`fetch` returns a `HybridFetch`: `url` after redirects, `status`, `headers`, the
 `body` (the response body over HTTP, the rendered page in the browser), the
 `detection`, the `fetch_kind` it was got in, how many loads it took (`attempts`), the
 challenge `solved` on the way, and the `proxy`. A page that took a challenge to
@@ -159,26 +159,26 @@ only changes when you rotate the profile or the egress, or pass your own with
 
 ## Building one
 
-`StealthSession::builder()` has a default for everything: Chrome with the
+`HybridSession::builder()` has a default for everything: Chrome with the
 platform's launch options, no proxy, state in memory, events written to `tracing`,
 HTTP preferred, and a profile drawn from a random seed.
 
 | Setting | What it does |
 |---|---|
 | `launch_options(options)`, `launcher(..)` | How the browser starts. `options` is a built `LaunchOptions`. A setting made in the options (a user agent, say) wins over the fingerprint's, and the proxy is always the MITM proxy's. |
-| `geo_proxies([(spec, country)])`, `proxy_rotation(..)` | The egress pool and how it picks, as for `BrowserScraper`. Both legs leave through the same egress. |
+| `geo_proxies([(spec, country)])`, `proxy_rotation(..)` | The egress pool and how it picks, as for `CdpSession`. Both legs leave through the same egress. |
 | `max_challenge_attempts(n)`, `mitigation(policy)` | Loads per fetch (zero reads as one) and the whole mitigation policy, including how long a solve is waited for (`policy.solve`, `SolveOptions::new().verify_timeout(..)`; 30 s by default). |
 | `escalation_policy(EscalationPolicy)` | The mode it prefers, whether HTTP needs a clearance, the clearance margin, whether a solve sends it back to HTTP. |
-| `ledger(..)`, `event_sink(..)`, `geo_resolver(..)`, `rate_limit(calls, window)` | As for `BrowserScraper`. The HTTP leg and the proxy report to the same sink. |
+| `ledger(..)`, `event_sink(..)`, `geo_resolver(..)`, `rate_limit(calls, window)` | As for `CdpSession`. The HTTP leg and the proxy report to the same sink. |
 | `seed(..)`, `fingerprint(..)` | The first profile. A fingerprint must claim the measured Chrome. |
 | `identity(identity)` | Starts from a saved identity: its fingerprint, cookies and clearances. It must belong to one of the proxies added, or to the direct connection when there is none. |
 | `http_session_options(HttpSessionOptions)`, `mitm_options(MitmOptions)` | The limits of each leg. The session's clock and event sink replace the ones in the HTTP options. |
 | `clock(..)` | The clock. |
 
-`build()` fails with `StealthError::WireFormat` when this machine's system has no
-measured Chrome or the profile claims another version, `StealthError::Scrape` for
+`build()` fails with `HybridError::WireFormat` when this machine's system has no
+measured Chrome or the profile claims another version, `HybridError::Scrape` for
 an egress whose country has no locale, an identity that belongs to another egress
-or no browser to start, `StealthError::Http` and `StealthError::Mitm` for the
+or no browser to start, `HybridError::Http` and `HybridError::Mitm` for the
 legs.
 
 ## Moving by hand
@@ -210,10 +210,10 @@ yourself when you know more than the answers show:
 - Leave both alone for ordinary fetching; `fetch` escalates and demotes on its own.
 
 ```rust
-use seleniumbase_rs_stealth::wire::StealthSession;
+use seleniumbase_rs_stealth::session::HybridSession;
 
 async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Error>> {
-    let mut session = StealthSession::builder().build().await?;
+    let mut session = HybridSession::builder().build().await?;
 
     // Log in where a real browser is needed.
     session.escalate().await?;
@@ -237,7 +237,7 @@ async fn login_then_scrape(password: &str) -> Result<(), Box<dyn std::error::Err
 
 ## Errors
 
-`StealthError` has one variant per layer: `Scrape` (the browser leg, the site
+`HybridError` has one variant per layer: `Scrape` (the browser leg, the site
 state, an identity or the mitigation policy; `Unsolved`, `GaveUp` and
 `CoolingDown` come as this variant), `Http`, `Mitm` and `WireFormat`. Each
 already keeps URLs redacted and credentials out of its text. At the crate
@@ -249,10 +249,10 @@ boundary it maps to `SeleniumBaseError`.
 
 - The measured Chrome and the installed Chrome must have the same major version.
   A browser that is another version is refused before it loads a page
-  (`StealthError::WireFormat`).
+  (`HybridError::WireFormat`).
 - A launched browser lives until the session leaves the browser mode or is
   closed. There is no idle timeout and no deadline in the session.
-- It runs the same fetch loop as `BrowserScraper`, with plain HTTP as the first
+- It runs the same fetch loop as `CdpSession`, with plain HTTP as the first
   move. A matching handshake is one signal among many, and a session does not
   make automation permitted by a site's terms. See [Limits](/scraping/advanced-stealthy/limits#limits).
 
@@ -262,14 +262,14 @@ boundary it maps to `SeleniumBaseError`.
 
 <Check>
 
-`tests/stealth_session.rs` runs the real HTTP leg against a loopback TLS shop
+`tests/hybrid_session.rs` runs the real HTTP leg against a loopback TLS shop
 that trusts only its own ephemeral authority, with a scripted browser
 (`Browser::new_mocked`, feature `test-util`): every transition of the state
 machine and its events, export and restore, rotating the profile and the egress,
 and that secrets stay out of output. The MITM proxy is started and the browser
 is launched behind it, but the traffic of a browser is not made.
 
-`tests/stealth_session_chrome.rs` runs the story with the real Chrome 155 on
+`tests/hybrid_session_chrome.rs` runs the story with the real Chrome 155 on
 macOS, headless (`#[ignore]`d): the session asks over HTTP and meets a script
 challenge on a loopback TLS shop; it starts the proxy and a Chrome behind it with
 the same fingerprint and egress; Chrome runs the challenge page's script, which
@@ -284,9 +284,9 @@ the test: no vendor's challenge was run.
 
 ## How this type is imported
 
-`StealthSession`, `StealthSessionBuilder`, `StealthFetch` and `StealthError` are
-re-exported at `seleniumbase_rs_stealth::wire`. The module path
-`wire::stealth_session::StealthSession` is the same type. The feature is
+`HybridSession`, `HybridSessionBuilder`, `HybridFetch` and `HybridError` are
+re-exported at `seleniumbase_rs_stealth::network`. The module path
+`session::hybrid::HybridSession` is the same type. The feature is
 `wire`; without it the module does not exist.
 
 ## Where to go next
@@ -301,7 +301,7 @@ re-exported at `seleniumbase_rs_stealth::wire`. The module path
   The proxy the browser leg launches behind.
 </Card>
 
-<Card title="BrowserScraper" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
+<Card title="CdpSession" icon="globe" color="#1a85d4" href="/scraping/stealthy/browser-scraper">
   The same loop with no TLS spoofing and no BoringSSL.
 </Card>
 

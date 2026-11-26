@@ -415,6 +415,44 @@ Ok::<(), seleniumbase_rs_plugin::PluginError>(())
 needs no page at all, so the typing (`number`, `money`, `date`, `url`) and the
 `problems` can be tested on plain JSON.
 
+## Offline HTML helpers and AI prompt builder
+
+In `v0.10.0`, the standalone HTML extraction helpers moved from `seleniumbase-rs` core into `seleniumbase-rs-plugin-extractor::html` (with typed errors in `ExtractError`):
+
+- **`html::markdown`**: `html_to_markdown(html)` and `html_to_markdown_with(html, &MarkdownOptions)` strip `<script>`, `<style>`, `<nav>`, `<footer>`, `<aside>`, and `<form>` noise for clean LLM/RAG Markdown.
+- **`html::metadata`**: `PageMetadata` extracts title, meta description, canonical URL, and Open Graph tags.
+- **`html::json_ld`**: `extract_json_ld` and `extract_json_ld_raw` parse embedded `<script type="application/ld+json">` blocks.
+- **`html::table`**: `TableData` parses HTML `<table>` elements into structured rows.
+- **`html::form`**: `FormData` converts typed Serde structs into HTML form field mappings.
+
+### Optional `ai` feature (`AiPromptBuilder`)
+
+Enable `features = ["ai"]` on `seleniumbase-rs-plugin-extractor` for provider-agnostic LLM extraction without bundling an HTTP client or vendor SDK:
+
+```rust
+use seleniumbase_rs_plugin_extractor::ai::{
+    AiPromptBuilder, parse_ai_records, parse_ai_response,
+};
+use seleniumbase_rs_plugin_extractor::html::html_to_markdown;
+use serde_json::json;
+
+let md = html_to_markdown("<article><h1>Widget</h1><p>$19.99</p></article>");
+let prompt = AiPromptBuilder::new()
+    .json_schema(json!({
+        "type": "object",
+        "properties": { "name": { "type": "string" }, "price": { "type": "string" } }
+    }))
+    .content(md)
+    .max_content_chars(4000)
+    .build()?;
+
+// Send `prompt.system` and `prompt.user` to your model provider, then parse the reply:
+let parsed = parse_ai_response(r#"{"name":"Widget","price":"$19.99"}"#)?;
+assert_eq!(parsed["name"], "Widget");
+let _ = parse_ai_records;
+Ok::<(), seleniumbase_rs_plugin_extractor::ExtractError>(())
+```
+
 ## Limits
 
 <Warning>

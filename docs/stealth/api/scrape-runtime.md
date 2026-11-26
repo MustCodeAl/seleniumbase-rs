@@ -4,17 +4,17 @@ sidebarTitle: "Runtime"
 description: "CDP helpers, the egress switch, the identity file, state stores, the tracing sink and the capture tools."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: scrape</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
 
-These modules are the I/O around the pure scrape types, other than `BrowserScraper`. `proxy_switch` opens a browser context behind a new proxy. `json_store` and `identity_file` persist state and identities. `tracing_sink` writes events to `tracing`. `capture` is the `capture_tls` and `capture_hints` measurement tools.
+These modules are the I/O around the pure scrape types, other than `CdpSession`. `proxy_switch` opens a browser context behind a new proxy. `json_store` and `identity_file` persist state and identities. `tracing_sink` writes events to `tracing`. `capture` is the `capture_tls` and `capture_hints` measurement tools.
 
-The programs are on [Runnable examples](/scraping/advanced-stealthy/examples). `BrowserScraper` has its own page.
+The programs are on [Runnable examples](/scraping/advanced-stealthy/examples). `CdpSession` has its own page.
 
 <RequestExample>
 
 ```rust Open a state file
-use seleniumbase_rs_stealth::scrape::ledger::state::LedgerError;
-use seleniumbase_rs_stealth::scrape::JsonLedger;
+use seleniumbase_rs_stealth::session::ledger::state::LedgerError;
+use seleniumbase_rs_stealth::session::JsonLedger;
 
 fn open(path: &str) -> Result<JsonLedger, LedgerError> {
     JsonLedger::open(path)
@@ -53,7 +53,7 @@ pub const MAX_IDENTITY_FILE_BYTES: u64 = 16 * 1024 * 1024;
 // runtime/json_store.rs
 pub const MAX_STATE_FILE_BYTES: u64 = 16 * 1024 * 1024;
 // runtime/tracing_sink.rs
-pub const TARGET: &str = "seleniumbase_rs_scrape";
+pub const TARGET: &str = "seleniumbase_rs_stealth::session";
 ```
 
 
@@ -630,8 +630,8 @@ The locale and time zone an egress puts a tab in.
 pub async fn resolve(
         resolver: &dyn GeoResolver,
         egress: &ProxyRoute,
-    ) -> Result<Self, ScrapeError>
-pub fn localize(&self, fingerprint: &Fingerprint) -> Result<Fingerprint, ScrapeError>
+    ) -> Result<Self, SessionError>
+pub fn localize(&self, fingerprint: &Fingerprint) -> Result<Fingerprint, SessionError>
 ```
 
 
@@ -659,7 +659,7 @@ async fn switch(
         &self,
         browser: &Browser,
         egress: Option<&ProxyRoute>,
-    ) -> Result<Page, ScrapeError>
+    ) -> Result<Page, SessionError>
 ```
 
 
@@ -1011,7 +1011,7 @@ An HTTP/1 response with a `Content-Length` and `Connection: close`.
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn goto_with_response(page: &Page, url: &str) -> Result<NavResponse, ScrapeError>
+pub async fn goto_with_response(page: &Page, url: &str) -> Result<NavResponse, SessionError>
 ```
 
 Navigates `page` to `url` and returns what the server answered the main frame.
@@ -1021,7 +1021,7 @@ Navigates `page` to `url` and returns what the server answered the main frame.
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn detect_page(page: &Page, response: &NavResponse) -> Result<PageSnapshot, ScrapeError>
+pub async fn detect_page(page: &Page, response: &NavResponse) -> Result<PageSnapshot, SessionError>
 ```
 
 Reads the rendered page and decides whether it is a challenge, using the status and headers of `response`.
@@ -1031,7 +1031,7 @@ Reads the rendered page and decides whether it is a challenge, using the status 
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn apply_locale(page: &Page, placed: &ProxyLocale) -> Result<(), ScrapeError>
+pub async fn apply_locale(page: &Page, placed: &ProxyLocale) -> Result<(), SessionError>
 ```
 
 Makes `page` report the locale and time zone of `placed` over the protocol, for the documents it loads from now on.
@@ -1041,7 +1041,7 @@ Makes `page` report the locale and time zone of `placed` over the protocol, for 
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn export_cookies(page: &Page, now: u64) -> Result<CookieJar, ScrapeError>
+pub async fn export_cookies(page: &Page, now: u64) -> Result<CookieJar, SessionError>
 ```
 
 The cookies of the tab's browser context, as a jar. Cookies the jar would refuse are left out.
@@ -1051,7 +1051,7 @@ The cookies of the tab's browser context, as a jar. Cookies the jar would refuse
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn import_cookies(page: &Page, jar: &CookieJar, now: u64) -> Result<usize, ScrapeError>
+pub async fn import_cookies(page: &Page, jar: &CookieJar, now: u64) -> Result<usize, SessionError>
 ```
 
 Sets the unexpired cookies of `jar` in the tab's browser context and returns how many.
@@ -1064,7 +1064,7 @@ Sets the unexpired cookies of `jar` in the tab's browser context and returns how
 pub async fn clearance_value(
     page: &Page,
     vendor: Option<ProtectionVendor>,
-) -> Result<Option<String>, ScrapeError>
+) -> Result<Option<String>, SessionError>
 ```
 
 The value of the clearance cookie of `vendor` in the tab's browser context, when there is one. A vendor without such a cookie gives `None`.
@@ -1079,7 +1079,7 @@ pub async fn wait_for_clearance(
     vendor: Option<ProtectionVendor>,
     stale: Option<&str>,
     timeout: Duration,
-) -> Result<bool, ScrapeError>
+) -> Result<bool, SessionError>
 ```
 
 Waits until a solved challenge shows in the browser, for at most `timeout`.
@@ -1089,7 +1089,7 @@ Waits until a solved challenge shows in the browser, for at most `timeout`.
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn capture_session(page: &Page) -> Result<Session, ScrapeError>
+pub async fn capture_session(page: &Page) -> Result<Session, SessionError>
 ```
 
 Captures the cookies of the tab's browser context and the local storage of the tab's origin as a [`Session`], the way a pool lease saves its login.
@@ -1099,7 +1099,7 @@ Captures the cookies of the tab's browser context and the local storage of the t
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn restore_session(page: &Page, session: Session, now: f64) -> Result<(), ScrapeError>
+pub async fn restore_session(page: &Page, session: Session, now: f64) -> Result<(), SessionError>
 ```
 
 Puts a [`Session`] into the tab: its unexpired cookies, and its local storage when the tab is on the origin it was captured from.
@@ -1119,7 +1119,7 @@ Lets the pointer arrive on the page the way a person's would.
 <Badge color="green" shape="pill">function</Badge>
 
 ```rust
-pub async fn solve_widget(page: &Page, options: &SolveOptions) -> Result<(), ScrapeError>
+pub async fn solve_widget(page: &Page, options: &SolveOptions) -> Result<(), SessionError>
 ```
 
 Attempts the CAPTCHA widget the page shows, if it shows one, with the solver of the core ([`Page::solve_captcha_with`]) and `options`, the mitigation policy's `solve` (presses, rounds, cooldown, clearance cookie). A widget that was pressed and never showed cleared is one failed attempt, not an error; only a browser that cannot be read, or that refuses the input, is.

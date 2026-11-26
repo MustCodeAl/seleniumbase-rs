@@ -6,7 +6,7 @@ description: "Fingerprint, Spoof and StealthPolicy in this crate, and the launch
 
 <Note>
 
-Since 0.10.0, these types live in `seleniumbase-rs-evasion` inside [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (re-exported as `seleniumbase_rs_stealth::evasion`). They are not `BaseCase` methods. Names below are the public items. Argument names and return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Since 0.10.0, these types live in `seleniumbase_rs_stealth::identity` (and `client` for evasion providers) inside [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). They are not `BaseCase` methods. Names below are the public items. Argument names and return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
 
 </Note>
 
@@ -38,8 +38,8 @@ UC mode is separate. It does not build a fingerprint and it does not patch chrom
 In JSON a `Spoof` is `"natural"`, `"random"`, `"off"`, `{"mimic": "<specimen-name>"}`, or the value itself. `null` reads as `Natural`. On a string setting those three words are reserved: a value spelled like one of them reads as the keyword.
 
 ```rust
-use seleniumbase_rs_stealth::evasion::mimic::Machine;
-use seleniumbase_rs_stealth::evasion::spoof::Spoof;
+use seleniumbase_rs_stealth::identity::mimic::Machine;
+use seleniumbase_rs_stealth::identity::spoof::Spoof;
 
 let zone: Spoof<String> = "Europe/Berlin".into();
 assert_eq!(zone.value().map(String::as_str), Some("Europe/Berlin"));
@@ -88,7 +88,7 @@ Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>
 
 ## Built-in Evasion Providers
 
-The evasion system packages self-contained IIFEs implementing `EvasionProvider` (`src/evasion/providers/builtin.rs`). Each provider spoofs one browser dimension in priority order:
+The evasion system packages self-contained IIFEs implementing `EvasionProvider` (`src/client/providers/builtin.rs`). Each provider spoofs one browser dimension in priority order:
 
 | Provider | Priority | What it delivers |
 |---|---|---|
@@ -104,9 +104,9 @@ The evasion system packages self-contained IIFEs implementing `EvasionProvider` 
 `Off` is meaningful for media devices, geolocation, WebRTC, battery, connection, speech voices, Bluetooth and Client Hints. `Random` on a setting that has nothing to draw (`oscpu`, `build_id`, `proxy`) fails `build`.
 
 ```rust
-use seleniumbase_rs::{Dimension, Fingerprint, OsType, Spoof, StealthPolicy};
+use seleniumbase_rs_stealth::identity::{Dimension, Fingerprint, FingerprintError, Spoof, StealthPolicy};
 
-fn build() -> Result<(), seleniumbase_rs::FingerprintError> {
+fn build() -> Result<(), FingerprintError> {
     let fp = Fingerprint::builder()
         .timezone("Europe/Berlin")
         .hardware_concurrency(8)
@@ -205,7 +205,7 @@ assert_eq!(policy.canvas_noise, CanvasNoise::Low);
 
 | Call | What the browser does |
 |------|------------------------|
-| `LaunchOptionsFingerprintExt::with_fingerprint(&fingerprint)` | Pure CDP (from `seleniumbase_rs_stealth::evasion::identity`). Layers `FingerprintPlugin` onto `LaunchOptions` and copies launch settings (user agent, language, window size, WebRTC policy, proxy) unless you set them explicitly. The script and protocol overrides run on every tab before the first navigation. |
+| `LaunchOptionsFingerprintExt::with_fingerprint(&fingerprint)` / `with_stealth(&layer)` | Pure CDP (from `seleniumbase_rs_stealth::evasion::identity`). Layers a `Fingerprint` or `StealthLayer` onto `LaunchOptions` and copies unset launch settings (user agent, language, timezone, geolocation, platform, WebRTC policy) unless you set them explicitly. The script and protocol overrides run on every tab before the first navigation. |
 | `PageFingerprintExt::apply_fingerprint(&fingerprint)` | Pure CDP (from `seleniumbase_rs_stealth::evasion::identity`). Applies a fingerprint's CDP overrides and init script to an open `sb_cdp::Page`. |
 | `BaseCaseFingerprintExt::apply_fingerprint(&fingerprint)` | WebDriver (from `seleniumbase_rs_stealth::evasion::identity`). Applies a fingerprint's overrides and init script to a `BaseCase` session. |
 | `sbrs --fingerprint FILE` | Global flag (`SB_FINGERPRINT`). `FILE` is a fingerprint JSON file. The command line wins over `SB_FINGERPRINT`, which wins over the `[fingerprint]` table of the settings file. |

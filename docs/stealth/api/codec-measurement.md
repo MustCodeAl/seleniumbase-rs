@@ -1,15 +1,15 @@
 ---
 title: "codec::measurement"
 sidebarTitle: "WireMeasurement"
-description: "The measured browser tables of seleniumbase-rs-codec: WireMeasurement, Provenance, WireMeasurementError and the lookups get, version, for_kind, all, try_all, newest and measured_systems."
+description: "The measured browser tables of seleniumbase-rs-stealth (`network::spec`): WireMeasurement, Provenance, WireMeasurementError and the lookups get, version, for_kind, all, try_all, newest and measured_systems."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
-`seleniumbase_rs_stealth::codec::measurement` holds every wire value the stealth layer
+`seleniumbase_rs_stealth::network::spec::measurement` holds every wire value the stealth layer
 imitates. Each one was measured from a real browser by a capture tool
 (`capture_tls`, `capture_hints`, `capture_h2`) and stored as JSON under
-`crates/codec/src/measured`. The files are embedded with `include_str!`, parsed
+`src/network/spec/measured`. The files are embedded with `include_str!`, parsed
 once, and looked up by `Browser` and `OsType`. Only what was measured
 exists: an unmeasured pair is an error, never a nearby guess. Today the table
 holds `chrome-155-macos.json`. How the files are made and refreshed is in
@@ -18,8 +18,8 @@ holds `chrome-155-macos.json`. How the files are made and refreshed is in
 <RequestExample>
 
 ```rust Look up a measured browser
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::spec::measurement::{self, WireMeasurementError};
 use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), WireMeasurementError> {
@@ -33,8 +33,8 @@ fn main() -> Result<(), WireMeasurementError> {
 ```
 
 ```rust An unmeasured system is refused
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::measurement::{self, WireMeasurementError};
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::spec::measurement::{self, WireMeasurementError};
 use seleniumbase_rs::browser::config::Browser;
 
 let windows = measurement::get(Browser::Chrome, OsType::Windows);
@@ -42,7 +42,7 @@ assert!(matches!(windows, Err(WireMeasurementError::NotMeasured { .. })));
 ```
 
 ```rust A table of your own
-use seleniumbase_rs_stealth::codec::measurement::WireMeasurement;
+use seleniumbase_rs_stealth::network::spec::measurement::WireMeasurement;
 
 fn load(text: &str) -> Result<WireMeasurement, Box<dyn std::error::Error>> {
     Ok(WireMeasurement::from_json("my-browser.json", text)?)
@@ -85,7 +85,7 @@ pub struct WireMeasurement {
 
 One measured browser on one operating system: everything a client must send to
 look like it. `OsType` and `ClientHints` are the core's
-(`seleniumbase_rs_stealth::evasion::fingerprint`).
+(`seleniumbase_rs_stealth::identity::fingerprint`).
 
 <ResponseField name="kind" type="Browser" required>
 

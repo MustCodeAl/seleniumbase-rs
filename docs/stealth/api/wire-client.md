@@ -1,10 +1,10 @@
 ---
-title: "wire::client"
+title: "network::wire"
 sidebarTitle: "Client"
 description: "WireFormat, WireFormatBuilder and WireFormat::client_builder."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Feature: network</Badge>
 
 `client` turns a measured browser into a wreq client. `WireFormat` is the measurement as data, including the known gaps BoringSSL cannot send. `WireFormat::client_builder` builds a `ClientBuilder` from a profile. `WireFormatBuilder` lays a JA3 or an Akamai string over the measured profile. A browser or system with no measurement is refused.
 
@@ -14,8 +14,8 @@ See [Wire formats](/stealth/advanced/wire-formats) and [Limits](/scraping/advanc
 
 ```rust The measured Chrome on this operating system
 use seleniumbase_rs::browser::config::Browser;
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::wire::{WireFormatError, WireFormat};
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::{WireFormatError, WireFormat};
 
 fn profile() -> Result<WireFormat, WireFormatError> {
     WireFormat::for_system(Browser::Chrome, OsType::Macos)

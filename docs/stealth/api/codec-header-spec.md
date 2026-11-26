@@ -1,10 +1,10 @@
 ---
 title: "codec::header_spec"
 sidebarTitle: "HeaderSpec"
-description: "Header names, order and values per request shape in seleniumbase-rs-codec: HeaderSpec, HeaderSource placeholders, ClientHeaders, RequestShape, the HTTP/2 priority table and HeaderSpecError."
+description: "Header names, order and values per request shape in seleniumbase-rs-stealth (`network::spec`): HeaderSpec, HeaderSource placeholders, ClientHeaders, RequestShape, the HTTP/2 priority table and HeaderSpecError."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
 A `HeaderSpec` says which headers a request carries, in which order, with which
 capitalisation, for two request shapes: a top-level navigation
@@ -25,9 +25,9 @@ on what the request is for, so it is looked up by the `Sec-Fetch-Dest` value wit
 <RequestExample>
 
 ```rust Render a captured list
-use seleniumbase_rs_stealth::codec::header_spec::{ClientHeaders, HeaderSpec, RequestShape};
+use seleniumbase_rs_stealth::network::spec::header_spec::{ClientHeaders, HeaderSpec, RequestShape};
 
-fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecError> {
+fn main() -> Result<(), seleniumbase_rs_stealth::network::spec::header_spec::HeaderSpecError> {
     let captured = [("Accept", "*/*"), ("User-Agent", "Agent/1.0"), ("Host", "example.test")];
     let spec = HeaderSpec::from_captured(&captured, &captured)?;
     let identity = ClientHeaders::new("Agent/2.0");
@@ -39,8 +39,8 @@ fn main() -> Result<(), seleniumbase_rs_stealth::codec::header_spec::HeaderSpecE
 ```
 
 ```rust The measured priority table
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::measurement;
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::spec::measurement;
 use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

@@ -1,37 +1,30 @@
 ---
-title: "seleniumbase-rs-wire"
-sidebarTitle: "wire"
-description: "API reference of seleniumbase-rs-wire: browser-identical TLS and HTTP/2 through wreq and BoringSSL."
+title: "network (BoringSSL wire, MITM, HTTP/3) and wire sessions"
+sidebarTitle: "network & sessions"
+description: "API reference of seleniumbase_rs_stealth::network (feature network / http3) and wire-backed sessions: WireFormat, MitmProxy, EphemeralCa, Http3Client, HttpSession, and HybridSession."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Feature: network / http3</Badge>
 
-`seleniumbase_rs_stealth::wire` (implemented by `seleniumbase-rs-wire` in `crates/wire` of
-[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth))
-sends requests that look like a measured Chrome on the wire: the same TLS `ClientHello`, the same
-HTTP/2 start, and the same header names, order and values. It builds a wreq client from a
-`WireFormat`, carries a browser's cookies on in plain HTTP (`HttpSession`), puts a real
-Chrome behind a loopback proxy that replays its requests (`MitmProxy`), and moves one identity
-between the two (`StealthSession`). A browser or system that was not measured is refused.
-Only Chrome 155.0.8059.40 on macOS is measured. See [Limits](/scraping/advanced-stealthy/limits).
+Enabling `features = ["network"]` on [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) adds BoringSSL/wreq wire impersonation under `seleniumbase_rs_stealth::network` (`WireFormat`, `WireFormatBuilder`, `MitmProxy`, `EphemeralCa`, `capture::h2`, `http3::capture`) and unlocks the wire-backed sessions under `seleniumbase_rs_stealth::session` (`HttpSession` and `HybridSession`). Enabling `features = ["http3"]` adds `network::http3::{Http3Client, Http3Pool, Http3Options, Http3Request, Http3Response}` and `Alt-Svc` HTTP/3 upgrades through the standalone `sbrs-h3d` helper (`h3d/`).
+
+A browser or system that was not measured is refused. Only Chrome 155.0.8059.40 on macOS is measured. See [Limits](/scraping/advanced-stealthy/limits).
 
 ## When to use it
 
-Reach for wire when the site judges the wire, not only the page. `HttpSession::from_page`
-continues a Chrome tab as plain HTTP. `from_identity` starts from a `scrape::Identity`
-and is synchronous. `MitmProxy` puts a real Chrome behind the measured handshake.
-`StealthSession` moves one identity between those two.
+Reach for `features = ["network"]` when the site judges the wire, not only the page. `session::HttpSession::from_page`
+continues a Chrome tab as plain HTTP. `from_identity` starts from a `session::Identity`
+and is synchronous. `network::MitmProxy` puts a real Chrome behind the measured handshake.
+`session::HybridSession` moves one identity between those two.
 
-Reach for [scrape](/stealth/api/scrape) when a real Chrome is enough. scrape is on by default
-and builds no BoringSSL. wire is off until the `wire` feature is enabled, needs cmake and a
-C/C++ toolchain, and refuses to impersonate a system that was not measured.
+Leave `network` off (the default `session` feature) when a real Chrome (`session::CdpSession`) is enough and you want zero BoringSSL or cmake build cost.
 
 <RequestExample>
 
 ```rust Continue a page as plain HTTP
 use seleniumbase_rs_stealth::json::Value;
-use seleniumbase_rs_stealth::wire::{HttpError, HttpSessionOptions, HttpSession};
 use seleniumbase_rs_stealth::sb_cdp::Page;
+use seleniumbase_rs_stealth::session::{HttpError, HttpSession, HttpSessionOptions};
 
 async fn orders(page: &Page) -> Result<(), HttpError> {
     let session = HttpSession::from_page(page, None, HttpSessionOptions::new()).await?;
@@ -45,66 +38,64 @@ async fn orders(page: &Page) -> Result<(), HttpError> {
 
 </RequestExample>
 
-`from_page(&Page, Option<scrape::ProxyRoute>, HttpSessionOptions)` is async. `None` uses the page's
+`from_page(&Page, Option<network::ProxyRoute>, HttpSessionOptions)` is async. `None` uses the page's
 context proxy, or a direct connection when that context has none. A proxy Chrome was launched
 with is not on the page: `from_page` then returns `HttpError::BrowserProxy` unless that egress
 is passed, or `HttpSessionOptions::browser_proxy_exits_directly(true)` says the proxy leaves from this
-machine. `Value` is the facade re-export of `serde_json::Value`. Every signature is on
+machine. `Value` is the re-export of `serde_json::Value`. Every signature is on
 [HttpSession](/stealth/api/wire-http-session).
 
 ## Depend on it
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth", features = ["wire"] }
+seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth", features = ["network"] }
 ```
 
-The `wire` feature also turns `scrape` and `codec` on. Building it compiles BoringSSL through
-wreq, so the machine needs cmake and a C/C++ toolchain. `sb_cdp`, `evasion` and `fingerprint`
-stay available because the facade always re-exports `seleniumbase-rs`. They are modules, not features.
-
-## Features
-
-The public `wire` module requires the facade feature `wire`, off by default. In the stealth
-repository's root `Cargo.toml`, `wire` enables `scrape`, and `scrape` enables `codec`.
-`seleniumbase-rs-wire` declares no Cargo features of its own. Its tests enable `test-util` on
-`seleniumbase-rs`.
+Add `features = ["http3"]` to also enable `network::http3` client/pool and `Alt-Svc` HTTP/3 upgrades (`http3` implies `network`, which implies `session`, `client`, and `network-spec`). Building `network` compiles BoringSSL through wreq, so the machine needs cmake and a C/C++ toolchain.
 
 ## Module map
 
 | Module | What it holds | Page |
 |---|---|---|
-| `client` | `WireFormat`, `WireFormatBuilder`, `WireFormat::client_builder`. | [Client](/stealth/api/wire-client) |
-| `convert` | Codec specs to wreq and BoringSSL options. | [Convert](/stealth/api/wire-convert) |
-| `http_session` | `HttpSession`, `HttpSessionOptions`, `HttpResponse`. | [HttpSession](/stealth/api/wire-http-session) |
-| `http3` | `Http3Client`, `Http3Pool`, `Http3Options`, `Http3Request`, `Http3Response`. | [HTTP/3](/stealth/advanced/http3) |
-| `mitm` | `MitmProxy` and its options. | [MITM proxy](/stealth/api/wire-mitm) |
-| `tls_server` | `EphemeralCa`, one leaf per host. | [TLS server](/stealth/api/wire-tls-server) |
-| `stealth_session` | `StealthSession` and its builder. | [StealthSession](/stealth/api/wire-stealth-session) |
-| `capture_h2` | The HTTP/2 measurement tool. | [HTTP/2 capture](/stealth/api/wire-capture-h2) |
+| `network::wire` | `WireFormat`, `WireFormatBuilder`, `WireFormat::client_builder`, `WireProtocol`. | [WireFormat](/stealth/api/wire-client) |
+| `network::convert` | `network::spec` types to wreq and BoringSSL options. | [Convert](/stealth/api/wire-convert) |
+| `network::mitm` | `MitmProxy` and its options. | [MITM proxy](/stealth/api/wire-mitm) |
+| `network::tls_server` | `EphemeralCa`, one leaf per host. | [TLS server](/stealth/api/wire-tls-server) |
+| `network::http3` | `Http3Client`, `Http3Pool`, `Http3Options`, `Http3Request`, `Http3Response`, and `capture`. | [HTTP/3](/stealth/advanced/http3) |
+| `network::capture::h2` | The HTTP/2 measurement tool. | [HTTP/2 capture](/stealth/api/wire-capture-h2) |
+| `session::http` | `HttpSession`, `HttpSessionOptions`, `HttpResponse`, `HttpRequest`. | [HttpSession](/stealth/api/wire-http-session) |
+| `session::hybrid` | `HybridSession`, `HybridSessionBuilder`, `HybridFetch`, `HybridError`. | [HybridSession](/stealth/api/wire-stealth-session) |
 
-## Re-exports at the root
+## Re-exports
 
-| Root name | Module |
+### At `seleniumbase_rs_stealth::network`
+
+| Re-export | Module |
 |---|---|
-| `WireFormat::client_builder`, `WireFormatBuilder`, `WireFormatError`, `WireFormat`, `WireProtocol` | `client` |
-| `HttpError`, `HttpSessionOptions`, `HttpResponse`, `HttpRequest`, `HttpSession`, `Method`, `WireProtocol` | `http_session` |
-| `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `HttpResponse`, `ResponseHeaders`, `HttpRequest` | `http_session` |
-| `MitmError`, `MitmOptions`, `MitmProxy`, `MitmStats` | `mitm` |
-| `StealthError`, `StealthFetch`, `StealthSession`, `StealthSessionBuilder` | `stealth_session` |
-| `CaOptions`, `EphemeralCa`, `Leaf`, `TlsServerError` | `tls_server` |
+| `WireFormat`, `WireFormatBuilder`, `WireFormatError`, `WireProtocol` | `network::wire` |
+| `MitmError`, `MitmOptions`, `MitmProxy`, `MitmStats` | `network::mitm` |
+| `CaOptions`, `EphemeralCa`, `LeafCert`, `TlsServerError` | `network::tls_server` |
+| `Http3Client`, `Http3Error`, `Http3Options`, `Http3Pool`, `Http3Request`, `Http3RequestKind`, `Http3Response` *(feature `http3`)* | `network::http3` |
 
-`ConvertError` and `check_emittable` stay in `convert`. `CaptureH2Error` stays in `capture_h2`.
+`ConvertError` and `check_emittable` stay in `network::convert`. `CaptureH2Error` stays in `network::capture::h2`.
+
+### At `seleniumbase_rs_stealth::session`
+
+| Re-export | Module |
+|---|---|
+| `HttpError`, `HttpSessionOptions`, `HttpResponse`, `HttpRequest`, `HttpSession`, `Method`, `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `ResponseHeaders` | `session::http` |
+| `HybridError`, `HybridFetch`, `HybridSession`, `HybridSessionBuilder` | `session::hybrid` |
 
 ## Errors
 
-A browser or system with no measurement is `WireMeasurementError::NotMeasured` in the codec, wrapped as
-`WireFormatError::WireMeasurement` and, from `HttpSession`, as `HttpError::Impersonate`. A Chrome major
+A browser or system with no measurement is `WireMeasurementError::NotMeasured` in `network::spec`, wrapped as
+`WireFormatError::Measurement` and, from `HttpSession`, as `HttpError::WireFormat`. A Chrome major
 other than the measured one is `HttpError::VersionMismatch`. The session does not borrow another
 system's values.
 
 ## Guides
 
 [HttpSession](/scraping/stealthy/http-session), [MITM proxy](/stealth/advanced/mitm-proxy),
-[StealthSession](/scraping/advanced-stealthy/stealth-session), [Wire formats](/stealth/advanced/wire-formats),
+[HybridSession](/scraping/advanced-stealthy/stealth-session), [Wire formats](/stealth/advanced/wire-formats),
 [Runnable examples](/scraping/advanced-stealthy/examples) and [Limits](/scraping/advanced-stealthy/limits).

@@ -1,12 +1,12 @@
 ---
 title: "codec::h2_spec"
 sidebarTitle: "H2Spec"
-description: "The HTTP/2 profile in seleniumbase-rs-codec: H2Spec , its constructors from a capture, a preface or an Akamai string, the check against what the wreq HTTP/2 stack can send, setting_id and H2SpecError."
+description: "The HTTP/2 profile in seleniumbase-rs-stealth (`network::spec`): H2Spec , its constructors from a capture, a preface or an Akamai string, the check against what the wreq HTTP/2 stack can send, setting_id and H2SpecError."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
-`seleniumbase_rs_stealth::codec::h2_spec` describes the start of an HTTP/2 connection that
+`seleniumbase_rs_stealth::network::spec::h2_spec` describes the start of an HTTP/2 connection that
 a client should reproduce: the SETTINGS entries and their order, the connection
 `WINDOW_UPDATE`, the PRIORITY frames, the priority fields of the first HEADERS
 frame, and the order of the pseudo-headers. An `H2Spec` is built from bytes
@@ -27,8 +27,8 @@ stack cannot emit, as of `wreq-proto` 0.2.6:
 <RequestExample>
 
 ```rust From an Akamai string
-use seleniumbase_rs_stealth::codec::akamai::Akamai;
-use seleniumbase_rs_stealth::codec::h2_spec::{H2Spec, H2SpecError};
+use seleniumbase_rs_stealth::network::spec::akamai::Akamai;
+use seleniumbase_rs_stealth::network::spec::h2_spec::{H2Spec, H2SpecError};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let akamai: Akamai = "1:4096;2:0;4:1048576|983041|0|m,a,s,p".parse()?;
@@ -42,8 +42,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ```
 
 ```rust The measured HTTP/2 start
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
-use seleniumbase_rs_stealth::codec::measurement;
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::spec::measurement;
 use seleniumbase_rs::browser::config::Browser;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

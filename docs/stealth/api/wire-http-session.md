@@ -1,10 +1,10 @@
 ---
-title: "wire::http_session"
+title: "session::http"
 sidebarTitle: "HttpSession"
 description: "HttpSession: plain HTTP that continues a browser session with the measured TLS and HTTP/2."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: wire</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Feature: network</Badge>
 
 `HttpSession` sends plain HTTP that looks like the measured Chrome on the wire and carries a browser's cookies. `from_page` is async and copies a `Page`. `from_identity` is synchronous. `get` and `request` send; `fetch` also judges the reply. The types of the module are exported under one name, in the module and at the crate root: `HttpAttempt`, `HttpFetch`, `HttpRules`, `HttpVerdict`, `HttpResponse`, `ResponseHeaders` and `HttpRequest`.
 
@@ -14,7 +14,7 @@ The guide is [HttpSession](/scraping/stealthy/http-session). `HttpSessionOptions
 
 ```rust Continue a page as plain HTTP
 use seleniumbase_rs_stealth::json::Value;
-use seleniumbase_rs_stealth::wire::{HttpError, HttpSessionOptions, HttpSession};
+use seleniumbase_rs_stealth::network::{HttpError, HttpSessionOptions, HttpSession};
 use seleniumbase_rs_stealth::sb_cdp::Page;
 
 async fn orders(page: &Page) -> Result<(), HttpError> {
@@ -213,6 +213,8 @@ pub fn follow_redirects(mut self, follow: bool) -> Self
 pub fn rate_limit(mut self, calls: usize, window: Duration) -> Self
 pub fn event_sink(mut self, sink: Arc<dyn EventSink>) -> Self
 pub fn trust(mut self, store: CertStore) -> Self
+pub fn root_cert_der(mut self, path: impl Into<PathBuf>) -> Self
+pub fn http3_alt_svc(mut self, enabled: bool) -> Self
 pub fn resolve(mut self, host: impl Into<String>, addr: SocketAddr) -> Self
 pub fn bypass(mut self, host: impl Into<String>) -> Self
 pub fn browser_proxy_exits_directly(mut self, direct: bool) -> Self
@@ -232,6 +234,8 @@ pub fn validate(&self) -> Result<(), HttpError>
 - `rate_limit`: At most `calls` requests to one site (a registrable domain) in `window`, every redirect hop counted. The limit is per site, not global.
 - `event_sink`: Where the events of the session go.
 - `trust`: The certificate roots the server must chain to, in place of the system roots, as a `wreq::tls::trust::CertStore`. Verification stays on: this is how a private root is trusted.
+- `root_cert_der`: Path to an extra DER-encoded root certificate forwarded to pooled `sbrs-h3d` HTTP/3 workers (useful for local QUIC test servers).
+- `http3_alt_svc`: Enables `Alt-Svc` (`h3`, `ma=`, `clear`) HTTP/3 discovery on responses, upgrading future requests for matching origins through pooled `Http3Pool` workers with transparent fallback to HTTP/2 on opportunistic failures.
 - `resolve`: Resolves `host` to `addr` without asking DNS, as `curl --resolve` does. The TLS server name stays `host`.
 - `bypass`: A host that skips the proxy, in the notation of a `no_proxy` list (`example.com`, `.example.com`). Only the egress of a session uses it.
 - `browser_proxy_exits_directly`: Says that the browser-wide proxy of the page's browser (a MITM proxy without an egress, say) leaves directly, so that `HttpSession::from_page` may build a session without an egress for it. Off by default: a page does not show a browser-wide proxy, and a session that silently went direct would send the page's cookies from this machine's own address, so `from_page` refuses with [`HttpError::BrowserProxy`] unless it is given the egress the proxy really leaves through.

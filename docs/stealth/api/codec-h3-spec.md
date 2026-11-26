@@ -4,17 +4,17 @@ sidebarTitle: "H3Spec"
 description: "HTTP/3 and QUIC specification parameters: transport parameters, SETTINGS frame entries, and pseudo-header ordering."
 ---
 
-<Badge color="orange">Experimental</Badge> <Badge color="blue">Crate: codec</Badge>
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
-`seleniumbase_rs_stealth::codec::h3_spec` (implemented in `crates/codec/src/h3_spec.rs`) models the wire-level parameters of modern Chromium HTTP/3 implementations: QUIC transport parameters in wire order, HTTP/3 SETTINGS frame entries, and pseudo-header sequence.
+`seleniumbase_rs_stealth::network::spec::h3_spec` (implemented in `crates/codec/src/h3_spec.rs`) models the wire-level parameters of modern Chromium HTTP/3 implementations: QUIC transport parameters in wire order, HTTP/3 SETTINGS frame entries, and pseudo-header sequence.
 
 ## Specification Model
 
 ### `H3Spec`
 
 ```rust
-use seleniumbase_rs_stealth::codec::H3Spec;
-use seleniumbase_rs_stealth::evasion::fingerprint::OsType;
+use seleniumbase_rs_stealth::network::spec::H3Spec;
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
 
 // Current stable Chromium HTTP/3 spec
 let spec = H3Spec::current_stable();
@@ -50,7 +50,7 @@ assert_eq!(macos_spec.major(), 157);
 Encapsulates individual QUIC transport parameters encoded during the initial handshake:
 
 ```rust
-use seleniumbase_rs_stealth::codec::h3_spec::TransportParam;
+use seleniumbase_rs_stealth::network::spec::h3_spec::TransportParam;
 
 let param = TransportParam::new(0x01, vec![0x80, 0x00, 0x75, 0x30]);
 assert_eq!(param.id(), 0x01);

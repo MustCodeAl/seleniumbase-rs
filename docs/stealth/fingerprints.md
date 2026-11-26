@@ -26,8 +26,8 @@ about it. The value and the intent are one field, so they cannot disagree.
 setting that has no off state, so a time zone cannot be "off" by accident.
 
 ```rust
-use seleniumbase_rs_stealth::evasion::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
-use seleniumbase_rs_stealth::evasion::mimic::Machine;
+use seleniumbase_rs_stealth::identity::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
+use seleniumbase_rs_stealth::identity::mimic::Machine;
 
 let fp = Fingerprint::builder()
     .timezone("Europe/Berlin")
@@ -50,8 +50,8 @@ The fifth state, `Mimic`, replaces generic spoofing with verified records from r
 and browser builds:
 
 ```rust
-use seleniumbase_rs_stealth::evasion::mimic::{Build, Machine, Place, Specimen};
-use seleniumbase_rs_stealth::evasion::spoof::Spoof;
+use seleniumbase_rs_stealth::identity::mimic::{Build, Machine, Place, Specimen};
+use seleniumbase_rs_stealth::identity::spoof::Spoof;
 
 // Mimic a device model
 let macbook = Machine::named("macbook-13-m1")?;
@@ -90,7 +90,7 @@ use seleniumbase_rs_stealth::Fingerprint;
 let fp = Fingerprint::windows_desktop();
 let tokyo = fp.to_builder().timezone("Asia/Tokyo").build()?;
 assert_eq!(tokyo.timezone().as_str(), Some("Asia/Tokyo"));
-Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::identity::fingerprint::FingerprintError>(())
 ```
 
 ## Fingerprint presets
@@ -232,7 +232,7 @@ let fp = Fingerprint::builder()
     .geolocation((40.7128, -74.0060))
     .media_device_counts(1, 1, 2) // audio inputs, audio outputs, video inputs
     .build()?;
-Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::identity::fingerprint::FingerprintError>(())
 ```
 
 There is no flag to flip afterwards, and none to set. Giving a value is the
@@ -336,7 +336,7 @@ FingerprintJS, fp-collect, ThumbmarkJS); the inventory
 with the sources and the ranked gaps is
 [Fingerprint consistency](/design/fingerprint_consistency).
 
-The same list is returned by `CapturedFingerprint::contradictions()` in `seleniumbase-rs-evasion` and the MCP tools
+The same list is returned by `CapturedFingerprint::contradictions()` in `seleniumbase-rs-stealth` and the MCP tools
 `compare_fingerprint` and `explain_fingerprint`. A rule whose
 readings the capture lacks says nothing: a page whose policy blocked a worker is
 not a contradiction.
@@ -431,11 +431,11 @@ conditions), for the values the fingerprint holds:
 
 When managing high-throughput browser fleets with `BrowserPool`, restarting browser processes to rotate fingerprints introduces unacceptable latency.
 
-Instead, configure per-lease fingerprints by applying `PageFingerprintExt::apply_fingerprint` (from `seleniumbase-rs-evasion` / `seleniumbase-rs-stealth`) to each leased page:
+Instead, configure per-lease fingerprints by applying `PageFingerprintExt::apply_fingerprint` (from `seleniumbase-rs-stealth` / `seleniumbase-rs-stealth`) to each leased page:
 
 ```rust
-use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
-use seleniumbase_rs_stealth::evasion::identity::PageFingerprintExt;
+use seleniumbase_rs_stealth::identity::fingerprint::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::client::apply::PageFingerprintExt;
 use seleniumbase_rs_stealth::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
 
 let pool = BrowserPool::new(
