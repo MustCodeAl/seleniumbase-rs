@@ -21,7 +21,7 @@ use serde_json::Value;
 
 use super::{Page, Point, Rect};
 use crate::error::SeleniumBaseError;
-use crate::evasion::behavior::Behavior;
+use crate::sb_cdp::human::Behavior;
 use crate::utilities::retry::RetryPolicy;
 
 mod engine;

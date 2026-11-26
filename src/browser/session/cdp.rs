@@ -10,7 +10,7 @@ use crate::browser::options::{CdpEvent, NetworkThrottle};
 use crate::browser::proxy_auth;
 use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
-use crate::evasion::uc;
+use crate::undetected::uc;
 use crate::sb_cdp::DevToolsEndpoint;
 
 use super::BrowserSession;
@@ -114,7 +114,7 @@ impl BrowserSession {
     /// [`CdpClient::enable_default_domains`]: crate::browser::devtools::CdpClient::enable_default_domains
     pub async fn activate_cdp_mode(&self) -> Result<(), SeleniumBaseError> {
         if let Some(page) = self.external_page.get() {
-            for method in crate::evasion::cdp::DEFAULT_DOMAIN_COMMANDS {
+            for method in crate::browser::devtools::DEFAULT_DOMAIN_COMMANDS {
                 page.execute(method, json!({})).await?;
             }
             return Ok(());
@@ -349,11 +349,15 @@ impl BrowserSession {
                 && ua.contains("HeadlessChrome")
             {
                 let stealth_ua = ua.replace("HeadlessChrome", "Chrome");
-                let _ =
-                    uc::override_user_agent(cdp, &stealth_ua, config.browser.lang.as_deref()).await;
+                let _ = uc::override_user_agent(
+                    cdp,
+                    &stealth_ua,
+                    None,
+                    config.browser.lang.as_deref(),
+                )
+                .await;
             }
         }
-        self.apply_fingerprint(config).await?;
         // Also scrub any WebDriver markers from the current document for pages already loaded.
         if let Ok(driver) = self.webdriver() {
             let _ = driver
@@ -363,7 +367,7 @@ impl BrowserSession {
                 )
                 .await;
             let _ = driver
-                .execute(&crate::evasion::evasions::cdc_scrub(), Vec::new())
+                .execute(crate::undetected::uc::CLEAR_CDC_SCRIPT, Vec::new())
                 .await;
         }
         Ok(())

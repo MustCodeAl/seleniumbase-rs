@@ -157,16 +157,6 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
     if let Some(proxy) = nonempty(&args, "proxy")? {
         builder = builder.proxy(proxy);
     }
-    let fingerprint = super::fingerprint::start_fingerprint(&args, ctx.settings())?;
-    if let Some(fingerprint) = &fingerprint {
-        if !chromium_family {
-            return Err(ToolError::invalid(
-                "fingerprint",
-                "a fingerprint applies to Chrome, Chromium and Edge, not Firefox",
-            ));
-        }
-        builder = builder.fingerprint(fingerprint.clone());
-    }
     // The operator's plugins (`sbrs-mcp --plugin`), never a tool argument.
     let plugins = ctx.settings().plugin_selection();
     plugins.ensure_supported()?;
@@ -179,16 +169,10 @@ pub(super) async fn start_browser(ctx: Ctx<BaseCase>, args: Args) -> Result<Outp
         .await?;
     Ok(match started {
         Started::Created => {
-            format!(
-                "Started WebDriver session (browser={choice}, headless={headless}, uc={uc}).{}",
-                super::fingerprint::applied(fingerprint.as_ref())
-            )
+            format!("Started WebDriver session (browser={choice}, headless={headless}, uc={uc}).")
         }
         Started::AlreadyRunning => {
-            format!(
-                "A browser session is already running. Call close_browser first.{}",
-                super::fingerprint::ignored(fingerprint.as_ref())
-            )
+            "A browser session is already running. Call close_browser first.".to_owned()
         }
     }
     .into())
@@ -1173,12 +1157,6 @@ pub(super) fn start_schema() -> Schema {
         .optional(
             "proxy",
             Prop::string("SERVER:PORT or USER:PASS@SERVER:PORT"),
-        )
-        .optional("fingerprint", super::fingerprint::launch_inline_prop())
-        .optional("fingerprint_path", super::fingerprint::launch_path_prop())
-        .optional(
-            "fingerprint_preset",
-            super::fingerprint::launch_preset_prop(),
         )
 }
 

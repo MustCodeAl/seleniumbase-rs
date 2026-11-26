@@ -104,7 +104,10 @@ impl Rng {
             let nanos = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
                 .map_or(0, |elapsed| elapsed.as_nanos());
-            #[allow(clippy::cast_possible_truncation)]
+            #[allow(
+                clippy::cast_possible_truncation,
+                reason = "fallback seed only needs low 64 bits of current timestamp"
+            )]
             return Self::new(nanos as u64);
         }
         Self::new(u64::from_le_bytes(bytes))

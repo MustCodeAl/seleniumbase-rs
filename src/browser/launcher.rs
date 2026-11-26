@@ -26,7 +26,7 @@ use crate::browser::driver_version::{binary_major, fit, Fit};
 use crate::browser::options::{DriverVersion, LaunchSwitch};
 use crate::common::orphan_guard::OrphanGuard;
 use crate::error::SeleniumBaseError;
-use crate::evasion::patcher::find_system_chrome;
+use crate::undetected::patcher::find_system_chrome;
 
 /// A running WebDriver process launched by the crate.
 ///
@@ -736,9 +736,9 @@ pub async fn launch_driver_for(
         if config.is_uc_enabled()
             || config.session.driver_mode() == crate::browser::config::DriverMode::Cdp
         {
-            let patcher = crate::evasion::patcher::ChromedriverPatcher::new(&binary);
+            let patcher = crate::undetected::patcher::ChromedriverPatcher::new(&binary);
             if let Ok(true) = patcher.needs_patch() {
-                if let Err(err) = patcher.patch(crate::evasion::patcher::EnginePatch::all()) {
+                if let Err(err) = patcher.patch(crate::undetected::patcher::EnginePatch::all()) {
                     tracing::warn!(
                         error = %err,
                         "auto-patching chromedriver for stealth mode failed; continuing with unpatched binary"

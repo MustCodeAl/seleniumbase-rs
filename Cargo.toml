@@ -14,7 +14,7 @@ resolver = "2"
 
 # Shared by both packages, so the command line always has the library's version.
 [workspace.package]
-version = "0.9.4"
+version = "0.10.0"
 edition = "2024"
 rust-version = "1.100"
 license = "MIT"
@@ -157,8 +157,6 @@ flate2 = { version = "1.1", default-features = false, features = ["zlib-rs"] }
 tar = { version = "0.4", default-features = false }
 dirs = "7.0"
 pdf-extract = { version = "0.12", optional = true }
-# Allocator API support for zero-copy arenas and custom collections
-allocator-api2 = { version = "0.2.21", default-features = false, features = ["alloc"] }
 # Without `main` (getopts, for scraper's own CLI) and `errors` (unused parse errors).
 scraper = { version = "0.29", default-features = false }
 rfd = { version = "0.17", optional = true }
@@ -185,10 +183,6 @@ axum = { version = "0.8", default-features = false, features = ["tokio", "http1"
 # default features are off because `mimalloc` installs a global allocator,
 # which a library must not impose on its users.
 turso = { version = "0.8", default-features = false, optional = true }
-# `ocr`: pure-Rust OCR (ocrs on the rten inference engine) and a PNG decoder for
-# screenshots. The models are downloaded on first use, not bundled.
-ocrs = { version = "0.13", optional = true }
-rten = { version = "0.26", optional = true }
 image = { version = "0.25", optional = true, default-features = false, features = ["png"] }
 # `plugins`: the plugin API (ADR 004), from its own repository until it is on
 # crates.io, and the aggregator of the built-in plugins (one cargo feature each).
@@ -229,8 +223,6 @@ tokio-console = ["dep:console-subscriber", "tokio/tracing"]
 # Capture a backtrace for every SeleniumBaseError (useful for debugging).
 error-backtrace = []
 s3 = ["dep:object_store", "object_store/aws"]
-azure = ["dep:object_store", "object_store/azure"]
-gcp = []
 mcp-server = ["dep:rmcp", "dep:axum"]
 # `mcp::client`: an MCP client (`McpClient`) for the servers of this crate and any other one,
 # over a child process's stdio or streamable HTTP. `sbrs-mcp tools|call|...` is built on it.
@@ -242,9 +234,6 @@ test-util = []
 # Embedded Turso database: `ResultStore` (test-run reporting, `sbrs report`) and
 # `ProfileVault` (encrypted browser-profile storage).
 turso = ["dep:turso"]
-# Reads text from screenshots and images (`ocr::Ocr`): ocrs, pure Rust. Its two
-# models (about 12 MB) are downloaded into the cache folder on first use.
-ocr = ["dep:ocrs", "dep:rten", "dep:image"]
 # Browser plugins (ADR 004) for both engines: `LaunchOptionsBuilder::plugins`
 # (pure CDP) and `BrowserConfigBuilder::plugins` (WebDriver), with hooks at launch,
 # connect, every new tab or window and close. The API is re-exported as
@@ -298,9 +287,6 @@ proc-macro2 = { version = "1", features = ["span-locations"] }
 # Lists processes for the tests' leftover-process checks on every system (Windows
 # has no `pgrep`); only its process part.
 sysinfo = { version = "0.40", default-features = false, features = ["system"] }
-# Writes `schemas/fingerprint.schema.json` from the types. Only the library's own tests
-# derive `JsonSchema` (`cfg_attr(test, ..)`), so nothing of it reaches a user of the crate.
-schemars = "1.2"
 # Parses the JUnit XML the tests write (`src/core/junit.rs`), so a test fails on XML that is not
 # well formed. Test-only; it has no dependencies of its own.
 roxmltree = "0.21"

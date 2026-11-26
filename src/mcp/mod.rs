@@ -32,7 +32,6 @@ mod devtools;
 mod email;
 mod export;
 mod failure;
-mod fingerprint;
 
 mod host;
 mod http;

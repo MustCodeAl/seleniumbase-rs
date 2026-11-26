@@ -1,7 +1,7 @@
 // Behavioral human-like interactions for `BaseCase`.
 // Included in `base_case.rs`.
 
-use crate::evasion::humanize::{bezier_mouse_path, keystroke_delays, Point, Rng};
+use crate::sb_cdp::human::humanize::{bezier_mouse_path, keystroke_delays, Point, Rng};
 
 impl BaseCase {
     /// Clicks the element selected by `selector` using randomized curved

@@ -21,13 +21,10 @@ use crate::config::plugins::PluginSelection;
 use crate::config::settings::Settings;
 use crate::config::RuntimeConfig;
 use crate::error::{DriverError, DriverErrorKind, SeleniumBaseError};
-use crate::evasion::fingerprint::Fingerprint;
 use crate::mcp::devtools::redact_setting;
 use crate::mcp::failure::FailureReport;
-use crate::mcp::stealth::coherence_report;
-use crate::mcp::support::{json_output, nonempty};
+use crate::mcp::support::json_output;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
-use crate::profile_payloads::ProfileParams;
 
 /// The common-problems page.
 const COMMON_PROBLEMS: &str = include_str!("../../../docs/help/common_problems.md");
@@ -87,21 +84,6 @@ pub(super) fn tools() -> Vec<ToolDef<NoBrowser>> {
                 ),
             ),
             check_config,
-        ),
-        ToolDef::new(
-            "check_fingerprint",
-            "Check Fingerprint",
-            "Check a fingerprint without starting a browser: parse JSON as a fingerprint of this \
-             library, or as the profile payload of an anti-detect browser tool, and report the \
-             errors and warnings of Fingerprint::validate (a platform that contradicts the user \
-             agent, a mobile agent without touch points, and the rest). A document that parses \
-             as neither is described, not guessed at.",
-            Effect::Inspect,
-            Schema::new().required(
-                "json",
-                Prop::string("The fingerprint or the profile payload, as JSON text"),
-            ),
-            check_fingerprint,
         ),
     ]
 }
@@ -896,80 +878,6 @@ async fn check_config(ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolErr
         &|name| std::env::var(name).ok(),
         ctx.settings().plugin_selection(),
     ))
-}
-
-// ----------------------------------------------------------------------
-// check_fingerprint
-// ----------------------------------------------------------------------
-
-/// What a fingerprint says about itself, in a few fields.
-fn fingerprint_summary(fingerprint: &Fingerprint) -> Value {
-    json!({
-        "os": format!("{:?}", fingerprint.os_type()),
-        "browser": format!("{:?}", fingerprint.browser_type()),
-        "user_agent": fingerprint.user_agent().value(),
-        "platform": fingerprint.platform().value(),
-        "screen": fingerprint
-            .screen()
-            .value()
-            .map(|size| format!("{}x{}", size.width, size.height)),
-    })
-}
-
-/// Whether a JSON object looks like the payload of an anti-detect browser tool.
-fn looks_like_profile_payload(value: &Value) -> bool {
-    value.as_object().is_some_and(|object| {
-        object.contains_key("parameters")
-            || (object.contains_key("browser_type") && object.contains_key("os_type"))
-    })
-}
-
-/// The report of `check_fingerprint` for the JSON text `text`.
-pub(super) fn fingerprint_report(text: &str) -> Result<Value, ToolError> {
-    let value: Value = serde_json::from_str(text)
-        .map_err(|error| ToolError::invalid("json", format!("not valid JSON: {error}")))?;
-    let as_fingerprint = serde_json::from_value::<Fingerprint>(value.clone());
-    let (format, fingerprint) = match as_fingerprint {
-        Ok(fingerprint) => ("fingerprint", fingerprint),
-        Err(fingerprint_error) => {
-            let payload = looks_like_profile_payload(&value)
-                .then(|| serde_json::from_value::<ProfileParams>(value.clone()));
-            match payload {
-                Some(Ok(params)) => ("profile_payload", params.to_fingerprint()),
-                other => {
-                    let payload_error = match other {
-                        Some(Err(error)) => Some(error.to_string()),
-                        _ => None,
-                    };
-                    return Ok(json!({
-                        "parsed": false,
-                        "as_fingerprint": cut(&fingerprint_error.to_string(), MAX_ECHO),
-                        "as_profile_payload": payload_error.map_or_else(
-                            || Value::from("not tried: the document has neither `parameters` nor `browser_type` with `os_type`"),
-                            |error| Value::from(cut(&error, MAX_ECHO)),
-                        ),
-                        "advice": "A fingerprint is the JSON of Fingerprint (see build_fingerprint on the sb server for one); a profile payload is the body of an anti-detect browser tool's profile-create call.",
-                    }));
-                }
-            }
-        }
-    };
-    let mut report = coherence_report(&fingerprint);
-    report["parsed"] = Value::Bool(true);
-    report["format"] = Value::from(format);
-    report["fingerprint"] = fingerprint_summary(&fingerprint);
-    Ok(report)
-}
-
-async fn check_fingerprint(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError> {
-    let text = args.str("json")?;
-    if text.len() > MAX_TEXT_BYTES {
-        return Err(ToolError::invalid(
-            "json",
-            format!("larger than {MAX_TEXT_BYTES} bytes"),
-        ));
-    }
-    json_output(fingerprint_report(text)?)
 }
 
 #[cfg(test)]

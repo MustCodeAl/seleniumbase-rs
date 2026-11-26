@@ -29,7 +29,7 @@ pub struct ProxySettings {
 // Written by hand: the server and the script's address may carry a password.
 impl std::fmt::Debug for ProxySettings {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::evasion::options::without_credentials;
+        use crate::browser::options::chromium::without_credentials;
         f.debug_struct("ProxySettings")
             .field("server", &self.server.as_deref().map(without_credentials))
             .field("pac_url", &self.pac_url.as_deref().map(without_credentials))

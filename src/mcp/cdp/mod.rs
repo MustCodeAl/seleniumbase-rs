@@ -56,7 +56,6 @@ pub fn host(settings: Settings) -> Host<Cdp> {
     tools.extend(devtools::tools());
     tools.extend(devtools::environment_tools());
     tools.extend(super::pagetools::tools());
-    tools.extend(super::fingerprint::tools());
     // A task's results and errors are what the pages it visited held.
     tools.push(tasks::tool().untrusted());
     // `wait_for_email` exists only for an operator who turned the imap plugin on with options.

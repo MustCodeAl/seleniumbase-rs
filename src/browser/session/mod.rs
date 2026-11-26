@@ -22,7 +22,6 @@ mod connect;
 mod dialogs;
 mod elements;
 mod emulation;
-mod fingerprint;
 mod launch;
 mod lifecycle;
 mod navigation;

@@ -29,7 +29,6 @@ fn default_browser_settings() -> BrowserSettings {
 }
 
 use crate::error::SeleniumBaseError;
-use crate::evasion::fingerprint::Fingerprint;
 
 mod builder;
 
@@ -226,9 +225,6 @@ pub struct BrowserConfig {
     /// file.
     #[serde(skip)]
     pub test_data: TestData,
-    /// Optional anti-detection fingerprint profile.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub fingerprint: Option<Fingerprint>,
     /// Attach the pure CDP engine to this HTTP or browser WebSocket URL.
     /// An authenticated Tauri plugin URL discovers its debugger via `/cdp`.
     /// `BaseCase` uses its `cdp_*` methods; no local browser or driver is started.
@@ -357,7 +353,6 @@ impl BrowserConfig {
             session: SessionSettings::default(),
             run: RunSettings::default(),
             test_data: TestData::default(),
-            fingerprint: None,
             cdp_url: None,
             cdp_discovery: false,
             cdp_target: None,
@@ -503,14 +498,6 @@ impl BrowserConfig {
     #[must_use]
     pub fn plugins(&self) -> &seleniumbase_rs_plugin::PluginSet {
         self.plugins.set()
-    }
-
-    /// Returns true when the configured fingerprint requests native-level
-    /// (binary + CDP) spoofing.
-    pub fn native_spoofing_enabled(&self) -> bool {
-        self.fingerprint
-            .as_ref()
-            .is_some_and(|fp| fp.policy().native_spoofing)
     }
 
     /// The emulation timezone ID, if set.

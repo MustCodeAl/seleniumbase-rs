@@ -14,7 +14,7 @@
 //!
 //! ```no_run
 //! use seleniumbase_rs::sb_cdp::Page;
-//! use seleniumbase_rs::evasion::behavior::Behavior;
+//! use seleniumbase_rs::sb_cdp::human::Behavior;
 //!
 //! # async fn demo(page: Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 //! let person = page.human(Behavior::builder().typing_wpm(65.0).build()?);
@@ -24,6 +24,12 @@
 //! # }
 //! ```
 
+pub mod behavior;
+pub mod humanize;
+
+pub use behavior::{Behavior, BehaviorBuilder, Humanizer, KeyAction, Step};
+pub use humanize::{keystroke_delays, Rng};
+
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
@@ -32,7 +38,6 @@ use serde_json::json;
 use super::sync::locked;
 use super::{Button, Key, Locator, Page, Point, Rect};
 use crate::error::SeleniumBaseError;
-use crate::evasion::behavior::{Behavior, Humanizer, KeyAction, Step};
 
 /// The pointer events a person's click or drag is made of.
 ///

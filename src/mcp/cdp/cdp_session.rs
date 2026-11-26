@@ -188,18 +188,6 @@ impl Cdp {
     }
 }
 
-impl crate::mcp::fingerprint::CaptureSession for Cdp {
-    async fn navigate_to(&mut self, url: &str) -> Result<(), SeleniumBaseError> {
-        navigate_for_client(&self.page, url).await
-    }
-
-    async fn capture_now(
-        &mut self,
-    ) -> Result<crate::evasion::capture::CapturedFingerprint, SeleniumBaseError> {
-        self.page.capture_fingerprint().await
-    }
-}
-
 impl Closeable for Cdp {
     async fn close(self) {
         // The server is shutting down; there is nobody left to report to.

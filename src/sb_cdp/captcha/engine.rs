@@ -33,8 +33,7 @@ use tokio::time::{sleep, Instant};
 
 use super::{script, Captcha, Evidence, SolveOptions, Solved};
 use crate::error::SeleniumBaseError;
-use crate::evasion::behavior::Humanizer;
-use crate::evasion::humanize::Rng;
+use crate::sb_cdp::human::{Humanizer, Rng};
 use crate::sb_cdp::human::{plan_click, plan_drag, play_click, play_drag, PointerSink};
 use crate::sb_cdp::{Point, Rect};
 

@@ -41,7 +41,7 @@ use crate::config::test_options::{
 use crate::error::SeleniumBaseError;
 
 /// The top-level keys of a settings file that hold a table of their own.
-const TABLES: [&str; 5] = ["plugins", "fingerprint", "test", "report", "run"];
+const TABLES: [&str; 4] = ["plugins", "test", "report", "run"];
 
 /// A list of Chromium switches, written in a settings file either as a comma-separated
 /// string or as an array.
@@ -795,13 +795,8 @@ mod tests {
 
     #[test]
     fn the_tables_of_the_file_are_kept() {
-        let settings =
-            toml_file("[test]\npdb = true\n\n[fingerprint]\nfile = \"f.json\"\n").unwrap();
+        let settings = toml_file("[test]\npdb = true\n").unwrap();
         assert!(settings.test.pdb);
-        assert_eq!(
-            settings.fingerprint.file.as_deref(),
-            Some(Path::new("f.json"))
-        );
     }
 
     #[test]

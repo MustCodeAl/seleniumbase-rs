@@ -558,7 +558,57 @@ impl Emulation {
 ///
 /// Chrome's own setting decides it unless
 /// [`Emulation::color_scheme`] overrides it.
-pub use crate::evasion::settings::ColorScheme;
+/// Preferred color scheme for `prefers-color-scheme` media emulation.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+#[non_exhaustive]
+pub enum ColorScheme {
+    /// Light color scheme (`prefers-color-scheme: light`).
+    Light,
+    /// Dark color scheme (`prefers-color-scheme: dark`).
+    Dark,
+    /// No preference (`prefers-color-scheme: no-preference`, clears override).
+    #[default]
+    NoPreference,
+}
+
+impl ColorScheme {
+    /// The CSS `prefers-color-scheme` media feature value, or `""` to clear.
+    #[must_use]
+    pub const fn media_value(self) -> &'static str {
+        match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+            Self::NoPreference => "",
+        }
+    }
+}
+
+impl std::fmt::Display for ColorScheme {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Light => "light",
+            Self::Dark => "dark",
+            Self::NoPreference => "no-preference",
+        })
+    }
+}
+
+impl std::str::FromStr for ColorScheme {
+    type Err = SeleniumBaseError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "light" => Ok(Self::Light),
+            "dark" => Ok(Self::Dark),
+            "no-preference" | "no_preference" | "none" => Ok(Self::NoPreference),
+            other => Err(SeleniumBaseError::invalid_config(
+                "color_scheme",
+                format!("unknown color scheme {other:?}; expected light, dark, or no-preference"),
+            )),
+        }
+    }
+}
 
 impl Emulation {
     /// Gives the tab a screen of `metrics.width` by `metrics.height` CSS

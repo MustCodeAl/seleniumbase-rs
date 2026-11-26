@@ -79,7 +79,7 @@ mod tests {
     use super::*;
 
     /// The tools of the server, in the order they are listed.
-    const DEV_TOOLS: [&str; 13] = [
+    const DEV_TOOLS: [&str; 12] = [
         "find_api",
         "parity_lookup",
         "python_to_rust",
@@ -91,7 +91,6 @@ mod tests {
         "install_driver",
         "explain_error",
         "check_config",
-        "check_fingerprint",
         "diagnose_environment",
     ];
 

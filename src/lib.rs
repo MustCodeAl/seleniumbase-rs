@@ -64,8 +64,6 @@ pub mod browser;
 pub mod cli;
 pub mod common;
 pub mod config;
-pub mod crawler;
-pub mod extract;
 // The Microsoft Pragmatic Rust Guidelines lint set, held to for this module (it held for
 // the cookie type while it lived in `sb_cdp`).
 #[warn(
@@ -122,7 +120,6 @@ pub mod mcp;
     trivial_numeric_casts,
     unused_lifetimes
 )]
-pub mod ocr;
 /// The plugin API of ADR 004, the crate `seleniumbase-rs-plugin` (feature
 /// `plugins`): the `Plugin` trait, `PluginSet`, `LaunchSettings` and the
 /// `BrowserHandle` and `PageHandle` traits.
@@ -154,14 +151,13 @@ pub use seleniumbase_rs_plugin as plugin_api;
     feature = "plugin-crx"
 ))]
 pub use seleniumbase_rs_plugins_builtin as builtin_plugins;
-pub mod evasion;
+pub mod undetected;
 /// Plugin names and options turned into a `PluginSet` (feature `plugins`): the
 /// registry of the built-in plugins, and the functions the launch builders
 /// call for `plugins_named` and `plugin_selection`.
 #[cfg(feature = "plugins")]
 pub mod plugin_host;
 pub mod plugins;
-pub mod profile_payloads;
 pub mod resources;
 #[cfg(feature = "turso")]
 pub mod storage;
@@ -254,37 +250,13 @@ pub use config::{LogFormat, RuntimeConfig};
 #[doc(inline)]
 pub use cookie::{Cookie, SameSite};
 #[doc(inline)]
-pub use crawler::{
-    CrawlItem, Crawler, CrawlerBuilder, RobotsPolicy, Spider, SpiderConfig, SpiderConfigBuilder,
-};
-#[doc(inline)]
 pub use error::{DriverError, DriverErrorKind, Result, ResultExt, SeleniumBaseError};
 #[doc(inline)]
-pub use evasion::capture::CapturedFingerprint;
+pub use browser::options::WebRtcPolicy;
 #[doc(inline)]
-pub use evasion::fingerprint::{
-    AudioNoise, BatteryProfile, BrandVersion, BrowserType, CanvasNoise, ClientHints,
-    CoherenceReport, ConnectionProfile, Contradiction, Dimension, Fingerprint, FingerprintBuilder,
-    FingerprintComparison, FingerprintError, Geolocation, HumanizeConfig, MediaDevices, OsType,
-    ProxyConfig, QuicMode, ScreenSize, SettingDiff, Severity, SpeechVoice, Spoof, StealthPolicy,
-    WebGl, WebRtcAddresses, WebRtcPolicy,
-};
-#[doc(inline)]
-pub use evasion::mimic::Specimen;
-#[doc(inline)]
-pub use evasion::providers::{
-    default_registry, session_registry, EvasionConfig, EvasionContext, EvasionProvider,
-    EvasionRegistry, SESSION_OMITTED_PROVIDERS,
-};
-#[doc(inline)]
-pub use evasion::{
-    engine_spoofing_args, find_system_chrome, find_system_chrome_with, BinaryFormat,
-    BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher, ChromedriverPatcher, EnginePatch,
-    MarkerCounts, PatchPreset, PatchedBrowserBundle,
-};
-#[doc(inline)]
-pub use extract::{
-    extract_json_ld, extract_json_ld_raw, PageArena, PageMetadata, TableData, TableDataArena,
+pub use undetected::{
+    patch_chromedriver, BinaryFormat, BinaryMarkerReport, BinaryPatchRule, ChromedriverPatcher,
+    EnginePatch, MarkerCounts, PatchPreset,
 };
 #[doc(inline)]
 pub use sb_cdp::ResilientLocator;

@@ -442,7 +442,6 @@ fn normalize_host(raw: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::evasion::fingerprint::default_tracker_hosts;
 
     #[test]
     fn a_host_blocks_itself_and_its_subdomains() {
@@ -615,10 +614,6 @@ mod tests {
     #[test]
     fn the_builtin_list_covers_the_hosts_the_other_blockers_use() {
         let list = AdBlockList::builtin();
-        // `Fingerprint::tracker_hosts` defaults.
-        for host in default_tracker_hosts() {
-            assert!(list.is_host_blocked(&host), "{host} is a tracker host");
-        }
         // The Pure CDP ad blocker's patterns (`AD_BLOCK_PATTERNS` in
         // `sb_cdp/browser.rs`) as hosts.
         for host in [

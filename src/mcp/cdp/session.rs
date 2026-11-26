@@ -4,7 +4,6 @@ use serde_json::json;
 
 use super::Cdp;
 use crate::error::SeleniumBaseError;
-use crate::mcp::fingerprint;
 use crate::mcp::support::nonempty;
 use crate::mcp::Started;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
@@ -44,15 +43,6 @@ pub(super) fn tools() -> Vec<ToolDef<Cdp>> {
                 .optional(
                     "proxy",
                     Prop::string("SERVER:PORT or USER:PASS@SERVER:PORT"),
-                )
-                .optional("fingerprint", crate::mcp::fingerprint::launch_inline_prop())
-                .optional(
-                    "fingerprint_path",
-                    crate::mcp::fingerprint::launch_path_prop(),
-                )
-                .optional(
-                    "fingerprint_preset",
-                    crate::mcp::fingerprint::launch_preset_prop(),
                 ),
             start_browser,
         ),
@@ -105,11 +95,6 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
         .incognito(args.bool_or("incognito", false)?)
         .guest(args.bool_or("guest", false)?)
         .ad_block(args.bool_or("ad_block", false)?);
-    // The settings made on the builder win over the fingerprint's own, in any order.
-    let fingerprint = fingerprint::start_fingerprint(&args, ctx.settings())?;
-    if let Some(fingerprint) = &fingerprint {
-        options = options.fingerprint(fingerprint);
-    }
     if let Some(url) = &url {
         options = options.url(url.as_str());
     }
@@ -148,14 +133,10 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
         .await?;
     Ok(match started {
         Started::Created => format!(
-            "Started Pure CDP Mode browser (url={}, headless={headless}, use_chromium={use_chromium}).{}",
+            "Started Pure CDP Mode browser (url={}, headless={headless}, use_chromium={use_chromium}).",
             url.as_deref().unwrap_or("none"),
-            fingerprint::applied(fingerprint.as_ref()),
         ),
-        Started::AlreadyRunning => format!(
-            "A browser session is already running.{}",
-            fingerprint::ignored(fingerprint.as_ref())
-        ),
+        Started::AlreadyRunning => "A browser session is already running.".to_owned(),
     }
     .into())
 }

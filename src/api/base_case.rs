@@ -4333,10 +4333,8 @@ include!("base_case_impls/base_case_impl_parity.rs");
 include!("base_case_impls/base_case_impl_esc.rs");
 include!("base_case_impls/base_case_impl_rec_cdp.rs");
 include!("base_case_impls/base_case_impl_recorder.rs");
-include!("base_case_impls/base_case_impl_fingerprint.rs");
 include!("base_case_impls/base_case_impl_debug.rs");
 include!("base_case_impls/base_case_impl_test_data.rs");
-include!("base_case_impls/base_case_impl_extract.rs");
 include!("base_case_impls/base_case_impl_bidi.rs");
 include!("base_case_impls/base_case_impl_actions.rs");
 #[cfg(test)]

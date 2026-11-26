@@ -23,7 +23,7 @@
 //!
 //! ```
 //! use seleniumbase_rs::sb_cdp::Point;
-//! use seleniumbase_rs::evasion::behavior::{Behavior, Humanizer};
+//! use seleniumbase_rs::sb_cdp::human::{Behavior, Humanizer};
 //!
 //! # fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 //! let behavior = Behavior::builder().typing_wpm(70.0).seed(7).build()?;
@@ -41,7 +41,6 @@
 use std::f64::consts::PI;
 use std::time::Duration;
 
-use super::fingerprint::HumanizeConfig;
 use super::humanize::Rng;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Point, Rect};
@@ -115,26 +114,6 @@ impl Behavior {
     #[must_use]
     pub fn builder() -> BehaviorBuilder {
         BehaviorBuilder::default()
-    }
-
-    /// The nearest behaviour to a fingerprint's [`HumanizeConfig`]: keystroke
-    /// delays centred between its bounds, with a spread that keeps nearly all
-    /// of them inside.
-    #[must_use]
-    pub fn from_config(config: &HumanizeConfig) -> Self {
-        let (low, high) = if config.min_keystroke_delay_ms <= config.max_keystroke_delay_ms {
-            (config.min_keystroke_delay_ms, config.max_keystroke_delay_ms)
-        } else {
-            (config.max_keystroke_delay_ms, config.min_keystroke_delay_ms)
-        };
-        #[allow(clippy::cast_precision_loss)]
-        let (low, high) = (low as f64, high as f64);
-        let mean = ((low + high) / 2.0).max(20.0);
-        let sigma = ((high - low) / 6.0).max(1.0);
-        let mut behavior = Self::default();
-        behavior.typing.mean_ms = mean;
-        behavior.typing.sigma_ms = sigma;
-        behavior
     }
 
     /// The mean time between keystrokes, in milliseconds.
@@ -389,7 +368,11 @@ impl Humanizer {
             (lerp(from, to, 1.0 / 3.0), lerp(from, to, 2.0 / 3.0))
         };
 
-        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        #[allow(
+            clippy::cast_possible_truncation,
+            clippy::cast_sign_loss,
+            reason = "total_ms and SAMPLE_MS are positive finite values"
+        )]
         let count = ((total_ms / SAMPLE_MS).ceil() as usize).max(2);
         let weights: Vec<f64> = (0..count).map(|_| self.rng.range(0.8, 1.2)).collect();
         let weight_sum: f64 = weights.iter().sum();
@@ -400,7 +383,10 @@ impl Humanizer {
 
         let mut steps = Vec::with_capacity(count);
         for (index, weight) in weights.iter().enumerate() {
-            #[allow(clippy::cast_precision_loss)]
+            #[allow(
+                clippy::cast_precision_loss,
+                reason = "sample index and count fit well within f64 mantissa"
+            )]
             let tau = (index + 1) as f64 / count as f64;
             let along = cubic(from, c1, c2, to, min_jerk(tau));
             tremor.0 = TREMOR_MEMORY * tremor.0 + innovation * self.rng.gaussian(0.0, amplitude);
@@ -628,7 +614,10 @@ fn adjacent_key(ch: char, rng: &mut Rng) -> char {
     let mut keys = Vec::new();
     for (row, (letters, offset)) in ROWS.iter().enumerate() {
         for (column, key) in letters.chars().enumerate() {
-            #[allow(clippy::cast_precision_loss)]
+            #[allow(
+                clippy::cast_precision_loss,
+                reason = "keyboard column and row indices are small integers"
+            )]
             let position = (column as f64 + offset, row as f64);
             if key == lower {
                 here = Some(position);
@@ -642,7 +631,11 @@ fn adjacent_key(ch: char, rng: &mut Rng) -> char {
         .filter(|(key, (x, y))| *key != lower && (x - here.0).hypot(y - here.1) < 1.3)
         .map(|(key, _)| *key)
         .collect();
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::cast_sign_loss,
+        reason = "rng.next_f64() is in [0.0, 1.0) and neighbours.len() is small"
+    )]
     let pick = (rng.next_f64() * neighbours.len() as f64) as usize;
     let chosen = neighbours
         .get(pick.min(neighbours.len().saturating_sub(1)))
@@ -1172,28 +1165,6 @@ mod tests {
     fn a_wpm_becomes_the_mean_interval() {
         let behavior = Behavior::builder().typing_wpm(60.0).build().unwrap();
         assert!((behavior.mean_keystroke_ms() - 200.0).abs() < 1e-9);
-    }
-
-    #[test]
-    fn a_fingerprint_config_maps_to_a_matching_behaviour() {
-        let config = HumanizeConfig {
-            enabled: true,
-            min_keystroke_delay_ms: 40,
-            max_keystroke_delay_ms: 180,
-            mouse_steps: 24,
-        };
-        let behavior = Behavior::from_config(&config);
-        assert!((behavior.mean_keystroke_ms() - 110.0).abs() < 1e-9);
-        let swapped = HumanizeConfig {
-            min_keystroke_delay_ms: 180,
-            max_keystroke_delay_ms: 40,
-            ..config
-        };
-        assert_eq!(
-            Behavior::from_config(&swapped),
-            behavior,
-            "swapped bounds are normalised"
-        );
     }
 
     #[test]

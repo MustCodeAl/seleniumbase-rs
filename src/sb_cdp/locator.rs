@@ -706,26 +706,6 @@ impl Locator {
         Ok(value.as_str().unwrap_or_default().to_owned())
     }
 
-    /// Extracts an HTML `<table>` wrapped by this locator into structured headers and rows.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError`] if the element is not found or is not a valid table.
-    pub async fn table(&self) -> Result<crate::extract::TableData, SeleniumBaseError> {
-        let html = self.html().await?;
-        crate::extract::TableData::from_html(&html)
-    }
-
-    /// Converts this element's HTML subtree into clean, LLM-ready Markdown.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError`] if the element is not found.
-    pub async fn markdown(&self) -> Result<String, SeleniumBaseError> {
-        let html = self.html().await?;
-        Ok(crate::extract::html_to_markdown(&html))
-    }
-
     /// The value of attribute `name`, or `None` if the element lacks it.
     ///
     /// # Errors

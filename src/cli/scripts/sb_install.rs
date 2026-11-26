@@ -27,7 +27,7 @@ use crate::browser::driver_install::{
 use crate::browser::driver_version::binary_major;
 use crate::browser::options::{DriverVersion, ReleaseChannel};
 use crate::error::SeleniumBaseError;
-use crate::evasion::patcher::{find_system_chrome, patch_chromedriver};
+use crate::undetected::patcher::{find_system_chrome, patch_chromedriver};
 
 /// A driver `sbrs install` can fetch.
 ///

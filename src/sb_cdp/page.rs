@@ -656,74 +656,7 @@ impl Page {
         self.string_of("document.documentElement.outerHTML").await
     }
 
-    /// Extracts structured metadata (SEO, `OpenGraph`, Twitter Cards, canonical URL)
-    /// from the current page's HTML `<head>`.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError`] if the page HTML cannot be queried.
-    pub async fn metadata(&self) -> Result<crate::extract::PageMetadata, SeleniumBaseError> {
-        let html = self.content().await?;
-        Ok(crate::extract::PageMetadata::from_html(&html))
-    }
-
-    /// Extracts and deserializes Schema.org JSON-LD structured data from `<script type="application/ld+json">` tags.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError`] if the page HTML cannot be queried or deserialization fails.
-    pub async fn json_ld<T: serde::de::DeserializeOwned>(
-        &self,
-    ) -> Result<Vec<T>, SeleniumBaseError> {
-        let html = self.content().await?;
-        crate::extract::extract_json_ld(&html)
-    }
-
-    /// Extracts an HTML `<table>` matching `selector` into structured headers and rows.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError`] if the element is not found or is not a valid table.
-    pub async fn table(
-        &self,
-        selector: impl Into<Selector>,
-    ) -> Result<crate::extract::TableData, SeleniumBaseError> {
-        let loc = self.locator(selector);
-        let html = loc.html().await?;
-        crate::extract::TableData::from_html(&html)
-    }
-
-    /// Converts the current page HTML into clean, LLM-ready Markdown.
-    ///
-    /// Automatically strips navigation, footers, scripts, and non-content elements.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError`] if reading page content fails.
-    pub async fn markdown(&self) -> Result<String, SeleniumBaseError> {
-        let html = self.content().await?;
-        Ok(crate::extract::html_to_markdown(&html))
-    }
-
-    /// Automatically fills in form inputs matching the fields of a serializable struct.
-    ///
-    /// # Errors
-    ///
-    /// Returns [`SeleniumBaseError`] if form serialization or element interaction fails.
-    pub async fn fill_form<T: serde::Serialize>(
-        &self,
-        form_data: &T,
-    ) -> Result<(), SeleniumBaseError> {
-        let data = crate::extract::FormData::from_serializable(form_data)?;
-        for (field, value) in data.iter() {
-            let sel = format!("input[name='{field}'], input[id='{field}'], textarea[name='{field}'], select[name='{field}']");
-            let loc = self.locator(&sel);
-            if let Ok(true) = loc.is_visible().await {
-                let _ = loc.fill(value).await;
-            }
-        }
-        Ok(())
-    }
+    /// Evaluates JavaScript on the page.
 
     /// Types text into `selector` simulating natural human typing cadence.
     ///

@@ -12,7 +12,6 @@ use crate::browser::options::{
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
 use crate::error::SeleniumBaseError;
-use crate::evasion::fingerprint::Fingerprint;
 
 /// A setting whose check can fail, kept by the builder until [`BrowserConfigBuilder::build`]
 /// runs it, in the order the setters were called.
@@ -341,21 +340,6 @@ impl BrowserConfigBuilder {
     /// Emulates a phone (`--mobile`); see [`device_metrics`](Self::device_metrics) for its screen.
     pub fn mobile(mut self, mobile: bool) -> Self {
         self.config.browser.mobile = mobile;
-        self
-    }
-
-    /// Presents `fingerprint` in the browser.
-    ///
-    /// Its launch arguments go to every Chromium-based session. In the
-    /// [`Cdp`](DriverMode::Cdp) and [`Uc`](DriverMode::Uc) modes the session
-    /// also installs its page script (the
-    /// [session script](crate::evasion::evasions::session_script)) and sends
-    /// its protocol overrides through DevTools; the plain
-    /// [`WebDriver`](DriverMode::WebDriver) mode sends the launch arguments only.
-    /// What a fingerprint switches on is decided by the settings it holds and
-    /// its [`policy`](Fingerprint::policy); see [`Fingerprint::is_masked`].
-    pub fn fingerprint(mut self, fingerprint: Fingerprint) -> Self {
-        self.config.fingerprint = Some(fingerprint);
         self
     }
 
@@ -814,7 +798,7 @@ impl BrowserConfigBuilder {
     /// [`BrowserSession::remote_debug_address`](crate::browser::session::BrowserSession::remote_debug_address).
     pub fn remote_debug(mut self, on: bool) -> Self {
         self.config.browser.debugging_port =
-            on.then_some(crate::evasion::options::DEFAULT_REMOTE_DEBUG_PORT);
+            on.then_some(crate::browser::options::chromium::DEFAULT_REMOTE_DEBUG_PORT);
         self.config.browser.debugging_any_port = on;
         self
     }

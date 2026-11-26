@@ -216,7 +216,7 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     caps: &mut C,
     config: &BrowserConfig,
 ) -> Result<(), SeleniumBaseError> {
-    crate::evasion::options::StealthOptions::from(config).apply_to(caps)
+    crate::browser::options::chromium::StealthOptions::from(config).apply_to(caps)
 }
 
 #[cfg(test)]
@@ -281,7 +281,7 @@ mod capability_tests {
                 .build()
                 .expect("a valid config"),
         ] {
-            let expected = crate::evasion::options::StealthOptions::from(&config)
+            let expected = crate::browser::options::chromium::StealthOptions::from(&config)
                 .args()
                 .unwrap();
             let caps = caps_json(&config);

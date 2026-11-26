@@ -1,9 +1,8 @@
 //! Building blocks for the JavaScript this crate sends to a page.
 //!
 //! Most of the JavaScript the crate runs is written where it is used: the Pure
-//! CDP engine's page helper is `src/sb_cdp/helper.js`, the stealth scripts are
-//! under `src/evasion/js`, and the WebDriver `BaseCase` builds short scripts
-//! on the fly (for example the shadow DOM walkers in
+//! CDP engine's page helper is `src/sb_cdp/helper.js`, and the WebDriver `BaseCase`
+//! builds short scripts on the fly (for example the shadow DOM walkers in
 //! [`utils::shadow`](crate::utils::shadow)). What they share is this: a value
 //! that came from a caller, such as a selector, a piece of text or an attribute
 //! name, has to be put into a script as a *string literal*.
@@ -24,6 +23,9 @@
 //!     r#"return document.querySelector("a[title=\"it's\"]") !== null;"#
 //! );
 //! ```
+
+pub mod active_css_js;
+pub mod recorder_js;
 
 /// `value` as a JavaScript string literal, quotes included, safe to place
 /// anywhere an expression is allowed.

@@ -72,7 +72,7 @@
 mod breakpoint;
 mod browser;
 mod captcha;
-mod capture;
+pub mod human;
 mod channel;
 mod client;
 mod context;
@@ -83,8 +83,6 @@ mod frames;
 #[cfg(feature = "gui")]
 pub mod gui_captcha;
 mod har;
-mod human;
-mod identity;
 mod inject;
 mod input;
 mod intercept;
@@ -135,10 +133,8 @@ pub use har::{
     SharedBuffer, DEFAULT_MAX_CONTENT_BYTES, MAX_CONTENT_BYTES,
 };
 #[doc(inline)]
-pub use human::Human;
+pub use human::{Behavior, BehaviorBuilder, Human, Humanizer, KeyAction, Rng, Step};
 pub(crate) use human::PointerSink;
-#[doc(inline)]
-pub use identity::StealthPlan;
 #[doc(inline)]
 pub use inject::{InitScriptId, TagSource};
 #[doc(inline)]
