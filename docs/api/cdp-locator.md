@@ -48,6 +48,8 @@ These return another `Locator`. They do not query yet.
 | `viewport_rect()` | A `Rect` in the viewport. |
 | `screen_rect()` | A `Rect` in screen coordinates, for a desktop tool. Exact for a normal window; approximate when a docked panel shares the toolbar. |
 | `urls()` | Absolute `http`, `https`, `ftp` and `file` URLs from `href` and `src` on the match and inside it, in page order, without repeats. |
+| `table()` | Extracts an HTML `<table>` element into structured `TableData` with headers and rows. |
+| `markdown()` | Converts this element's DOM subtree into clean, LLM-ready Markdown text. |
 | `exists()` | Whether any match is in the DOM. |
 | `is_visible()` | Whether a match is visible. |
 | `is_checked()` | Whether a checkbox or radio is checked. |

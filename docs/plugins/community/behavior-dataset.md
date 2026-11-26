@@ -51,3 +51,12 @@ Ok::<(), seleniumbase_rs_plugin_behavior_dataset::DatasetError>(())
 ### Plugin & task integration
 
 `BehaviorDatasetPlugin` (plugin name `"behavior-dataset"`) requires no Chromium browser (`Requirements::empty()`) and declares `Capability::Task`. It implements `Configurable` under `[plugins.behavior-dataset]` and accepts task overrides (`sample_count`, `base_seed`, `personas`, `scenarios`, `include_baseline_negatives`, `export_format`, `include_export`).
+
+### Live-Site User Journey Exploration
+
+Beyond offline batch synthesis, `BehaviorDatasetPlugin::explore_page` and `SiteExplorer` explore real web pages live through pure CDP:
+
+- **Target Discovery (`DISCOVER_SITE_ELEMENTS_JS`)**: Scans the page DOM for interactive targets (`DiscoveredElement`), classifying elements by role (`ElementRole::Link`, `Button`, `Input`, `Select`, `Content`).
+- **Kinematic Input Dispatch**: Dispatches curved Bézier pointer movements, clicks, wheel scroll nudges, and human typing directly via CDP `Input.dispatchMouseEvent` and `Input.dispatchKeyEvent`, with automatic script fallback.
+- **Session Telemetry (`SiteVisitSummary`, `SiteExplorationReport`)**: Records live action sequences (`SiteActionStep`), step timings, and full `BehaviorEvent` timelines with kinematics for direct ML training extraction.
+- **Configurable Exploration Options**: `url`, `max_steps`, `max_pages`, `same_origin_only`, `dispatch_live_inputs`, and `typing_samples`. Samples record `DatasetSample::{page_url, action_path, target_selectors}`.

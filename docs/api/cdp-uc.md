@@ -43,8 +43,8 @@ starts a local browser or driver.
 | `set_geolocation(lat, lon, acc)` | Sets geolocation. |
 | `install_addon(path, lifetime)` | Firefox only: installs an add-on (an `.xpi` file or an unpacked directory on the machine geckodriver runs on) through geckodriver and returns its id. `path` is a string or a `Path`; `lifetime` is an `AddonLifetime` (`seleniumbase_rs::api::base_case`): `Temporary` (until the browser quits; the add-on may be unsigned) or `Permanent` (Mozilla must have signed it). Other browsers get `Unsupported`; use `extension_dir` for Chrome. |
 | `uninstall_addon(id)` | Firefox only: removes an add-on by the id `install_addon` returned. |
-| `human_click(selector)` | WebDriver click after a random delay of 100 to 300 ms. |
-| `human_type(selector, text)` | Clicks the element, then types with the fingerprint's humanize timing, or a typical typist's timing when no fingerprint is set. Planned typos are not sent. |
+| `human_click(selector)` | WebDriver click after a random delay of 100 to 300 ms. On pure CDP `Page`, executes curved Bézier pointer trajectories with realistic overshoot and human dwell times. |
+| `human_type(selector, text)` | Clicks the element, then types with the fingerprint's humanize timing, or a typical typist's timing when no fingerprint is set. On pure CDP `Page`, simulates human typing with realistic inter-keystroke cadence. |
 
 UC clicks and typing are in [UC mode](#uc-mode). `human_click` and `human_type` are the methods those calls run.
 

@@ -23,7 +23,8 @@ cargo add seleniumbase-rs-plugin-owasp --git https://github.com/MustCodeAl/selen
 | `audit_jwt` / `decode_jwt` / `find_jwts_in_text` | Base64URL header/claims inspection (`alg: none`, sensitive claim leaks, expiration posture) |
 | `audit_dom` | Mixed active/passive content, missing Subresource Integrity (`integrity` attributes), unsafe `target="_blank"` without `rel="noopener"`, `localStorage`/`sessionStorage` token exposure, HTML comment leaks, `postMessage` / inline DOM sinks |
 | `audit_sca` | Client-side JavaScript library detection (`DetectedComponent`) and known outdated/EOL version warnings |
-| OWASP PTK bridge (`PtkEngine`, `PtkModuleCatalog`) | Parses `modules.json` rules, reads passive `window.PTK_AGENT` snapshots when loaded alongside an authorized PTK extension (`PtkExtensionConfig`), and merges findings cleanly into `OwaspAuditReport` |
+| `audit_forms` / `auditors::forms` | Passive form posture auditor inspecting form action URLs for insecure `http://` transmission, missing CSRF token fields, insecure password inputs, and plain-text transmission |
+| OWASP PTK bridge (`PtkEngine`, `PtkModuleCatalog`) | Parses `modules.json` rules, awaits async `window.PTK_AGENT` snapshots (`scanStatus`, `getFindings`, `exportFullReport` to `PtkAgentSnapshot::export_plan`) when loaded alongside an authorized PTK extension (`PtkExtensionConfig`), and merges findings cleanly into `OwaspAuditReport` |
 
 ## Usage
 

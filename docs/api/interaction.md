@@ -52,6 +52,8 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `choose_file(selector, path)` | Sets a file input value. |
 | `fill_form(&data)` | Automatically fills in form inputs (`input`, `textarea`, `select`) matching the fields of a serializable struct `&T`. |
 
+For standard keyboard keys and special control keystrokes, see the [`Keys` reference](/api/keys).
+
 All `selector` arguments accept the same formats described in the
 [Selectors guide](/tutorials/selectors).
 

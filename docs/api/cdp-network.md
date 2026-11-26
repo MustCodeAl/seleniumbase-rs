@@ -72,6 +72,36 @@ async fn stub_config(page: &Page) -> Result<(), seleniumbase_rs::SeleniumBaseErr
 
 The other HAR types (`HarEntry`, `HarRequest`, `HarResponse`, `HarTimings`, and the rest re-exported next to `Har`) are the HAR 1.2 records. Their fields are public.
 
+## Streaming HAR and JSON Lines Capture
+
+For long-running sessions, `page.stream_to_jsonl(path)` streams network entries directly to disk in JSON Lines format as each HTTP request completes. This releases request and response memory immediately, avoiding the buffer limits of in-memory `HarRecorder`.
+
+| Method / Struct | Description |
+|---|---|
+| `page.stream_to_jsonl(path)` | Starts streaming network entries to `path` in JSON Lines format (`HarStreamFormat::JsonLines`). Returns a `HarCapture`. |
+| `page.stream_to_jsonl_with(path, options)` | Starts streaming to `path` with custom `HarOptions`. Returns a `HarCapture`. |
+| `HarCapture` | An in-progress streaming capture session. Exposes `entries_streamed()`, `bytes_written()`, `stats()`, `attach_writer(writer)`, and `finish().await? -> HarStreamStats`. |
+| `HarStreamWriter` | Configurable async streaming writer constructed from file path (`from_path(path)`), or any async write sink (`from_writer(sink)`). Formats: `jsonl()`, `har_chunks()`, `raw_events()`. |
+| `HarStreamFormat` | Stream serialization format: `JsonLines` (one `HarEntry` per line), `HarChunks` (chunked HAR 1.2 JSON), `RawEvents` (raw CDP event stream). |
+| `HarStreamStats` | Final or running statistics: `entries_count` and `bytes_written`. |
+| `SharedBuffer` | Thread-safe cloneable in-memory buffer implementing `tokio::io::AsyncWrite` for capturing streamed logs without disk I/O. |
+
+```rust
+use seleniumbase_rs::sb_cdp::{Browser, HarOptions, LaunchOptions};
+
+#[tokio::main]
+async fn main() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    let browser = Browser::launch(LaunchOptions::default()).await?;
+    let page = browser.default_page().await?;
+    let capture = page.stream_to_jsonl("network.jsonl").await?;
+
+    page.goto("https://example.com").await?;
+    let stats = capture.finish().await?;
+    println!("Streamed {} entries ({} bytes)", stats.entries_count, stats.bytes_written);
+    Ok(())
+}
+```
+
 ## Trace
 
 `start_trace(dir)` records the tab into a folder, with the default limits. `start_trace_with(dir, options)` takes a `TraceOptions`. Only what happens after the call returns is recorded. Each locator action (`click`, `fill`, `press`, and the others) and each `goto` is noted with its name, selector, time and result, then a screenshot and a DOM snapshot. Console messages and network traffic are kept beside them. The tab gets a small script (`window.__sbtrace`) that wraps the console methods, so the page can see a trace is running. Use it for debugging, not for a run that must look untouched.

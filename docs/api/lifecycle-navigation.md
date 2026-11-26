@@ -52,3 +52,20 @@ browser processes do not leak when a test fails.
 | `page_source()` | Returns the full page source. |
 | `open_new_window()` | Opens a new browser window. |
 | `open_new_tab()` | Opens a new browser tab. |
+
+## WebDriver BiDi
+
+WebDriver BiDi provides bidirectional event streaming and network interception alongside classic commands. Dropping the receiver closes the channel, which automatically terminates the background task and unsubscribes from the wire event stream.
+
+| Method | Return Type | Description |
+|---|---|---|
+| `bidi_listen_logs()` | `Result<Receiver<LogEntryAdded>>` | Subscribes to BiDi `log.entryAdded` events with default buffer capacity (256) forwarding console logs and JavaScript errors. |
+| `bidi_listen_logs_with_buffer(buffer)` | `Result<Receiver<LogEntryAdded>>` | Subscribes to `log.entryAdded` events with a custom channel buffer capacity. |
+| `bidi_listen_network()` | `Result<Receiver<BidiNetworkEvent>>` | Subscribes to BiDi network events (`beforeRequestSent`, `responseStarted`, `responseCompleted`, `fetchError`, `authRequired`) with default buffer (256). |
+| `bidi_listen_network_with_buffer(buffer)` | `Result<Receiver<BidiNetworkEvent>>` | Subscribes to BiDi network events with a custom channel buffer capacity. |
+| `bidi_listen_requests()` | `Result<Receiver<BeforeRequestSent>>` | Subscribes exclusively to outgoing request events (`network.beforeRequestSent`). |
+| `bidi_listen_responses()` | `Result<Receiver<ResponseCompleted>>` | Subscribes exclusively to completed response events (`network.responseCompleted`). |
+| `bidi_add_intercept(phases, patterns)` | `Result<InterceptGuard>` | Adds a BiDi interception rule pausing requests matching `phases` (e.g. `vec![InterceptPhase::BeforeRequestSent]`) and optional URL patterns. |
+| `bidi_continue_request(request)` | `Result<()>` | Continues an intercepted network request unmodified via BiDi `network.continueRequest`. |
+| `bidi_continue_response(request)` | `Result<()>` | Continues an intercepted response unmodified via BiDi `network.continueResponse`. |
+| `bidi_fail_request(request)` | `Result<()>` | Fails an intercepted request with network error via BiDi `network.failRequest`. |

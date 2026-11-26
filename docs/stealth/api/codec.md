@@ -90,7 +90,7 @@ crate has no default features.
 | `h2_frames`, `h2_frames::hpack`, `h2_frames::huffman` | HTTP/2 frame reading, the client preface, HPACK and Huffman decoding. | [HTTP/2 frames](/stealth/api/codec-h2-frames) |
 | `tls_spec` | The TLS profile a client must send, and the custom JA3, JA4 and peetprint overlays. | [TlsSpec](/stealth/api/codec-tls-spec) |
 | `h2_spec` | The HTTP/2 profile: SETTINGS, window, PRIORITY, pseudo-header order. | [H2Spec](/stealth/api/codec-h2-spec) |
-| `h3_spec` | The HTTP/3 profile: SETTINGS, pseudo-header order, and QUIC transport parameters. | [H3Spec](/stealth/advanced/http3) |
+| `h3_spec` | The HTTP/3 profile: SETTINGS, pseudo-header order, and QUIC transport parameters. | [H3Spec](/stealth/api/codec-h3-spec) |
 | `header_spec` | Header names, order and values per request shape. | [HeaderSpec](/stealth/api/codec-header-spec) |
 | `ids` | IANA names of TLS and HTTP/2 ids, and what BoringSSL can emit. | Registries |
 
