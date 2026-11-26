@@ -52,7 +52,7 @@ hidden: true
   - [Evasion providers](stealth/advanced/providers.md)
   - [Binary Patching](stealth/advanced/binary-patching.md)
   - [Stealth with Playwright mode](stealth/advanced/playwright.md)
-  - [Wire formats](stealth/advanced/wire-formats.md)
+  - [Network patching](stealth/advanced/wire-formats.md)
   - [TLS server and MitmProxy](stealth/advanced/mitm-proxy.md)
   - [HTTP/3](stealth/advanced/http3.md)
   - [Stealthy scraping](scraping/stealthy/overview.md)

@@ -1249,6 +1249,14 @@ A [StealthPolicy](#stealthpolicy) option (`native_spoofing`) that delivers a fin
 
 See [Fingerprint & Stealth Profiles](/stealth/evasions#native-level-cdp-spoofing).
 
+### Network patching
+
+<Badge color="purple">Stealth</Badge>
+
+The shaping and rewriting of network-level protocols and framing—specifically TLS `ClientHello` extensions, cipher suites, and GREASE permutation, HTTP/2 `SETTINGS` and `WINDOW_UPDATE` frames, HTTP/3 QUIC transport parameters, header casing, and loopback MitM proxy interception—so that an automated client's wire fingerprints match those of a real target browser.
+
+See [Network patching and wire-level impersonation](/concepts/network-patching) and [Network Patching](/stealth/advanced/wire-formats).
+
 ## P
 
 ### Nonce

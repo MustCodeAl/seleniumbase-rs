@@ -1,6 +1,7 @@
 ---
-title: "Wire Formats and Impersonation"
-sidebarTitle: "Wire formats"
+title: "Network Patching & Low-Level Browser Impersonation"
+sidebarTitle: "Network patching"
+description: "Shape TLS ClientHello, HTTP/2 SETTINGS, HTTP/3 QUIC transport parameters, header casing, and loopback MitM interception to match real browser network signatures."
 ---
 
 Examples importing `seleniumbase_rs_stealth::wire` require the facade's

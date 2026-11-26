@@ -119,7 +119,7 @@ you oriented quickly.
 
 <Card color="#1a85d4" title="Build from source" icon="hammer" href="/contributing/from-source">
 
-Clone, set up Rust 1.99, build, and run the checks, including the real-Chrome tests.
+Clone, set up Rust 1.100, build, and run the checks, including the real-Chrome tests.
 
 </Card>
 
@@ -234,7 +234,7 @@ checkout gets its own target and they share compiled work through its cache.
 <Info>
 
 With [mise](https://mise.jdx.dev), `mise install` sets up the tools below from
-`mise.toml` (Rust 1.99 with clippy and rustfmt, Python 3.14 for the parity
+`mise.toml` (Rust 1.100 with clippy and rustfmt, Python 3.14 for the parity
 scripts, Node for the Tauri example, mdBook and cargo-deny), and
 `mise run gate` runs the checks a change has to pass; `mise tasks ls` lists the
 rest (`chrome`, `docs`, `mdx`, `smoke`, `parity-docs`, `contracts`, ...). mise is
@@ -244,7 +244,7 @@ the repository's task runner; there is no `justfile`.
 
 ### Required
 
-- [Rust](https://rustup.rs/) 1.99 or newer (stable channel); `rust-version` in
+- [Rust](https://rustup.rs/) 1.100 or newer (stable channel); `rust-version` in
   `Cargo.toml` is the newest stable release and the <Tooltip tip="Minimum supported Rust version: the CI job that checks the crate with exactly the declared rust-version.">`msrv`</Tooltip> CI job enforces it.
 - `cargo`, `rustfmt` and `clippy`.
 - Python 3.10+ only for the scripts in `tools/` (the parity tables). The crate
@@ -604,7 +604,7 @@ Do not widen the ignore list silently.
 
 </Warning>
 
-The crate declares `rust-version = "1.99"`, the newest stable release when it was
+The crate declares `rust-version = "1.100"`, the newest stable release when it was
 last raised, which the `msrv` CI job enforces with that exact toolchain. The
 floor is a choice to track current stable, not something the crate's own source
 needs, so when it moves, bump `rust-version`, the `msrv` job, and the

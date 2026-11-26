@@ -147,7 +147,7 @@ Paste this into an AI coding assistant that can run commands on your machine
 
 Set up this computer to build and test the Rust library seleniumbase-rs (https://github.com/MustCodeAl/seleniumbase-rs). Follow its docs/building.md ("What you need") for my operating system:
 
-1. Find out which OS and CPU this is. Install what is missing, and only that: Rust through rustup (the repo's rust-toolchain.toml picks 1.99), a C compiler (Xcode command line tools / build-essential / Visual Studio 2022 Build Tools with C++), and Google Chrome. Use Homebrew on macOS, apt or dnf on Linux, winget on Windows. Ask me before anything that needs an administrator password, and don't change system security settings yourself.
+1. Find out which OS and CPU this is. Install what is missing, and only that: Rust through rustup (the repo's rust-toolchain.toml picks 1.100), a C compiler (Xcode command line tools / build-essential / Visual Studio 2022 Build Tools with C++), and Google Chrome. Use Homebrew on macOS, apt or dnf on Linux, winget on Windows. Ask me before anything that needs an administrator password, and don't change system security settings yourself.
 2. Clone the repository (or use this folder if it is the repository) and run `cargo build --bin sbrs`, then `sbrs doctor` (`target/debug/sbrs doctor`, or `target\debug\sbrs.exe doctor` on Windows).
 3. Run the checks and say how many tests passed and failed: `cargo fmt --all -- --check`, `cargo clippy --all-targets --features "mcp-server test-util" -- -D warnings` and `cargo test --features "mcp-server test-util"`.
 4. Only if I ask for a feature, install its extras from the "Extras for single features" part of docs/building.md (s3, gui, the Tauri example).
@@ -440,7 +440,7 @@ completions <shell>` (see [the CLI page](/tutorials/cli_usage)).
 
 [mise](https://mise.jdx.dev) installs both binaries with two built-in backends
 and no plugin: `github:` downloads the release archive and lists the versions
-from the release tags, and `cargo:` builds from a git tag (Rust 1.99 and a C
+from the release tags, and `cargo:` builds from a git tag (Rust 1.100 and a C
 compiler):
 
 ```bash Terminal
@@ -494,13 +494,13 @@ The `github:` backend lists the releases, picks that archive and puts both
 binaries on the `PATH`:
 
 ```bash Terminal
-mise ls-remote github:MustCodeAl/seleniumbase-rs   # 0.6.0, 0.7.0, ...
-mise use -g github:MustCodeAl/seleniumbase-rs@0.7.0
+mise ls-remote github:MustCodeAl/seleniumbase-rs   # 0.6.0, 0.7.0, 0.9.3...
+mise use -g github:MustCodeAl/seleniumbase-rs@0.9.3
 sbrs --version
 sbrs-mcp --version
 ```
 
-A version is the release tag without its `v`. `mise use` without `@0.7.0` takes
+A version is the release tag without its `v`. `mise use` without `@0.9.3` takes
 the newest release. Drop `-g` to pin the version in the project's `mise.toml`
 instead of your global one.
 
@@ -531,7 +531,7 @@ downloads the archive and everything else builds from the same tag:
 
 ```toml mise.toml
 [tools]
-"github:MustCodeAl/seleniumbase-rs" = { version = "0.7.0", os = ["macos/arm64"] }
+"github:MustCodeAl/seleniumbase-rs" = { version = "0.9.3", os = ["macos/arm64"] }
 "cargo:https://github.com/MustCodeAl/seleniumbase-rs" = { version = "tag:v0.9.3", os = ["linux", "windows", "macos/x64"] }
 ```
 
@@ -600,7 +600,7 @@ sbrs install chromedriver   # fetches the chromedriver that matches your Chrome
 
 ## Container
 
-The `Dockerfile` builds `sbrs` with locked dependencies in a Rust 1.99 stage and
+The `Dockerfile` builds `sbrs` with locked dependencies in a Rust 1.100 stage and
 copies it into a `debian:bookworm-slim` image with Chromium and its driver. It
 runs as a non-root user (`sbrs`) and has no `EXPOSE`, because `sbrs` is a
 command-line tool. The driver in `/usr/bin` is linked as

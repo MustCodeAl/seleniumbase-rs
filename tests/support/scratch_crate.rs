@@ -63,7 +63,7 @@ pub fn create(dir: &Path, name: &str) {
         dir.join("Cargo.toml"),
         format!(
             "[package]\nname = \"{name}\"\nversion = \"0.0.0\"\nedition = \"2024\"\n\
-             rust-version = \"1.99\"\npublish = false\n\n[workspace]\n\n[dependencies]\n\
+             rust-version = \"1.100\"\npublish = false\n\n[workspace]\n\n[dependencies]\n\
              seleniumbase-rs = {{ path = {:?}, features = {} }}\n\
              tokio = {{ version = \"1\", features = [\"macros\", \"rt-multi-thread\", \"test-util\"] }}\n",
             package.display().to_string(),

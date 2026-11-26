@@ -3,7 +3,7 @@
 # -----------------------------------------------------------------------------
 # Build stage
 # -----------------------------------------------------------------------------
-FROM rust:1.99-bookworm AS builder
+FROM rust:1.100-bookworm AS builder
 
 WORKDIR /usr/src/seleniumbase-rs
 
