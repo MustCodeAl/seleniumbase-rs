@@ -924,10 +924,7 @@ fn find_companion_binary_for(source: &Path) -> Option<PathBuf> {
                 "Microsoft Edge Framework",
             ] {
                 let bundle = frameworks.join(format!("{framework_name}.framework"));
-                let current = bundle
-                    .join("Versions")
-                    .join("Current")
-                    .join(framework_name);
+                let current = bundle.join("Versions").join("Current").join(framework_name);
                 if current.exists() {
                     return Some(current);
                 }
@@ -1364,8 +1361,9 @@ fn randomize_cdc_string_prefix(mut content: Vec<u8>) -> Vec<u8> {
         })
         .into_owned();
 
-    let re_token = RE_TOKEN
-        .get_or_init(|| Regex::new(r"\$cdc_[a-zA-Z0-9]{22}_").expect("valid static cdc_token regex"));
+    let re_token = RE_TOKEN.get_or_init(|| {
+        Regex::new(r"\$cdc_[a-zA-Z0-9]{22}_").expect("valid static cdc_token regex")
+    });
     content = re_token
         .replace_all(&content, |caps: &regex::bytes::Captures| {
             let len = caps[0].len();
@@ -1388,7 +1386,8 @@ fn randomize_cdc_string_prefix(mut content: Vec<u8>) -> Vec<u8> {
 
 fn replace_cdc_blocks(content: Vec<u8>) -> Vec<u8> {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
-    let re = RE.get_or_init(|| Regex::new(r"\{window\.cdc.*?;\}").expect("valid static cdc_block regex"));
+    let re = RE
+        .get_or_init(|| Regex::new(r"\{window\.cdc.*?;\}").expect("valid static cdc_block regex"));
     re.replace_all(&content, |caps: &regex::bytes::Captures| {
         let mut out = b"{console.log(\"chromedriver is undetectable!\")}".to_vec();
         if out.len() < caps[0].len() {
@@ -1788,7 +1787,9 @@ mod advanced_patcher_tests {
         assert!(bundle.executable.exists());
         let comp = bundle.companion.expect("macOS framework companion found");
         assert!(comp.exists());
-        assert!(!BinaryMarkerReport::inspect(&comp).unwrap().has_any_markers());
+        assert!(!BinaryMarkerReport::inspect(&comp)
+            .unwrap()
+            .has_any_markers());
         // Source files remain untouched.
         assert!(BinaryMarkerReport::inspect(&framework)
             .unwrap()
