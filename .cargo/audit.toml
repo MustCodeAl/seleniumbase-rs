@@ -1,0 +1,11 @@
+# Advisories ignored by `cargo audit` in CI; rationales live in `deny.toml`.
+[advisories]
+ignore = [
+    "RUSTSEC-2026-0542",
+    "RUSTSEC-2026-0543",
+    "RUSTSEC-2025-0141",
+    "RUSTSEC-2025-0057",
+    "RUSTSEC-2026-0374",
+    "RUSTSEC-2026-0192",
+    "RUSTSEC-2026-0441",
+]

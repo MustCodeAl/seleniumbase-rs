@@ -13,10 +13,16 @@ downloaded_files/
 /.idea/
 __pycache__/
 
-# What GitLab CI keeps in the project folder for its cache: mise's folders (MISE_DATA_DIR) and
-# the cargo-audit of the supply-chain job
+# What GitLab CI keeps in the project folder for its cache and artifacts: mise's folders
+# (MISE_DATA_DIR), cargo's registry/git cache under CARGO_HOME (.cargo/audit.toml stays tracked),
+# cargo-audit, release staging/dist archives, and chrome:undetected logs
 /.mise/
+/.cargo/*
+!/.cargo/audit.toml
 /.cargo-audit/
+/dist/
+/stage/
+/undetected_logs/
 
 # Left in the project directory by the local docker build wrapper
 slim.report.json

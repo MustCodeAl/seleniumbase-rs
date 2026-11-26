@@ -915,31 +915,31 @@ fn patch_to_cached_copy(
 
 fn find_companion_binary_for(source: &Path) -> Option<PathBuf> {
     let parent = source.parent()?;
-    if parent.file_name().and_then(|n| n.to_str()) == Some("MacOS") {
-        if let Some(contents) = parent.parent() {
-            let frameworks = contents.join("Frameworks");
-            for framework_name in [
-                "Google Chrome Framework",
-                "Chromium Framework",
-                "Microsoft Edge Framework",
-            ] {
-                let bundle = frameworks.join(format!("{framework_name}.framework"));
-                let current = bundle.join("Versions").join("Current").join(framework_name);
-                if current.exists() {
-                    return Some(current);
-                }
-                if let Ok(entries) = fs::read_dir(bundle.join("Versions")) {
-                    for entry in entries.flatten() {
-                        let candidate = entry.path().join(framework_name);
-                        if candidate.is_file() {
-                            return Some(candidate);
-                        }
+    if parent.file_name().and_then(|n| n.to_str()) == Some("MacOS")
+        && let Some(contents) = parent.parent()
+    {
+        let frameworks = contents.join("Frameworks");
+        for framework_name in [
+            "Google Chrome Framework",
+            "Chromium Framework",
+            "Microsoft Edge Framework",
+        ] {
+            let bundle = frameworks.join(format!("{framework_name}.framework"));
+            let current = bundle.join("Versions").join("Current").join(framework_name);
+            if current.exists() {
+                return Some(current);
+            }
+            if let Ok(entries) = fs::read_dir(bundle.join("Versions")) {
+                for entry in entries.flatten() {
+                    let candidate = entry.path().join(framework_name);
+                    if candidate.is_file() {
+                        return Some(candidate);
                     }
                 }
-                let direct = bundle.join(framework_name);
-                if direct.exists() {
-                    return Some(direct);
-                }
+            }
+            let direct = bundle.join(framework_name);
+            if direct.exists() {
+                return Some(direct);
             }
         }
     }
