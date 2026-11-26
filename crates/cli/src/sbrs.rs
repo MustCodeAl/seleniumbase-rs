@@ -3728,9 +3728,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
             let completion = match (shell, shell.shell()) {
-                (_, Some(usage::complete::Shell::PowerShell)) => completion::powershell(
-                    &Cli::completion_script(usage::complete::Shell::PowerShell),
-                ),
                 (_, Some(shell)) => Cli::completion_script(shell),
                 (CompletionFormat::Usage, None) => USAGE_SPEC.to_owned(),
                 (CompletionFormat::Man, None) => MAN_PAGE.to_owned(),
