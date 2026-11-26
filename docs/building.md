@@ -120,7 +120,7 @@ workspace layout, the checks, the real-Chrome tests and build problems), see
 
 <Visibility for="agents">
 
-Summary for AI exports: install Rust 1.100 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. The releases carry one prebuilt archive, for macOS arm64, which `cargo binstall` and mise's `github:` backend install there (see [Install sbrs with mise](#install-sbrs-with-mise)); every other platform builds from source. The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`. mise: on macOS arm64, `mise use -g github:MustCodeAl/seleniumbase-rs` installs the release archive and puts `sbrs` and `sbrs-mcp` on the `PATH`; `mise ls-remote github:MustCodeAl/seleniumbase-rs` lists the versions, which are the release tags without the `v` (0.6.0 and 0.7.0 have an archive). `aarch64-apple-darwin` is the only archive the releases carry, so every other platform builds from a tag with `mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.9.3'`, which runs `cargo install --git` and needs Rust 1.100 and a C compiler; a git source lists no versions, so name the tag. A team `mise.toml` can hold both entries with `os = ["macos/arm64"]` on the `github:` one and `os = ["linux", "windows", "macos/x64"]` on the `cargo:` one (mise 2026.4.12 or newer). mise installs no completions; the archive holds them in `completions/` under `mise where github:MustCodeAl/seleniumbase-rs`, and `sbrs completions <shell>` writes them for any install.
+Summary for AI exports: install Rust 1.100 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. The releases carry one prebuilt archive, for macOS arm64, which `cargo binstall` and mise's `github:` backend install there (see [Install sbrs with mise](#install-sbrs-with-mise)); every other platform builds from source. The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`. mise: on macOS arm64, `mise use -g github:MustCodeAl/seleniumbase-rs` installs the release archive and puts `sbrs` and `sbrs-mcp` on the `PATH`; `mise ls-remote github:MustCodeAl/seleniumbase-rs` lists the versions, which are the release tags without the `v` (0.6.0 and 0.7.0 have an archive). `aarch64-apple-darwin` is the only archive the releases carry, so every other platform builds from a tag with `mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.9.4'`, which runs `cargo install --git` and needs Rust 1.100 and a C compiler; a git source lists no versions, so name the tag. A team `mise.toml` can hold both entries with `os = ["macos/arm64"]` on the `github:` one and `os = ["linux", "windows", "macos/x64"]` on the `cargo:` one (mise 2026.4.12 or newer). mise installs no completions; the archive holds them in `completions/` under `mise where github:MustCodeAl/seleniumbase-rs`, and `sbrs completions <shell>` writes them for any install.
 
 </Visibility>
 
@@ -445,7 +445,7 @@ compiler):
 
 ```bash Terminal
 mise use -g github:MustCodeAl/seleniumbase-rs                                  # macOS arm64
-mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.9.3'  # other platforms
+mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.9.4'  # other platforms
 ```
 
 [Install sbrs with mise](#install-sbrs-with-mise) below has a `mise.toml` that picks the
@@ -494,13 +494,13 @@ The `github:` backend lists the releases, picks that archive and puts both
 binaries on the `PATH`:
 
 ```bash Terminal
-mise ls-remote github:MustCodeAl/seleniumbase-rs   # 0.6.0, 0.7.0, 0.9.3...
-mise use -g github:MustCodeAl/seleniumbase-rs@0.9.3
+mise ls-remote github:MustCodeAl/seleniumbase-rs   # 0.6.0, 0.7.0, 0.9.4...
+mise use -g github:MustCodeAl/seleniumbase-rs@0.9.4
 sbrs --version
 sbrs-mcp --version
 ```
 
-A version is the release tag without its `v`. `mise use` without `@0.9.3` takes
+A version is the release tag without its `v`. `mise use` without `@0.9.4` takes
 the newest release. Drop `-g` to pin the version in the project's `mise.toml`
 instead of your global one.
 
@@ -513,7 +513,7 @@ command line from a git tag instead, with `cargo install --git`:
 
 ```bash Terminal
 mise use -g rust@1.100
-mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.9.3'
+mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.9.4'
 ```
 
 It needs Rust 1.100 and a C compiler, and takes as long as a release build of the
@@ -531,8 +531,8 @@ downloads the archive and everything else builds from the same tag:
 
 ```toml mise.toml
 [tools]
-"github:MustCodeAl/seleniumbase-rs" = { version = "0.9.3", os = ["macos/arm64"] }
-"cargo:https://github.com/MustCodeAl/seleniumbase-rs" = { version = "tag:v0.9.3", os = ["linux", "windows", "macos/x64"] }
+"github:MustCodeAl/seleniumbase-rs" = { version = "0.9.4", os = ["macos/arm64"] }
+"cargo:https://github.com/MustCodeAl/seleniumbase-rs" = { version = "tag:v0.9.4", os = ["linux", "windows", "macos/x64"] }
 ```
 
 An `os` entry with an architecture, such as `macos/arm64`, needs mise 2026.4.12

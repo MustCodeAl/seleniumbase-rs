@@ -5,19 +5,19 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-## Latest release: v0.9.3
+## Latest release: v0.9.4
 
 <Columns cols={3}>
 
-<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.3">
-  v0.9.3 on GitHub.
+<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.4">
+  v0.9.4 on GitHub.
 </Card>
 
-<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.zip">
+<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.4.zip">
   The source of this release as a zip archive.
 </Card>
 
-<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.tar.gz">
+<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.4.tar.gz">
   The source of this release as a tarball.
 </Card>
 
@@ -26,14 +26,14 @@ Semantic Versioning.
 The releases publish no prebuilt binaries; install the command line from the tag:
 
 ```bash Terminal
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.9.3 seleniumbase-rs-cli
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.9.4 seleniumbase-rs-cli
 ```
 
 ## All releases
 
-<Update label="2026-11-25" description="v0.9.3" tags={["New", "Fix"]}>
+<Update label="2026-11-25" description="v0.9.4" tags={["New", "Fix"]}>
 
-**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.3) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.3.tar.gz)
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.9.4) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.4.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.9.4.tar.gz)
 
 ### Added
 
