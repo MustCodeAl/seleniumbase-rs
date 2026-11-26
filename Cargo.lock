@@ -5971,7 +5971,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs"
-version = "0.9.3"
+version = "0.9.4"
 dependencies = [
  "allocator-api2 0.2.21",
  "anstream 0.6.21",
@@ -6044,7 +6044,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-cli"
-version = "0.9.3"
+version = "0.9.4"
 dependencies = [
  "anstream 0.6.21",
  "dirs",
@@ -6071,7 +6071,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-own-imports"
-version = "0.9.3"
+version = "0.9.4"
 dependencies = [
  "rstest-bdd",
  "seleniumbase-rs",
@@ -6079,7 +6079,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-playwright"
-version = "0.9.3"
+version = "0.9.4"
 dependencies = [
  "rustwright",
  "seleniumbase-rs",

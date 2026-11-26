@@ -2,21 +2,24 @@
 #
 # The repository is mirrored to GitLab.com after each gated publish, and CI runs on GitLab's
 # shared Linux runners (2 vCPUs, 8 GB, 30 GB of disk; an untagged job gets this size). The
-# GitHub workflows stay in .github/workflows: `release` and `docker` still run only there, and
+# GitHub workflows stay in .github/workflows: `docker` and multi-platform `release` run there, and
 # the pages deployment of `ci.yml` has no equivalent here.
 #
 # The group is on GitLab's Open Source plan (Ultimate, approved 2026-11-06), so the whole test
 # suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only
 # for merge requests, for the default branch (which must be `main`), for `lane/` and `batch/`
-# branches that have no open merge request, and by hand, and a new push cancels a pipeline that is
-# still running (every job is `interruptible`):
+# branches that have no open merge request, for `vX.Y.Z` version tags, and by hand, and a new push
+# cancels a pipeline that is still running (every job is `interruptible`):
 #
-#   gate          fmt and clippy
-#   test          the whole test suite and rustdoc
-#   supply-chain  cargo deny and cargo audit
-#   docs          mise run mdx and mdbook build, only when the docs or their tooling change
-#   msrv          MANUAL: cargo check with the gui and tui features
-#   chrome        MANUAL: the real-Chrome tests, one binary at a time
+#   gate               fmt and clippy
+#   test               the whole test suite and rustdoc
+#   supply-chain       cargo deny and cargo audit
+#   docs               mise run mdx and mdbook build, only when the docs or their tooling change
+#   msrv               MANUAL: cargo check with the gui and tui features
+#   chrome             MANUAL: the real-Chrome tests, one binary at a time
+#   chrome:undetected  MANUAL: live stealth detection suite built against the pipeline commit
+#   release:binaries   release archive and SHA256SUMS for x86_64-unknown-linux-gnu on tags or web
+#   release:github     attaches release artifacts to the GitHub release on tags (with GH_PAT) or web
 #
 # GitLab's own security scanners (Ultimate) come from the `include:` below and add these jobs to
 # the `test` stage. They are `allow_failure` in their templates, so a scanner that breaks never
@@ -32,8 +35,8 @@
 # needs no pipeline (a docs-only commit that was gated elsewhere), put `[ci skip]` in its
 # message, or push with `git push -o ci.skip`.
 #
-# No job needs a secret, and none prints one: there is no `set -x`, no `env` and no token in
-# this file.
+# No job prints a secret: there is no `set -x`, no `env` and no literal token in this file;
+# `release:github` reads the protected CI variable `GH_PAT` without logging it.
 #
 # Every job takes its tools from mise (https://mise.jdx.dev), as mise's "Continuous integration"
 # page describes for GitLab: the Rust toolchain, cargo-deny, Python and mdBook are the versions
@@ -60,6 +63,7 @@ workflow:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
     # The lead pushes a lane or batch branch here to gate it before main fast-forwards to it.
     - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/'
     - if: $CI_PIPELINE_SOURCE == "web"
 
 # GitLab's security scanners. The `Jobs/` templates hold jobs and variables only (no `workflow:`
@@ -92,6 +96,7 @@ variables:
   # Ruby ones).
   GITLAB_ADVANCED_SAST_ENABLED: "true"
   RUST_VERSION: "1.100"
+  CLI_PACKAGE: "seleniumbase-rs-cli"
   # The feature set of "Build and check" in CLAUDE.md and CONTRIBUTING.md.
   FEATURES: "mcp-server test-util testing bdd"
   # The command line package has no `testing` or `bdd` feature.
@@ -349,22 +354,130 @@ chrome:
       run playwright mise exec -- cargo test -p seleniumbase-rs-playwright --test playwright_chrome -- --ignored --test-threads=1
       exit $status
 
+# MANUAL. Live anti-bot stealth verification suite from `undetected-seleniumbase-rs-testing`,
+# patched via `.cargo/config.toml` to build against the exact commit in `$CI_PROJECT_DIR`.
+chrome:undetected:
+  extends:
+    - .rust
+    - .target_cache
+  rules:
+    - !reference [.rules_by_hand]
+  timeout: 2h
+  cache:
+    policy: pull
+  variables:
+    SB_HEADLESS: "true"
+    DISPLAY: ":99"
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends chromium chromium-driver xvfb git ca-certificates
+    - !reference [.rust, before_script]
+    - mkdir -p /etc/chromium.d
+    - echo 'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --no-sandbox --disable-dev-shm-usage"' > /etc/chromium.d/zz-no-sandbox
+    - chromium --version
+    - chromedriver --version
+  script:
+    - rm -rf /tmp/undetected-testing "$CI_PROJECT_DIR/undetected_logs"
+    - git clone --depth 1 https://gitlab.com/seleniumbaserust/undetected-seleniumbase-rs-testing.git /tmp/undetected-testing
+    - mkdir -p /tmp/undetected-testing/.cargo /tmp/undetected-testing/downloaded_drivers "$CI_PROJECT_DIR/undetected_logs"
+    - |
+      cat > /tmp/undetected-testing/.cargo/config.toml <<EOF
+      [patch."https://github.com/MustCodeAl/seleniumbase-rs"]
+      seleniumbase-rs = { path = "${CI_PROJECT_DIR}" }
+      EOF
+    - ln -sf /usr/bin/chromedriver /tmp/undetected-testing/downloaded_drivers/chromedriver
+    - Xvfb :99 -screen 0 1920x1080x24 -ac +extension GLX +render -noreset &
+    - sleep 2
+    - |
+      status=0
+      : > "$CI_PROJECT_DIR/undetected_logs/summary.txt"
+      run() {
+        name=$1
+        shift
+        echo "=== $name"
+        if timeout 1200 "$@"; then
+          echo "PASS $name" >> "$CI_PROJECT_DIR/undetected_logs/summary.txt"
+        else
+          rc=$?
+          echo "=== $name failed or timed out (exit $rc)"
+          echo "FAIL $name (exit $rc)" >> "$CI_PROJECT_DIR/undetected_logs/summary.txt"
+          status=1
+        fi
+        pkill -f chromium || true
+        pkill -f chromedriver || true
+      }
+      for suite in test_sannysoft test_nowsecure test_turnstile test_recaptcha test_gitlab; do
+        run "$suite" mise exec -- env CARGO_TARGET_DIR="$CI_PROJECT_DIR/target" bash -c 'cd /tmp/undetected-testing && cargo test --test "$1" -- --nocapture --test-threads=1' _ "$suite"
+      done
+      if [ -d /tmp/undetected-testing/latest_logs ]; then
+        cp -R /tmp/undetected-testing/latest_logs/. "$CI_PROJECT_DIR/undetected_logs/"
+      fi
+      exit $status
+  artifacts:
+    when: always
+    expire_in: 1 week
+    paths:
+      - undetected_logs/
+
+# Builds `sbrs` and `sbrs-mcp` for x86_64-unknown-linux-gnu and stages the release `.tgz` archive
+# with completions, man pages, Warp workflows, README.md, LICENSE and SHA256SUMS, matching the
+# archive layout of `.github/workflows/release.yml` and `[package.metadata.binstall]`.
 release:binaries:
   stage: test
-  extends: .rust
+  extends:
+    - .rust
+    - .target_cache
+  cache:
+    policy: pull
   rules:
-    - if: $CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/'
     - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+      allow_failure: true
+  timeout: 2h
   script:
-    - mise exec -- cargo build --release --locked --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features "$CLI_FEATURES,pdf,plugins-builtin"
-    - mkdir -p dist
-    - cp target/release/sbrs target/release/sbrs-mcp dist/
-    - tar -czf dist/seleniumbase-rs-${CI_COMMIT_TAG:-v0.9.3}-x86_64-unknown-linux-gnu.tar.gz -C dist sbrs sbrs-mcp
-    - cd dist && sha256sum * > SHA256SUMS
+    - mise exec -- cargo build --release --locked --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features mcp-server,pdf,plugins-builtin
+    - |
+      tag="${CI_COMMIT_TAG:-v0.9.4}"
+      name="seleniumbase-rs-${tag}-x86_64-unknown-linux-gnu"
+      stage="stage/${name}"
+      rm -rf stage dist
+      mkdir -p "$stage/completions" "$stage/man/man1" "$stage/warp/workflows" dist
+      cp target/release/sbrs target/release/sbrs-mcp "$stage/"
+      ./target/release/sbrs completions bash > "$stage/completions/sbrs.bash"
+      ./target/release/sbrs completions zsh > "$stage/completions/_sbrs"
+      ./target/release/sbrs completions fish > "$stage/completions/sbrs.fish"
+      ./target/release/sbrs completions powershell > "$stage/completions/_sbrs.ps1"
+      ./target/release/sbrs completions fig > "$stage/completions/sbrs.ts"
+      ./target/release/sbrs completions usage > "$stage/completions/sbrs.usage.kdl"
+      cp man/man1/*.1 "$stage/man/man1/"
+      cp .warp/workflows/*.yaml "$stage/warp/workflows/"
+      cp README.md LICENSE "$stage/"
+      tar -C "$stage" -czf "dist/${name}.tgz" .
+      tar -tzf "dist/${name}.tgz"
+      rm -rf stage
+      (cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
   artifacts:
-    name: "seleniumbase-rs-binaries-${CI_COMMIT_TAG:-v0.9.3}"
+    name: "seleniumbase-rs-binaries-${CI_COMMIT_TAG:-v0.9.4}"
     when: always
     expire_in: 4 weeks
     paths:
       - dist/
+
+# Attaches the archives built by `release:binaries` to the GitHub release via `GH_PAT`.
+release:github:
+  stage: test
+  image: alpine:3.20
+  needs:
+    - job: "release:binaries"
+      artifacts: true
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/ && $GH_PAT'
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+      allow_failure: true
+  before_script:
+    - apk add --no-cache curl jq bash ca-certificates
+  script:
+    - ./scripts/upload_to_github.sh
 
