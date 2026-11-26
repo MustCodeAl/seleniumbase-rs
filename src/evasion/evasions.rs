@@ -286,6 +286,7 @@ pub fn launch_args(fp: &Fingerprint) -> Vec<String> {
     let mut args = vec![
         "--disable-blink-features=AutomationControlled".to_owned(),
         "--disable-infobars".to_owned(),
+        "--test-type".to_owned(),
         "--no-default-browser-check".to_owned(),
         "--no-first-run".to_owned(),
         "--no-service-autorun".to_owned(),

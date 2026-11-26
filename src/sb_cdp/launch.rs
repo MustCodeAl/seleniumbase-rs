@@ -405,6 +405,7 @@ impl LaunchOptions {
             "--disable-search-engine-choice-screen".to_owned(),
             "--disable-blink-features=AutomationControlled".to_owned(),
             "--disable-infobars".to_owned(),
+            "--test-type".to_owned(),
             // Chrome keeps only the last `--disable-features`, so there is one:
             // the library's own entry and the ones plugins ask for.
             format!(

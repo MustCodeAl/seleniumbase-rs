@@ -455,6 +455,7 @@ fn a_config_with_every_option_gives_this_command_line() {
         "--disable-search-engine-choice-screen",
         "--disable-blink-features=AutomationControlled",
         "--disable-infobars",
+        "--test-type",
         "--disable-features=Translate,Bar",
         "--password-store=basic",
         "--use-mock-keychain",
