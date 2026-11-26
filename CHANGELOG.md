@@ -3,7 +3,7 @@
 All notable changes to `seleniumbase-rs`. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). The target is feature parity with
-Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
+Python SeleniumBase 4.58.3 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
 
 ## [0.9.4] - unreleased
