@@ -1067,7 +1067,11 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::ExecutablePath, help = "Path to the chromedriver binary")]
         path: String,
         /// Inspect automation markers without patching the binary.
-        #[usage(long, bool_value, help = "Inspect automation markers without modifying the binary")]
+        #[usage(
+            long,
+            bool_value,
+            help = "Inspect automation markers without modifying the binary"
+        )]
         inspect: bool,
         /// Restore the binary from its `<binary>.orig` backup instead of patching.
         #[usage(long, bool_value, help = "Restore the binary from its .orig backup")]
@@ -1088,13 +1092,25 @@ enum Commands {
         #[usage(long, value_hint = usage::ValueHint::DirPath, help = "Directory where patched binaries are cached (SB_PATCH_CACHE_DIR)")]
         cache_dir: Option<String>,
         /// Inspect markers on the source executable without writing a patched copy.
-        #[usage(long, bool_value, help = "Inspect automation markers without writing a patched copy")]
+        #[usage(
+            long,
+            bool_value,
+            help = "Inspect automation markers without writing a patched copy"
+        )]
         inspect: bool,
         /// Named patch preset (`balanced`, `all`, `aggressive`, `chrome-binary`).
-        #[usage(long, value_enum, help = "Named patch preset to apply (default: chrome-binary)")]
+        #[usage(
+            long,
+            value_enum,
+            help = "Named patch preset to apply (default: chrome-binary)"
+        )]
         preset: Option<PatchPresetArg>,
         /// Also inspect or patch discovered companion libraries (macOS Framework, Windows DLL, Linux .so).
-        #[usage(long = "with-companions", bool_value, help = "Also inspect or patch discovered companion libraries")]
+        #[usage(
+            long = "with-companions",
+            bool_value,
+            help = "Also inspect or patch discovered companion libraries"
+        )]
         with_companions: bool,
     },
     /// Run a small forward proxy on this machine (HTTP and CONNECT, no authentication).
@@ -4339,9 +4355,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 let chosen: PatchPreset = preset.map_or(PatchPreset::All, Into::into);
                 patcher.patch(chosen.to_patch())?;
-                println!(
-                    "Successfully patched chromedriver binary at: {path} (preset: {chosen})"
-                );
+                println!("Successfully patched chromedriver binary at: {path} (preset: {chosen})");
             }
         }
         Commands::PatchChrome {
