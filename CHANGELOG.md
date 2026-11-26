@@ -8,12 +8,32 @@ work, `docs/parity.md` the per-API status).
 
 ## [0.9.4] - unreleased
 
+### Added
+
+- **Expanded Binary Patching (`src/evasion/patcher.rs`)**:
+  - Added `BinaryPatchRule::{ascii, neutralize_nul, from_hex}`, `EnginePatch::{custom_rules, from_rules, headless_chrome, stealth_browser}`, `BinaryMarkerReport::{has_markers, summary}`, and in-memory dry-run helper `patch_bytes()`.
+  - Added four equal-length binary marker scrubbing categories: testing/headless brand markers (`Chrome for Testing`, `HeadlessChrome`, `HeadlessEdg`), software renderer markers (`Google SwiftShader`, `SwiftShader`, `Mesa OffScreen`, `llvmpipe`), automation globals (`__playwright__binding__`, `__pwInitScripts`, `_Selenium_IDE_Recorder`, Watir/Phantom/asyncScriptInfo globals), and launch/debug flag markers (`--enable-automation`, `--test-type`, `--remote-debugging-port`, `--remote-debugging-pipe`).
+- **Recorder & Debug Prompt**:
+  - Recorder Mode now records and replays new tabs opened during a session (`n_tab` / `o_tab`).
+  - Interactive debug prompt now supports `find`, `text`, and `html` commands.
+- **Configuration**:
+  - `SB_UC=true` is now accepted as an alias for `SB_MODE=uc` when `SB_MODE` is unset.
+
 ### Changed
 
+- Updated 108 compatible dependencies via `cargo update` (`thirtyfour 0.38.3`, `rmcp 3.11.0`, `rustwright 0.3.1`, `turso 0.8.4`, `zip 9.8.2`, `hyper 1.13.0`, etc.).
 - Rename **Wire Formats** doc page to **Network Patching & Low-Level Browser Impersonation** (`docs/stealth/advanced/wire-formats.md`).
 - Add `### Network patching` glossary entry with cross-links to the concepts page.
 - Rust 1.100 references corrected across `Dockerfile`, `docs/CONTRIBUTING.md`, `docs/README.md`, `docs/building.md`, `docs/completions/README.md`, and `tests/support/scratch_crate.rs` (were still showing 1.99 in several prose descriptions).
 - Version references updated throughout docs from v0.9.3 → v0.9.4 on this branch.
+- Added plugin scaffolding guide (`docs/plugins/scaffolding.md`) and stealth API references (`docs/stealth/api/codec-h3-spec.md`, `docs/stealth/api/fingerprint.md`).
+
+### Fixed
+
+- **UC Mode Reconnect**: `BrowserSession::reconnect()` in UC mode now detaches and re-attaches via `debuggerAddress` instead of calling `driver.quit()` and launching a blank `data:,` window, preserving page state, DOM, and cookies across `reconnect()`, and closes Chrome cleanly via `Browser.close` on final `quit()`.
+- **Pure CDP JavaScript Dialogs**: `sb_cdp::Mouse::click()` now returns cleanly when a click triggers `Page.javascriptDialogOpening` instead of timing out after 30s on `Input.dispatchMouseEvent`, and `sb_cdp::Keyboard::{press, type_text, insert_text}` handles open alert/confirm/prompt dialogs via `Page.handleJavaScriptDialog`.
+- **CSP-Safe Messenger Toast**: `Page::post_message()` now falls back to a self-contained inline DOM toast when strict page CSP blocks CDN messenger assets.
+- **Playwright Companion**: Fixed `crates/playwright/src/target.rs` sealed trait implementation for `BaseCase`.
 
 ## [0.9.3] - 2026-11-25
 
