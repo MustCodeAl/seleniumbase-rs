@@ -1249,6 +1249,14 @@ A [StealthPolicy](#stealthpolicy) option (`native_spoofing`) that delivers a fin
 
 See [Fingerprint & Stealth Profiles](/stealth/evasions#native-level-cdp-spoofing).
 
+### Network patching
+
+<Badge color="purple">Stealth</Badge>
+
+The shaping and rewriting of network-level protocols and framing—specifically TLS `ClientHello` extensions, cipher suites, and GREASE permutation, HTTP/2 `SETTINGS` and `WINDOW_UPDATE` frames, HTTP/3 QUIC transport parameters, header casing, and loopback MitM proxy interception—so that an automated client's wire fingerprints match those of a real target browser.
+
+See [Network patching and wire-level impersonation](/concepts/network-patching) and [Network Patching](/stealth/advanced/wire-formats).
+
 ## P
 
 ### Nonce
@@ -1295,7 +1303,7 @@ See [Pure CDP](/tutorials/pure_cdp).
 
 <Badge color="yellow">Project</Badge>
 
-The page that records, for every API of Python SeleniumBase 4.55.2, how this crate covers it: with an item of the same name (implemented), with other items (composed), not at all because there is nothing to port (not-applicable), or not yet (planned).
+The page that records, for every API of Python SeleniumBase 4.58.3, how this crate covers it: with an item of the same name (implemented), with other items (composed), not at all because there is nothing to port (not-applicable), or not yet (planned).
 
 See [API parity with Python SeleniumBase](/parity).
 

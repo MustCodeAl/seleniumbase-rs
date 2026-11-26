@@ -67,11 +67,15 @@ allow = [
     "BSL-1.0",
     "Unlicense",
     "CDLA-Permissive-2.0",
-    # libbz2-rs-sys (via zip -> bzip2) ships under the permissive, BSD-style
-    # bzip2 license, which has no SPDX short identifier of its own.
-    "bzip2-1.0.6",
 ]
 confidence-threshold = 0.9
+
+[[licenses.clarify]]
+name = "cfg_block"
+expression = "Apache-2.0"
+license-files = [
+    { path = "LICENSE", hash = 0x0 },
+]
 
 [bans]
 multiple-versions = "warn"

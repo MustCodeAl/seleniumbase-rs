@@ -3,8 +3,17 @@
 All notable changes to `seleniumbase-rs`. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow
 [Semantic Versioning](https://semver.org/). The target is feature parity with
-Python SeleniumBase 4.55.2 and `seleniumbase-mcp` (`ROADMAP.md` has the open
+Python SeleniumBase 4.58.3 and `seleniumbase-mcp` (`ROADMAP.md` has the open
 work, `docs/parity.md` the per-API status).
+
+## [0.9.4] - unreleased
+
+### Changed
+
+- Rename **Wire Formats** doc page to **Network Patching & Low-Level Browser Impersonation** (`docs/stealth/advanced/wire-formats.md`).
+- Add `### Network patching` glossary entry with cross-links to the concepts page.
+- Rust 1.100 references corrected across `Dockerfile`, `docs/CONTRIBUTING.md`, `docs/README.md`, `docs/building.md`, `docs/completions/README.md`, and `tests/support/scratch_crate.rs` (were still showing 1.99 in several prose descriptions).
+- Version references updated throughout docs from v0.9.3 → v0.9.4 on this branch.
 
 ## [0.9.3] - 2026-11-25
 

@@ -11,7 +11,7 @@ Short answers, with a pointer to the page that has the detail. A problem that sh
 
 <Accordion title="Is this the same as Python SeleniumBase?" icon="code-compare">
 
-It is a Rust port of it (tracking 4.55.2) and of its MCP server. Every upstream
+It is a Rust port of it (tracking 4.58.3) and of its MCP server. Every upstream
 API has a recorded status in [the parity table](/parity). It also adds things
 Python does not have; see [Why Rust?](/why-rust).
 

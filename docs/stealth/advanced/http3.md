@@ -102,7 +102,7 @@ What to know:
   that ended is `Http3Error::HelperEnded`. A request the helper could not send,
   or that got no response, is `Http3Error::Failed` with the helper's kind
   (`request`, `send`, `timeout` or `body`).
-- **The profile.** Standalone `Http3Options::new()` defaults to `chrome-156-macos` unless `Http3Options::profile(...)`, `for_version(major, os)`, or `for_fingerprint(&fp)` selects another (for instance `HttpSession` selects `profile.major()` / `profile.os()`, aligning with Chrome 157). Its headers come from that profile's navigation template; a header you add with `Http3Request::header` keeps the template's place when the template has it.
+- **The profile.** `Http3Options::new()` uses the active Chrome profile, and `Http3Options::for_version(major, os)` or `for_fingerprint(&fp)` dynamically aligns with the requested Chromium major and OS (such as Chrome 157 or newer). Its headers come from that profile's navigation template; a header you add with `Http3Request::header` keeps the template's place when the template has it.
 - **No `Alt-Svc` upgrade yet.** Requests only use `sbrs-h3d` when `Http3Client` or `HttpRequest::protocol(WireProtocol::Http3)` selects it (or once an origin responds with `HTTP_3`). With UDP blocked, a request fails at its time limit: 30 seconds unless `Http3Request::timeout` says otherwise.
 - **No proxy.** An HTTP proxy cannot carry HTTP/3 (a CONNECT tunnel carries
   TCP), and the helper takes no proxy. Requests go straight from this machine,

@@ -56,7 +56,7 @@ Summary for AI exports: `seleniumbase-rs` is a Rust port of Python SeleniumBase.
 
 ## Quickstart
 
-Rust 1.99 or newer and a Chromium-based browser (Chrome, Chromium or Edge) are all you need.
+Rust 1.100 or newer and a Chromium-based browser (Chrome, Chromium or Edge) are all you need.
 
 <Steps titleSize="h3">
 
