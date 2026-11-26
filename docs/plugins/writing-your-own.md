@@ -251,7 +251,13 @@ turned on by name.
 
 <Step title="Create the crate" icon="folder-plus" titleSize="h3">
 
-Copy the [`template/`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/template)
+The fastest way to bootstrap a new plugin project with tests, optional CI pipelines, and AI coding assistant rules is `sbrs plugin new` (see [Plugin Scaffolding](/plugins/scaffolding)):
+
+```bash Terminal
+sbrs plugin new hello --dev-env github-actions --ai-agent claude-code
+```
+
+To build a low-level `seleniumbase-rs-plugin` hook crate from scratch instead, copy the [`template/`](https://github.com/MustCodeAl/seleniumbase-rs-plugins/tree/main/template)
 folder of the plugins repository (see [The template](#the-template)), or run
 `cargo new --lib`. Name the crate `seleniumbase-rs-plugin-<name>`.
 

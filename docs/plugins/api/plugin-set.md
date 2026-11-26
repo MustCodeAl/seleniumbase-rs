@@ -115,6 +115,9 @@ Cloning a set clones `Arc`s: the plugins themselves are shared.
 | Method | Does |
 |---|---|
 | `new`, `strict` | An empty set; a strict one refuses undeclared plugins |
+| `builder()` | Starts a `PluginSetBuilder` to configure custom timer and settings |
+| `into_builder()` | Converts an existing `PluginSet` back into a `PluginSetBuilder` |
+| `clock()` | Returns the custom clock provider `Option<Clock>` if configured |
 | `with`, `with_shared` | Add a plugin with the default grants |
 | `with_trusted` | Add a plugin with the default grants and named Critical ones |
 | `with_grants`, `with_grants_shared` | Add a plugin with exactly these grants |
@@ -123,6 +126,30 @@ Cloning a set clones `Arc`s: the plugins themselves are shared.
 | `check`, `check_with` | Check every plugin before anything starts |
 | `audit` | Every declared capability with its risk and grant |
 | `before_launch`, `on_browser`, `on_page_created`, `on_close` | Run a hook of every plugin, in order |
+
+## PluginSet::builder and PluginSetBuilder
+
+<Badge color="green">fn</Badge>
+
+```rust
+#[must_use]
+pub fn builder() -> PluginSetBuilder
+```
+
+`PluginSetBuilder` configures global environment bindings such as custom execution timers:
+
+```rust
+use std::sync::Arc;
+use seleniumbase_rs_plugin::{PluginSet, PluginSetBuilder, Timer};
+
+let set = PluginSet::builder()
+    .timer(my_timer)
+    .build();
+
+assert!(set.clock().is_some());
+```
+
+`into_builder(self)` consumes the `PluginSet` to resume building with modified timer or plugin options.
 
 ## PluginSet::new
 

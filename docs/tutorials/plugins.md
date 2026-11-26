@@ -244,7 +244,7 @@ Plugins never see `sb_cdp::Browser`, `Page` or `BaseCase`, so a plugin keeps
 working when those types grow, and the same plugin works with both engines.
 
 A plugin crate depends on `seleniumbase-rs-plugin` (and `serde_json`), never on
-`seleniumbase-rs`. The plugins repository has a `template/` to copy.
+`seleniumbase-rs`. The fastest starting path for a new plugin crate (including CI setup, optional CLI runner, and AI agent rules) is `sbrs plugin new`: see [Plugin Scaffolding](/plugins/scaffolding). The plugins repository also has a `template/` folder to copy; see [Writing your own plugin](/plugins/writing-your-own).
 
 ### Packages
 
@@ -532,7 +532,7 @@ stop the browser from closing.
 
 A plugin cannot take the program down. A panic in any hook is caught and comes
 back as `PluginError::Panicked`, naming the plugin and the hook. A set that has
-a timer (`PluginSet::with_timer`) cuts every hook off at its limit with
+a timer (`PluginSet::builder().timer(timer).build()` or `set.into_builder().timer(timer).build()`) cuts every hook off at its limit with
 `PluginError::Timeout`: `before_navigate` 5 s, `on_request` 2 s (the request is
 blocked), `before_launch` and `on_test_end` 30 s, every other hook 10 s. A
 plugin may ask for other limits by setting the fields of a `Budgets::default()`

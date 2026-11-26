@@ -77,6 +77,7 @@ repository's root `Cargo.toml`, `wire` enables `scrape`, and `scrape` enables `c
 | `client` | `WireFormat`, `WireFormatBuilder`, `WireFormat::client_builder`. | [Client](/stealth/api/wire-client) |
 | `convert` | Codec specs to wreq and BoringSSL options. | [Convert](/stealth/api/wire-convert) |
 | `http_session` | `HttpSession`, `HttpSessionOptions`, `HttpResponse`. | [HttpSession](/stealth/api/wire-http-session) |
+| `http3` | `Http3Client`, `Http3Pool`, `Http3Options`, `Http3Request`, `Http3Response`. | [HTTP/3](/stealth/advanced/http3) |
 | `mitm` | `MitmProxy` and its options. | [MITM proxy](/stealth/api/wire-mitm) |
 | `tls_server` | `EphemeralCa`, one leaf per host. | [TLS server](/stealth/api/wire-tls-server) |
 | `stealth_session` | `StealthSession` and its builder. | [StealthSession](/stealth/api/wire-stealth-session) |
