@@ -7842,9 +7842,9 @@ dependencies = [
 
 [[package]]
 name = "usage-argv"
-version = "7.4.0"
+version = "7.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "51fc682d8ac95747f481ff946858096472ed72cb987613b28dbc2807084ab8d8"
+checksum = "0680cd07fc24555ee52e775d5f7ca54967920dc13301a7c51d14c1ce588b20c5"
 
 [[package]]
 name = "usage-derive"

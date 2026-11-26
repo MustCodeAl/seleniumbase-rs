@@ -10,8 +10,31 @@ use std::time::Duration;
 use serde_json::{json, Value};
 
 use super::page::Page;
+use super::sync::locked;
 use super::types::Point;
 use crate::error::SeleniumBaseError;
+
+/// A JavaScript modal dialog (`alert`, `confirm`, `prompt`) opened while
+/// dispatching input on a tab.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct PendingDialog {
+    kind: String,
+    default_prompt: String,
+    typed: Option<String>,
+}
+
+impl PendingDialog {
+    fn from_event(params: &Value) -> Self {
+        Self {
+            kind: params["type"].as_str().unwrap_or("alert").to_owned(),
+            default_prompt: params["defaultPrompt"]
+                .as_str()
+                .unwrap_or_default()
+                .to_owned(),
+            typed: None,
+        }
+    }
+}
 
 /// Pause between key presses, long enough for the page's handlers to run.
 const KEY_DELAY: Duration = Duration::from_millis(8);
@@ -151,7 +174,23 @@ impl Mouse {
                 Self::event("mouseReleased", at, Some(button), 0, count),
             ));
         }
-        self.page.execute_ordered(commands).await?;
+        let mut events = self.page.events();
+        let dialog_opened = async {
+            while let Some(event) = events.next().await {
+                if event.method == "Page.javascriptDialogOpening" {
+                    return PendingDialog::from_event(&event.params);
+                }
+            }
+            std::future::pending::<PendingDialog>().await
+        };
+        tokio::select! {
+            res = self.page.execute_ordered(commands) => {
+                res?;
+            }
+            dialog = dialog_opened => {
+                self.page.record_open_dialog(dialog);
+            }
+        }
         Ok(())
     }
 
@@ -403,6 +442,24 @@ impl Keyboard {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
     pub async fn press(&self, key: Key) -> Result<(), SeleniumBaseError> {
+        if matches!(key, Key::Enter | Key::Escape)
+            && let Some(dialog) = self.page.take_open_dialog()
+        {
+            let accept = key == Key::Enter;
+            let mut params = json!({ "accept": accept });
+            if accept && dialog.kind == "prompt" {
+                params["promptText"] = json!(dialog.typed.unwrap_or(dialog.default_prompt));
+            }
+            match self
+                .page
+                .execute("Page.handleJavaScriptDialog", params)
+                .await
+            {
+                Ok(_) => return Ok(()),
+                Err(error) if error.to_string().contains("No dialog is showing") => {}
+                Err(error) => return Err(error),
+            }
+        }
         let (name, code, virtual_code) = key.descriptor();
         // Enter also produces a character, which is what submits a form.
         let text = (key == Key::Enter).then_some("\r");
@@ -442,6 +499,9 @@ impl Keyboard {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
     pub async fn type_text(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
+        if self.page.append_dialog_text(text.as_ref()) {
+            return Ok(());
+        }
         for ch in text.as_ref().chars() {
             self.type_char(ch).await?;
             tokio::time::sleep(KEY_DELAY).await;
@@ -542,6 +602,9 @@ impl Keyboard {
     ///
     /// Returns [`SeleniumBaseError::CdpDriver`] if the browser rejects it.
     pub async fn insert_text(&self, text: impl AsRef<str>) -> Result<(), SeleniumBaseError> {
+        if self.page.append_dialog_text(text.as_ref()) {
+            return Ok(());
+        }
         self.page
             .execute("Input.insertText", json!({ "text": text.as_ref() }))
             .await?;
@@ -550,6 +613,25 @@ impl Keyboard {
 }
 
 impl Page {
+    pub(super) fn record_open_dialog(&self, dialog: PendingDialog) {
+        locked(&self.browser().inner().open_dialogs).insert(self.id().to_owned(), dialog);
+    }
+
+    pub(super) fn take_open_dialog(&self) -> Option<PendingDialog> {
+        locked(&self.browser().inner().open_dialogs).remove(self.id())
+    }
+
+    pub(super) fn append_dialog_text(&self, text: &str) -> bool {
+        let mut guard = locked(&self.browser().inner().open_dialogs);
+        if let Some(dialog) = guard.get_mut(self.id())
+            && dialog.kind == "prompt"
+        {
+            dialog.typed.get_or_insert_with(String::new).push_str(text);
+            return true;
+        }
+        false
+    }
+
     /// The pointer of this tab.
     #[must_use]
     pub fn mouse(&self) -> Mouse {
@@ -560,5 +642,198 @@ impl Page {
     #[must_use]
     pub fn keyboard(&self) -> Keyboard {
         Keyboard::new(self.clone())
+    }
+}
+
+#[cfg(test)]
+mod dialog_input_tests {
+    use super::*;
+    use crate::sb_cdp::Browser;
+
+    #[tokio::test]
+    async fn keyboard_handles_prompt_alert_and_confirm_dialogs_recorded_on_page() {
+        let (browser, mock) = Browser::new_mocked();
+        let page = browser.default_page().await.expect("mock page");
+
+        // Alert accepted with Enter.
+        page.record_open_dialog(PendingDialog::from_event(&json!({
+            "type": "alert",
+            "message": "I am a JS Alert"
+        })));
+        page.keyboard()
+            .press(Key::Enter)
+            .await
+            .expect("accepts alert");
+
+        // Confirm dismissed with Escape.
+        page.record_open_dialog(PendingDialog::from_event(&json!({
+            "type": "confirm",
+            "message": "I am a JS Confirm"
+        })));
+        page.keyboard()
+            .press(Key::Escape)
+            .await
+            .expect("dismisses confirm");
+
+        // Prompt typed into and accepted with Enter.
+        page.record_open_dialog(PendingDialog::from_event(&json!({
+            "type": "prompt",
+            "message": "I am a JS prompt"
+        })));
+        page.keyboard()
+            .type_text("Here is my prompt answer")
+            .await
+            .expect("buffers prompt text");
+        page.keyboard()
+            .press(Key::Enter)
+            .await
+            .expect("submits prompt");
+
+        let handled: Vec<Value> = mock
+            .calls_to("Page.handleJavaScriptDialog")
+            .into_iter()
+            .map(|c| c.params)
+            .collect();
+        assert_eq!(
+            handled,
+            vec![
+                json!({ "accept": true }),
+                json!({ "accept": false }),
+                json!({ "accept": true, "promptText": "Here is my prompt answer" }),
+            ]
+        );
+    }
+
+    #[tokio::test]
+    async fn mouse_and_keyboard_dispatch_all_event_shapes_and_dialog_fallbacks() {
+        let (browser, mock) = Browser::new_mocked();
+        let page = browser.default_page().await.expect("mock page");
+        let at = Point { x: 40.0, y: 80.0 };
+
+        page.mouse().move_to(at).await.expect("move_to");
+        page.mouse()
+            .down(at, Button::Middle)
+            .await
+            .expect("down middle");
+        page.mouse()
+            .up(at, Button::Middle)
+            .await
+            .expect("up middle");
+        page.mouse().click(at).await.expect("click");
+        page.mouse().double_click(at).await.expect("double_click");
+        page.mouse().right_click(at).await.expect("right_click");
+        page.mouse()
+            .drag(at, Point { x: 140.0, y: 180.0 })
+            .await
+            .expect("drag");
+        page.mouse().wheel(at, 10.0, -20.0).await.expect("wheel");
+
+        let mouse_calls = mock.calls_to("Input.dispatchMouseEvent");
+        assert!(mouse_calls.iter().any(|c| c.params["type"] == "mouseWheel"));
+        assert!(mouse_calls.iter().any(|c| c.params["button"] == "right"));
+        assert!(mouse_calls.iter().any(|c| c.params["button"] == "middle"));
+        assert!(mouse_calls.iter().any(|c| c.params["clickCount"] == 2));
+
+        // Keyboard: type_text with uppercase, lowercase, newline, tab, and insert_text.
+        page.keyboard()
+            .type_text("Ab\t\n")
+            .await
+            .expect("type_text");
+        page.keyboard()
+            .insert_text("pasted")
+            .await
+            .expect("insert_text");
+        assert_eq!(mock.calls_to("Input.insertText").len(), 1);
+
+        // Prompt insert_text buffers into the open dialog without sending Input.insertText.
+        page.record_open_dialog(PendingDialog::from_event(&json!({
+            "type": "prompt",
+            "defaultPrompt": "fallback"
+        })));
+        page.keyboard()
+            .insert_text("inserted-answer")
+            .await
+            .expect("buffers into prompt");
+        assert_eq!(mock.calls_to("Input.insertText").len(), 1);
+        page.keyboard()
+            .press(Key::Enter)
+            .await
+            .expect("submits prompt");
+        let handled = mock.calls_to("Page.handleJavaScriptDialog");
+        assert_eq!(
+            handled.last().unwrap().params,
+            json!({ "accept": true, "promptText": "inserted-answer" })
+        );
+
+        // Non-prompt open dialog does not swallow insert_text.
+        page.record_open_dialog(PendingDialog::from_event(&json!({ "type": "alert" })));
+        assert!(!page.append_dialog_text("ignored"));
+        let _ = page.take_open_dialog();
+
+        // If Page.handleJavaScriptDialog reports "No dialog is showing", fall back to dispatchKeyEvent.
+        mock.fail("Page.handleJavaScriptDialog", "No dialog is showing");
+        page.record_open_dialog(PendingDialog::from_event(&json!({ "type": "alert" })));
+        let keys_before = mock.calls_to("Input.dispatchKeyEvent").len();
+        page.keyboard()
+            .press(Key::Enter)
+            .await
+            .expect("falls back to key dispatch");
+        assert!(mock.calls_to("Input.dispatchKeyEvent").len() > keys_before);
+    }
+
+    #[test]
+    fn all_key_descriptors_are_non_empty() {
+        for key in [
+            Key::Enter,
+            Key::Tab,
+            Key::Escape,
+            Key::Backspace,
+            Key::Delete,
+            Key::ArrowUp,
+            Key::ArrowDown,
+            Key::ArrowLeft,
+            Key::ArrowRight,
+            Key::Home,
+            Key::End,
+            Key::PageUp,
+            Key::PageDown,
+            Key::Insert,
+            Key::Space,
+            Key::Pause,
+            Key::Shift,
+            Key::Control,
+            Key::Alt,
+            Key::Meta,
+            Key::F1,
+            Key::F2,
+            Key::F3,
+            Key::F4,
+            Key::F5,
+            Key::F6,
+            Key::F7,
+            Key::F8,
+            Key::F9,
+            Key::F10,
+            Key::F11,
+            Key::F12,
+            Key::NumPad0,
+            Key::NumPad1,
+            Key::NumPad2,
+            Key::NumPad3,
+            Key::NumPad4,
+            Key::NumPad5,
+            Key::NumPad6,
+            Key::NumPad7,
+            Key::NumPad8,
+            Key::NumPad9,
+            Key::Multiply,
+            Key::Add,
+            Key::Subtract,
+            Key::Decimal,
+            Key::Divide,
+        ] {
+            let (name, code, vk) = key.descriptor();
+            assert!(!name.is_empty() && !code.is_empty() && vk > 0);
+        }
     }
 }

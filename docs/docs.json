@@ -516,6 +516,7 @@
               "tutorials/plugins",
               "tutorials/test_plugins",
               "plugins/selecting",
+              "plugins/scaffolding",
               "plugins/writing-your-own",
               "plugins/architecture"
             ]
@@ -636,10 +637,12 @@
                       "stealth/api/codec-ja4",
                       "stealth/api/codec-h2-spec",
                       "stealth/api/codec-h2-frames",
+                      "stealth/api/codec-h3-spec",
                       "stealth/api/codec-akamai",
                       "stealth/api/codec-header-spec",
                       "stealth/api/codec-measurement",
-                      "stealth/api/codec-ids"
+                      "stealth/api/codec-ids",
+                      "stealth/api/fingerprint"
                     ]
                   }
                 ]

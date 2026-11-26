@@ -66,6 +66,13 @@ There is no public method that switches into a frame, and none that accepts or d
 | `active_element_css()` | A short CSS selector for the focused element, or `body` when nothing is focused. |
 | `active_element()` | A `Locator` for the element that was focused when this was called. It does not follow focus afterwards. |
 | `click_active_element()` | Calls `click()` on `document.activeElement`. The page sees a click, not a mouse move. |
+| `fill_form(&data)` | Automatically populates form fields on the page from a serializable struct `&T`. |
+| `human_click(selector)` | Clicks an element using curved Bézier cursor movement and randomized human-like dwell timing. |
+| `human_type(selector, text)` | Types text into an element with humanized typing cadence and inter-keystroke delays. |
+| `metadata()` | Extracts structured metadata (`PageMetadata`: SEO title, description, OpenGraph, Twitter Cards, canonical URL) from the `<head>`. |
+| `json_ld::<T>()` | Extracts and deserializes Schema.org JSON-LD structured data (`Vec<T>`) from `<script type="application/ld+json">` tags. |
+| `table(selector)` | Extracts an HTML table matching `selector` into structured `TableData` with headers and rows. |
+| `markdown()` | Converts the page HTML into clean, LLM-ready Markdown, removing navigation, footers, scripts, and clutter. |
 | `js_errors()` | Uncaught script errors and unhandled rejections in the current document, oldest first. Cleared on navigation. A failed image load is not included. |
 | `assert_no_js_errors()` | Fails with `AssertionFailed` if `js_errors` is not empty. |
 | `scroll(to)` | Scrolls the page. `to` is a `Scroll`: `Top`, `Bottom`, `To(pixels)`, `By(pixels)`, `PageDown(fraction)` or `PageUp(fraction)`. |

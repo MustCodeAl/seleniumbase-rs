@@ -237,6 +237,40 @@ impl BaseCase {
         self.recording.target = Some(target);
     }
 
+    /// Notes that the tab `handle` opened while recording, and who opened it.
+    ///
+    /// A tab with an opener or a referrer came from a page (a link, `window.open`):
+    /// the click that did it opens it again on replay, so the recording only
+    /// moves to it. A tab with neither is one the person opened by hand, and
+    /// replay has to open it. The mark is written into the recording at the
+    /// time of the tab's first action, so it sorts before that action and
+    /// after whatever opened the tab.
+    async fn note_new_tab(&mut self, handle: String) {
+        let by_page = self
+            .execute_script("return !!window.opener || document.referrer !== '';")
+            .await
+            .ok()
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        self.recording.new_tabs.insert(handle, by_page);
+    }
+
+    /// The mark for a tab that opened while recording: `n_tab` (move to the
+    /// tab a page opened) or `o_tab` (open a tab), stamped just before the
+    /// tab's first action. `None` for a tab that was there from the start or
+    /// that recorded nothing.
+    fn tab_open_row(&self, handle: &str, tab: &[RawAction]) -> Option<RawAction> {
+        let by_page = *self.recording.new_tabs.get(handle)?;
+        let first = tab.iter().map(|action| action.time_ms).min()?;
+        let kind = if by_page { "n_tab" } else { "o_tab" };
+        Some(RawAction::new(
+            kind,
+            serde_json::json!(""),
+            serde_json::json!(""),
+            first.saturating_sub(2),
+        ))
+    }
+
     /// One look at the browser while a person works in it. Returns `true`
     /// when no window is left.
     ///
@@ -260,8 +294,13 @@ impl BaseCase {
             return true;
         };
         if handles.len() != self.recording.window_count {
+            let opened = handles.len() > self.recording.window_count
+                && self.recording.window_count > 0;
             self.recording.window_count = handles.len();
             let _ = driver.switch_to_window(newest.clone()).await;
+            if opened {
+                self.note_new_tab(newest.to_string()).await;
+            }
         }
         let Ok(url) = self.current_url().await else {
             return false;
@@ -495,11 +534,17 @@ impl BaseCase {
                         self.recording.stash_origins.push(prev_origin.clone());
                     }
                     self.recording.cache.insert(handle.clone(), tab.clone());
+                    if let Some(open) = self.tab_open_row(handle, &tab) {
+                        actions.push(open);
+                    }
                     actions.extend(tab);
                 }
                 // A dialog is open or the tab is gone: use what was kept.
                 None => {
                     if let Some(kept) = self.recording.cache.get(handle) {
+                        if let Some(open) = self.tab_open_row(handle, kept) {
+                            actions.push(open);
+                        }
                         actions.extend(kept.iter().cloned());
                     }
                 }
@@ -507,6 +552,9 @@ impl BaseCase {
         }
         for (handle, kept) in &self.recording.cache {
             if !order.contains(handle) {
+                if let Some(open) = self.tab_open_row(handle, kept) {
+                    actions.push(open);
+                }
                 actions.extend(kept.iter().cloned());
             }
         }

@@ -431,8 +431,17 @@ pub async fn send(self) -> Result<HttpResponse, HttpError>
 - `json`: Sets a JSON body and `Content-Type: application/json`.
 - `form`: Sets a form body and `Content-Type: application/x-www-form-urlencoded`.
 - `timeout`: Limits this request, redirects included, to `timeout`, in place of the session's.
-- `protocol`: Selects the wire protocol version (`WireProtocol::Http1`, `WireProtocol::Http2`, or `WireProtocol::Http3`).
+- `protocol`: Selects the wire protocol version (`WireProtocol::Http1`, `WireProtocol::Http2`, or `WireProtocol::Http3`). When `Http3` is requested, `HttpSession` uses a pooled `Http3Client` (`Http3Pool`) and routes through `sbrs-h3d` with `CookieJar` synchronization.
 - `send`: Sends the request, following redirects by hand, and reads the whole reply.
+
+### HTTP/3 `Alt-Svc`, Pooling, and Request Helpers
+
+When `http3` is enabled, `Http3Client` and `Http3Pool` support:
+- **Method helpers on `Http3Request`**: `Http3Request::get(url)`, `post(url)`, `put(url)`, `delete(url)`, `patch(url)`, `head(url)`, plus `.json(&value)` and `.proxy(proxy_url)`.
+- **Response helpers on `Http3Response`**: `text()`, `text_lossy()`, and `json::<T>()`.
+- **Connection pooling**: `Http3Pool::new(options)` and `Http3Pool::with_max_idle(options, max_idle)` reuse warm `sbrs-h3d` worker processes instead of spawning one per request.
+- **Dynamic profile resolution**: `Http3Options::for_version(major, os)` and `Http3Options::for_fingerprint(&fp)` align the helper profile with the target Chromium major and OS.
+- **`Alt-Svc` discovery**: When configured for `Alt-Svc` discovery, `HttpSession` caches `Alt-Svc: h3` endpoints per origin and falls back to HTTP/2 when UDP is blocked; an explicit `WireProtocol::Http3` request remains strict.
 
 ## Related
 

@@ -211,6 +211,11 @@ const CALLS: &[(&str, &str, CallForm)] = &[
     ("s_opt", "select_option_by_text", Pair),
     ("set_v", "set_value", Pair),
     ("cho_f", "choose_file", Pair),
+    // A tab a page opened (a link, `window.open`): the click already opens it
+    // on replay, so the run only has to move to it.
+    ("n_tab", "switch_to_new_window", Bare),
+    // A tab the person opened by hand: replay has to open it.
+    ("o_tab", "open_new_tab", Bare),
     ("sw_fr", "switch_to_frame", On),
     ("sw_dc", "switch_to_default_content", Bare),
     ("sw_pf", "switch_to_parent_frame", Bare),

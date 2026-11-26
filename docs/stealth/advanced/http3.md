@@ -79,6 +79,34 @@ async fn demo() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Connection Pooling with `Http3Pool`
+
+Spawning `sbrs-h3d` per request incurs process creation overhead. `Http3Pool` manages a pool of warm client processes:
+
+```rust
+use seleniumbase_rs_stealth::wire::http3::{Http3Pool, Http3Options, Http3Request};
+
+let options = Http3Options::new()
+    .for_version(157, OsType::Macos)
+    .proxy("socks5://127.0.0.1:1080");
+
+let pool = Http3Pool::new(options);
+let res = pool.send(Http3Request::get("https://example.com/api")).await?;
+assert_eq!(res.status(), 200);
+```
+
+## Proxies and Routing
+
+`Http3Options` and `Http3Request` support upstream proxies via `.proxy(proxy_url)`:
+- SOCKS5: `socks5://127.0.0.1:1080`
+- CONNECT-UDP: `connect-udp://proxy.example.com:443`
+
+HTTP/3 uses UDP datagrams; classic HTTP CONNECT tunneling is unsupported over UDP and returns a typed configuration error.
+
+## Dynamic Profile Resolution and Alt-Svc
+
+`Http3Options::for_version(major, os)` and `for_fingerprint(&fp)` dynamically resolve Chrome version profiles (supporting `chrome-156-*`, `chrome-157-*`, and newer versions). When paired with `HttpSession` and `Alt-Svc` discovery, sessions advertise HTTP/3 capability while gracefully falling back to HTTP/2 if UDP traffic is blocked.
+
 </Step>
 
 </Steps>

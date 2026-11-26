@@ -389,9 +389,10 @@ fn merge_feature_switch<C: ChromiumLikeCapabilities>(
 }
 
 /// The standard undetected-chrome launch arguments.
-const UC_ARGS: [&str; 17] = [
+const UC_ARGS: [&str; 18] = [
     "--disable-blink-features=AutomationControlled",
     "--disable-infobars",
+    "--test-type",
     "--disable-popup-blocking",
     "--no-first-run",
     "--disable-notifications",

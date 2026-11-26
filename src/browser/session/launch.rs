@@ -20,7 +20,7 @@ use crate::browser::options::{BrowserSettings, DriverVersion, LaunchSwitch, Rele
 use crate::browser::virtual_display::{self, BrowserWindow, XvfbProcess};
 use crate::error::SeleniumBaseError;
 
-use super::capabilities::session_capabilities;
+use super::capabilities::{debugger_attach_capabilities, session_capabilities};
 
 pub(super) fn validate_mode_support(config: &BrowserConfig) -> Result<(), SeleniumBaseError> {
     if config.is_cdp_enabled() && !config.browser.kind.is_chromium_based() {
@@ -76,6 +76,17 @@ pub(crate) fn server_url_for_joins(url: &str) -> String {
 async fn try_connect(config: &BrowserConfig, url: &str) -> Result<WebDriver, SeleniumBaseError> {
     crate::browser::downloads::create_folder_for(config.browser.kind);
     let caps = session_capabilities(config)?;
+    connect_with_caps(config, url, caps).await
+}
+
+/// Attaches a fresh WebDriver session to an already-running Chromium browser at
+/// `debugger_address` (`host:port`) via the existing WebDriver server at `url`.
+pub(super) async fn connect_debugger(
+    config: &BrowserConfig,
+    url: &str,
+    debugger_address: &str,
+) -> Result<WebDriver, SeleniumBaseError> {
+    let caps = debugger_attach_capabilities(config.browser.kind, debugger_address)?;
     connect_with_caps(config, url, caps).await
 }
 

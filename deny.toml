@@ -16,6 +16,10 @@ all-features = true
 # Each ignore needs a rationale and, where the fix is upstream, a pointer to
 # what we are waiting on.
 ignore = [
+    # RUSTSEC-2026-0542: humantime 2.4.0 unmaintained (an announcement due to chrono,
+    # not a vulnerability). Reached only through console-subscriber 0.5.0 behind tokio-console.
+    "RUSTSEC-2026-0542",
+
     # RUSTSEC-2026-0543: chrono unmaintained (an announcement, not a
     # vulnerability). Reached through rmcp and schemars (the MCP servers) and
     # async-imap (the imap plugin); this crate uses jiff and names no chrono.

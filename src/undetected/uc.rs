@@ -30,18 +30,21 @@ pub const UC_STEALTH_SCRIPT: &str = r#"
     while (d) { scrub(d); d = Object.getPrototypeOf(d); }
   }
 
-  // 2. navigator.webdriver must be false on Navigator.prototype, not an own property on navigator.
+  // 2. Only override navigator.webdriver when not already false (preserves native getter
+  //    when --disable-blink-features=AutomationControlled is active).
   try {
-    delete navigator.webdriver;
-  } catch (err) {}
-  try {
-    const proto = Navigator.prototype || Object.getPrototypeOf(navigator);
-    if (proto) {
-      Object.defineProperty(proto, 'webdriver', {
-        get: () => false,
-        configurable: true,
-        enumerable: true
-      });
+    if (navigator.webdriver !== false) {
+      try {
+        delete navigator.webdriver;
+      } catch (err) {}
+      const proto = Navigator.prototype || Object.getPrototypeOf(navigator);
+      if (proto) {
+        Object.defineProperty(proto, 'webdriver', {
+          get: () => false,
+          configurable: true,
+          enumerable: true
+        });
+      }
     }
   } catch(err) {}
 })();

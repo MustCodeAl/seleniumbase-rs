@@ -46,6 +46,10 @@ pub(crate) struct RecorderState {
     pub registered: HashSet<String>,
     /// How many windows the last look at the browser found.
     pub window_count: usize,
+    /// The tabs that opened while recording (by window handle): `true` when a
+    /// page opened it (a link or `window.open`), `false` when the person did
+    /// (a new empty tab). Replay needs to know, to open the tab or to follow it.
+    pub new_tabs: BTreeMap<String, bool>,
     /// The names of the output, when the test gave them.
     pub target: Option<RecordingTarget>,
 }

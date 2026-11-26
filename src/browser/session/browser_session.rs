@@ -55,6 +55,9 @@ pub struct BrowserSession {
     /// The DevTools client that answers the proxy's password prompts, when the
     /// proxy has a login (see `browser::proxy_auth`); closed with the session.
     pub(super) proxy_login: Option<ProxyAuthSidecar>,
+    /// Whether the current WebDriver session was re-attached to an already
+    /// running Chromium browser via `debuggerAddress` (UC reconnect).
+    pub(super) attached_debugger: bool,
     /// The browser plugins of the session (feature `plugins`), and the scripts
     /// they added; none without plugins.
     #[cfg(feature = "plugins")]
@@ -150,6 +153,7 @@ impl BrowserSession {
             remote_debug: None,
             proxy_login: None,
             reuse: None,
+            attached_debugger: false,
             #[cfg(feature = "plugins")]
             plugins: None,
         }

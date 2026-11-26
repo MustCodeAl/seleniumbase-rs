@@ -512,7 +512,28 @@ macro_rules! option_table {
 /// `SB_WINDOW_HEIGHT` of the environment.
 pub(crate) fn read_variables(raw: &dyn Fn(&str) -> Option<String>) -> Variables {
     // One rule for every source and every reader: a value is trimmed, and a blank one is unset.
+    let mut problems = Vec::new();
+    let uc_mode_alias = raw("SB_MODE")
+        .map(|value| value.trim().to_owned())
+        .filter(|value| !value.is_empty())
+        .is_none()
+        && raw("SB_UC")
+            .map(|value| value.trim().to_owned())
+            .filter(|value| !value.is_empty())
+            .is_some_and(|text| match crate::config::settings::parse_bool(&text) {
+                Ok(on) => on,
+                Err(error) => {
+                    problems.push(SettingsProblem {
+                        source: "SB_UC".to_owned(),
+                        error,
+                    });
+                    false
+                }
+            });
     let trimmed = |name: &str| {
+        if name == "SB_MODE" && uc_mode_alias {
+            return Some("uc".to_owned());
+        }
         raw(name)
             .map(|value| value.trim().to_owned())
             .filter(|value| !value.is_empty())
@@ -522,7 +543,6 @@ pub(crate) fn read_variables(raw: &dyn Fn(&str) -> Option<String>) -> Variables 
     // The rows run in table order on a scratch `Settings`, so that what one row reads can
     // depend on the rows before it in the same source (a refused value is found here).
     let mut scratch = Settings::default();
-    let mut problems = Vec::new();
     apply_rows(&mut scratch, var, &mut problems);
     let refused: Vec<String> = problems
         .iter()
@@ -1106,6 +1126,28 @@ mod tests {
             .error
             .to_string()
             .contains("Expecting a dictionary"));
+    }
+
+    #[test]
+    fn sb_uc_env_var_enables_uc_mode_when_sb_mode_is_unset() {
+        let (settings, problems) = read_all(&[("SB_UC", "true")]);
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(settings.session.mode, Some(DriverMode::Uc));
+
+        let (settings, problems) = read_all(&[("SB_UC", "false")]);
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(settings.session.mode, None);
+
+        // Explicit SB_MODE takes precedence over SB_UC.
+        let (settings, problems) = read_all(&[("SB_UC", "true"), ("SB_MODE", "cdp")]);
+        assert!(problems.is_empty(), "{problems:?}");
+        assert_eq!(settings.session.mode, Some(DriverMode::Cdp));
+
+        // Invalid SB_UC is reported as a problem on SB_UC.
+        let (settings, problems) = read_all(&[("SB_UC", "maybe")]);
+        assert_eq!(settings.session.mode, None);
+        assert_eq!(problems.len(), 1);
+        assert_eq!(problems[0].source, "SB_UC");
     }
 
     #[test]

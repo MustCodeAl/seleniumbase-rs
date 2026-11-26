@@ -234,6 +234,9 @@ pub(crate) struct Inner {
     /// `Locator` action looks up to know whether to note itself. Empty, and so
     /// free of cost, when no trace runs.
     pub(super) traces: StdMutex<HashMap<String, Arc<super::trace::TraceState>>>,
+    /// Open JavaScript dialogs (`alert`, `confirm`, `prompt`) observed while
+    /// dispatching input on a tab, keyed by tab id.
+    pub(super) open_dialogs: StdMutex<HashMap<String, super::input::PendingDialog>>,
     /// The blocklist of each tab session, which the library's ad-block list and
     /// the plugins' raw `Network.setBlockedURLs` commands all add to.
     #[cfg(feature = "plugins")]
@@ -743,6 +746,7 @@ impl Browser {
                 context_routes: StdMutex::new(HashMap::new()),
                 extension_ids: StdMutex::new(Vec::new()),
                 traces: StdMutex::new(HashMap::new()),
+                open_dialogs: StdMutex::new(HashMap::new()),
                 #[cfg(feature = "plugins")]
                 plugin_blocked: super::plugin_hooks::BlockedUrls::default(),
                 #[cfg(feature = "plugins")]

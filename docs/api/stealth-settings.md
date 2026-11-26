@@ -60,7 +60,7 @@ A `Specimen` names an entry in the measured hardware and software catalogue:
 
 | Kind | Type | Lookup | Examples |
 |------|------|--------|----------|
-| Browser build | `Build` | `Build::named(name)` | `"chrome-156-windows"`, `"chrome-156-macos"`, `"chrome-156-linux"` |
+| Browser build | `Build` | `Build::named(name)` | `"chrome-156-windows"`, `"chrome-156-macos"`, `"chrome-156-linux"`, `"chrome-157-macos"`, or dynamic pattern `"chrome-<major>-<os>"` / `"edge-<major>-windows"` |
 | Machine model | `Machine` | `Machine::named(name)` | `"macbook-13-m1"`, `"thinkpad-x1-carbon-gen9"`, `"pixel-7"`, `"iphone-14-pro"` |
 | Place | `Place` | `Place::named(name)` | `"de-de-berlin"`, `"en-us-new-york"`, `"ja-jp-tokyo"` |
 | Rendering | `Rendering` | `Rendering::named(name)` | Recorded WebGL/Canvas output bundles |
@@ -84,7 +84,22 @@ A `Specimen` names an entry in the measured hardware and software catalogue:
 | `policy()`, `humanize()` | The delivery policy and the humanized input timing. |
 | `tracker_hosts()` | The policy's host list, or the crate's default list when that list is empty. |
 
-Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `keyboard_layout`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `storage_quota`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`. Direct accessors `webgl_vendor()` and `webgl_renderer()` return `Option<&str>`, and `audio_sample_rate()` returns `Option<u32>`.
+Each other setting is a read accessor that returns `&Spoof<T>` (or `&Vec<String>` / `&HashMap<String, String>` for `custom_start_urls` and `cmd_params`): `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version`, `locale`, `languages`, `accept_languages`, `timezone`, `keyboard_layout`, `screen`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features`, `webgl`, `media_devices`, `geolocation`, `fonts`, `proxy`, `webrtc`, `battery`, `connection`, `storage_quota`, `speech_voices`, `bluetooth`, `client_hints`. `local_storage()` and `save_service_worker()` are `bool`. Direct accessors `webgl_vendor()` and `webgl_renderer()` return `Option<&str>`, and `audio_sample_rate()` returns `Option<u32>`. The client hints accessor `client_hints()` exposes `form_factors` (`Vec<String>`, e.g. `["Desktop"]` or `["Mobile"]`) and `wow64` (`bool`).
+
+## Built-in Evasion Providers
+
+The evasion system packages self-contained IIFEs implementing `EvasionProvider` (`src/evasion/providers/builtin.rs`). Each provider spoofs one browser dimension in priority order:
+
+| Provider | Priority | What it delivers |
+|---|---|---|
+| `NativeToStringProvider` | 10 | Masks `Function.prototype.toString` to report `function () { [native code] }` for all patched functions. |
+| `CdpMarkerProvider` | 15 | Purges CDP internal markers (`window.cdc_adoQpoasnfa76pfcZLmcfl_Array`, `Promise`, `Symbol`). |
+| `WindowGeometryProvider` | 45 | Correlates `window.outerWidth`/`outerHeight`, `screenX`/`screenY`, `devicePixelRatio`, and sets `isExtended` on screen detail objects. |
+| `WebglProvider` | 50 | Unmasks `UNMASKED_VENDOR_WEBGL` and `UNMASKED_RENDERER_WEBGL` via WebGL parameter queries. |
+| `CanvasNoiseProvider` | 55 | Injects deterministic pixel perturbations into `toDataURL`, `toBlob`, and `getImageData`. |
+| `DomRectProvider` | 58 | Adds imperceptible sub-pixel noise to `Element.prototype.getBoundingClientRect` and `getClientRects` to foil hardware layout fingerprinting. |
+| `AudioNoiseProvider` | 60 | Introduces deterministic mathematical noise into Web Audio `AnalyserNode` and offline audio processing buffers. |
+| `ClientHintsProvider` | 88 | Spoofs `navigator.userAgentData`, high-entropy brands, mobile flags, architecture, and `form_factors`. |
 
 `Off` is meaningful for media devices, geolocation, WebRTC, battery, connection, speech voices, Bluetooth and Client Hints. `Random` on a setting that has nothing to draw (`oscpu`, `build_id`, `proxy`) fails `build`.
 

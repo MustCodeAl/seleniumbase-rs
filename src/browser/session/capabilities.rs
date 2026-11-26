@@ -219,6 +219,27 @@ fn apply_chromium_capabilities<C: ChromiumLikeCapabilities>(
     crate::browser::options::chromium::StealthOptions::from(config).apply_to(caps)
 }
 
+/// Capabilities that attach a new WebDriver session to an already-running
+/// Chromium browser listening on `debugger_address` (`host:port`), leaving its
+/// open tabs, cookies, and current page intact.
+pub(super) fn debugger_attach_capabilities(
+    browser: Browser,
+    debugger_address: &str,
+) -> Result<thirtyfour::Capabilities, SeleniumBaseError> {
+    match browser {
+        Browser::Edge => {
+            let mut caps = DesiredCapabilities::edge();
+            caps.add_experimental_option("debuggerAddress", debugger_address)?;
+            Ok(caps.into())
+        }
+        _ => {
+            let mut caps = DesiredCapabilities::chrome();
+            caps.add_experimental_option("debuggerAddress", debugger_address)?;
+            Ok(caps.into())
+        }
+    }
+}
+
 #[cfg(test)]
 mod capability_tests {
     use serde_json::json;

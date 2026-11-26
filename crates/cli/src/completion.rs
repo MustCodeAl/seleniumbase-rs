@@ -1,40 +1,12 @@
-//! The PowerShell script `sbrs completions` prints: usage's script with one fix.
+//! Regression tests for the shell completion scripts `sbrs completions` prints.
 //!
-//! usage's PowerShell script cuts the command line at the cursor with `Extent.Text`, which
-//! leaves out the spaces after the last word, so for `sbrs plugin ` the engine saw `sbrs plugin`
-//! and completed `plugin` again instead of offering `info` and `list`. The patched script pads
-//! the line with spaces when the cursor is past the text, instead of cutting it. A test fails
-//! when usage's script no longer contains the lines replaced here, so an upgrade cannot ship
-//! the script unpatched; drop this module once usage fixes its script. The zsh script needed a
-//! fix too until usage 7.4, which gives a complete word zsh's own space and a word that goes on
-//! none; a test keeps it so and says when the zsh patch has to come back.
-
-/// The lines of usage's PowerShell script that cut the command line at the cursor. They clamp
-/// the cursor to `Extent.Text`, which leaves out the spaces after the last word, so for
-/// `sbrs plugin ` the engine saw `sbrs plugin` and completed `plugin` again.
-const PS_CUT: &str = "    if ($offset -gt $extent.Text.Length) { $offset = $extent.Text.Length }
-    $line = $extent.Text.Substring(0, $offset)
-";
-
-/// Their replacement: a cursor past the text means a new word starts, so pad with spaces.
-const PS_CUT_PATCHED: &str =
-    "    # Patched by sbrs (crates/cli/src/completion.rs): Extent.Text leaves out the spaces
-    # after the last word, so a cursor past it starts a new word: pad instead of cutting.
-    if ($offset -gt $extent.Text.Length) {
-        $line = $extent.Text + (' ' * ($offset - $extent.Text.Length))
-    } else {
-        $line = $extent.Text.Substring(0, $offset)
-    }
-";
-
-/// usage's PowerShell `script` with the line cut patched (see [`PS_CUT`]).
-pub(crate) fn powershell(script: &str) -> String {
-    script.replacen(PS_CUT, PS_CUT_PATCHED, 1)
-}
+//! Both the zsh script (fixed in usage 7.4) and the PowerShell script (fixed in
+//! usage-argv 7.4.1 via `$extent.Text.PadRight($offset).Substring(0, $offset)`)
+//! are now emitted directly by `usage` without local string patching; these
+//! tests keep both fixes from regressing on future upgrades.
 
 #[cfg(test)]
 mod tests {
-    use super::{powershell, PS_CUT};
     use crate::Cli;
     use usage::complete::Shell;
     use usage::spec::CommandMeta;
@@ -115,18 +87,11 @@ mod tests {
     }
 
     #[test]
-    fn usage_still_cuts_the_powershell_line_the_way_the_patch_replaces() {
+    fn usage_powershell_script_pads_line_past_last_word() {
         let script = Cli::completion_script(Shell::PowerShell);
         assert!(
-            script.contains(PS_CUT),
-            "usage's PowerShell script changed: update crates/cli/src/completion.rs"
+            script.contains("$extent.Text.PadRight($offset).Substring(0, $offset)"),
+            "usage's PowerShell script no longer pads past the last word: patch it again or update this test\n{script}"
         );
-    }
-
-    #[test]
-    fn the_powershell_line_is_padded_past_the_last_word() {
-        let patched = powershell(&Cli::completion_script(Shell::PowerShell));
-        assert!(!patched.contains(PS_CUT), "{patched}");
-        assert!(patched.contains("$extent.Text + (' ' * ($offset - $extent.Text.Length))"));
     }
 }

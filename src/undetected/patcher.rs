@@ -195,6 +195,16 @@ impl BinaryPatchRule {
         })
     }
 
+    /// Builds an equal-length ASCII/UTF-8 byte replacement rule.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Patcher`] when `needle` is empty or its byte length
+    /// differs from `replacement`.
+    pub fn ascii(needle: &str, replacement: &str) -> Result<Self, SeleniumBaseError> {
+        Self::try_new(needle.as_bytes().to_vec(), replacement.as_bytes().to_vec())
+    }
+
     /// Builds a rule that overwrites `needle` with ASCII space bytes of the same length.
     ///
     /// # Errors
@@ -204,6 +214,32 @@ impl BinaryPatchRule {
         let needle = needle.as_ref().to_vec();
         let spaces = vec![b' '; needle.len()];
         Self::try_new(needle, spaces)
+    }
+
+    /// Builds a rule that overwrites `needle` with NUL (`0x00`) bytes of the same length.
+    ///
+    /// Useful for zeroing C-string automation markers inside ELF/Mach-O/PE `.rodata`
+    /// sections without altering section sizes or offsets.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Patcher`] when `needle` is empty.
+    pub fn neutralize_nul(needle: impl AsRef<[u8]>) -> Result<Self, SeleniumBaseError> {
+        let needle = needle.as_ref().to_vec();
+        let nuls = vec![0u8; needle.len()];
+        Self::try_new(needle, nuls)
+    }
+
+    /// Builds a rule from hex-encoded byte sequences (spaces and underscores ignored).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`SeleniumBaseError::Patcher`] when either hex string is invalid,
+    /// empty, or has mismatched byte lengths.
+    pub fn from_hex(needle_hex: &str, replacement_hex: &str) -> Result<Self, SeleniumBaseError> {
+        let needle = decode_hex_bytes(needle_hex)?;
+        let replacement = decode_hex_bytes(replacement_hex)?;
+        Self::try_new(needle, replacement)
     }
 
     /// Pattern bytes matched literally in the binary.
@@ -217,6 +253,28 @@ impl BinaryPatchRule {
     pub fn replacement(&self) -> &[u8] {
         &self.replacement
     }
+}
+
+fn decode_hex_bytes(input: &str) -> Result<Vec<u8>, SeleniumBaseError> {
+    let cleaned: String = input
+        .chars()
+        .filter(|c| !c.is_ascii_whitespace() && *c != '_')
+        .collect();
+    if cleaned.is_empty() || !cleaned.len().is_multiple_of(2) {
+        return Err(SeleniumBaseError::patcher(
+            input,
+            "hex patch sequence must be non-empty with an even number of hex digits",
+        ));
+    }
+    let mut out = Vec::with_capacity(cleaned.len() / 2);
+    for chunk in cleaned.as_bytes().as_chunks::<2>().0 {
+        let pair = std::str::from_utf8(chunk)
+            .map_err(|_| SeleniumBaseError::patcher(input, "invalid UTF-8 in hex sequence"))?;
+        let byte = u8::from_str_radix(pair, 16)
+            .map_err(|_| SeleniumBaseError::patcher(input, format!("invalid hex byte '{pair}'")))?;
+        out.push(byte);
+    }
+    Ok(out)
 }
 
 /// Breakdown of known automation and CDP markers detected inside a binary.
@@ -247,6 +305,14 @@ pub struct MarkerCounts {
     pub cdp_isolation_markers: usize,
     /// Automation `sourceURL=` annotations (`//# sourceURL=...webdriver/cdc_/pptr:`).
     pub source_urls: usize,
+    /// Testing and headless browser brand strings (`Chrome for Testing`, `HeadlessChrome`, `HeadlessEdg`).
+    pub testing_brand_markers: usize,
+    /// Software renderer binary tells (`Google SwiftShader`, `SwiftShader`, `Mesa OffScreen`, `llvmpipe`).
+    pub software_renderer_markers: usize,
+    /// Extended automation and driver bindings (`__playwright__binding__`, `__pwInitScripts`, `_Selenium_IDE_Recorder`, etc.).
+    pub automation_bindings: usize,
+    /// CLI debugging and automation flag strings (`--enable-automation`, `--test-type`, `--remote-debugging-port`, `--remote-debugging-pipe`).
+    pub debug_flag_markers: usize,
 }
 
 impl MarkerCounts {
@@ -265,6 +331,10 @@ impl MarkerCounts {
             + self.automation_flags
             + self.cdp_isolation_markers
             + self.source_urls
+            + self.testing_brand_markers
+            + self.software_renderer_markers
+            + self.automation_bindings
+            + self.debug_flag_markers
     }
 }
 
@@ -285,6 +355,31 @@ pub struct BinaryMarkerReport {
 }
 
 impl BinaryMarkerReport {
+    /// Returns `true` if any automation marker was detected in the binary.
+    #[must_use]
+    pub const fn has_markers(&self) -> bool {
+        self.counts.total() > 0
+    }
+
+    /// Formats a concise one-line diagnostic summary of this report.
+    #[must_use]
+    pub fn summary(&self) -> String {
+        format!(
+            "{} ({}, {} bytes): {} markers (cdc={}, wd={}, extra={}, headless={}, flags={}, cdp={}, source_urls={})",
+            self.path.display(),
+            self.format.as_str(),
+            self.size_bytes,
+            self.counts.total(),
+            self.counts.cdc_properties + self.counts.cdc_prefixes + self.counts.cdc_blocks,
+            self.counts.webdriver_markers + self.counts.navigator_webdriver,
+            self.counts.extra_driver_globals + self.counts.dom_automation,
+            self.counts.headless_user_agent,
+            self.counts.automation_flags,
+            self.counts.cdp_isolation_markers,
+            self.counts.source_urls,
+        )
+    }
+
     /// Reads and inspects a driver or browser binary on disk for automation markers.
     ///
     /// # Errors
@@ -393,6 +488,14 @@ pub struct EnginePatch {
     pub scrub_cdp_serialization_markers: bool,
     /// Scrub embedded `//# sourceURL=...` comments naming automation tools.
     pub neutralize_source_urls: bool,
+    /// Replace testing and headless browser brand strings (`Chrome for Testing`, `HeadlessChrome`, `HeadlessEdg`).
+    pub scrub_testing_brand_markers: bool,
+    /// Replace software renderer binary tells (`Google SwiftShader`, `SwiftShader`, `Mesa OffScreen`, `llvmpipe`).
+    pub scrub_software_renderer_markers: bool,
+    /// Replace extended automation and driver bindings (`__playwright__binding__`, `__pwInitScripts`, `_Selenium_IDE_Recorder`, etc.).
+    pub scrub_automation_bindings: bool,
+    /// Replace CLI debugging and automation flag strings (`--enable-automation`, `--test-type`, `--remote-debugging-port`, `--remote-debugging-pipe`).
+    pub scrub_debug_flag_markers: bool,
     /// Additional user-supplied equal-length byte replacement rules.
     pub custom_rules: Vec<BinaryPatchRule>,
     /// Create a `.orig` backup before patching.
@@ -436,6 +539,12 @@ impl EnginePatch {
             scrub_extra_driver_globals: true,
             scrub_cdp_serialization_markers: true,
             neutralize_source_urls: false,
+            scrub_testing_brand_markers: true,
+            scrub_software_renderer_markers: true,
+            scrub_automation_bindings: true,
+            // Opt-in only: scrubbing `--remote-debugging-port`/`--test-type` in a live
+            // Chrome or chromedriver binary disables CDP attachment and infobar suppression.
+            scrub_debug_flag_markers: false,
             custom_rules: Vec::new(),
             backup: true,
         }
@@ -477,8 +586,56 @@ impl EnginePatch {
             scrub_extra_driver_globals: true,
             scrub_cdp_serialization_markers: true,
             neutralize_source_urls: false,
+            scrub_testing_brand_markers: true,
+            scrub_software_renderer_markers: false,
+            scrub_automation_bindings: true,
+            // Opt-in only: keeps `--remote-debugging-port` and `--test-type` functional.
+            scrub_debug_flag_markers: false,
             custom_rules: Vec::new(),
             backup: false,
+        }
+    }
+
+    /// Preset targeting headless and automation flags (`HeadlessChrome`, `--enable-automation`,
+    /// `kAutomationControlled`, `navigator.webdriver`) without touching `cdc_` driver properties.
+    #[must_use]
+    pub fn headless_chrome() -> Self {
+        Self {
+            patch_headless_user_agent: true,
+            scrub_enable_automation: true,
+            scrub_k_automation_controlled: true,
+            patch_navigator_webdriver: true,
+            backup: false,
+            ..Self::default()
+        }
+    }
+
+    /// Full browser-binary stealth preset scrubbing headless/testing brands, software renderer tells,
+    /// automation bindings, and webdriver markers without modifying `cdc_` driver properties or
+    /// disabling CDP `--remote-debugging-port` / `--test-type` CLI flags.
+    #[must_use]
+    pub fn stealth_browser() -> Self {
+        Self {
+            scrub_software_renderer_markers: true,
+            neutralize_source_urls: true,
+            ..Self::chrome_binary()
+        }
+    }
+
+    /// Appends multiple user-supplied equal-length byte replacement rules.
+    #[must_use]
+    pub fn custom_rules(mut self, rules: impl IntoIterator<Item = BinaryPatchRule>) -> Self {
+        self.custom_rules.extend(rules);
+        self
+    }
+
+    /// Builds a custom-only patch containing only the supplied rules (no built-in marker scrubbing).
+    #[must_use]
+    pub fn from_rules(rules: impl IntoIterator<Item = BinaryPatchRule>) -> Self {
+        Self {
+            custom_rules: rules.into_iter().collect(),
+            backup: true,
+            ..Self::default()
         }
     }
 
@@ -492,7 +649,7 @@ impl EnginePatch {
     fn cache_fingerprint(&self) -> u64 {
         let mut hasher = DefaultHasher::new();
         // Bump format revision when built-in replacement tables change.
-        3u8.hash(&mut hasher);
+        4u8.hash(&mut hasher);
         self.scrub_cdc_props.hash(&mut hasher);
         self.randomize_cdc_prefix.hash(&mut hasher);
         self.scrub_webdriver_markers.hash(&mut hasher);
@@ -507,6 +664,10 @@ impl EnginePatch {
         self.scrub_extra_driver_globals.hash(&mut hasher);
         self.scrub_cdp_serialization_markers.hash(&mut hasher);
         self.neutralize_source_urls.hash(&mut hasher);
+        self.scrub_testing_brand_markers.hash(&mut hasher);
+        self.scrub_software_renderer_markers.hash(&mut hasher);
+        self.scrub_automation_bindings.hash(&mut hasher);
+        self.scrub_debug_flag_markers.hash(&mut hasher);
         self.custom_rules.hash(&mut hasher);
         hasher.finish()
     }
@@ -916,31 +1077,31 @@ fn patch_to_cached_copy(
 #[allow(clippy::collapsible_if)]
 fn find_companion_binary_for(source: &Path) -> Option<PathBuf> {
     let parent = source.parent()?;
-    if parent.file_name().and_then(|n| n.to_str()) == Some("MacOS") {
-        if let Some(contents) = parent.parent() {
-            let frameworks = contents.join("Frameworks");
-            for framework_name in [
-                "Google Chrome Framework",
-                "Chromium Framework",
-                "Microsoft Edge Framework",
-            ] {
-                let bundle = frameworks.join(format!("{framework_name}.framework"));
-                let current = bundle.join("Versions").join("Current").join(framework_name);
-                if current.exists() {
-                    return Some(current);
-                }
-                if let Ok(entries) = fs::read_dir(bundle.join("Versions")) {
-                    for entry in entries.flatten() {
-                        let candidate = entry.path().join(framework_name);
-                        if candidate.is_file() {
-                            return Some(candidate);
-                        }
+    if parent.file_name().and_then(|n| n.to_str()) == Some("MacOS")
+        && let Some(contents) = parent.parent()
+    {
+        let frameworks = contents.join("Frameworks");
+        for framework_name in [
+            "Google Chrome Framework",
+            "Chromium Framework",
+            "Microsoft Edge Framework",
+        ] {
+            let bundle = frameworks.join(format!("{framework_name}.framework"));
+            let current = bundle.join("Versions").join("Current").join(framework_name);
+            if current.exists() {
+                return Some(current);
+            }
+            if let Ok(entries) = fs::read_dir(bundle.join("Versions")) {
+                for entry in entries.flatten() {
+                    let candidate = entry.path().join(framework_name);
+                    if candidate.is_file() {
+                        return Some(candidate);
                     }
                 }
-                let direct = bundle.join(framework_name);
-                if direct.exists() {
-                    return Some(direct);
-                }
+            }
+            let direct = bundle.join(framework_name);
+            if direct.exists() {
+                return Some(direct);
             }
         }
     }
@@ -1094,6 +1255,10 @@ struct MarkerPatterns {
     automation_flags: Regex,
     cdp_isolation_markers: Regex,
     source_urls: Regex,
+    testing_brand_markers: Regex,
+    software_renderer_markers: Regex,
+    automation_bindings: Regex,
+    debug_flag_markers: Regex,
 }
 
 fn marker_patterns() -> &'static MarkerPatterns {
@@ -1130,6 +1295,20 @@ fn marker_patterns() -> &'static MarkerPatterns {
             r"//[#@]\s*sourceURL\s*=[^\n\r\x00]*(?:webdriver|cdc_|pptr:|puppeteer|playwright)[^\n\r\x00]*",
         )
         .expect("valid static source_urls regex"),
+        testing_brand_markers: Regex::new(r"Chrome for Testing|HeadlessChrome|HeadlessEdg")
+            .expect("valid static testing_brand_markers regex"),
+        software_renderer_markers: Regex::new(
+            r"Google SwiftShader|SwiftShader|Mesa OffScreen|llvmpipe",
+        )
+        .expect("valid static software_renderer_markers regex"),
+        automation_bindings: Regex::new(
+            r"__playwright__binding__|__pwInitScripts|_Selenium_IDE_Recorder|__lastWatirAlert|__lastWatirConfirm|__lastWatirPrompt|\$chrome_asyncScriptInfo|__\$webdriverAsyncExecutor|callPhantom",
+        )
+        .expect("valid static automation_bindings regex"),
+        debug_flag_markers: Regex::new(
+            r"--enable-automation|--test-type|--remote-debugging-port|--remote-debugging-pipe",
+        )
+        .expect("valid static debug_flag_markers regex"),
     })
 }
 
@@ -1157,6 +1336,10 @@ fn inspect_bytes(path: &Path, content: &[u8]) -> BinaryMarkerReport {
         automation_flags: p.automation_flags.find_iter(content).count(),
         cdp_isolation_markers: p.cdp_isolation_markers.find_iter(content).count(),
         source_urls: p.source_urls.find_iter(content).count(),
+        testing_brand_markers: p.testing_brand_markers.find_iter(content).count(),
+        software_renderer_markers: p.software_renderer_markers.find_iter(content).count(),
+        automation_bindings: p.automation_bindings.find_iter(content).count(),
+        debug_flag_markers: p.debug_flag_markers.find_iter(content).count(),
     };
     BinaryMarkerReport {
         path: path.to_path_buf(),
@@ -1167,28 +1350,52 @@ fn inspect_bytes(path: &Path, content: &[u8]) -> BinaryMarkerReport {
     }
 }
 
-fn apply_binary_patches(mut content: Vec<u8>, spec: &EnginePatch) -> Vec<u8> {
+/// Applies `spec` to an in-memory binary buffer without touching disk.
+///
+/// Returns the patched byte buffer (preserving exact byte length) together with
+/// the total number of replacements performed across all enabled passes and custom rules.
+#[must_use]
+pub fn patch_bytes(content: &[u8], spec: &EnginePatch) -> (Vec<u8>, usize) {
+    apply_binary_patches_counted(content.to_vec(), spec)
+}
+
+fn apply_binary_patches(content: Vec<u8>, spec: &EnginePatch) -> Vec<u8> {
+    apply_binary_patches_counted(content, spec).0
+}
+
+fn apply_binary_patches_counted(mut content: Vec<u8>, spec: &EnginePatch) -> (Vec<u8>, usize) {
+    let mut total = 0usize;
     if spec.scrub_cdc_props {
-        content = scrub_cdc_property_assignments(content);
+        let (next, count) = scrub_cdc_property_assignments(content);
+        content = next;
+        total += count;
     }
     if spec.randomize_cdc_prefix {
-        content = randomize_cdc_string_prefix(content);
+        let (next, count) = randomize_cdc_string_prefix(content);
+        content = next;
+        total += count;
     }
     if spec.replace_cdc_blocks {
-        content = replace_cdc_blocks(content);
+        let (next, count) = replace_cdc_blocks(content);
+        content = next;
+        total += count;
     }
     if spec.scrub_chrome_version {
-        content = scrub_chrome_version_strings(content);
-        content = replace_literal_pairs(
+        let (next, count) = scrub_chrome_version_strings(content);
+        content = next;
+        total += count;
+        let (next, count) = replace_literal_pairs(
             content,
             &[
                 (b"ChromeDriver", b"Chrome      "),
                 (b"EdgeDriver", b"Edge      "),
             ],
         );
+        content = next;
+        total += count;
     }
     if spec.scrub_webdriver_markers {
-        content = replace_literal_pairs(
+        let (next, count) = replace_literal_pairs(
             content,
             &[
                 (b"__webdriver", b"__000000000"),
@@ -1196,9 +1403,11 @@ fn apply_binary_patches(mut content: Vec<u8>, spec: &EnginePatch) -> Vec<u8> {
                 (b"__driver", b"__000000"),
             ],
         );
+        content = next;
+        total += count;
     }
     if spec.scrub_extra_driver_globals {
-        content = replace_literal_pairs(
+        let (next, count) = replace_literal_pairs(
             content,
             &[
                 (b"__fxdriver", b"__00000000"),
@@ -1210,37 +1419,51 @@ fn apply_binary_patches(mut content: Vec<u8>, spec: &EnginePatch) -> Vec<u8> {
                 (b"__lastWatir", b"__last00000"),
             ],
         );
+        content = next;
+        total += count;
     }
     if spec.scrub_dom_automation {
-        content = replace_literal_pairs(
+        let (next, count) = replace_literal_pairs(
             content,
             &[
                 (b"domAutomationController", b"dom00000000000000000000"),
                 (b"domAutomation", b"dom0000000000"),
             ],
         );
+        content = next;
+        total += count;
     }
     if spec.patch_headless_user_agent {
-        content = replace_literal_equal_len(&content, b"HeadlessChrome", b"Chrome        ");
+        let (next, count) =
+            replace_literal_equal_len(&content, b"HeadlessChrome", b"Chrome        ");
+        content = next;
+        total += count;
     }
     if spec.scrub_k_automation_controlled {
-        content =
+        let (next, count) =
             replace_literal_equal_len(&content, b"kAutomationControlled", b"kNotControlled0000000");
+        content = next;
+        total += count;
     }
     if spec.scrub_enable_automation {
-        content = replace_literal_equal_len(&content, b"enable-automation", b"x-not-automation0");
+        let (next, count) =
+            replace_literal_equal_len(&content, b"enable-automation", b"x-not-automation0");
+        content = next;
+        total += count;
     }
     if spec.scrub_cdp_serialization_markers {
-        content = replace_literal_pairs(
+        let (next, count) = replace_literal_pairs(
             content,
             &[
                 (b"webdriver-active", b"browser-active00"),
                 (b"AutomationControlled", b"NotControlled0000000"),
             ],
         );
+        content = next;
+        total += count;
     }
     if spec.patch_cdp_runtime_isolate {
-        content = replace_literal_pairs(
+        let (next, count) = replace_literal_pairs(
             content,
             &[
                 (
@@ -1253,43 +1476,116 @@ fn apply_binary_patches(mut content: Vec<u8>, spec: &EnginePatch) -> Vec<u8> {
                 ),
             ],
         );
+        content = next;
+        total += count;
     }
     if spec.patch_navigator_webdriver {
-        content = patch_navigator_webdriver_assignments(content);
+        let (next, count) = patch_navigator_webdriver_assignments(content);
+        content = next;
+        total += count;
     }
     if spec.neutralize_source_urls {
-        content = scrub_source_urls(content);
+        let (next, count) = scrub_source_urls(content);
+        content = next;
+        total += count;
+    }
+    if spec.scrub_testing_brand_markers {
+        let (next, count) = replace_literal_pairs(
+            content,
+            &[
+                (b"Chrome for Testing", b"Google Chrome     "),
+                (b"HeadlessChrome", b"Chrome        "),
+                (b"HeadlessEdg", b"Edg        "),
+            ],
+        );
+        content = next;
+        total += count;
+    }
+    if spec.scrub_software_renderer_markers {
+        let (next, count) = replace_literal_pairs(
+            content,
+            &[
+                (b"Google SwiftShader", b"Google ANGLE GPU  "),
+                (b"SwiftShader", b"ANGLE GPU  "),
+                (b"Mesa OffScreen", b"ANGLE GPU     "),
+                (b"llvmpipe", b"gpu_pipe"),
+            ],
+        );
+        content = next;
+        total += count;
+    }
+    if spec.scrub_automation_bindings {
+        let (next, count) = replace_literal_pairs(
+            content,
+            &[
+                (b"__playwright__binding__", b"__user_client_binding__"),
+                (b"__pwInitScripts", b"__uiInitScripts"),
+                (b"_Selenium_IDE_Recorder", b"_Browser__IDE_Recorder"),
+                (b"__lastWatirAlert", b"__last00000Alert"),
+                (b"__lastWatirConfirm", b"__last00000Confirm"),
+                (b"__lastWatirPrompt", b"__last00000Prompt"),
+                (b"$chrome_asyncScriptInfo", b"$client_asyncScriptInfo"),
+                (b"__$webdriverAsyncExecutor", b"__$000000000AsyncExecutor"),
+                (b"callPhantom", b"call0000000"),
+            ],
+        );
+        content = next;
+        total += count;
+    }
+    if spec.scrub_debug_flag_markers {
+        let (next, count) = replace_literal_pairs(
+            content,
+            &[
+                (b"--enable-automation", b"--x-not-automation0"),
+                (b"--test-type", b"--prod-type"),
+                (b"--remote-debugging-port", b"--x-local-metrics-port0"),
+                (b"--remote-debugging-pipe", b"--x-local-metrics-pipe0"),
+            ],
+        );
+        content = next;
+        total += count;
     }
     for rule in &spec.custom_rules {
-        content = replace_literal_equal_len(&content, rule.needle(), rule.replacement());
+        let (next, count) = replace_literal_equal_len(&content, rule.needle(), rule.replacement());
+        content = next;
+        total += count;
     }
-    content
+    (content, total)
 }
 
-fn replace_literal_pairs(mut content: Vec<u8>, pairs: &[(&[u8], &[u8])]) -> Vec<u8> {
+fn replace_literal_pairs(mut content: Vec<u8>, pairs: &[(&[u8], &[u8])]) -> (Vec<u8>, usize) {
+    let mut total = 0usize;
     for &(needle, replacement) in pairs {
-        content = replace_literal_equal_len(&content, needle, replacement);
+        let (next, count) = replace_literal_equal_len(&content, needle, replacement);
+        content = next;
+        total += count;
     }
-    content
+    (content, total)
 }
 
-fn replace_literal_equal_len(content: &[u8], needle: &[u8], replacement: &[u8]) -> Vec<u8> {
+fn replace_literal_equal_len(
+    content: &[u8],
+    needle: &[u8],
+    replacement: &[u8],
+) -> (Vec<u8>, usize) {
     assert_eq!(
         needle.len(),
         replacement.len(),
         "replacement must match needle length"
     );
     let mut out = content.to_vec();
+    let mut count = 0usize;
     let mut i = 0;
     while i + needle.len() <= out.len() {
         if &out[i..i + needle.len()] == needle {
             out[i..i + needle.len()].copy_from_slice(replacement);
+            count += 1;
             i += needle.len();
         } else {
             i += 1;
         }
     }
-    out
+    (out, count)
 }
 
 fn expand_tilde(path: PathBuf) -> PathBuf {
@@ -1301,9 +1597,10 @@ fn expand_tilde(path: PathBuf) -> PathBuf {
     }
 }
 
-fn scrub_cdc_property_assignments(mut content: Vec<u8>) -> Vec<u8> {
+fn scrub_cdc_property_assignments(mut content: Vec<u8>) -> (Vec<u8>, usize) {
     static RE_ASSIGN: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     static RE_OR: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let mut count = 0usize;
 
     let re_assign = RE_ASSIGN.get_or_init(|| {
         Regex::new(
@@ -1313,6 +1610,7 @@ fn scrub_cdc_property_assignments(mut content: Vec<u8>) -> Vec<u8> {
     });
     content = re_assign
         .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
             vec![b' '; caps[0].len()]
         })
         .into_owned();
@@ -1325,21 +1623,24 @@ fn scrub_cdc_property_assignments(mut content: Vec<u8>) -> Vec<u8> {
     });
     content = re_or
         .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
             vec![b' '; caps[0].len()]
         })
         .into_owned();
-    content
+    (content, count)
 }
 
-fn randomize_cdc_string_prefix(mut content: Vec<u8>) -> Vec<u8> {
+fn randomize_cdc_string_prefix(mut content: Vec<u8>) -> (Vec<u8>, usize) {
     static RE_STMT: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     static RE_TOKEN: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
+    let mut count = 0usize;
 
     let re_stmt = RE_STMT.get_or_init(|| {
         Regex::new(r#"['\"]\$cdc_[a-zA-Z0-9]{22}_['\"];"#).expect("valid static cdc_stmt regex")
     });
     content = re_stmt
         .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
             let full = &caps[0];
             let quote = full[0];
             let inner_len = full.len().saturating_sub(3); // two quotes + semicolon
@@ -1367,6 +1668,7 @@ fn randomize_cdc_string_prefix(mut content: Vec<u8>) -> Vec<u8> {
     });
     content = re_token
         .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
             let len = caps[0].len();
             let mut rng = rand::rng();
             let mut out = Vec::with_capacity(len);
@@ -1382,56 +1684,68 @@ fn randomize_cdc_string_prefix(mut content: Vec<u8>) -> Vec<u8> {
             out
         })
         .into_owned();
-    content
+    (content, count)
 }
 
-fn replace_cdc_blocks(content: Vec<u8>) -> Vec<u8> {
+fn replace_cdc_blocks(content: Vec<u8>) -> (Vec<u8>, usize) {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let re = RE
         .get_or_init(|| Regex::new(r"\{window\.cdc.*?;\}").expect("valid static cdc_block regex"));
-    re.replace_all(&content, |caps: &regex::bytes::Captures| {
-        let mut out = b"{console.log(\"chromedriver is undetectable!\")}".to_vec();
-        if out.len() < caps[0].len() {
-            out.extend(vec![b' '; caps[0].len() - out.len()]);
-        } else {
-            out.truncate(caps[0].len());
-        }
-        out
-    })
-    .into_owned()
+    let mut count = 0usize;
+    let out = re
+        .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
+            let mut out = b"{console.log(\"chromedriver is undetectable!\")}".to_vec();
+            if out.len() < caps[0].len() {
+                out.extend(vec![b' '; caps[0].len() - out.len()]);
+            } else {
+                out.truncate(caps[0].len());
+            }
+            out
+        })
+        .into_owned();
+    (out, count)
 }
 
-fn scrub_chrome_version_strings(content: Vec<u8>) -> Vec<u8> {
+fn scrub_chrome_version_strings(content: Vec<u8>) -> (Vec<u8>, usize) {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
         Regex::new(r"(?:Chrome|Edge)Driver/\d+\.\d+\.\d+\.\d+")
             .expect("valid static driver_version regex")
     });
-    re.replace_all(&content, |caps: &regex::bytes::Captures| {
-        vec![b' '; caps[0].len()]
-    })
-    .into_owned()
+    let mut count = 0usize;
+    let out = re
+        .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
+            vec![b' '; caps[0].len()]
+        })
+        .into_owned();
+    (out, count)
 }
 
-fn patch_navigator_webdriver_assignments(content: Vec<u8>) -> Vec<u8> {
+fn patch_navigator_webdriver_assignments(content: Vec<u8>) -> (Vec<u8>, usize) {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
         Regex::new(r"(navigator\.webdriver\s*=\s*)(!0|true)")
             .expect("valid static navigator.webdriver regex")
     });
-    re.replace_all(&content, |caps: &regex::bytes::Captures| {
-        let full_len = caps[0].len();
-        let prefix = &caps[1];
-        let mut out = Vec::with_capacity(full_len);
-        out.extend_from_slice(prefix);
-        out.extend_from_slice(b"!1");
-        out.resize(full_len, b' ');
-        out
-    })
-    .into_owned()
+    let mut count = 0usize;
+    let out = re
+        .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
+            let full_len = caps[0].len();
+            let prefix = &caps[1];
+            let mut out = Vec::with_capacity(full_len);
+            out.extend_from_slice(prefix);
+            out.extend_from_slice(b"!1");
+            out.resize(full_len, b' ');
+            out
+        })
+        .into_owned();
+    (out, count)
 }
 
-fn scrub_source_urls(content: Vec<u8>) -> Vec<u8> {
+fn scrub_source_urls(content: Vec<u8>) -> (Vec<u8>, usize) {
     static RE: std::sync::OnceLock<Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
         Regex::new(
@@ -1439,10 +1753,14 @@ fn scrub_source_urls(content: Vec<u8>) -> Vec<u8> {
         )
         .expect("valid static sourceURL regex")
     });
-    re.replace_all(&content, |caps: &regex::bytes::Captures| {
-        vec![b' '; caps[0].len()]
-    })
-    .into_owned()
+    let mut count = 0usize;
+    let out = re
+        .replace_all(&content, |caps: &regex::bytes::Captures| {
+            count += 1;
+            vec![b' '; caps[0].len()]
+        })
+        .into_owned();
+    (out, count)
 }
 
 /// Convenience one-shot patcher preserving the old API.
@@ -1805,5 +2123,160 @@ mod advanced_patcher_tests {
         fs::write(&win_dll, b"MZ\x90\x00__playwright_evaluation_script__").unwrap();
         let win_patcher = ChromeBinaryPatcher::new(&win_exe).cache_dir(&cache);
         assert_eq!(win_patcher.find_companion_binary(), Some(win_dll));
+    }
+
+    #[test]
+    fn binary_patch_rule_ascii_neutralize_nul_and_from_hex() {
+        let ascii = BinaryPatchRule::ascii("Headless", "Standard").unwrap();
+        assert_eq!(ascii.needle(), b"Headless");
+        assert_eq!(ascii.replacement(), b"Standard");
+        assert!(BinaryPatchRule::ascii("", "").is_err());
+        assert!(BinaryPatchRule::ascii("abc", "ab").is_err());
+
+        let nul = BinaryPatchRule::neutralize_nul(b"bot\x01").unwrap();
+        assert_eq!(nul.needle(), b"bot\x01");
+        assert_eq!(nul.replacement(), &[0u8, 0, 0, 0]);
+        assert!(BinaryPatchRule::neutralize_nul(b"").is_err());
+
+        let hex = BinaryPatchRule::from_hex("de ad_be ef", "00 00_00 00").unwrap();
+        assert_eq!(hex.needle(), &[0xde, 0xad, 0xbe, 0xef]);
+        assert_eq!(hex.replacement(), &[0x00, 0x00, 0x00, 0x00]);
+        assert!(BinaryPatchRule::from_hex("", "").is_err());
+        assert!(BinaryPatchRule::from_hex("abc", "000").is_err());
+        assert!(BinaryPatchRule::from_hex("zz", "00").is_err());
+        assert!(BinaryPatchRule::from_hex("dead", "00").is_err());
+    }
+
+    #[test]
+    fn engine_patch_from_rules_and_custom_rules() {
+        let r1 = BinaryPatchRule::ascii("alpha", "ALPHA").unwrap();
+        let r2 = BinaryPatchRule::neutralize_nul(b"beta").unwrap();
+
+        let only_custom = EnginePatch::from_rules([r1.clone(), r2.clone()]);
+        assert!(!only_custom.scrub_cdc_props);
+        assert!(!only_custom.scrub_webdriver_markers);
+        assert!(only_custom.backup);
+        assert_eq!(only_custom.custom_rules, vec![r1.clone(), r2.clone()]);
+
+        let combined = EnginePatch::balanced().custom_rules([r1, r2]);
+        assert!(combined.scrub_cdc_props);
+        assert_eq!(combined.custom_rules.len(), 2);
+
+        let payload = b"window.cdc_abcdef1234567890abcdef_Array = window.Array; alpha beta alpha";
+        let (patched, count) = patch_bytes(payload, &only_custom);
+        assert_eq!(patched.len(), payload.len());
+        assert_eq!(count, 3);
+        assert!(patched.starts_with(b"window.cdc_abcdef1234567890abcdef_Array"));
+        assert!(patched.ends_with(b"ALPHA \x00\x00\x00\x00 ALPHA"));
+    }
+
+    #[test]
+    fn headless_chrome_preset_patches_headless_flags_without_touching_cdc() {
+        let spec = EnginePatch::headless_chrome();
+        assert!(spec.patch_headless_user_agent);
+        assert!(spec.scrub_enable_automation);
+        assert!(spec.scrub_k_automation_controlled);
+        assert!(spec.patch_navigator_webdriver);
+        assert!(!spec.scrub_cdc_props);
+        assert!(!spec.randomize_cdc_prefix);
+        assert!(!spec.replace_cdc_blocks);
+        assert!(!spec.backup);
+
+        let payload = concat!(
+            "window.cdc_abcdef1234567890abcdef_Array = window.Array; ",
+            "HeadlessChrome/130.0 --enable-automation kAutomationControlled ",
+            "navigator.webdriver = true;"
+        )
+        .as_bytes();
+
+        let (patched, count) = patch_bytes(payload, &spec);
+        assert_eq!(patched.len(), payload.len());
+        assert_eq!(count, 4);
+        let text = String::from_utf8_lossy(&patched);
+        assert!(text.contains("window.cdc_abcdef1234567890abcdef_Array = window.Array;"));
+        assert!(!text.contains("HeadlessChrome"));
+        assert!(!text.contains("enable-automation"));
+        assert!(!text.contains("kAutomationControlled"));
+        assert!(text.contains("navigator.webdriver = !1"));
+    }
+
+    #[test]
+    fn binary_marker_report_has_markers_and_summary() {
+        let clean = BinaryMarkerReport::from_bytes("clean.bin", b"\x7fELFhello world");
+        assert!(!clean.has_markers());
+        let clean_summary = clean.summary();
+        assert!(clean_summary.contains("clean.bin"));
+        assert!(clean_summary.contains("ELF"));
+        assert!(clean_summary.contains("0 markers"));
+
+        let dirty = BinaryMarkerReport::from_bytes(
+            "dirty.bin",
+            b"\x7fELFHeadlessChrome enable-automation __webdriver",
+        );
+        assert!(dirty.has_markers());
+        let dirty_summary = dirty.summary();
+        assert!(dirty_summary.contains("dirty.bin"));
+        assert!(dirty_summary.contains("4 markers"));
+        assert!(dirty_summary.contains("headless=1"));
+        assert!(dirty_summary.contains("flags=1"));
+        assert!(dirty_summary.contains("wd=1"));
+    }
+
+    #[test]
+    fn patch_bytes_returns_zero_count_when_nothing_matches() {
+        let input = b"completely clean binary payload";
+        let (out, count) = patch_bytes(input, &EnginePatch::aggressive());
+        assert_eq!(out, input);
+        assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn stealth_browser_scrubs_brand_renderer_bindings_and_debug_flags() {
+        let payload = concat!(
+            "Chrome for Testing | HeadlessChrome | HeadlessEdg | ",
+            "Google SwiftShader | SwiftShader | Mesa OffScreen | llvmpipe | ",
+            "__playwright__binding__ | __pwInitScripts | _Selenium_IDE_Recorder | ",
+            "__lastWatirAlert | __lastWatirConfirm | __lastWatirPrompt | ",
+            "$chrome_asyncScriptInfo | __$webdriverAsyncExecutor | callPhantom | ",
+            "--enable-automation | --test-type | --remote-debugging-port | --remote-debugging-pipe | ",
+            "window.cdc_abcdef1234567890abcdef_Array = window.Array;"
+        )
+        .as_bytes();
+
+        let before = BinaryMarkerReport::from_bytes("chrome", payload);
+        assert_eq!(before.counts.testing_brand_markers, 3);
+        assert_eq!(before.counts.software_renderer_markers, 4);
+        assert_eq!(before.counts.automation_bindings, 9);
+        assert_eq!(before.counts.debug_flag_markers, 4);
+
+        let spec = EnginePatch::stealth_browser();
+        assert!(!spec.scrub_cdc_props);
+        assert!(spec.scrub_testing_brand_markers);
+        assert!(spec.scrub_software_renderer_markers);
+        assert!(spec.scrub_automation_bindings);
+        assert!(
+            !spec.scrub_debug_flag_markers,
+            "default presets must preserve --remote-debugging-port and --test-type"
+        );
+
+        let (patched, count) = patch_bytes(payload, &spec);
+        assert_eq!(patched.len(), payload.len());
+        assert!(count >= 17);
+
+        let after = BinaryMarkerReport::from_bytes("chrome", &patched);
+        assert_eq!(after.counts.testing_brand_markers, 0);
+        assert_eq!(after.counts.software_renderer_markers, 0);
+        assert_eq!(after.counts.automation_bindings, 0);
+        // `--enable-automation` was scrubbed by `scrub_enable_automation`, while
+        // `--test-type`, `--remote-debugging-port`, and `--remote-debugging-pipe` stay intact.
+        assert_eq!(after.counts.debug_flag_markers, 3);
+        assert_eq!(after.counts.cdc_properties, 1);
+
+        // Opting into `scrub_debug_flag_markers` scrubs all 4 debug CLI flag strings.
+        let mut opt_in = spec;
+        opt_in.scrub_debug_flag_markers = true;
+        let (patched_opt_in, _) = patch_bytes(payload, &opt_in);
+        let after_opt_in = BinaryMarkerReport::from_bytes("chrome", &patched_opt_in);
+        assert_eq!(after_opt_in.counts.debug_flag_markers, 0);
     }
 }

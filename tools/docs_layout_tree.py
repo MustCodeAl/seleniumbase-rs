@@ -617,6 +617,8 @@ LAYOUT = D(
       F("docs7_changelog.py", "writes docs/changelog.md from CHANGELOG.md"),
       check="dirs"),
     D("docker", "the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/"),
+    _folder(".cargo", "the cargo-audit policy",
+      _file("audit.toml", "advisories ignored by cargo audit; rationales live in deny.toml")),
     D(".config", "configuration of tools",
       F("nextest.toml", "the nextest configuration and its chrome test group")),
     D(".agents", "local assistant skills and automation definitions"),

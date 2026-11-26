@@ -118,6 +118,7 @@ hidden: true
     - [Selection by Name](plugins/api/selection.md)
     - [Testing Plugins](plugins/api/testing.md)
   - [Choosing plugins](plugins/selecting.md)
+  - [Plugin scaffolding](plugins/scaffolding.md)
   - [Writing your own plugin](plugins/writing-your-own.md)
   - [shield](plugins/shield.md)
   - [imap](plugins/imap.md)
