@@ -21,6 +21,9 @@ node = "lts"
 mdbook = "0.5"
 cargo-deny = "0.20"
 
+[tool_alias]
+sbrs = "github:MustCodeAl/seleniumbase-rs"
+
 # No [env] section: mise asks people to trust a config file that sets
 # environment variables, and that would also stop builds of this crate as a git
 # dependency (Cargo builds it inside its checkout, where this file is). The
@@ -187,7 +190,7 @@ run = "cargo test -p seleniumbase-rs --features mcp-server --test offline parity
 description = "Regenerate docs/parity.md and fail if it was out of date"
 run = [
   "python3 -I tools/parity/render_docs.py",
-  "git diff --exit-code docs/parity.md",
+  "git diff --exit-code docs/why-rust/parity.md",
 ]
 
 # It reads the sibling checkouts (docs/contributing/consumers.md lists their folders). Arguments go to
