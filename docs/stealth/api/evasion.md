@@ -1,7 +1,7 @@
 ---
-title: "identity and client (seleniumbase-rs-stealth)"
-sidebarTitle: "Identity & client"
-description: "Layers 1 and 2 of seleniumbase-rs-stealth: unified fingerprinting, 42-surface script injection, 32 JS evasion providers, capture and consistency diagnostics, and StealthLayer engine extensions."
+title: "Identity & Client Migration (v0.9.4 to v0.10.0)"
+sidebarTitle: "Migration & quick start"
+description: "Quick-start guide and v0.9.4 to v0.10.0 import migration map for Layers 1 and 2 (identity and client) of seleniumbase-rs-stealth."
 ---
 
 <Badge color="orange">Stealth module</Badge> <Badge color="blue">Crate: seleniumbase-rs-stealth</Badge> <Badge color="green">no unsafe</Badge>

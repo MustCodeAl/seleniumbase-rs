@@ -115,8 +115,8 @@ browser answers `permissions.query` for geolocation with `prompt`, so a preset
 that claimed one would stand out. `validate()` warns about a time zone without a
 position only when the policy grants permissions, which hands pages the real
 position. All six presets
-validate without errors or warnings; `tests/mcp_webdriver.rs` and the unit tests
-of `evasion::fingerprint` check it. A preset holds no `Random`, so it is the same
+validate without errors or warnings; the unit tests of
+`identity::fingerprint` check it. A preset holds no `Random`, so it is the same
 every time and its canvas noise is the same on every launch.
 
 Use the `fingerprint!` macro for shorter syntax. `safari` is an alias for `ios`,
@@ -312,9 +312,10 @@ is worse than no spoof, so a capture can be asked whether the browser agrees
 with itself:
 
 ```rust
-use seleniumbase_rs::sb_cdp::Page;
+use seleniumbase_rs_stealth::sb_cdp::Page;
+use seleniumbase_rs_stealth::PageFingerprintExt;
 
-async fn check(page: &Page) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+async fn check(page: &Page) -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
     let captured = page.capture_fingerprint().await?;
     for contradiction in captured.contradictions() {
         println!("{contradiction}");
@@ -336,8 +337,7 @@ FingerprintJS, fp-collect, ThumbmarkJS); the inventory
 with the sources and the ranked gaps is
 [Fingerprint consistency](/design/fingerprint_consistency).
 
-The same list is returned by `CapturedFingerprint::contradictions()` in `seleniumbase-rs-stealth` and the MCP tools
-`compare_fingerprint` and `explain_fingerprint`. A rule whose
+The same list is returned by `CapturedFingerprint::contradictions()` in `seleniumbase_rs_stealth::identity::capture`. A rule whose
 readings the capture lacks says nothing: a page whose policy blocked a worker is
 not a contradiction.
 
@@ -431,7 +431,7 @@ conditions), for the values the fingerprint holds:
 
 When managing high-throughput browser fleets with `BrowserPool`, restarting browser processes to rotate fingerprints introduces unacceptable latency.
 
-Instead, configure per-lease fingerprints by applying `PageFingerprintExt::apply_fingerprint` (from `seleniumbase-rs-stealth` / `seleniumbase-rs-stealth`) to each leased page:
+Instead, configure per-lease fingerprints by applying `PageFingerprintExt::apply_fingerprint` (from `seleniumbase_rs_stealth::client`) to each leased page:
 
 ```rust
 use seleniumbase_rs_stealth::identity::fingerprint::{Fingerprint, OsType};

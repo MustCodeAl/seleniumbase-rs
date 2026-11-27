@@ -586,15 +586,13 @@
               },
               {
                 "product": "Stealth settings and fixtures",
-                "icon": "fingerprint",
-                "description": "identity, client masking, StealthPolicy, and the testing fixtures",
+                "icon": "sliders",
+                "description": "Core StealthOptions, settings, and testing fixtures",
                 "groups": [
                   {
                     "group": "Stealth settings and fixtures",
                     "pages": [
                       "api/stealth-settings",
-                      "stealth/api/evasion",
-                      "stealth/api/fingerprint",
                       "api/testing-fixtures"
                     ]
                   }
@@ -623,6 +621,34 @@
                       "plugins/api/host",
                       "plugins/api/selection",
                       "plugins/api/testing"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Stealth API: identity",
+                "icon": "id-card",
+                "description": "Layer 1: Fingerprint, Spoof, StealthPolicy, Specimen, BayesianSampler and capture",
+                "groups": [
+                  {
+                    "group": "Stealth API: identity",
+                    "pages": [
+                      "stealth/api/identity",
+                      "stealth/api/fingerprint"
+                    ]
+                  }
+                ]
+              },
+              {
+                "product": "Stealth API: client",
+                "icon": "mask",
+                "description": "Layer 2: StealthLayer levels, 42-surface StealthScriptBundle, 32 JS providers and StealthPlan",
+                "groups": [
+                  {
+                    "group": "Stealth API: client",
+                    "pages": [
+                      "stealth/api/client",
+                      "stealth/api/evasion"
                     ]
                   }
                 ]

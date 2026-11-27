@@ -4,11 +4,11 @@ sidebarTitle: "Advanced fingerprinting"
 description: "Multi-layer browser identity synthesis and prototype-coherent spoofing across WebGL 1/2, WebGPU, Canvas/OffscreenCanvas, DOMRect geometry, Web Audio & AnalyserNode, font metrics, Client Hints, CDP stack sanitization, and Mimic specimens."
 ---
 
-<Badge color="blue">Module: evasion</Badge> <Badge color="purple">Crate: seleniumbase-rs-stealth</Badge>
+<Badge color="blue">Layers: identity & client</Badge> <Badge color="purple">Crate: seleniumbase-rs-stealth</Badge>
 
 Modern anti-bot systems do not rely on a single flag like `navigator.webdriver`. They cross-check **graphics limits, shader precision, audio analyzer buffers, canvas font probe bounding boxes, subpixel `DOMRect` geometry, high-entropy Client Hints, display color gamut, and CDP evaluation stacks** for internal contradictions.
 
-`seleniumbase-rs-stealth` (in `seleniumbase-rs-stealth`, re-exported as `seleniumbase_rs_stealth::identity`) combines deterministic, hardware-coherent persona modeling (`src/identity/fingerprint/`, `src/identity/ and src/client/mimic.rs`, `src/identity/ and src/client/randomize.rs`) with 32 prototype- and protocol-level `EvasionProvider` passes (`src/identity/ and src/client/providers/builtin.rs`) and the 42-surface `StealthScriptBundle` (`src/client/script.rs`).
+`seleniumbase-rs-stealth` combines deterministic, hardware-coherent Layer 1 persona modeling (`src/identity/fingerprint/`, `src/identity/mimic.rs`, `src/identity/randomize.rs`) with Layer 2 browser masking: 32 prototype- and protocol-level `EvasionProvider` passes (`src/client/providers/builtin.rs`) and the 42-surface `StealthScriptBundle` (`src/client/script.rs`, configured via `StealthLayer` and `StealthScriptOptions` levels).
 
 ## 1. Fluent builder, JSON profiles, and validation
 
@@ -71,7 +71,7 @@ assert_eq!(chrome_156.core_version(), Some(156));
 
 ## 2. Recorded specimens (`Spoof::Mimic`)
 
-Rather than assembling device parameters manually, `Spoof::Mimic(Specimen)` (`src/identity/ and src/client/mimic.rs`) pins individual settings or entire dimensions to real, cataloged browser builds and hardware rows:
+Rather than assembling device parameters manually, `Spoof::Mimic(Specimen)` (`src/identity/mimic.rs`) pins individual settings or entire dimensions to real, cataloged browser builds and hardware rows:
 
 | Specimen kind | Example use | What it supplies |
 |---|---|---|
@@ -117,7 +117,7 @@ Modern detectors fingerprint rendering outside `<canvas>.toDataURL()` alone:
 ## 7. Font enumeration and Client Hints coherence
 
 - **`FontsProvider`**: Filters `document.fonts.check()` and `FontFaceSet.prototype.load()` against the profile's OS-appropriate font allowlist, and shields `CanvasRenderingContext2D.prototype.measureText` by substituting unknown requested families with generic fallbacks before measurement.
-- **`ClientHintsProvider`**: When `native_spoofing` is off or not yet applied at launch, mirrors `navigator.userAgentData` in secure contexts—including `brands`, `fullVersionList`, `platform`, `platformVersion`, `architecture`, `bitness`, `model`, `uaFullVersion`, `wow64`, and `formFactors`. When `native_spoofing` is enabled, `Emulation.setUserAgentOverride` delivers the identical Client Hints metadata directly from the browser engine so HTTP headers and JS agree automatically.
+- **`ClientHintsProvider`**: When `native_spoofing` is off or not yet applied at launch, mirrors `navigator.userAgentData` in secure contexts, including `brands`, `fullVersionList`, `platform`, `platformVersion`, `architecture`, `bitness`, `model`, `uaFullVersion`, `wow64`, and `formFactors`. When `native_spoofing` is enabled, `Emulation.setUserAgentOverride` delivers the identical Client Hints metadata directly from the browser engine so HTTP headers and JS agree automatically.
 
 ## 8. Runtime hygiene and binary patching
 
@@ -125,16 +125,15 @@ Modern detectors fingerprint rendering outside `<canvas>.toDataURL()` alone:
 - **`CdpMarkerProvider`**: Strips `cdc_` / `$cdc_` / `__webdriver*` / `__selenium*` / `__driver*` / `__fxdriver*` globals across prototype chains and filters evaluation stack traces (`__puppeteer_evaluation_script__`, `__playwright_evaluation_script__`, `UtilityScript.`, `ExecutionContext.evaluate`, `devtools://`, `__sbcdp`) inside `Error.prototype.stack` while leaving `Error.prepareStackTrace` untouched.
 - **Engine-level scrubbing**: Pairs with [Binary patching](/stealth/advanced/binary-patching) (`ChromedriverPatcher`, `ChromeBinaryPatcher`, and `sbrs patch-chromedriver` / `sbrs patch-chrome`) to neutralize automation flags and markers before the browser process runs.
 
-## 9. High-level synthesis in `seleniumbase-rs-stealth`
+## 9. High-level synthesis in `seleniumbase_rs_stealth::identity`
 
-For multi-profile orchestration or persisting profiles across browser and wire runs, `seleniumbase-rs-stealth` (`seleniumbase_rs_stealth::fingerprint`) adds:
+For multi-profile orchestration or persisting profiles across browser and wire runs, `seleniumbase_rs_stealth::identity` adds:
 
-- **`FingerprintGenerator`**: One seeded builder producing a `GeneratedFingerprint` bundled with a `StealthScriptBundle` and coherent `ProfileFingerprint` (including `DisplayMetadata`, `GpuMetadata`, `WebGlParameters::for_gpu`, `WebGpuMetadata::for_gpu`, `MediaDeviceMetadata::synthetic`, `AudioMetadata`, `BatteryMetadata`, `NetworkMetadata`, and `ClientHintsHighEntropy::for_browser`).
-- **`ProfileFingerprint::to_fingerprint()` / `from_fingerprint()`**: Bidirectional conversion with `seleniumbase_rs_stealth::identity::fingerprint::Fingerprint`.
+- **`FingerprintGenerator`**: One seeded builder producing a `GeneratedFingerprint` paired with a coherent `ProfileFingerprint` (including `DisplayMetadata`, `GpuMetadata`, `WebGlParameters::for_gpu`, `WebGpuMetadata::for_gpu`, `MediaDeviceMetadata::synthetic`, `AudioMetadata`, `BatteryMetadata`, `NetworkMetadata`, and `ClientHintsHighEntropy::for_browser`), ready to wrap in a Layer 2 `StealthLayer` or `StealthScriptBundle`.
+- **`ProfileFingerprint::to_fingerprint()` / `from_fingerprint()`**: Bidirectional conversion with `seleniumbase_rs_stealth::identity::Fingerprint`.
 
 ```rust
-use seleniumbase_rs_stealth::identity::fingerprint::OsType;
-use seleniumbase_rs_stealth::fingerprint::FingerprintGenerator;
+use seleniumbase_rs_stealth::identity::{FingerprintGenerator, OsType};
 
 let generated = FingerprintGenerator::new(2026)
     .os(OsType::Macos)
@@ -149,8 +148,12 @@ Ok::<(), Box<dyn std::error::Error>>(())
 
 <Columns cols={2}>
 
-<Card title="Evasion providers" icon="microchip" color="#1a85d4" href="/stealth/advanced/providers">
-  Execution order, priorities, and writing custom `EvasionProvider` passes.
+<Card title="Stealth API: identity" icon="id-card" color="#199f43" href="/stealth/api/identity">
+  Layer 1 API reference: `Fingerprint`, `Spoof`, `StealthPolicy`, `Specimen`, `BayesianSampler`.
+</Card>
+
+<Card title="Stealth API: client" icon="mask" color="#1a85d4" href="/stealth/api/client">
+  Layer 2 API reference: `StealthLayer` levels, 42-surface `StealthScriptBundle`, and 32 JS providers.
 </Card>
 
 <Card title="Binary patching" icon="wrench" color="#d47628" href="/stealth/advanced/binary-patching">
@@ -159,10 +162,6 @@ Ok::<(), Box<dyn std::error::Error>>(())
 
 <Card title="Network patching" icon="network-wired" color="#a631be" href="/concepts/network-patching">
   Understand TLS, HTTP/2, HTTP/3, and loopback MitM wire alignment.
-</Card>
-
-<Card title="Stealth settings" icon="sliders" color="#199f43" href="/api/stealth-settings">
-  Full reference for `Fingerprint`, `Spoof`, and `StealthPolicy`.
 </Card>
 
 </Columns>

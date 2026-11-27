@@ -169,8 +169,16 @@ way.
   Chrome DevTools and undetected-mode helpers, including the GUI bypass helpers.
 </Card>
 
-<Card color="#5b4db3" title="Stealth settings" icon="fingerprint" href="/api/stealth-settings">
-  Fingerprint, Spoof and StealthPolicy, and the launch settings that apply them.
+<Card color="#5b4db3" title="Stealth settings" icon="sliders" href="/api/stealth-settings">
+  Core StealthOptions, settings, and launch arguments.
+</Card>
+
+<Card color="#199f43" title="Stealth API: identity" icon="id-card" href="/stealth/api/identity">
+  Layer 1: Fingerprint, Spoof, StealthPolicy, Specimen, BayesianSampler, and capture.
+</Card>
+
+<Card color="#1a85d4" title="Stealth API: client" icon="mask" href="/stealth/api/client">
+  Layer 2: StealthLayer levels, 42-surface StealthScriptBundle, 32 JS providers, and StealthPlan.
 </Card>
 
 <Card color="#2f7d4a" title="Testing fixtures" icon="flask" href="/api/testing-fixtures">

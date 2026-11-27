@@ -156,4 +156,4 @@ async fn apply_evasions(
 }
 ```
 
-For core `Fingerprint` v2 settings, `Spoof`, `StealthPolicy`, `mimic` specimens, and the 32 built-in `EvasionProvider` passes, see [`identity` and `client`](/stealth/api/evasion).
+For core `Fingerprint` v2 settings, `Spoof`, `StealthPolicy`, `mimic` specimens, and the full Layer 1 re-export map, see [Stealth API: identity](/stealth/api/identity). For `StealthLayer` levels, `StealthScriptBundle` / `StealthScriptOptions`, `StealthPlan`, and the 32 built-in `EvasionProvider` passes, see [Stealth API: client](/stealth/api/client).

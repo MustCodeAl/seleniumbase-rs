@@ -7,15 +7,14 @@ sidebarTitle: "First fetch"
 
 A short guide to the stealth scraping layer. It lives in
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-(commit `7f55d7c1` is what these pages were checked against), not in this
-crate. Depend on one facade; do not depend on the implementation crates, and
-do not look for `wire`, `scrape` or `impersonate` on `seleniumbase_rs`.
+(commit `62f57baf` is what these pages were checked against), a single layered crate
+that re-exports all of `seleniumbase-rs` alongside `identity`, `client`, `network`, and `session`.
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-stealth" />
 
 <Visibility for="agents">
 
-Summary for AI exports: one Git dependency, `seleniumbase-rs-stealth`. The facade re-exports the core API (`sb_cdp`, `evasion`, `fingerprint`) and, by default, `codec` and `scrape`. Enable `features = ["network"]` for BoringSSL-backed TLS/HTTP2 impersonation. Import `session::CdpSession` and `wire::{HttpSession, MitmProxy, HybridSession}` from `seleniumbase_rs_stealth`; do not add `seleniumbase-rs` or the implementation crates as separate dependencies, and do not use the deep path `session::cdp_session`. UC mode in this crate is a different path: it lowers in-browser automation signals and does not impersonate TLS. `CdpSession` drives a real Chrome and does no TLS spoofing. `HttpSession` and `HybridSession` need `wire` and refuse any browser/OS pair that was not measured. Only Chrome 155 on macOS is measured. The single-page source in the stealth repository is `docs/tutorial.md`.
+Summary for AI exports: one Git dependency, `seleniumbase-rs-stealth`. It re-exports all of `seleniumbase-rs` alongside four layers: `identity` (always on), `client`, `network`, and `session`. By default (`session` feature), `identity`, `client`, `network::spec`, `network::proxy`, and `session::CdpSession` build with zero BoringSSL or cmake. Enable `features = ["network"]` for BoringSSL-backed TLS/HTTP2 impersonation (`network::{WireFormat, MitmProxy}`, `session::{HttpSession, HybridSession}`). Import `session::CdpSession`, `session::HttpSession`, `session::HybridSession`, and `network::MitmProxy` directly from `seleniumbase_rs_stealth`. UC mode in core is Layer 0 and does not impersonate TLS. `CdpSession` drives a real Chrome with no TLS spoofing. `HttpSession` and `HybridSession` need `network` and refuse any browser/OS pair that was not measured. Only Chrome 155 on macOS is measured.
 
 </Visibility>
 
@@ -35,12 +34,12 @@ stealth crates do.
 
 | You need | Use | BoringSSL |
 |---|---|---|
-| In-page stealth in a test (navigator, WebGL, canvas) | [Fingerprint & Stealth Profiles](/stealth/introduction) and [UC mode](/tutorials/uc_mode) in this crate | No |
+| In-page stealth in a test (navigator, WebGL, canvas) | [Stealth overview](/stealth/introduction) (`identity` + `client` layers, `StealthLayer` levels) and [UC mode](/tutorials/uc_mode) | No |
 | A Cloudflare "Just a moment..." page in a UC session | [UC mode: Cloudflare challenges](/tutorials/uc_mode#cloudflare-challenges). UC mode does not answer an interactive proof. | No |
-| A real Chrome fetch, with challenge detection and no TLS spoofing | [`CdpSession`](/scraping/stealthy/browser-scraper) (`scrape`, default) | No |
-| Plain HTTP that sends the measured TLS and HTTP/2 | [`HttpSession`](/scraping/stealthy/http-session) (`wire`) | Yes |
-| HTTP that escalates to Chrome when a challenge appears | [`HybridSession`](/scraping/advanced-stealthy/stealth-session) (`wire`) | Yes |
-| The measured tables, JA3/JA4, or re-measuring Chrome | [Wire formats](/stealth/advanced/wire-formats) (`codec`) | Only the HTTP/2 capture needs `wire` |
+| A real Chrome fetch, with challenge detection and no TLS spoofing | [`CdpSession`](/scraping/stealthy/browser-scraper) (`session`, default) | No |
+| Plain HTTP that sends the measured TLS and HTTP/2 | [`HttpSession`](/scraping/stealthy/http-session) (`network` feature) | Yes |
+| HTTP that escalates to Chrome when a challenge appears | [`HybridSession`](/scraping/advanced-stealthy/stealth-session) (`network` feature) | Yes |
+| The measured tables, JA3/JA4, or re-measuring Chrome | [Wire formats](/stealth/advanced/wire-formats) (`network-spec`) | Only the HTTP/2 capture needs `network` |
 
 <Warning>
 
@@ -72,9 +71,7 @@ you are. [Limits](/scraping/advanced-stealthy/limits) states what is measured an
 
 ## Depending on it
 
-The facade is the only dependency. Its default features are `codec` and
-`scrape`, with no BoringSSL and no cmake. `wire` is the one that builds
-BoringSSL.
+`seleniumbase-rs-stealth` is the only dependency. Its default `session` feature enables `identity`, `client`, `network::spec`, `network::proxy`, and `session::CdpSession` with no BoringSSL and no cmake. `network` (and `http3`) opt into BoringSSL.
 
 ```toml Cargo.toml
 [dependencies]
@@ -83,40 +80,35 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 
 ```toml Cargo.toml
 [dependencies]
-# Same dependency, when you also want the measured handshake.
+# Same dependency, when you also want the measured TLS/HTTP2 handshake.
 seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth", features = ["network"] }
 ```
 
-`wire` keeps `codec` and `scrape` on and needs cmake and a C/C++ toolchain.
-The first build compiles BoringSSL (about 1 GB of target directory). Import
-through `seleniumbase_rs_stealth` only:
+`network` implies `session`, `client`, and `network-spec` and needs cmake and a C/C++ toolchain.
+The first build compiles BoringSSL (about 1 GB of target directory). Import through `seleniumbase_rs_stealth`:
 
 ```rust
 use seleniumbase_rs_stealth::{
-    fingerprint::{Fingerprint, OsType},
+    identity::{Fingerprint, OsType},
     session::CdpSession,
-    // wire is absent unless features = ["network"]
+    // network::{MitmProxy, WireFormat} and session::{HttpSession, HybridSession}
+    // unlock when features = ["network"] is enabled.
 };
 ```
 
-Do not also depend on `seleniumbase-rs`, `seleniumbase-rs-stealth` (`network::spec`),
-`seleniumbase-rs-stealth` (`session`) or `seleniumbase-rs-stealth` (`network` / `session`). A second copy of the core
-makes the browser types disagree, and a second BoringSSL can fail the link.
-The facade does not forward this crate's optional features (`mcp-server`,
-`turso`, and the rest); those stay on a direct dependency of this crate, which
-you only add when you are not going through the facade.
+Do not add a second copy of `seleniumbase-rs` pointing at a different revision or path, or shared browser types will disagree.
+`seleniumbase-rs-stealth` does not forward core's optional features (`mcp-server`, `turso`, and the rest).
 
-<Accordion title="The implementation crates, and what they used to be">
+<Accordion title="The four layers, and what they replaced">
 
-These are workspace members of the stealth repository. A program depends on
-the facade, not on them. The names in the middle column are what this crate
-called the same code before 0.3.0. They were never modules of the facade.
+In v0.10.0, the earlier multi-crate stealth workspace (`evasion`, `codec`, `scrape`, `wire`) was unified into four strictly separated modules inside the single `seleniumbase-rs-stealth` crate:
 
-| Crate | Was, in this crate, before 0.3.0 | What it is |
+| Layer | Previous crates / features | What it is |
 |---|---|---|
-| `seleniumbase-rs-stealth` (`network::spec`) | `seleniumbase_rs::wire` | Pure wire formats: the TLS `ClientHello` parser, JA3, JA4, peetprint, the Akamai HTTP/2 fingerprint, the TLS, HTTP/2 and header specs, and the measured browser table. |
-| `seleniumbase-rs-stealth` (`session`) | the `scrape` feature | The cookie jar, `Identity` and `EscalationPolicy`, challenge detection and mitigation, the proxy pool, per-site state and events, `CdpSession` (a real Chrome over the pure CDP engine, no TLS spoofing) and the capture tools `capture_tls` and `capture_hints`. Pure Rust. |
-| `seleniumbase-rs-stealth` (`network` / `session`) | the `impersonate` feature | Browser-identical TLS and HTTP/2 through wreq and BoringSSL: `WireFormat`, `WireFormatBuilder`, `HttpSession`, `MitmProxy`, `HybridSession`, `EphemeralCa` and the capture tool `capture_h2`. |
+| `identity` (always on) | `seleniumbase-rs-evasion` (data/persona half) | Unified `fingerprint` (`Fingerprint`, `ProfileFingerprint`, `FingerprintGenerator`, `BayesianSampler`, `audit_coherence`), `Spoof`, `StealthPolicy`, `mimic` specimens, `profile_payloads`, and `capture`. Pure Rust. |
+| `client` (`client` feature) | `seleniumbase-rs-evasion` (browser masking half) | `StealthLayer` levels (`minimal`/`balanced`/`default`/`strict`), 42-surface `StealthScriptBundle` / `StealthScriptOptions`, 32 JS `EvasionProvider`s, `StealthPlan`, engine extension traits, and Layer 0 core re-exports. Pure Rust. |
+| `network` (`network-spec` / `network` / `http3`) | `seleniumbase-rs-codec` + `seleniumbase-rs-wire` (transport) | Pure `spec` (TLS `ClientHello`, JA3/JA4/peetprint, Akamai H2, `H3Spec`, `HeaderSpec`, measured tables) and `proxy` (`ProxyPool`, `GeoResolver`); opt-in BoringSSL `WireFormat`, `MitmProxy`, `EphemeralCa`, wire `capture`, and unified `http3` (`Http3Client`, `Http3Pool`, `h3d/`). |
+| `session` (`session`, default) | `seleniumbase-rs-scrape` + `HttpSession`/`HybridSession` | `CdpSession` (zero BoringSSL), plus `HttpSession` and `HybridSession` (with `network`), challenge detection and `MitigationPolicy`, `CookieJar`, `Ledger`, `Identity` passport, and `SessionEvent`. |
 
 </Accordion>
 
@@ -146,8 +138,8 @@ fn demo() -> Result<(), WireMeasurementError> {
 }
 ```
 
-`codec` and `scrape` still compile and run on every system. Only the
-impersonating client refuses. [Wire formats](/stealth/advanced/wire-formats) shows how
+`identity`, `client`, `network::spec`, and `session::CdpSession` still compile and run on every system. Only the
+impersonating client (`features = ["network"]`) refuses unmeasured systems. [Wire formats](/stealth/advanced/wire-formats) shows how
 to read the table and how to re-measure when Chrome moves to a new major. When
 it does, nothing updates the file for you.
 
@@ -252,9 +244,9 @@ cargo run --example cookie_jar
 cargo run --example cdp_session
 ```
 
-`cookie_jar` needs nothing. `browser_scraper` needs a local Chrome. The three
+`cookie_jar` needs nothing. `cdp_session` needs a local Chrome. The three
 that use the measured emulation (`custom_profile`, `http_session`,
-`stealth_session`) need the `wire` crate, so the first build compiles
+`hybrid_session`) need `--features network`, so the first build compiles
 BoringSSL, and they stop at once with `NotMeasured` on any system but macOS.
 The full list, including the capture tools, is on
 [Runnable examples](/scraping/advanced-stealthy/examples).
@@ -281,9 +273,9 @@ follow, and the `SOURCES` list the new file has to join, are on
 <Check>
 
 What was checked, and what was not. The types, re-exports and example names on
-this page were read from `seleniumbase-rs-stealth` at `7f55d7c1` (`src/lib.rs`,
-`src/session/mod.rs`, `src/network/mod.rs`, `docs/tutorial.md`,
-`docs/examples.md`). No example was run for this rewrite, and nothing was
+this page were read from `seleniumbase-rs-stealth` at `62f57baf` (`src/lib.rs`,
+`src/identity/mod.rs`, `src/client/mod.rs`, `src/network/mod.rs`, `src/session/mod.rs`).
+No example was run for this rewrite, and nothing was
 checked against a live service. The note on
 [Runnable examples](/scraping/advanced-stealthy/examples) records the earlier macOS runs.
 

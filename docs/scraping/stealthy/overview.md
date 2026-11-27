@@ -15,50 +15,48 @@ and [MitmProxy](/stealth/advanced/mitm-proxy). Plain scraping comes first in
 
 <Note>
 
-Use the facade crate `seleniumbase-rs-stealth`, and only that. It re-exports
-this crate (including `sb_cdp` and `evasion`) plus `codec` and `scrape` by
-default, and `wire` when you ask for it. `cargo run -p <crate> --example
-<name>` runs an example inside the
-[stealth repository](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
-not in this one.
+Depend on `seleniumbase-rs-stealth`, and only that. It is a single layered library crate re-exporting all of `seleniumbase-rs` alongside four layers: `identity` (always on), `client`, `network::spec`, `network::proxy`, and `session::CdpSession` by default (zero BoringSSL), plus BoringSSL `network` (`WireFormat`, `MitmProxy`, `EphemeralCa`) and `session::{HttpSession, HybridSession}` when you enable `features = ["network"]` (and `features = ["http3"]` for `sbrs-h3d`). `cargo run --example <name>` runs an example inside the [stealth repository](https://github.com/MustCodeAl/seleniumbase-rs-stealth), not in this one.
 
 </Note>
 
 A site can tell a client apart before any page script runs: by the TLS
 `ClientHello`, by the HTTP/2 connection start, and by the order and spelling of
-the request headers. [Fingerprint & Stealth Profiles](/stealth/introduction)
-covers what a page can read from inside the browser. This section covers the
-other side, the wire, and the pieces that keep an identity, its cookies and its
+the request headers. [Stealth overview](/stealth/introduction)
+covers the four-layer architecture, stealth levels, and what a page can read from inside the browser. This section covers the
+other side, the wire, and the pieces that keep an identity, its cookies, and its
 exit address together.
 
-These pages were checked against `seleniumbase-rs-stealth` at `7f55d7c1`.
+These pages were checked against `seleniumbase-rs-stealth` at `62f57baf`.
 Types and paths may change between commits, and nothing there is on crates.io.
 Read [Limits](/scraping/advanced-stealthy/limits) before you rely on any of it. The short on-ramp,
 with a first fetch, is the [tutorial](/scraping/stealthy/first-fetch).
 
 <Visibility for="agents">
 
-Summary for AI exports: depend on the `seleniumbase-rs-stealth` facade by Git, and on nothing else from this layer. It re-exports the core API (`sb_cdp`, `evasion`, `fingerprint`) and exposes `codec` and `scrape` by default, without BoringSSL or cmake. Enable `features = ["network"]` for `wire::{HttpSession, MitmProxy, HybridSession}` and TLS/HTTP2 impersonation. Import `session::CdpSession` from the facade; the deep path `session::cdp_session` is unnecessary. Wire impersonation is experimental and measured only for Chrome 155.0.8059.40 on macOS (captured 2026-10-11). An unmeasured pair is `NotMeasured`, not a guess. The single-page source in the stealth repository is `docs/tutorial.md`.
+Summary for AI exports: depend on the single `seleniumbase-rs-stealth` crate by Git, and on nothing else from this layer. It re-exports all of `seleniumbase-rs` alongside four layers: `identity` (always on), `client`, `network`, and `session`. The default `session` feature enables `identity`, `client`, `network::spec`, `network::proxy`, and `session::CdpSession` with zero BoringSSL or cmake. Enable `features = ["network"]` for `network::{WireFormat, MitmProxy, EphemeralCa}` and `session::{HttpSession, HybridSession}` (and `features = ["http3"]` for `network::http3` + `h3d/`). Import `session::CdpSession` directly from `seleniumbase_rs_stealth::session`. Wire impersonation is experimental and measured only for Chrome 155.0.8059.40 on macOS (captured 2026-10-11). An unmeasured pair is `NotMeasured`, not a guess.
 
 </Visibility>
 
 ## What exists
 
-| Part | Crate | State |
+| Part | Layer / Feature | State |
 |---|---|---|
-| Wire parsers: `ClientHello`, JA3, JA4 and `JA4_r`, peetprint, Akamai HTTP/2 strings | `codec` | <Badge color="green">Available</Badge> |
-| Measured browser table (Chrome 155 on macOS) and the lookup that refuses everything else | `codec` | <Badge color="green">Available</Badge> |
-| Capture tools `capture_tls` and `capture_hints` | `scrape` | <Badge color="green">Available</Badge> |
-| Capture tool `capture_h2` | `wire` | <Badge color="green">Available</Badge> |
-| `WireFormat`, `WireFormatBuilder`, `WireFormat::client_builder` (wreq with BoringSSL) | `wire` | <Badge color="green">Available</Badge> |
-| RFC 6265 cookie jar | `scrape` | <Badge color="green">Available</Badge> |
-| `Identity`, its identity file, `EscalationPolicy` | `scrape` | <Badge color="green">Available</Badge> |
-| Challenge detection, mitigation policy, proxy pool, per-site state, events | `scrape` | <Badge color="green">Available</Badge> |
-| `CdpSession` (a real Chrome, no TLS spoofing) | `scrape` | <Badge color="green">Available</Badge> |
-| Ephemeral-CA TLS server | `wire` | <Badge color="green">Available</Badge> |
-| `HttpSession` | `wire` | <Badge color="green">Available</Badge> |
-| `MitmProxy` | `wire` | <Badge color="green">Available</Badge> |
-| `HybridSession` | `wire` | <Badge color="green">Available</Badge> |
+| Persona modeling, `Fingerprint`, `ProfileFingerprint`, `FingerprintGenerator`, `BayesianSampler`, `Spoof`, `StealthPolicy`, `Specimen` | `identity` (always on) | <Badge color="green">Available</Badge> |
+| Browser masking, `StealthLayer` (`minimal`/`balanced`/`default`/`strict`), 42-surface `StealthScriptBundle`, 32 JS `EvasionProvider`s, `StealthPlan` | `client` (in default) | <Badge color="green">Available</Badge> |
+| Wire parsers: `ClientHello`, JA3, JA4 and `JA4_r`, peetprint, Akamai HTTP/2 strings, `H3Spec` | `network::spec` (`network-spec`, in default) | <Badge color="green">Available</Badge> |
+| Measured browser table (Chrome 155 on macOS) and the lookup that refuses everything else | `network::spec` (`network-spec`, in default) | <Badge color="green">Available</Badge> |
+| Capture tools `capture_tls` and `capture_hints` | `network::capture` (in default) | <Badge color="green">Available</Badge> |
+| Capture tool `capture_h2` | `network::capture::h2` (`network`) | <Badge color="green">Available</Badge> |
+| `WireFormat`, `WireFormatBuilder`, `WireFormat::client_builder` (wreq with BoringSSL) | `network::wire` (`network`) | <Badge color="green">Available</Badge> |
+| `Http3Client`, `Http3Pool`, `Alt-Svc` upgrade via standalone `h3d/` (`sbrs-h3d`) | `network::http3` (`http3`) | <Badge color="green">Available</Badge> |
+| RFC 6265 cookie jar | `session::jar` (`session`, default) | <Badge color="green">Available</Badge> |
+| `Identity`, its identity file, `EscalationPolicy` | `session::passport` (`session`, default) | <Badge color="green">Available</Badge> |
+| Challenge detection, mitigation policy, proxy pool, per-site state, events | `session` / `network::proxy` (default) | <Badge color="green">Available</Badge> |
+| `CdpSession` (a real Chrome, no TLS spoofing) | `session` (default) | <Badge color="green">Available</Badge> |
+| Ephemeral-CA TLS server | `network::tls_server` (`network`) | <Badge color="green">Available</Badge> |
+| `HttpSession` | `session` (`network`) | <Badge color="green">Available</Badge> |
+| `MitmProxy` | `network::mitm` (`network`) | <Badge color="green">Available</Badge> |
+| `HybridSession` | `session` (`network`) | <Badge color="green">Available</Badge> |
 
 <Warning>
 
@@ -90,16 +88,16 @@ of what the layer does; the links are where each piece is spelled out.
 
 ## Features
 
-What the stealth layer does today, in plain words. Each claim was checked
+What the stealth crate does today, in plain words. Each claim was checked
 against the code of [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-at `7f55d7c1`. All of it is experimental, measured only for Chrome 155 on
+at `62f57baf`. All of it is experimental, measured only for Chrome 155 on
 macOS, and tested against local servers and a local Chrome, not against live
 services.
 
 ### Measured fingerprints, checked by a round trip
 
-- The capture tools (`capture_tls` and `capture_hints` in `scrape`,
-  `capture_h2` in `wire`) record the TLS `ClientHello`, the client hints,
+- The capture tools (`network::capture::{tls, hints}` in default `session`,
+  `network::capture::h2` with `network`) record the TLS `ClientHello`, the client hints,
   `User-Agent`, `Accept-Language`, the HTTP/2 connection start and the header
   lists of a local Chrome. They write
   `src/network/spec/measured/chrome-155-macos.json` and keep the raw bytes as
@@ -176,14 +174,14 @@ blocking, proxy authentication, request interception, HAR, a fingerprint). It
 never switches on `Runtime`, `DOM`, `Log`, `Debugger` or `Profiler`, because a
 page can feel that traffic; a test in seleniumbase-rs
 (`tests/sb_cdp_domain_hygiene.rs`) fails if a new call does. Elements are found by running `document.querySelector`
-through `Runtime.evaluate`. The `scrape` crate adds only `Network`.
+through `Runtime.evaluate`. `session::CdpSession` enables only `Network`.
 
 ### Stealth overrides in the page
 
-A set of built-in evasion providers (`seleniumbase_rs_stealth::client::providers`)
-writes one script that runs before any page script
-(`Page.addScriptToEvaluateOnNewDocument`), applied by `Page::apply_fingerprint`
-or `LaunchOptionsBuilder::fingerprint`. Replaced methods go on their prototype
+A set of 32 built-in evasion providers (`seleniumbase_rs_stealth::client::providers`)
+and the 42-surface `StealthScriptBundle` (`client::script`) write one script that runs before any page script
+(`Page.addScriptToEvaluateOnNewDocument`), applied by `PageFingerprintExt::apply_fingerprint`,
+`LaunchOptionsFingerprintExt::with_fingerprint`, or `LaunchOptionsFingerprintExt::with_stealth(&StealthLayer::default())`. Replaced methods go on their prototype
 and replaced getters on the prototype that owns them, so
 `Object.getOwnPropertyNames` is unchanged. `Function.prototype.toString` is
 masked (`NativeToStringProvider`) so patched functions report `[native code]`.
@@ -303,18 +301,15 @@ Pointer drift while idle is not built.
 
 ### Code quality
 
-All three crates declare `#![forbid(unsafe_code)]`, and their error types are
-`thiserror` enums.
+The entire `seleniumbase-rs-stealth` crate declares `#![forbid(unsafe_code)]`, and its error types are `thiserror` enums.
 
 ### TLS stack and licences
 
-`wire` uses wreq `=6.0.0-rc.31` (Apache-2.0) over `btls` and `tokio-btls`
+The `network` feature uses wreq `=6.0.0-rc.31` (Apache-2.0) over `btls` and `tokio-btls`
 `=0.5.6`, which build BoringSSL (`btls-sys`) and need `cmake` and a C/C++
 toolchain. The core crate uses `reqwest` with `rustls` and `ring` for its own
 HTTP (the WebDriver engine, downloads), and the CDP engine talks to Chrome over
-a plain WebSocket; `codec` and `wire` also use `ring` for hashing. The three
-stealth crates are MIT (workspace `Cargo.toml` and `LICENSE`); BoringSSL
-carries its own licences.
+a plain WebSocket; `network::spec` and `network::wire` also use `ring` for hashing. `seleniumbase-rs-stealth` is MIT licensed (`Cargo.toml` and `LICENSE`); BoringSSL carries its own licences.
 
 <Info>
 
@@ -339,21 +334,29 @@ carries its own licences.
 
 </Info>
 
-## Which crate to depend on
+## Which feature tier to depend on
 
-Use one dependency. The facade selects the core and the implementation crates
-together, so the browser types and the fingerprint types are the same types.
+Use one dependency (`seleniumbase-rs-stealth`). It re-exports all of `seleniumbase-rs` and gates each layer cleanly with Cargo features so browser and fingerprint types always match.
 
 <Tabs>
-<Tab title="Scraping, no TLS spoofing" icon="cube">
+<Tab title="Identity + Client only" icon="mask">
+
+```toml Cargo.toml
+[dependencies]
+seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth", default-features = false, features = ["client"] }
+```
+
+Layers 1 and 2 (`identity` and `client`) only: fingerprints, `StealthLayer` levels, 42-surface script bundle, and engine extension traits. Zero BoringSSL or scraping runtime.
+
+</Tab>
+<Tab title="Default (CdpSession, zero BoringSSL)" icon="cube">
 
 ```toml Cargo.toml
 [dependencies]
 seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
-The default `scrape` feature also enables `codec`. No BoringSSL or cmake.
-`sb_cdp`, `evasion` and `fingerprint` come from the re-exported core.
+The default `session` feature enables `identity`, `client`, `network::spec`, `network::proxy`, and `session::CdpSession`. No BoringSSL or cmake.
 
 </Tab>
 <Tab title="TLS and HTTP/2 impersonation" icon="lock">
@@ -363,9 +366,7 @@ The default `scrape` feature also enables `codec`. No BoringSSL or cmake.
 seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth", features = ["network"] }
 ```
 
-`wire` adds `HttpSession`, `MitmProxy` and `HybridSession`, and keeps
-`scrape` and `codec`. It builds BoringSSL and needs cmake and a C/C++
-toolchain. The first build is about 1 GB of target directory.
+`network` adds `network::{WireFormat, MitmProxy, EphemeralCa}` and unlocks `session::{HttpSession, HybridSession}`. It builds BoringSSL and needs cmake and a C/C++ toolchain. Add `features = ["http3"]` (plus `cargo install --path h3d`) for HTTP/3.
 
 </Tab>
 </Tabs>
@@ -382,24 +383,16 @@ async fn demo() -> Result<(), seleniumbase_rs_stealth::session::SessionError> {
 }
 ```
 
-`CdpSession` is re-exported at `scrape`. So are `SessionError`,
-`CookieJar`, `Identity`, `ProxyPool` and the event types. With
-`features = ["network"]` the impersonating types are re-exported at `wire`:
+`CdpSession`, `SessionError`, `CookieJar`, `Identity`, and `SessionEvent` live under `seleniumbase_rs_stealth::session`. Proxy pool types (`ProxyPool`, `CountryCode`) and wire specs live under `seleniumbase_rs_stealth::network`. With `features = ["network"]`, `MitmProxy` and `WireFormat` unlock under `network`, while `HttpSession` and `HybridSession` unlock under `session`:
 
 ```rust
-use seleniumbase_rs_stealth::{
-    fingerprint::{CanvasNoise, Fingerprint, StealthPolicy},
-    wire::{HttpSession, MitmProxy, HybridSession},
-    session::CdpSession,
-};
+use seleniumbase_rs_stealth::identity::policy::CanvasNoise;
+use seleniumbase_rs_stealth::identity::{Fingerprint, StealthPolicy};
+use seleniumbase_rs_stealth::network::{MitmProxy, WireFormat};
+use seleniumbase_rs_stealth::session::{CdpSession, HttpSession, HybridSession};
 ```
 
-Do not also depend on `seleniumbase-rs` or on `seleniumbase-rs-stealth` (`network::spec`),
-`-scrape` or `-wire`. A second copy of the core makes the browser types
-disagree, and a second BoringSSL can fail the link. The facade does not
-forward this crate's optional features (`mcp-server`, `turso`, and the rest).
-The TLS and HTTP/2 spec errors are `TlsSpecError` and `H2SpecError` under
-`seleniumbase_rs_stealth::network::spec`.
+Do not add a second copy of `seleniumbase-rs` pointing at a different revision or path, or shared types (`sb_cdp::Page`, `LaunchOptions`, `BrowserConfig`) will disagree. The crate does not forward core's optional features (`mcp-server`, `turso`, and the rest). The TLS and HTTP/2 spec errors are `TlsSpecError` and `H2SpecError` under `seleniumbase_rs_stealth::network::spec`.
 
 ## The four layers
 
