@@ -396,6 +396,7 @@
             "icon": "user-secret",
             "pages": [
               "stealth/introduction",
+              "stealth/avoid-bot-detection",
               "stealth/fingerprints",
               "stealth/evasions",
               "stealth/policies",

@@ -39,6 +39,7 @@ hidden: true
   - [Playwright Mode](help/playwright_mode.md)
   - [CDP Mode (undetected)](stealth/cdp-mode.md)
 - [Stealth](stealth/introduction.md)
+  - [Avoiding bot detection](stealth/avoid-bot-detection.md)
   - [Fingerprints](stealth/fingerprints.md)
   - [Evasions and launch flags](stealth/evasions.md)
   - [Policies](stealth/policies.md)
