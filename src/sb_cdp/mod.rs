@@ -58,7 +58,7 @@
 //! An app that embeds Chromium (CEF, or WebView2 on Windows) reaches its
 //! webview's DevTools agent through a channel in its own process, with no
 //! debugging port. [`Browser::over_channel`] drives that page through a
-//! [`CdpTransport`] the app implements, and [`StealthPlan`] gives it a
+//! [`CdpTransport`] the app implements, and `seleniumbase-rs-stealth` (`StealthPlan`) gives it a
 //! fingerprint's script and overrides to send.
 //!
 //! # Coming from SeleniumBase

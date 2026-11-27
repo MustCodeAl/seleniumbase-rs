@@ -14,8 +14,7 @@ use thirtyfour::LoggingPrefsLogLevel;
 
 /// The user agent a phone-emulating session reports when the caller names none:
 /// Chrome on Android in its frozen format (release 10, model `K`), claiming
-/// [`PRESET_CHROMIUM_MAJOR`](crate::evasion::randomize::PRESET_CHROMIUM_MAJOR),
-/// which a test holds it to.
+/// the preset Chromium major version.
 pub use crate::browser::options::MOBILE_USER_AGENT;
 
 /// Chrome's port for its remote debugger when none is named.

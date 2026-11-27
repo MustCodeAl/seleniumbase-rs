@@ -76,7 +76,7 @@ impl LaunchOptionsBuilder {
 
     /// Sets Chrome's WebRTC IP-handling policy, the same flag a `Fingerprint`
     /// applies. Chrome's own behaviour is kept unless this is called. A policy
-    /// set here wins over the one a [`fingerprint`](Self::fingerprint) names.
+    /// set here wins over the one a fingerprint applies via `seleniumbase-rs-stealth`.
     ///
     /// The flag limits which addresses are offered but does not stop a page
     /// seeing `.local` host candidates; for that, use
@@ -410,9 +410,7 @@ impl LaunchOptionsBuilder {
     /// A [`user_agent`](Self::user_agent) set by the caller is reported
     /// instead of the phone's. `mobile(false)` turns the phone off whatever
     /// else asks for one, [`device_metrics`](Self::device_metrics) and a
-    /// config's `mobile` included, in whatever order the calls are made. A
-    /// [`fingerprint`](Self::fingerprint) already sets the screen and the user
-    /// agent, so [`build`](Self::build) refuses the two together.
+    /// config's `mobile` included, in whatever order the calls are made.
     ///
     /// # Examples
     ///

@@ -117,10 +117,8 @@ pub struct Settings {
     /// table of a settings file still reads the report keys it held. See
     /// [`ReportSettings::from_settings`] for the results database.
     pub report: ReportSettings,
-    /// The fingerprint file every browser presents (the `[fingerprint]` table, and
-    /// `SB_FINGERPRINT`). Turn it into the fingerprint with
-    /// [`load_fingerprint`](Self::load_fingerprint); [`to_browser_config`](Self::to_browser_config)
-    /// does it for a `BaseCase`.
+    /// The fingerprint file path (the `[fingerprint]` table, and `SB_FINGERPRINT`).
+    /// Validate the configured path with [`check_fingerprint`](Self::check_fingerprint).
     #[serde(default, skip_serializing_if = "FingerprintSettings::is_empty")]
     pub fingerprint: FingerprintSettings,
     /// The browser plugins to turn on by name (the `[plugins]` table, and

@@ -789,7 +789,7 @@ impl HarStreamWriter {
 
 /// An in-progress streaming capture of one tab's network traffic.
 ///
-/// Unlike [`HarRecorder`], which buffers up to [`MAX_ENTRIES`] in memory until
+/// Unlike [`HarRecorder`], which buffers entries in memory (up to `MAX_ENTRIES`) until
 /// completed, [`HarCapture`] continuously streams completed network entries to
 /// one or more [`HarStreamWriter`] sinks using buffered I/O, releasing request memory
 /// as soon as each entry finishes.

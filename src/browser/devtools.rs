@@ -70,7 +70,7 @@ impl CdpClient {
 
     /// Enables the Page and Network domains.
     ///
-    /// The domains in [`DETECTABLE_DOMAINS`](crate::evasion::cdp::DETECTABLE_DOMAINS) are left
+    /// The detectable domains (such as `Runtime` and `Debugger`) are left
     /// off on purpose. The Runtime domain matters most: enabling it makes the browser report
     /// every console call and every new execution context to the client, and bot-detection
     /// scripts probe for exactly that traffic (for example by logging an object whose property

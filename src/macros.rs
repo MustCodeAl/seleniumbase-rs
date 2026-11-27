@@ -1,7 +1,7 @@
 //! Convenience macros for writing SeleniumBase Rust tests.
 //!
 //! These macros reduce boilerplate for common patterns such as constructing a
-//! selector, driving a [`BaseCase`](crate::BaseCase), or building a [`Fingerprint`](crate::Fingerprint). They are
+//! selector, driving a [`BaseCase`](crate::BaseCase), or configuring browser options. They are
 //! intended to be used inside `async` test functions (for example those created
 //! with [`sb_test!`](crate::sb_test)).
 
@@ -262,7 +262,7 @@ macro_rules! sb_assert_visible {
     };
 }
 
-/// Builds a [`Fingerprint`](crate::Fingerprint) preset.
+/// Builds a `Fingerprint` preset (moved to `seleniumbase-rs-stealth` in v0.10.0).
 ///
 /// # Examples
 ///

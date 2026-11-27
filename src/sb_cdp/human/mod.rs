@@ -350,7 +350,7 @@ impl Human {
     /// Clicks the element, then types `text` into it at a human pace.
     ///
     /// A newline presses Enter and a tab presses Tab. With a non-zero
-    /// [`typo_rate`](crate::evasion::behavior::BehaviorBuilder::typo_rate),
+    /// [`typo_rate`](crate::sb_cdp::human::behavior::BehaviorBuilder::typo_rate),
     /// some letters are typed wrong and corrected; the field always ends up
     /// holding exactly `text` (plus what it held before).
     ///

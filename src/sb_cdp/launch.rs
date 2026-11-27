@@ -534,8 +534,7 @@ impl fmt::Debug for Redacted {
 /// order of the calls does not matter; [`build`](Self::build) checks the combination.
 ///
 /// A setting made here wins over the same setting of a [`BrowserConfig`](crate::BrowserConfig) given to
-/// [`browser_config`](Self::browser_config), and that wins over the one of a
-/// [`fingerprint`](Self::fingerprint); a setting nothing sets has its default.
+/// [`browser_config`](Self::browser_config); a setting nothing sets has its default.
 #[derive(Debug, Clone, Default)]
 pub struct LaunchOptionsBuilder {
     given: Box<Layers>,

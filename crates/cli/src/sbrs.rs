@@ -743,7 +743,7 @@ struct Cli {
     ///
     /// The file is a fingerprint JSON file (for example, exported by seleniumbase-rs-stealth).
     /// A Chromium browser then runs in the CDP mode unless --uc or another mode is given.
-    /// The command line wins over SB_FINGERPRINT, which wins over the [fingerprint] table of
+    /// The command line wins over SB_FINGERPRINT, which wins over the `[fingerprint]` table of
     /// the settings file. The user agent, language and proxy named by their own options win
     /// over the fingerprint's.
     #[usage(long, global, value_name = "FILE", value_hint = usage::ValueHint::AnyPath)]
