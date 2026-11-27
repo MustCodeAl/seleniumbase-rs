@@ -91,7 +91,7 @@ let fp = Fingerprint::builder()
     .geolocation((40.7580, -73.9855))
     .native_spoofing(true)
     .build()?;
-Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), seleniumbase_rs_stealth::identity::FingerprintError>(())
 ```
 
 When `native_spoofing` is true:

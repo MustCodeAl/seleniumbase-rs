@@ -13,7 +13,8 @@ claim: a preset policy never changes a setting's state, and the two can be given
 in any order.
 
 ```rust
-use seleniumbase_rs_stealth::evasion::fingerprint::{CanvasNoise, Fingerprint, StealthPolicy};
+use seleniumbase_rs_stealth::identity::policy::CanvasNoise;
+use seleniumbase_rs_stealth::identity::{Fingerprint, FingerprintError, StealthPolicy};
 
 let fp = Fingerprint::builder()
     .canvas_noise(CanvasNoise::Low)        // a shortcut, applied after the base...
@@ -22,7 +23,7 @@ let fp = Fingerprint::builder()
     .change_policy(|p| p.disable_csp(true))   // any change, in order
     .build()?;
 assert!(fp.policy().chrome_runtime && fp.policy().disable_csp);
-Ok::<(), seleniumbase_rs_stealth::evasion::fingerprint::FingerprintError>(())
+Ok::<(), FingerprintError>(())
 ```
 
 | Preset | What it is |

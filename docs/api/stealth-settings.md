@@ -205,15 +205,14 @@ assert_eq!(policy.canvas_noise, CanvasNoise::Low);
 
 | Call | What the browser does |
 |------|------------------------|
-| `LaunchOptionsFingerprintExt::with_fingerprint(&fingerprint)` / `with_stealth(&layer)` | Pure CDP (from `seleniumbase_rs_stealth::evasion::identity`). Layers a `Fingerprint` or `StealthLayer` onto `LaunchOptions` and copies unset launch settings (user agent, language, timezone, geolocation, platform, WebRTC policy) unless you set them explicitly. The script and protocol overrides run on every tab before the first navigation. |
-| `PageFingerprintExt::apply_fingerprint(&fingerprint)` | Pure CDP (from `seleniumbase_rs_stealth::evasion::identity`). Applies a fingerprint's CDP overrides and init script to an open `sb_cdp::Page`. |
-| `BaseCaseFingerprintExt::apply_fingerprint(&fingerprint)` | WebDriver (from `seleniumbase_rs_stealth::evasion::identity`). Applies a fingerprint's overrides and init script to a `BaseCase` session. |
+| `LaunchOptionsFingerprintExt::with_fingerprint(&fingerprint)` / `with_stealth(&layer)` | Pure CDP (from `seleniumbase_rs_stealth::client`, also at crate root). Layers a `Fingerprint` or `StealthLayer` onto `LaunchOptions` and copies unset launch settings (user agent, language, timezone, geolocation, platform, WebRTC policy) unless you set them explicitly. The script and protocol overrides run on every tab before the first navigation. |
+| `PageFingerprintExt::apply_fingerprint(&fingerprint)` | Pure CDP (from `seleniumbase_rs_stealth::client`, also at crate root). Applies a fingerprint's CDP overrides and init script to an open `sb_cdp::Page`. |
+| `BaseCaseFingerprintExt::apply_fingerprint(&fingerprint)` | WebDriver (from `seleniumbase_rs_stealth::client`, also at crate root). Applies a fingerprint's overrides and init script to a `BaseCase` session. |
 | `sbrs --fingerprint FILE` | Global flag (`SB_FINGERPRINT`). `FILE` is a fingerprint JSON file. The command line wins over `SB_FINGERPRINT`, which wins over the `[fingerprint]` table of the settings file. |
 
 ```rust
-use seleniumbase_rs_stealth::evasion::fingerprint::Fingerprint;
-use seleniumbase_rs_stealth::evasion::identity::LaunchOptionsFingerprintExt;
 use seleniumbase_rs_stealth::sb_cdp::LaunchOptions;
+use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt};
 
 let fp = Fingerprint::windows_desktop();
 let _cdp = LaunchOptions::builder().build()?.with_fingerprint(&fp)?;

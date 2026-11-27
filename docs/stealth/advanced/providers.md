@@ -17,7 +17,8 @@ its own `try`/`catch`, after a `// provider: <name>` comment. `EvasionConfig`
 turns either of those off.
 
 ```rust
-use seleniumbase_rs_stealth::{default_registry, EvasionContext, Fingerprint};
+use seleniumbase_rs_stealth::client::{default_registry, EvasionContext};
+use seleniumbase_rs_stealth::Fingerprint;
 
 let fp = Fingerprint::windows_desktop();
 let ctx = EvasionContext::new(&fp);            // seed derived from the fingerprint
@@ -25,9 +26,9 @@ let script = default_registry().bootstrap(&ctx);
 assert!(script.contains("webdriver"));
 ```
 
-`evasions::bootstrap_script(&fp)` is a thin wrapper over
+`client::evasions::bootstrap_script(&fp)` is a thin wrapper over
 `default_registry().bootstrap(&EvasionContext::new(&fp))`, so existing callers
-keep working while new evasions are added centrally. `evasions::session_script(&fp)`
+keep working while new evasions are added centrally. `client::evasions::session_script(&fp)`
 is the same over `session_registry`, the script a browser session runs.
 
 ## Adding your own evasion
@@ -38,7 +39,7 @@ is the same over `session_registry`, the script a browser session runs.
 
 Implement `EvasionProvider` for a unit struct. Return the JavaScript from
 `script`, gate inclusion with `applies`, and order it with `priority`.
-`providers::SB_PREAMBLE` brings in the `sb` helpers that make a replaced
+`client::providers::SB_PREAMBLE` brings in the `sb` helpers that make a replaced
 function look native; the example below skips it for brevity.
 
 </Step>
@@ -46,7 +47,8 @@ function look native; the example below skips it for brevity.
 <Step title="Register it at runtime" icon="plug">
 
 ```rust
-use seleniumbase_rs_stealth::{default_registry, EvasionContext, EvasionProvider, Fingerprint};
+use seleniumbase_rs_stealth::client::{default_registry, EvasionContext, EvasionProvider};
+use seleniumbase_rs_stealth::Fingerprint;
 
 struct HidePrint;
 impl EvasionProvider for HidePrint {
@@ -72,7 +74,7 @@ See [Contributing](/CONTRIBUTING) for adding a built-in provider.
 
 ## Built-in providers
 
-`default_registry()` registers 29 providers, listed here in execution order. "Runs
+`default_registry()` registers 32 providers, listed here in execution order. "Runs
 when" is the provider's `applies` condition. A dimension "is on" when
 `Fingerprint::is_masked` says so: a setting that belongs to it is not `Natural`,
 or, for the dimensions without a setting of their own, the policy switches it on

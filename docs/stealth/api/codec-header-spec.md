@@ -1,5 +1,5 @@
 ---
-title: "codec::header_spec"
+title: "network::spec::header_spec"
 sidebarTitle: "HeaderSpec"
 description: "Header names, order and values per request shape in seleniumbase-rs-stealth (`network::spec`): HeaderSpec, HeaderSource placeholders, ClientHeaders, RequestShape, the HTTP/2 priority table and HeaderSpecError."
 ---

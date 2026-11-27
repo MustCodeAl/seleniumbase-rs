@@ -1,5 +1,5 @@
 ---
-title: "scrape::runtime"
+title: "session::io & network::capture"
 sidebarTitle: "Runtime"
 description: "CDP helpers, the egress switch, the identity file, state stores, the tracing sink and the capture tools."
 ---

@@ -1,5 +1,5 @@
 ---
-title: "codec::h2_frames"
+title: "network::spec::h2_frames"
 sidebarTitle: "HTTP/2 frames"
 description: "HTTP/2 frame reading in seleniumbase-rs-stealth (`network::spec`): read_preface, PrefaceReader, H2Preface, Frame, read_frame, encode_frame, H2CaptureError, the HPACK decoder and the Huffman decoder."
 ---

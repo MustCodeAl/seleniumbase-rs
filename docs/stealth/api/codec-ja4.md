@@ -1,5 +1,5 @@
 ---
-title: "codec::ja4"
+title: "network::spec::ja4"
 sidebarTitle: "JA4"
 description: "JA4 in seleniumbase-rs-stealth (`network::spec`), after FoxIO's TLS-client definition: Ja4, Ja4Raw (JA4_r and JA4_ro), Ja4Facts, Ja4Order, Ja4Diff, Ja4AField, Ja4Section, Ja4Error and the a-section helpers."
 ---

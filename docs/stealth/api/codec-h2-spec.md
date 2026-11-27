@@ -1,5 +1,5 @@
 ---
-title: "codec::h2_spec"
+title: "network::spec::h2_spec"
 sidebarTitle: "H2Spec"
 description: "The HTTP/2 profile in seleniumbase-rs-stealth (`network::spec`): H2Spec , its constructors from a capture, a preface or an Akamai string, the check against what the wreq HTTP/2 stack can send, setting_id and H2SpecError."
 ---

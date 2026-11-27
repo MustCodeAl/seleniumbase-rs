@@ -1,5 +1,5 @@
 ---
-title: "scrape::ledger"
+title: "session::ledger"
 sidebarTitle: "Ledger"
 description: "Per-site state, event sinks and the events a scraper reports."
 ---

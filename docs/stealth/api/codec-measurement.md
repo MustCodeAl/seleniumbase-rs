@@ -1,5 +1,5 @@
 ---
-title: "codec::measurement"
+title: "network::spec::measurement"
 sidebarTitle: "WireMeasurement"
 description: "The measured browser tables of seleniumbase-rs-stealth (`network::spec`): WireMeasurement, Provenance, WireMeasurementError and the lookups get, version, for_kind, all, try_all, newest and measured_systems."
 ---

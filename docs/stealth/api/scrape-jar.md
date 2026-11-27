@@ -1,5 +1,5 @@
 ---
-title: "scrape::jar"
+title: "session::jar"
 sidebarTitle: "Cookie jar"
 description: "The RFC 6265 cookie jar and the Set-Cookie parser."
 ---

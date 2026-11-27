@@ -1,5 +1,5 @@
 ---
-title: "codec::ja3"
+title: "network::spec::ja3"
 sidebarTitle: "JA3 and peetprint"
 description: "JA3 and the peetprint in seleniumbase-rs-stealth (`network::spec`): Ja3, Ja3Field, Ja3Error, Peetprint, PeetprintSlot, PeetprintField, PeetprintError, and the hex and MD5 helpers."
 ---

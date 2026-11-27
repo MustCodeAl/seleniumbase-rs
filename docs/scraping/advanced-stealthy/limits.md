@@ -208,16 +208,15 @@ State these plainly to yourself before you build on any of this.
 
 ---
 
-Verified against commit `4184e74` and the re-exports added after it, by reading
-`crates/codec/src/**`, `crates/scrape/src/**`, `crates/wire/src/**`, `crates/scrape/examples/capture_*.rs`, `crates/wire/examples/capture_h2.rs`,
+Verified against commit `7f55d7c1`, by reading
+`src/network/spec/**`, `src/session/**`, `src/network/**`, `examples/capture_*.rs`,
 `src/network/spec/measured/chrome-155-macos.json` and the tests that pin the behaviour
-described here. The code samples were checked against the signatures in those
-files; they were not compiled or run for this check. The real-Chrome tests named
+described here. The real-Chrome tests named
 here are `#[ignore]`d and were not run for this check.
 
-A later read of `seleniumbase-rs-stealth` at `7f55d7c1` (`src/lib.rs`,
-`src/session/mod.rs`, `src/network/mod.rs`, `crates/scrape/src/error.rs`)
-confirmed the same refusals and added `SessionError::Fingerprint`, which a locale
+Reading `seleniumbase-rs-stealth` at `7f55d7c1` (`src/lib.rs`,
+`src/session/mod.rs`, `src/network/mod.rs`, `src/session/error.rs`)
+confirmed the same refusals including `SessionError::Fingerprint`, which a locale
 move or a rotation returns when the core refuses to build the next fingerprint.
 The handshake gaps, the measured browser and the "not checked against a live
 service" limit were unchanged.

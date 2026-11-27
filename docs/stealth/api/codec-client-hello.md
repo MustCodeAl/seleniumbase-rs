@@ -1,5 +1,5 @@
 ---
-title: "codec::client_hello"
+title: "network::spec::client_hello"
 sidebarTitle: "ClientHello"
 description: "The TLS ClientHello parser of seleniumbase-rs-stealth (`network::spec`): ClientHello, Extension, ClientHelloError, needed_len, the ext_id constants and the GREASE helpers."
 ---

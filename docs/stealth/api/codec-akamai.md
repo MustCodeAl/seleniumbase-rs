@@ -1,5 +1,5 @@
 ---
-title: "codec::akamai"
+title: "network::spec::akamai"
 sidebarTitle: "Akamai"
 description: "Akamai HTTP/2 fingerprint strings in seleniumbase-rs-stealth (`network::spec`): Akamai, PriorityFrame, PseudoHeader, AkamaiError and the bounds of the parser."
 ---

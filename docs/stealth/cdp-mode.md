@@ -20,7 +20,7 @@ is its full guide.
 
 <Visibility for="agents">
 
-Summary for AI exports: CDP Mode is the pure CDP engine (`seleniumbase_rs::sb_cdp`) used as the undetected path, as in Python SeleniumBase's CDP Mode. Launch with `Browser::launch(LaunchOptions::builder()...build()?)`; give a coherent `Fingerprint` with `.fingerprint(&fp)`, a proxy with `.proxy("user:pass@host:port")` and `.shield_webrtc(true)`; drive pages with `page.locator(sel)`, whose input is trusted; `page.solve_captcha()` tries a CAPTCHA widget. There is no chromedriver, so no `cdc_` markers and no `navigator.webdriver`. It is not `DriverMode::Cdp`, which is a WebDriver session with DevTools beside it.
+Summary for AI exports: CDP Mode is the pure CDP engine (`seleniumbase_rs::sb_cdp`) used as the undetected path, as in Python SeleniumBase's CDP Mode. Launch with `Browser::launch(LaunchOptions::builder()...build()?)`; layer a coherent `Fingerprint` or `StealthLayer` from `seleniumbase-rs-stealth` with `.with_fingerprint(&fp)?` or `.with_stealth(&layer)?` (`LaunchOptionsFingerprintExt`), a proxy with `.proxy("user:pass@host:port")` and `.shield_webrtc(true)`; drive pages with `page.locator(sel)`, whose input is trusted; `page.solve_captcha()` tries a CAPTCHA widget. There is no chromedriver, so no `cdc_` markers and no `navigator.webdriver`. It is not `DriverMode::Cdp`, which is a WebDriver session with DevTools beside it.
 
 </Visibility>
 
@@ -42,18 +42,16 @@ API.
 ## Start an undetected browser
 
 ```rust,no_run
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt, OsType};
 
-async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+async fn demo() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
     let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
-    let browser = Browser::launch(
-        LaunchOptions::builder()
-            .fingerprint(&fingerprint)
-            .shield_webrtc(true)
-            .build()?,
-    )
-    .await?;
+    let options = LaunchOptions::builder()
+        .shield_webrtc(true)
+        .build()?
+        .with_fingerprint(&fingerprint)?;
+    let browser = Browser::launch(options).await?;
     let page = browser.default_page().await?;
     page.goto("https://example.com").await?;
     page.locator("h1").expect().to_contain_text("Example").await?;
@@ -65,8 +63,8 @@ async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 - No chromedriver is started, so the page has no `cdc_` properties and
   `navigator.webdriver` is not announced.
 - The fingerprint is applied to every tab as it opens, before its first
-  navigation ([Fingerprints](/stealth/fingerprints)). A launch setting made on
-  the builder wins over the fingerprint's, before or after `.fingerprint(..)`.
+  navigation ([Fingerprints](/stealth/fingerprints)). Explicit launch settings on
+  `LaunchOptions` win over the fingerprint's defaults when `.with_fingerprint(&fp)` runs.
 - The WebRTC shield makes every `RTCPeerConnection` relay-only, so a page
   cannot gather the machine's addresses ([Proxies and network](/stealth/proxies#webrtc)).
 - `click`, `fill` and `type_text` arrive as trusted events, as a person's input

@@ -16,16 +16,16 @@ presents. The bridge is the separate crate `seleniumbase-rs-playwright`; the
 library has no `playwright` feature.
 
 ```rust,no_run
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::{tokio, BrowserApi, Fingerprint};
 use seleniumbase_rs_playwright::PlaywrightSidecar;
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs_stealth::{tokio, BrowserApi, Fingerprint, LaunchOptionsFingerprintExt};
 
 #[tokio::main]
-async fn main() -> seleniumbase_rs::Result<()> {
+async fn main() -> seleniumbase_rs_stealth::Result<()> {
     let options = LaunchOptions::builder()
         .headless(true)
-        .fingerprint(&Fingerprint::windows_desktop())
-        .build()?;
+        .build()?
+        .with_fingerprint(&Fingerprint::windows_desktop())?;
     let browser = Browser::launch(options).await?;
 
     // Our page opens the site ...

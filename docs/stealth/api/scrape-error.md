@@ -1,5 +1,5 @@
 ---
-title: "scrape::error"
+title: "session::error"
 sidebarTitle: "Errors"
 description: "SessionError, the one error enum seleniumbase-rs-stealth (`session`) returns."
 ---

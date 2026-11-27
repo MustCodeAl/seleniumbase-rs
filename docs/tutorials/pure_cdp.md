@@ -63,7 +63,7 @@ credentials never shows its password in `Debug`, `Display` or the command line.
 For an already-running CEF/WebView2 app, use
 `LaunchOptions::builder().cdp_url(endpoint).build()?` with `Browser::launch`.
 It reuses the existing connection path and prepares existing windows without
-starting a process. `.fingerprint(&fingerprint)` applies the same evasion and
+starting a process. Layering a fingerprint with `LaunchOptionsFingerprintExt::with_fingerprint(&fingerprint)` (from `seleniumbase-rs-stealth`) applies the same evasion and
 native CDP override pipeline; attach-compatible plugins use the existing
 `.plugins(set)` builder (feature `plugins`). Closing leaves the app running.
 HTTP debugger URLs, browser WebSockets and authenticated Tauri discovery are
@@ -711,13 +711,13 @@ options and every tab, as it opens and before its first navigation, is made to
 match:
 
 ```rust,no_run
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt, OsType};
 
-async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+async fn demo() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
     let fingerprint = Fingerprint::randomized(OsType::Windows, 42);
     let browser = Browser::launch(
-        LaunchOptions::builder().fingerprint(&fingerprint).build()?,
+        LaunchOptions::builder().build()?.with_fingerprint(&fingerprint)?,
     )
     .await?;
     let page = browser.default_page().await?;
@@ -727,14 +727,13 @@ async fn demo() -> Result<(), seleniumbase_rs::SeleniumBaseError> {
 }
 ```
 
-`page.apply_fingerprint(&fingerprint)` does the same for one tab, for the pages
+`page.apply_fingerprint(&fingerprint)` (`PageFingerprintExt`) does the same for one tab, for the pages
 it loads from then on (the page that is open keeps its old identity until it
 navigates). It works on a tab inside an isolated `BrowserContext` too.
 
-- A launch setting made on the builder wins over the fingerprint's (user agent,
-  language, window size, WebRTC flag, proxy), before or after `.fingerprint(..)`;
-  so does one read from a config with `.browser_config(..)`. The order of the
-  calls never matters.
+- A launch setting set explicitly on `LaunchOptions` wins over the fingerprint's (user agent,
+  language, window size, WebRTC flag, proxy) when `.with_fingerprint(&fingerprint)` runs;
+  so does one read from a config with `.browser_config(..)`.
 - A fingerprint adds only what it holds and has switched on (see
   [One setting, four states](/stealth/fingerprints#one-setting-four-states)): a
   fingerprint with no WebRTC policy and no WebRTC masking passes no WebRTC flag,

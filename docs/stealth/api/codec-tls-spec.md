@@ -1,5 +1,5 @@
 ---
-title: "codec::tls_spec"
+title: "network::spec::tls_spec"
 sidebarTitle: "TlsSpec"
 description: "The TLS profile in seleniumbase-rs-stealth (`network::spec`): TlsSpec, Alps, KnownGap and TlsSpecError, the reproducibility check against what BoringSSL can emit, and the custom JA3, JA4 and peetprint overlays."
 ---

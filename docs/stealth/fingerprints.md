@@ -206,12 +206,12 @@ Things to know:
   Chrome.
 - **Not drawn by `randomized`:** fonts, media devices and WebRTC addresses. Ask
   for them with `Spoof::Random` on a builder; the proxy has no random value.
-- **Applying it.** For the Pure CDP engine, hand it to the launch options with
-  `LaunchOptions::builder().fingerprint(&fp)` (see
+- **Applying it.** For the Pure CDP engine, layer it onto launch options with
+  `LaunchOptions::builder().build()?.with_fingerprint(&fp)?` (`LaunchOptionsFingerprintExt`, see
   [Pure CDP](/tutorials/pure_cdp#looking-like-another-browser)); `page.apply_fingerprint(&fp)`
-  does the same for one tab. For `BaseCase`, pass it to
-  `BrowserConfigBuilder::fingerprint` and use `DriverMode::Uc` or `DriverMode::Cdp`.
-  You can also feed it to the evasion registry yourself.
+  (`PageFingerprintExt`) does the same for one tab. For `BaseCase`, call
+  `.with_fingerprint(&fp)?` (`BrowserConfigFingerprintExt`) on `BrowserConfig` and use `DriverMode::Uc` or `DriverMode::Cdp`.
+  You can also feed it to `client::providers::EvasionRegistry` yourself.
 
 ## Building a custom fingerprint
 

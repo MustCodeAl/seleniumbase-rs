@@ -14,10 +14,8 @@ this repository. Clone the stealth one and run them from its workspace root.
 
 <Info>
 
-That site, the "shop" of `http_session` and `stealth_session`, is a stand-in
-written for the examples. On this site it used to be named
-`examples/stealth_support/shop.rs`; in the stealth repository it is the wire
-crate's example support code (`crates/wire/examples/stealth_support/shop.rs`).
+That site, the "shop" of `http_session` and `hybrid_session`, is a stand-in
+written for the examples (`examples/stealth_support/shop.rs` in the stealth repository).
 It is not any vendor's challenge, and getting past it says nothing about a
 real service.
 
@@ -25,19 +23,19 @@ real service.
 
 <Visibility for="agents">
 
-Summary for AI exports: `cookie_jar` and `browser_scraper` belong to the `scrape` crate (`cookie_jar` needs nothing, `browser_scraper` needs a Chrome); `custom_profile`, `http_session` and `stealth_session` belong to the `wire` crate and need `cmake` and Chrome 155 on macOS (`stealth_session` also needs that Chrome installed). Run one with `cargo run -p <package> --example <name>` from the workspace root. None reaches the outside network, and on any system but macOS the three measured ones stop with `NotMeasured`.
+Summary for AI exports: `cookie_jar` and `cdp_session` use the default `session` feature (`cookie_jar` needs nothing, `cdp_session` needs a Chrome); `custom_profile`, `http_session` and `hybrid_session` require `--features network` and need `cmake` and Chrome 155 on macOS (`hybrid_session` also needs that Chrome installed). Run one with `cargo run --example <name>` (or `cargo run --features network --example <name>`) from the stealth repository root. None reaches the outside network, and on any system but macOS the three measured ones stop with `NotMeasured`.
 
 </Visibility>
 
-| Example | Crate | Needs | What it shows |
+| Example | Feature | Needs | What it shows |
 |---|---|---|---|
-| `cookie_jar` | `scrape` | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/scraping/advanced-stealthy/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
-| `browser_scraper` | `scrape` | A Chrome | A [`CdpSession`](/scraping/stealthy/browser-scraper) detecting and solving the same kind of challenge in a headless Chrome. |
-| `capture_tls`, `capture_hints` | `scrape` | A headed Chrome | Re-measure the local Chrome into `src/network/spec/measured`. They write the repository. |
-| `custom_profile` | `wire` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `WireFormatBuilder`, and four inputs the stack [refuses](/stealth/advanced/wire-formats#what-is-refused). |
-| `http_session` | `wire` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/scraping/stealthy/http-session) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/advanced/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
-| `stealth_session` | `wire` | `cmake`; Chrome 155 on macOS, installed | A [`HybridSession`](/scraping/advanced-stealthy/stealth-session) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
-| `capture_h2` | `wire` | `cmake`; a headed Chrome | The HTTP/2 capture. Run `capture_tls` and `capture_hints` first. |
+| `cookie_jar` | `session` (default) | Nothing | Made-up `Set-Cookie` headers into the [cookie jar](/scraping/advanced-stealthy/identity#the-cookie-jar): which are stored, which are refused and why, and the `Cookie` header for five requests. |
+| `cdp_session` | `session` (default) | A Chrome | A [`CdpSession`](/scraping/stealthy/browser-scraper) detecting and solving the same kind of challenge in a headless Chrome. |
+| `capture_tls`, `capture_hints` | `session` (default) | A headed Chrome | Re-measure the local Chrome into `src/network/spec/measured`. They write the repository. |
+| `custom_profile` | `network` | `cmake`; Chrome 155 on macOS | The measured profile, with an Akamai string and a JA3 laid over it with `WireFormatBuilder`, and four inputs the stack [refuses](/stealth/advanced/wire-formats#what-is-refused). |
+| `http_session` | `network` | `cmake`; Chrome 155 on macOS | An [`HttpSession`](/scraping/stealthy/http-session) fetching from a loopback TLS shop, its jar carrying the cookie the shop sets, and the <Tooltip tip="A fingerprint of the TLS ClientHello, as FoxIO defines it." cta="Wire formats" href="/stealth/advanced/wire-formats#reading-the-wire-formats">JA4</Tooltip> the shop saw next to the measured one. |
+| `hybrid_session` | `network` | `cmake`; Chrome 155 on macOS, installed | A [`HybridSession`](/scraping/advanced-stealthy/stealth-session) that meets a challenge over HTTP, goes to a headless Chrome behind the proxy, comes back, and prints its changes of mode. |
+| `capture_h2` | `network` | `cmake`; a headed Chrome | The HTTP/2 capture. Run `capture_tls` and `capture_hints` first. |
 
 ```text
 cargo run -p seleniumbase-rs-stealth (`session`)      --example cookie_jar

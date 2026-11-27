@@ -42,29 +42,30 @@ CDP engine ([CDP Mode](/stealth/cdp-mode)) or the Playwright session
 
 ## Quick start
 
-Use the unified facade for in-page stealth and scraping:
+Depend on `seleniumbase-rs-stealth` for layered in-page stealth and scraping:
 
 ```toml Cargo.toml
 [dependencies]
 seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs-stealth" }
 ```
 
-Its default features include `codec` and `scrape`, without BoringSSL or cmake.
-It re-exports the core browser API, `sb_cdp`, `evasion` and `fingerprint`, so the
-examples need no separate core dependency. Examples using `#[tokio::main]`
-also need Tokio's runtime and macros in the application. Add the facade's
-`wire` feature only for [TLS/HTTP2 impersonation](/scraping/stealthy/overview#which-crate-to-depend-on).
+Its default `session` feature enables `identity`, `client`, `network::spec`, `network::proxy`, and `session::CdpSession`, with zero BoringSSL or cmake.
+Use `default-features = false, features = ["client"]` when you only want `identity` and `client` browser masking.
+Add `features = ["network"]` for [TLS/HTTP2 impersonation](/scraping/stealthy/overview#which-crate-to-depend-on) (and `features = ["http3"]` for `sbrs-h3d`).
+`seleniumbase-rs-stealth` re-exports all of `seleniumbase-rs`, so no separate core dependency is required.
 
 ```rust
-use seleniumbase_rs_stealth::{BaseCase, BrowserConfig, DriverMode, Fingerprint};
+use seleniumbase_rs_stealth::{
+    BaseCase, BrowserConfig, BrowserConfigFingerprintExt, DriverMode, Fingerprint,
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let fp = Fingerprint::windows_desktop();
     let config = BrowserConfig::builder()
         .mode(DriverMode::Uc)
-        .fingerprint(fp)
-        .build()?;
+        .build()?
+        .with_fingerprint(&fp)?;
 
     let mut sb = BaseCase::new(config).await?;
     sb.open("https://example.com").await?;
@@ -79,14 +80,14 @@ A fingerprint reaches the page only through a launch path that applies it:
   evasion script and sends the protocol overrides described under
   [Native-level (CDP) spoofing](/stealth/evasions#native-level-cdp-spoofing), and the launch
   arguments apply. The script is the one the Pure CDP engine runs,
-  `evasions::session_script` (the 27 providers of `session_registry`); see
+  `client::evasions::session_script` (`session_registry`); see
   [Built-in providers](/stealth/advanced/providers#built-in-providers).
 - With the default `DriverMode::WebDriver`, only the launch arguments apply (user
   agent, `--lang`, `--window-size`, the WebRTC policy, and the QUIC and proxy
   flags). No script is injected and no protocol override is sent.
 - The Pure CDP engine and the Playwright session have their own paths, described
   below. The Pure CDP engine runs the same `session_script`. The Playwright
-  session runs `bootstrap_script`, the 29 providers of `default_registry`.
+  session runs `bootstrap_script`, the 32 providers of `default_registry`.
 
 ## Limitations
 

@@ -1,5 +1,5 @@
 ---
-title: "scrape::challenge"
+title: "session::challenge"
 sidebarTitle: "Challenges"
 description: "Challenge detection, interstitial markers and the mitigation policy."
 ---

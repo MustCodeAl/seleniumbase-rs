@@ -1,12 +1,12 @@
 ---
-title: "codec::h3_spec"
+title: "network::spec::h3_spec"
 sidebarTitle: "H3Spec"
 description: "HTTP/3 and QUIC specification parameters: transport parameters, SETTINGS frame entries, and pseudo-header ordering."
 ---
 
 <Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: network::spec</Badge>
 
-`seleniumbase_rs_stealth::network::spec::h3_spec` (implemented in `crates/codec/src/h3_spec.rs`) models the wire-level parameters of modern Chromium HTTP/3 implementations: QUIC transport parameters in wire order, HTTP/3 SETTINGS frame entries, and pseudo-header sequence.
+`seleniumbase_rs_stealth::network::spec::h3_spec` (`src/network/spec/h3_spec.rs`) models the wire-level parameters of modern Chromium HTTP/3 implementations: QUIC transport parameters in wire order, HTTP/3 SETTINGS frame entries, and pseudo-header sequence.
 
 ## Specification Model
 

@@ -1,5 +1,5 @@
 ---
-title: "scrape::passport"
+title: "session::passport"
 sidebarTitle: "Identity"
 description: "Identity, the escalation policy and the wire measurement reference."
 ---

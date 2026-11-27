@@ -136,7 +136,7 @@ They share these options: `--out DIR` (default `src/network/spec/measured`),
 
 <Step title="Register the new file" icon="file-code">
 
-Add the new file to the `SOURCES` list in `crates/codec/src/measurement.rs`. The test
+Add the new file to the `SOURCES` list in `src/network/spec/measurement.rs`. The test
 `tests/wire_measurement.rs` fails when a file in `src/network/spec/measured` is missing
 from that list.
 
@@ -144,7 +144,7 @@ from that list.
 
 <Step title="Run the wire tests" icon="flask">
 
-Run the wire tests, including `crates/wire/tests/impersonate_wire.rs`. They compare what
+Run the wire tests, including `tests/impersonate_wire.rs`. They compare what
 our client sends with the measured file and fail, by name, when a known gap
 closes or a new difference appears.
 
@@ -301,9 +301,9 @@ client exists.
 
 BoringSSL and wreq cannot emit everything a browser can. Anything they cannot
 reproduce is refused with a named error before a client exists, and
-`crates/wire/tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
+`tests/impersonate_wire.rs` proves on the wire that an accepted input arrives as
 given. The errors are variants of `WireFormatError`: `Tls(..)` wraps
-`codec::tls_spec::TlsSpecError`, `Http2(..)` wraps `codec::h2_spec::H2SpecError`,
+`network::spec::tls_spec::TlsSpecError`, `Http2(..)` wraps `network::spec::h2_spec::H2SpecError`,
 `Convert(..)` wraps the rules that belong to the client stack itself. A string that
 is not well formed at all is `Ja3(..)`, `Ja4(..)`, `Peetprint(..)` or `Akamai(..)`.
 

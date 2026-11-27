@@ -1,5 +1,5 @@
 ---
-title: "codec::ids"
+title: "network::spec::ids"
 sidebarTitle: "Registries"
 description: "IANA names of the TLS and HTTP/2 ids in seleniumbase-rs-stealth (`network::spec`) (Registry and its tables), and the lists of what BoringSSL can emit and what the spec refuses."
 ---

@@ -51,8 +51,8 @@ let page = context.new_page_at("https://example.com").await?;
 <Tab title="A fingerprint" icon="fingerprint">
 
 A fingerprint can name a proxy too. It becomes the `--proxy-server` launch
-flag ([Evasions and launch flags](/stealth/evasions#launch-flags)); a launch
-setting made before `.fingerprint(..)` wins over it.
+flag ([Evasions and launch flags](/stealth/evasions#launch-flags)); an explicit proxy
+set on `LaunchOptions` or `BrowserConfig` wins over `.with_fingerprint(&fp)`.
 
 </Tab>
 
