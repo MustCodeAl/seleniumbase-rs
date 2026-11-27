@@ -20,7 +20,7 @@ Community plugins can be distributed as independent crates (discovered on GitHub
 | [`langchain`](/plugins/community/langchain) | `MustCodeAl/seleniumbase-rs-plugins` | `SeleniumBaseLoader` (Markdown + head metadata for RAG) and `SeleniumBaseTool` (agent action schema & runner) |
 | [`ocr`](/plugins/community/ocr) | `MustCodeAl/seleniumbase-rs-plugins` | Pinned OCR model cache resolution (`OCR_MODELS`, `SB_OCR_MODELS`), PNG validation, and OCR `Task` orchestration |
 | [`owasp`](/plugins/community/owasp) | `MustCodeAl/seleniumbase-rs-plugins` | Passive OWASP Top 10:2021 auditor (headers, CSP, CORS, cookies, JWTs, DOM/storage, forms, client-side SCA, SARIF 2.1.0, async PTK bridge) |
-| [`tauri-plugin-sbrs-automation`](/ecosystem/tauri) | `MustCodeAl/tauri-plugin-sbrs-automation` | Desktop app Tauri 3 integration for WebDriver testing, CDP discovery, and `stealth` webview fingerprinting via `seleniumbase-rs-evasion` |
+| [`tauri-plugin-sbrs-automation`](/ecosystem/tauri) | `MustCodeAl/tauri-plugin-sbrs-automation` | Desktop app Tauri 3 integration for WebDriver testing, CDP discovery, and `stealth` webview fingerprinting via `seleniumbase-rs-stealth` |
 
 ## Scaffold a new community plugin
 

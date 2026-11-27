@@ -456,11 +456,11 @@ async fn every_server_speaks_mcp_over_stdio_without_a_browser() {
         match server {
             "driver" => assert_eq!(
                 listed.len(),
-                42,
-                "the Driver() toolset, the debugging, page and fingerprint tools: {listed:?}"
+                39,
+                "the Driver() toolset, the debugging and page tools: {listed:?}"
             ),
             "sb" => assert!(
-                listed.len() > 88,
+                listed.len() > 80,
                 "the SB() toolset and ours: {}",
                 listed.len()
             ),
@@ -535,14 +535,6 @@ async fn every_server_speaks_mcp_over_stdio_without_a_browser() {
         let environment = mcp.json("diagnose_environment", json!({})).await;
         assert!(environment.is_object(), "{environment}");
         assert_eq!(environment["browser_session"], "none", "{environment}");
-        if server == "sb" {
-            let presets = mcp.json("list_fingerprint_presets", json!({})).await;
-            assert!(presets.to_string().contains("macos"), "{presets}");
-            let built = mcp
-                .json("build_fingerprint", json!({ "preset": "macos" }))
-                .await;
-            assert!(built.is_object(), "{built}");
-        }
 
         assert_eq!(mcp.hang_up().await, Some(0), "{server}: {}", mcp.stderr());
         let log = mcp.stderr();
@@ -582,7 +574,6 @@ async fn the_dev_server_speaks_mcp_over_stdio_and_needs_no_browser() {
             "install_driver",
             "explain_error",
             "check_config",
-            "check_fingerprint",
             "diagnose_environment",
         ]
     );

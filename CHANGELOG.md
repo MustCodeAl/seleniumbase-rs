@@ -10,13 +10,13 @@ work, `docs/parity.md` the per-API status).
 
 ### Changed
 
-- **BREAKING: Core Split (`seleniumbase-rs-evasion`)**: Moved fingerprint spoofing, profile payloads, mimic specimens, capture/comparison, and JS evasion providers out of `seleniumbase-rs` core into `seleniumbase-rs-evasion` (in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth), re-exported as `seleniumbase_rs_stealth::evasion`). Core retains `seleniumbase_rs::undetected` (`patcher`, `dprocess`, `reactor`, `uc`) and `seleniumbase_rs::sb_cdp::human` (`behavior`, `humanize`).
+- **BREAKING: Core Split (`seleniumbase-rs-stealth`)**: Moved fingerprint spoofing, profile payloads, mimic specimens, capture/comparison, and JS evasion providers out of `seleniumbase-rs` core into the unified 4-layer [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) companion crate (`identity`, `client`, `network`, `session`, plus standalone `h3d/` for HTTP/3). Core retains `seleniumbase_rs::undetected` (`patcher`, `dprocess`, `reactor`, `uc`) and `seleniumbase_rs::sb_cdp::human` (`behavior`, `humanize`).
 - **BREAKING: Moved Optional Pipelines to Plugins**: Moved `crawler`, `extract`, `ocr`, and `cloud` modules out of core into [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins) (`seleniumbase-rs-plugin-crawler`, `seleniumbase-rs-plugin-extractor`, `seleniumbase-rs-plugin-ocr`, `seleniumbase-rs-plugin-cloud-logging`).
-- **BREAKING: CLI Fingerprint Subcommand Removed**: Removed the `sbrs fingerprint` subcommand and MCP `check_fingerprint` tool from core (`--fingerprint FILE` / `SB_FINGERPRINT` file validation remains in `sbrs` and `Settings`).
+- **BREAKING: CLI Fingerprint Subcommand Removed**: Removed the `sbrs fingerprint` subcommand and core MCP fingerprint tools (`check_fingerprint`, `capture_fingerprint`, `compare_fingerprint`, `explain_fingerprint`, `validate_fingerprint`, `diff_fingerprints`, `patch_fingerprint`) from core (`--fingerprint FILE` / `SB_FINGERPRINT` file validation remains in `sbrs` and `Settings`).
 
 ### Added
 
-- **`LaunchOptions::plugins()`**: Added public getter returning the configured `PluginSet` on `sb_cdp::LaunchOptions` (feature `plugins`), enabling downstream crates such as `seleniumbase-rs-evasion` to layer plugins while preserving caller-specified plugins.
+- **`LaunchOptions::plugins()`**: Added public getter returning the configured `PluginSet` on `sb_cdp::LaunchOptions` (feature `plugins`), enabling downstream crates such as `seleniumbase-rs-stealth` to layer plugins while preserving caller-specified plugins.
 
 ## [0.9.4] - 2026-11-26
 

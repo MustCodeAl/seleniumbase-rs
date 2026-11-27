@@ -156,11 +156,11 @@ async fn stream_network_to_disk(sb_cdp: SbCdp) -> Result<()> {
 
 When scraping at scale with a [`BrowserPool`](/tutorials/pure_cdp), recycling full browser processes to change identity is expensive.
 
-With per-lease fingerprinting (via `seleniumbase-rs-stealth` / `seleniumbase-rs-evasion`), each leased browser context (tab) can be configured with an independent `Fingerprint`:
+With per-lease fingerprinting (via `seleniumbase-rs-stealth`), each leased browser context (tab) can be configured with an independent `Fingerprint`:
 
 ```rust
-use seleniumbase_rs_stealth::evasion::fingerprint::{Fingerprint, OsType};
-use seleniumbase_rs_stealth::evasion::identity::PageFingerprintExt;
+use seleniumbase_rs_stealth::client::apply::PageFingerprintExt;
+use seleniumbase_rs_stealth::identity::fingerprint::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::sb_cdp::{BrowserPool, LaunchOptions, PoolOptions};
 use seleniumbase_rs_stealth::{tokio, Result};
 

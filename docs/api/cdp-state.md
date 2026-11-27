@@ -105,4 +105,4 @@ page.emulation().network_throttle(&NetworkThrottle::default()).await?;
 | `commands()` | Every command in send order: the init script as `Page.addScriptToEvaluateOnNewDocument`, then the overrides. |
 | `permission_grant(context)` | The permission grant for a browser context id, or `None`. `context` is `Option<&str>`. |
 
-`Page::capture_fingerprint` and `Page::compare_fingerprint` read what the tab shows. They are on [Page](/api/cdp-page).
+`PageFingerprintExt::capture_fingerprint` and `PageFingerprintExt::compare_fingerprint` (in `seleniumbase-rs-stealth`) read what the tab shows. They are summarized on [Page](/api/cdp-page).

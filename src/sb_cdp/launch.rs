@@ -274,29 +274,23 @@ impl LaunchOptions {
     /// scraper that rotates the fingerprint of every browser it starts) uses this.
     ///
     /// The builder starts from the settings the options were built with, so a
-    /// setting changed on it replaces the old value (the fingerprint replaces the
-    /// one the options had, and nothing else of it is left), and a setting the
-    /// options were built with still wins over the fingerprint's own user agent,
-    /// language, window size, WebRTC policy and proxy. Whatever a plugin changed
-    /// in the options since is not kept: use this before a launch. The result is
-    /// checked again by [`build`](LaunchOptionsBuilder::build): a fingerprint is
-    /// refused with mobile emulation, and with the proxy of the fingerprint on a
-    /// browser that is attached to.
+    /// setting changed on it replaces the old value while other settings remain
+    /// intact. Whatever a plugin changed in the options since is not kept: use
+    /// this before a launch. The result is checked again by
+    /// [`build`](LaunchOptionsBuilder::build).
     ///
     /// # Examples
     ///
     /// ```
     /// use seleniumbase_rs::sb_cdp::LaunchOptions;
-    /// use seleniumbase_rs::{Fingerprint, OsType};
     ///
-    /// let options = LaunchOptions::builder().user_agent("Mine/1").build()?;
-    /// let first = Fingerprint::randomized(OsType::Linux, 1);
-    /// let second = Fingerprint::randomized(OsType::Linux, 2);
-    /// let options = options.into_builder().fingerprint(&first).build()?;
-    /// let options = options.into_builder().fingerprint(&second).build()?;
-    /// assert_eq!(options.fingerprint(), Some(&second));
-    /// // What the options were built with still wins over the fingerprint's own.
+    /// let options = LaunchOptions::builder()
+    ///     .user_agent("Mine/1")
+    ///     .lang("en-US")
+    ///     .build()?;
+    /// let options = options.into_builder().lang("fr-FR").build()?;
     /// assert_eq!(options.user_agent(), Some("Mine/1"));
+    /// assert_eq!(options.lang(), Some("fr-FR"));
     /// # Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
     /// ```
     #[must_use]

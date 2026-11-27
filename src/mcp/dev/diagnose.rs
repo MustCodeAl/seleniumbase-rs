@@ -1,13 +1,12 @@
-//! `explain_error`, `check_config` and `check_fingerprint`: finding out what
-//! is wrong without starting a browser.
+//! `explain_error` and `check_config`: finding out what is wrong without
+//! starting a browser.
 //!
 //! `explain_error` turns the text of an error into the library's own advice:
 //! it rebuilds a [`SeleniumBaseError`] of the right category and returns its
 //! `category()`, `hint()` and `exit_code()`, with the sections of the
 //! common-problems page (`docs/help/common_problems.md`, embedded) that apply.
 //! `check_config` loads the settings the way `sbrs` does and reports every
-//! problem, not only the first. `check_fingerprint` parses a fingerprint, or an
-//! anti-detect-browser profile payload, and reports its coherence.
+//! problem, not only the first.
 
 use std::path::{Component, Path, PathBuf};
 
@@ -29,7 +28,7 @@ use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 /// The common-problems page.
 const COMMON_PROBLEMS: &str = include_str!("../../../docs/help/common_problems.md");
 
-/// The most text of a fingerprint or an error message one call reads.
+/// The most text of an error message one call reads.
 const MAX_TEXT_BYTES: usize = 256 * 1024;
 
 /// The longest a quoted piece of an error message is repeated, in characters.
@@ -1478,8 +1477,4 @@ mod tests {
             .unwrap()
             .contains("failed to read"));
     }
-
-    // ------------------------------------------------------------------
-    // check_fingerprint
-    // ------------------------------------------------------------------
 }

@@ -580,15 +580,13 @@ to the library. Build the library alone, with its own defaults, with
 | `mcp-server` | the `sbrs-mcp` binary (`rmcp`) | needed for the MCP servers |
 | `tui` | `sbrs commander`, the terminal UI | without it the command prints a hint and exits with status 2 |
 | `gui` | native OS dialogs and GUI automation | links GTK and X11 on Linux |
-| `s3`, `azure`, `gcp` | uploading reports and artifacts | |
+| `s3` | uploading reports and artifacts to Amazon S3 (`azure` and `gcp` moved in v0.10.0 to `seleniumbase-rs-plugin-cloud-logging`) | |
 | `turso` | `ResultStore`, `ProfileVault`, `sbrs report` | an embedded database |
 | `full-tracing`, `error-backtrace` | extra tracing, a backtrace on every error | for debugging |
 | `test-util` | the scripted mock browser | for tests that drive pages without Chrome |
-| `ocr` | `ocr::Ocr`, text read from screenshots and PNG images (`ocrs`, `rten`, `image`) | pure Rust; downloads two models (about 12 MB) on first use, see [Reading text from the screen](/tutorials/remaining_helpers#reading-text-from-the-screen-ocr) |
 | `visual` | `visual::VisualBaseline` and `BaseCase::assert_visual_match`: screenshots compared with a baseline by structural similarity, with a diff image on a mismatch (`image-compare`, `image` with PNG only) | pure Rust; brings `rayon`; see [Visual regression testing](/tutorials/remaining_helpers#visual-regression-testing-pixels) |
 
-Combine them with `--features "mcp-server tui"`. The features `scrape` and
-`impersonate` were removed in 0.3.0; see [Stealth Scraping](/scraping/stealthy/first-fetch).
+Combine them with `--features "mcp-server tui"`. OCR moved in v0.10.0 to [`seleniumbase-rs-plugin-ocr`](/plugins/community/ocr), cloud logging for GCS/Azure moved to [`seleniumbase-rs-plugin-cloud-logging`](/plugins/community/cloud-logging), and wire/fingerprint stealth lives in [`seleniumbase-rs-stealth`](/scraping/stealthy/first-fetch).
 
 ## Check your build
 

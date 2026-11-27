@@ -11,7 +11,6 @@ hidden: true
   - [Deployment](deployment.md)
 - [Changelog](changelog.md)
 - [Why Rust?](why-rust.md)
-  - [How it works](why-rust.md)
   - [How it compares](comparison.md)
   - [Network patching](concepts/network-patching.md)
   - [Security](security.md)

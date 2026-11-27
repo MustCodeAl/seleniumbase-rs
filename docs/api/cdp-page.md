@@ -109,9 +109,9 @@ A challenge page that shows no widget (an interstitial such as "Just a moment...
 | `activate_messenger()` | Loads the in-page messenger. A navigation drops it. The methods below load it themselves when it is missing. |
 | `set_messenger_theme(settings)` | How later messages look and where they sit. `settings` converts into `MessengerSettings` (`MessengerTheme` or `MessengerLocation` change one part). |
 | `post_message(message, options)` | Shows `message` as text, not HTML. `options` is `MessageOptions`. When pause is set, the call waits out the message duration. |
-| `apply_fingerprint(fingerprint)` | Applies a `Fingerprint` to this tab. What a plan contains is on [State](/api/cdp-state). |
-| `capture_fingerprint()` | Reads what this tab shows a page, as a `CapturedFingerprint`. One script evaluation; it changes nothing and asks for no permission (it holds a style sheet, a frame and a span in the page while it measures, and removes them). Prefer an `https:` page or `about:blank` for a full reading. `captured.contradictions()` lists where the page disagrees with itself (WebGPU against WebGL, a worker against the window, ...), loudest first; see [Consistency](/stealth/fingerprints#consistency). |
-| `compare_fingerprint(expected)` | Captures, then compares with `expected`. Returns a `FingerprintComparison`. |
+| `apply_fingerprint(fingerprint)` | Extension method via `seleniumbase_rs_stealth::client::apply::PageFingerprintExt`: applies a `Fingerprint` to this tab. What a plan contains is on [State](/api/cdp-state). |
+| `capture_fingerprint()` | Extension method via `PageFingerprintExt` (`seleniumbase-rs-stealth`): reads what this tab shows a page, as a `CapturedFingerprint`. Prefer an `https:` page or `about:blank` for a full reading. `captured.contradictions()` lists where the page disagrees with itself; see [Consistency](/stealth/fingerprints#consistency). |
+| `compare_fingerprint(expected)` | Extension method via `PageFingerprintExt` (`seleniumbase-rs-stealth`): captures, then compares with `expected`. Returns a `FingerprintComparison`. |
 | `shield_webrtc()` | Relay-only WebRTC in this tab, now and on later pages. No host, `.local` or public candidate, and no STUN server. |
 | `webrtc_report()` | Gathers local ICE candidates (no STUN server) into a `WebRtcReport`. The page must be allowed to use WebRTC. |
 | `breakpoint(message)` | Pauses for a person at the terminal: `c` continues, `s` saves a screenshot, `src` saves the page source, `q` stops the test. Skipped when stdin is not a terminal, and when `SB_BREAKPOINTS` is `0`. |

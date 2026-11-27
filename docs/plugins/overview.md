@@ -255,13 +255,13 @@ plugin follows `robots.txt` by default.
 | Walk a whole site | `crawler` | [Scraping with crawler](/plugins/crawler#scraping-with-crawler) |
 | Run thousands of jobs with retries and a resume file | `batcher` | [Scraping with batcher](/plugins/batcher#scraping-with-batcher) |
 | Run many isolated workers at once, and keep a signed-in session between them | `BrowserPool` and its `SessionStore` | [The browser pool](/tutorials/pure_cdp#many-workers-the-browser-pool) |
-| Scrape a site that blocks automated browsers | `BrowserScraper` (stealth repository) | [Stealthy scraping](/scraping/stealthy/overview) |
-| Plain HTTP that looks like Chrome on the wire | `HttpSession` (stealth repository) | [HttpSession](/scraping/stealthy/http-session) |
-| One identity moving between a browser and HTTP | `StealthSession` (stealth repository) | [Advanced stealthy scraping](/scraping/advanced-stealthy/overview) |
+| Scrape a site that blocks automated browsers | `CdpSession` (`seleniumbase-rs-stealth`) | [Stealthy scraping](/scraping/stealthy/overview) |
+| Plain HTTP that looks like Chrome on the wire | `HttpSession` (`seleniumbase-rs-stealth`) | [HttpSession](/scraping/stealthy/http-session) |
+| One identity moving between a browser and HTTP | `HybridSession` (`seleniumbase-rs-stealth`) | [Advanced stealthy scraping](/scraping/advanced-stealthy/overview) |
 
 The four plugins are built into this crate, each behind its own cargo feature
 (`plugin-fetcher`, `plugin-extractor`, `plugin-crawler`, `plugin-batcher`).
-`BrowserScraper`, `HttpSession`, `StealthSession` and `MitmProxy` are in
+`CdpSession`, `HttpSession`, `HybridSession` and `MitmProxy` live in
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
 which builds on this crate's public API; depend on it only when a site needs
 it ([Which crate to depend on](/scraping/stealthy/overview#which-crate-to-depend-on)).

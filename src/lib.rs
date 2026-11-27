@@ -24,19 +24,17 @@
 //! ## Helpers
 //!
 //! Convenience macros such as [`selector!`], [`sb_test!`], [`sb_open!`],
-//! [`sb_click!`], [`sb_type!`], [`sb_wait_for!`], [`fingerprint!`], and
-//! [`uc_config!`] live in the [`macros`] module. Fingerprint presets include
-//! `windows_desktop`, `macos_desktop`, `linux_desktop`, `android_mobile`, and
-//! `ios_mobile_safari`.
+//! [`sb_click!`], [`sb_type!`], [`sb_wait_for!`], and [`uc_config!`] live in
+//! the [`macros`] module.
 //!
-//! ## Stealth scraping
+//! ## Stealth and wire impersonation
 //!
-//! The experimental stealth scraping layer (wire fingerprints, `BrowserScraper`,
-//! `HttpSession`, `MitmProxy`, `StealthSession`) is not part of this crate. It
-//! lives in the crates `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and
-//! `seleniumbase-rs-wire` of
-//! <https://github.com/MustCodeAl/seleniumbase-rs-stealth>, which build on the
-//! public API of this one.
+//! Browser fingerprinting, JS evasion providers, wire-level TLS/HTTP/2/HTTP/3
+//! impersonation, loopback MitM proxying, and hybrid sessions (`CdpSession`,
+//! `HttpSession`, `HybridSession`, `MitmProxy`) live in the companion crate
+//! [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
+//! organized into four layers (`identity`, `client`, `network`, `session`) on
+//! top of this crate's public API.
 //!
 //! ## Process-wide state
 //!

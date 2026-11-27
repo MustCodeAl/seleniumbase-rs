@@ -16,7 +16,7 @@
 /// # Examples
 ///
 /// ```
-/// use seleniumbase_rs::evasion::js::active_css_js::ACTIVE_CSS_JS;
+/// use seleniumbase_rs::js_code::active_css_js::ACTIVE_CSS_JS;
 ///
 /// let script = ACTIVE_CSS_JS;
 /// assert!(script.trim_end().ends_with("return sbBestSelector(document.activeElement);"));

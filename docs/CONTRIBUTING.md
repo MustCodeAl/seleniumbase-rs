@@ -701,18 +701,17 @@ MCP server) exists here or has a stated reason why not.
 
 ## Adding a Stealth Evasion Provider
 
-The stealth layer uses a provider registry in `seleniumbase-rs-evasion` (in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)). `evasions::bootstrap_script(fp)` is
-a thin wrapper over the registry.
+The stealth layer uses a provider registry in [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) (`client::providers`). `client::evasions::bootstrap_script(fp)` is a thin wrapper over the registry.
 
 <Steps>
 
 <Step title="Implement EvasionProvider" icon="code">
 
-Open `crates/evasion/src/providers/builtin.rs` in `seleniumbase-rs-stealth` and implement `EvasionProvider`:
+Open `src/client/providers/builtin.rs` in `seleniumbase-rs-stealth` and implement `EvasionProvider`:
 
-```rust crates/evasion/src/providers/builtin.rs
-use seleniumbase_rs_evasion::providers::{EvasionContext, EvasionProvider};
-use seleniumbase_rs_evasion::fingerprint::Dimension;
+```rust src/client/providers/builtin.rs
+use seleniumbase_rs_stealth::client::providers::{EvasionContext, EvasionProvider};
+use seleniumbase_rs_stealth::identity::fingerprint::{Dimension, Fingerprint};
 
 pub struct MyEvasionProvider;
 
@@ -727,7 +726,7 @@ impl EvasionProvider for MyEvasionProvider {
         100
     }
 
-    fn applies(&self, fp: &seleniumbase_rs_evasion::fingerprint::Fingerprint) -> bool {
+    fn applies(&self, fp: &Fingerprint) -> bool {
         // The one predicate: on when the fingerprint holds a value for the
         // dimension, or its flag says Mask; off when the flag says Natural.
         fp.is_masked(Dimension::Navigator)

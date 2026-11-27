@@ -243,13 +243,13 @@ A pool in the pure CDP engine that shares a few Chrome processes between many co
 
 See [Pure CDP](/tutorials/pure_cdp#many-workers-the-browser-pool).
 
-### BrowserScraper
+### CdpSession
 
 <Badge color="purple">Stealth</Badge>
 
-A fetcher in the experimental stealth crates that drives one real Chrome through the pure CDP engine. It loads a URL, detects a [challenge](#challenge), solves it in the browser and rotates the [egress](#egress) or the profile when challenges repeat; it does no TLS spoofing.
+A browser session in `seleniumbase-rs-stealth` (`session::CdpSession`, formerly `BrowserScraper`) that drives one real Chrome through the pure CDP engine. It loads a URL, detects a [challenge](#challenge), solves it in the browser, and rotates the [egress](#egress) or profile when challenges repeat; wire-level TLS spoofing is layered through [MitmProxy](#mitmproxy) or [HybridSession](#hybridsession).
 
-See [BrowserScraper](/scraping/stealthy/browser-scraper).
+See [CdpSession](/scraping/stealthy/browser-scraper).
 
 ### Built-in plugin
 
@@ -719,7 +719,7 @@ See [Public items of the crate root](/api/crate-root).
 
 The exit address a request leaves through: one of your proxies, or the direct connection. Changing it (`rotate_proxy`) opens a new browser context behind the new proxy and drops the old one with its cookies, because a [clearance](#clearance) belongs to the address that earned it.
 
-See [BrowserScraper](/scraping/stealthy/browser-scraper#egress-and-the-profile).
+See [CdpSession](/scraping/stealthy/browser-scraper#egress-and-the-profile).
 
 ### Element reference
 
@@ -1677,7 +1677,7 @@ See [Deployment](/deployment#selenium-grid).
 
 <Badge color="purple">Stealth</Badge>
 
-The separate, experimental repository that holds the TLS and HTTP/2 layer as three crates: `codec` (wire formats), `scrape` ([BrowserScraper](#browserscraper), identity, challenge detection) and `wire` ([HttpSession](#httpsession), [MitmProxy](#mitmproxy), [StealthSession](#stealthsession)). It left this crate in 0.3.0.
+The companion crate organized into four layers: `identity` (fingerprints, profiles, coherence audits), `client` (JS evasion providers, `StealthLayer`, engine extensions), `network` (wire specs, TLS/HTTP/2/HTTP/3 impersonation, [MitmProxy](#mitmproxy)), and `session` ([CdpSession](#cdpsession), [HttpSession](#httpsession), [HybridSession](#hybridsession), challenge detection, cookie jar, ledger), plus the standalone `h3d/` HTTP/3 binary.
 
 See [Stealth Scraping](/scraping/stealthy/overview).
 
@@ -1849,13 +1849,13 @@ How a [Fingerprint](#fingerprint)'s claims are delivered and which protections r
 
 See [Fingerprint & Stealth Profiles](/stealth/policies).
 
-### StealthSession
+### HybridSession
 
 <Badge color="purple">Stealth</Badge>
 
-A session in the experimental `wire` crate that presents one identity in two modes: plain HTTP through an [HttpSession](#httpsession), or a real Chrome behind a [MitmProxy](#mitmproxy). When a challenge appears in HTTP mode it moves to the browser, solves it there, and returns to HTTP with the clearance.
+A session in `seleniumbase-rs-stealth` (`session::HybridSession`, formerly `StealthSession`) that presents one identity in two modes: direct HTTP through an [HttpSession](#httpsession), or a real Chrome behind a [MitmProxy](#mitmproxy). When a challenge appears in HTTP mode it escalates to the browser, solves it there, and returns to HTTP with the clearance.
 
-See [StealthSession](/scraping/advanced-stealthy/stealth-session).
+See [HybridSession](/scraping/advanced-stealthy/stealth-session).
 
 ### Streams API
 

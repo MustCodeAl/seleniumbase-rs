@@ -744,7 +744,7 @@ Launch and session plumbing:
 
 Undetected-Chrome launch helpers, binary patching, detached process management,
 and the background CDP request reactor (fingerprints, `profile_payloads`, and JS
-evasion providers moved in v0.10.0 to `seleniumbase-rs-evasion` inside
+evasion providers moved in v0.10.0 to
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)):
 
 {/* layout-tree:start src/undetected */}

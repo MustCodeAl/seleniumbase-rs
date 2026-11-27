@@ -8,7 +8,7 @@ guarantees that apply, and how to integrate the crate with foreign code.
 
 <Visibility for="agents">
 
-Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `SelectorRef`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. Fingerprints and JS evasion providers moved in 0.10.0 to `seleniumbase-rs-evasion` (`seleniumbase-rs-stealth`).
+Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `SelectorRef`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. Fingerprints, JS evasion providers, wire impersonation, and hybrid stealth sessions live in the unified 4-layer `seleniumbase-rs-stealth` crate (`identity`, `client`, `network`, `session`).
 
 </Visibility>
 
@@ -43,14 +43,12 @@ The crate root exposes the following modules:
 
 <Note>
 
-The core modules `wire`, `scrape` and `impersonate` were removed in 0.3.0. Their
-code lives on, in that order, in the crates `seleniumbase-rs-codec` (the old
-`wire` module: wire formats), `seleniumbase-rs-scrape` and
-`seleniumbase-rs-wire` (the old `impersonate` module) of
-[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-now. Use the unified `seleniumbase-rs-stealth` facade to access their `codec`,
-`scrape` and optional `wire` modules alongside all of the core public API,
-including `sb_cdp` and `evasion`. See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on).
+Fingerprinting, JS evasion providers, wire-level TLS/HTTP/2/HTTP/3 impersonation,
+loopback MitM proxying, and hybrid stealth sessions live in the companion crate
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
+organized into four layers (`identity`, `client`, `network`, `session`, plus
+standalone `h3d/` for HTTP/3) alongside the full `seleniumbase-rs` public API.
+See the [single-dependency setup](/scraping/stealthy/overview#which-crate-to-depend-on).
 
 </Note>
 
@@ -60,25 +58,22 @@ The most common types are re-exported from the crate root for convenience:
 
 | Type | Re-exported from crate root |
 |---|---|
-| `BaseCase` | yes |
-| `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession` | yes |
-| `SelectorRef` | yes |
-| `Fingerprint`, `StealthPolicy` | yes |
-| `BatteryProfile`, `ConnectionProfile`, `SpeechVoice`, `BrandVersion`, `ClientHints`, `HumanizeConfig`, `CoherenceReport` | yes |
-| `EvasionProvider`, `EvasionContext`, `EvasionConfig`, `EvasionRegistry`, `default_registry` | yes |
-| `session_registry`, `SESSION_OMITTED_PROVIDERS` | yes, <Badge color="orange">Experimental</Badge> (serves the stealth layer) |
-| `ChromedriverPatcher`, `ChromeBinaryPatcher`, `EnginePatch`, `engine_spoofing_args` | yes |
-| `Chart`, `ChartType`, `TourTheme`, `Gui` | yes |
-| `run_browser_test`, `run_cdp_test`, `RunSettings`, `PauseKind`, `Settings`, `SettingsOverrides`, `RuntimeConfig`, `LogFormat` | yes |
+| `BaseCase`, `CookieExpiry`, `DriverId` | yes |
+| `BrowserConfig`, `BrowserConfigBuilder`, `Browser`, `DriverMode`, `BrowserSession`, `Element` | yes |
+| `SelectorRef`, `Selector`, `By`, `Keys`, `Key`, `Select`, `SelectBy`, `ResilientLocator` | yes |
+| `Cookie`, `SameSite`, `NetworkThrottle`, `WebRtcPolicy`, `BidiNetworkEvent`, `BiDi` | yes |
+| `ChromedriverPatcher`, `ChromeBinaryPatcher`, `EnginePatch`, `BinaryFormat`, `BinaryMarkerReport`, `BinaryPatchRule`, `MarkerCounts`, `PatchPreset`, `patch_chromedriver` | yes |
+| `Chart`, `ChartType`, `TourTheme`, `Gui`, `Alert`, `Color`, `RetryPolicy` | yes |
+| `run_browser_test`, `run_cdp_test`, `RunSettings`, `RunSettingsBuilder`, `PauseKind`, `Settings`, `SettingsOverrides`, `RuntimeConfig`, `LogFormat` | yes |
 | `AssertionApi`, `BrowserApi`, `ElementApi`, `ScreenshotApi` | yes |
-| `Result<T>`, `SeleniumBaseError`, `ResultExt` | yes |
+| `Result<T>`, `SeleniumBaseError`, `ResultExt`, `DriverError`, `DriverErrorKind` | yes |
 | `import_python`, `ImportDiagnostic`, `ImportOptions`, `ImportResult`, `ImportSeverity`, `PythonSource` | yes |
 
 `#[macro_export]` macros such as `selector!`, `sb_test!`, `sb_open!`, and
-`fingerprint!` are also imported from the crate root:
+`uc_config!` are also imported from the crate root:
 
 ```rust
-use seleniumbase_rs::{selector, sb_test, sb_open, fingerprint};
+use seleniumbase_rs::{selector, sb_test, sb_open, uc_config};
 ```
 
 ## Capability traits
@@ -248,8 +243,8 @@ fn read_config(path: &str) -> Result<String> {
 
 <Warning>
 
-**`seleniumbase_rs_evasion::providers::session_registry` is not yet a stable API.** It lives in
-the experimental stealth layer of `seleniumbase-rs-stealth` (moved from core in 0.10.0): its names
+**`seleniumbase_rs_stealth::client::providers::session_registry` is not yet a stable API.** It lives in
+the `client` layer of `seleniumbase-rs-stealth` (moved from core in 0.10.0): its names
 and behaviour may change in any release, even a patch release, as measurements and reviews come in.
 
 </Warning>

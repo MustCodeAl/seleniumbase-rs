@@ -85,24 +85,11 @@ for suites that belong in Rust or that ship as a native binary.
 
 ### Anti-detection tools (undetected-chromedriver, nodriver, Botasaurus and similar)
 
-These Python and Node tools focus on not looking automated. This crate has the
-same family of features from SeleniumBase (UC mode, fingerprints, masking
-providers, human-paced input) and a driver-free engine that leaves no webdriver
-markers. TLS (JA3/JA4) and HTTP/2 impersonation, built from measured data for
-one browser and system (Chrome 155 on macOS), with an HTTP session that continues
-a browser's session (`HttpSession`), a loopback proxy for a real Chrome
-(`MitmProxy`) and a session that moves between the two (`StealthSession`), is a
-separate, experimental project on top of this crate:
-[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
-(see [Stealth Scraping](/scraping/stealthy/first-fetch)). No tool, this one
-included, can promise to pass a given detection service.
+These Python and Node tools focus on not looking automated. Core `seleniumbase-rs` provides UC mode, binary patching, human-paced input, and a driver-free pure CDP engine. The companion crate [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth) adds browser fingerprints, JS evasion providers, measured TLS (JA3/JA4), HTTP/2, and HTTP/3 impersonation, a loopback MitM proxy (`MitmProxy`), and symmetric sessions (`CdpSession`, `HttpSession`, and `HybridSession` moving between both); see [Stealth Scraping](/scraping/stealthy/first-fetch). No tool, this one included, can promise to pass a given detection service.
 
 ### HTTP impersonation clients (curl-impersonate, wreq and similar)
 
-They make a plain HTTP client look like a browser at the TLS level, without a
-browser. The unified `seleniumbase-rs-stealth` facade exposes this through
-its optional `wire` feature, which wraps wreq on BoringSSL with a measured Chrome 155
-profile for macOS, custom JA3/JA4/Akamai inputs, and a way to solve a challenge
+They make a plain HTTP client look like a browser at the TLS level, without a browser. `seleniumbase-rs-stealth` exposes this through its `network` (and optional `http3`) layer, which wraps wreq on BoringSSL with measured browser profiles, custom JA3/JA4/Akamai inputs, and a way to solve a challenge
 in Chrome and continue over HTTP. It is young and measured on macOS with Chrome
 155 only. If TLS fidelity for another browser or system is what you need today,
 use one of those libraries directly.

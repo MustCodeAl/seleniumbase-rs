@@ -6,7 +6,7 @@ description: "How seleniumbase-rs and seleniumbase-rs-stealth shape TLS ClientHe
 
 <Info>
 
-**In short:** JavaScript stealth (`navigator`, Canvas, WebGL) operates *after* the TLS handshake and HTTP headers have already been exchanged. Anti-bot gateways inspect **TCP/IP metadata, TLS `ClientHello` extensions, HTTP/2 SETTINGS/PRIORITY frames, HTTP/3 QUIC transport parameters, and header ordering** at the socket before HTML is ever sent. In the `seleniumbase-rs-stealth` companion workspace, the `codec`, `wire`, and `scrape` crates close that gap at both the direct HTTP client layer and a loopback MitM proxy for Chromium.
+**In short:** JavaScript stealth (`navigator`, Canvas, WebGL) operates *after* the TLS handshake and HTTP headers have already been exchanged. Anti-bot gateways inspect **TCP/IP metadata, TLS `ClientHello` extensions, HTTP/2 SETTINGS/PRIORITY frames, HTTP/3 QUIC transport parameters, and header ordering** at the socket before HTML is ever sent. In the `seleniumbase-rs-stealth` companion crate, the `network` (`spec`, `wire`, `mitm`, `http3`) and `session` (`CdpSession`, `HttpSession`, `HybridSession`) layers close that gap at both the direct HTTP client layer and a loopback MitM proxy for Chromium.
 
 </Info>
 
@@ -28,8 +28,8 @@ If an automated request claims to be **Chrome 157 on Windows** in its `User-Agen
 
 Wire impersonation starts from **empirical captures** rather than guessed defaults:
 
-- **`seleniumbase-rs-codec` (`crates/codec`)** stores embedded JSON measurements (`measurement::get(Browser::Chrome, os)`) recorded from real browser binaries, capturing the exact `ClientHello` field order, extension permutation behavior, GREASE placement, HTTP/2 SETTINGS, `WINDOW_UPDATE`, pseudo-header sequence, and request-shape headers (document navigation vs subresource `fetch()`).
-- **`WireFormat` (`crates/wire`)** layers customizations (`WireFormatBuilder::ja3`, `ja4_r`, `ja4_ro`, `peetprint`, `akamai`, `client_headers`) on top of a measured base profile.
+- **`network::spec`** stores embedded JSON measurements (`measurement::get(Browser::Chrome, os)`) recorded from real browser binaries, capturing the exact `ClientHello` field order, extension permutation behavior, GREASE placement, HTTP/2 SETTINGS, `WINDOW_UPDATE`, pseudo-header sequence, and request-shape headers (document navigation vs subresource `fetch()`).
+- **`WireFormat` (`network::wire`)** layers customizations (`WireFormatBuilder::ja3`, `ja4_r`, `ja4_ro`, `peetprint`, `akamai`, `client_headers`) on top of a measured base profile.
 
 <Warning>
 
@@ -45,7 +45,7 @@ On every TLS 1.2 / 1.3 handshake, the stack aligns:
 
 - **Cipher suite list & order** including TLS 1.3 suites and GREASE values (RFC 8701).
 - **TLS extension table** including `server_name`, `extended_master_secret`, `renegotiation_info`, `supported_groups`, `ec_point_formats`, `session_ticket`, `application_layer_protocol_negotiation`, `status_request`, `signature_algorithms`, `signed_certificate_timestamp`, `key_share`, `psk_key_exchange_modes`, `supported_versions`, `compress_certificate` (Brotli), `application_settings` (ALPS), and extension shuffling when `permute_extensions(true)` is active.
-- **Fingerprints derived directly from bytes**: JA3, JA4 / `JA4_o` / `JA4_r` / `JA4_ro`, and `peetprint` can both be *parsed* (`Ja3::parse`, `str::parse::<Ja4>()`) and *verified* in local loopback tests (`crates/wire/tests/impersonate_wire.rs`).
+- **Fingerprints derived directly from bytes**: JA3, JA4 / `JA4_o` / `JA4_r` / `JA4_ro`, and `peetprint` can both be *parsed* (`Ja3::parse`, `str::parse::<Ja4>()`) and *verified* in local loopback tests (`tests/impersonate_wire.rs`).
 
 ### 2. HTTP/2 frame & header shaping (`H2Spec` & `HeaderSpec`)
 
@@ -64,7 +64,7 @@ Modern CDNs negotiate HTTP/3 over UDP (`Alt-Svc: h3=":443"`), exposing two addit
 
 ## Loopback MitM interception (`MitmProxy`)
 
-When driving a real Chromium instance whose system TLS or proxy headers need rewriting—or when bridging traffic cleanly across egress proxies—`seleniumbase-rs-wire` runs an **in-process loopback proxy**:
+When driving a real Chromium instance whose system TLS or proxy headers need rewriting, or when bridging traffic across egress proxies, `network::mitm` runs an **in-process loopback proxy**:
 
 ```mermaid
 sequenceDiagram
@@ -85,13 +85,13 @@ sequenceDiagram
 - **DNS leak safety**: hostnames travel through the proxy tunnel rather than resolving on the local OS DNS stack when combined with `ProxyRoute` SOCKS5/HTTP routing.
 - **Strict secret redaction**: `ProxyRoute` credentials (`username`/`password`) are masked via `RedactedUrl` and `Secret`, preventing accidental leaks in `EventSink` logs, `TracingEventSink`, or persisted `JsonLedger` state.
 
-## Browser vs direct wire handoff (`StealthSession`)
+## Browser vs direct wire handoff (`HybridSession`)
 
 A single `Identity` binds a browser `Fingerprint` (JS/CDP persona) with its matching `WireMeasurementRef` / `WireFormat`:
 
-1. **`BrowserScraper`** solves initial JavaScript challenges or logins in headless/headed Chromium while recording `SiteRecord` outcomes and challenge classifications (`ChallengeKind`, `ProtectionVendor`) in an `InMemoryLedger` or `JsonLedger`.
-2. **`CookieJar` sync** extracts verified session cookies (`cf_clearance`, session tokens) into `HttpSession` / `StealthSession`.
-3. **Wire follow-ups** replay subsequent fetches through `HttpSession` using the exact TLS, ALPN, HTTP/2 / HTTP/3, `User-Agent`, and `Sec-CH-UA` headers of the same browser persona—with automatic `EscalationPolicy` fallback back to the browser if a route requires JS execution.
+1. **`CdpSession`** solves initial JavaScript challenges or logins in headless/headed Chromium while recording `SiteRecord` outcomes and challenge classifications (`ChallengeKind`, `ProtectionVendor`) in an `InMemoryLedger` or `JsonLedger`.
+2. **`CookieJar` sync** extracts verified session cookies (`cf_clearance`, session tokens) into `HttpSession` / `HybridSession`.
+3. **Wire follow-ups** replay subsequent fetches through `HttpSession` using the exact TLS, ALPN, HTTP/2 / HTTP/3, `User-Agent`, and `Sec-CH-UA` headers of the same browser persona, with automatic `EscalationPolicy` fallback back to the browser if a route requires JS execution.
 
 ## Where to go next
 
@@ -110,7 +110,7 @@ A single `Identity` binds a browser `Fingerprint` (JS/CDP persona) with its matc
 </Card>
 
 <Card title="Advanced stealthy scraping" icon="spider" color="#d47628" href="/scraping/advanced-stealthy/overview">
-  Coordinate browser solves and direct HTTP fetches under `StealthSession`.
+  Coordinate browser solves and direct HTTP fetches under `HybridSession`.
 </Card>
 
 </Columns>

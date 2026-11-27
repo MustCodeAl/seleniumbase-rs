@@ -229,10 +229,6 @@ for warning in &report.warnings {
 }
 ```
 
-The MCP `validate_fingerprint` tool returns the same report for one of the six
-built-in presets (`windows`, `edge`, `macos`, `linux`, `android`, `ios`); it does
-not take an arbitrary fingerprint.
-
 `tests/fingerprint_randomized.rs` asserts that `Fingerprint::randomized` gives no
 errors and no warnings for every OS, for seeds 0 to 1499 and ten edge seeds
 (`0`, `u64::MAX`, `1 << 63` and others). If you edit a generated profile with

@@ -567,43 +567,13 @@ The text of the last `page_snapshot` is also the resource `sbrs://page/snapshot`
 and the last text a page tool read is `sbrs://page/text`, while a browser runs. The
 `write_test` and `extract_data` prompts use these tools.
 
-## Fingerprint tools
+## Fingerprint & stealth note
 
-Three tools check what the running browser shows a page. The `cdp`, `driver` and
-`sb` servers have them; they mark their output untrusted and declare output
-schemas. (The `check_fingerprint` tool of the `dev` server is another thing: it
-validates a fingerprint you hand it and needs no browser.)
+<Note>
 
-| Tool | What it does | Arguments |
-| --- | --- | --- |
-| `capture_fingerprint` | Reads what the browser shows a page, as a fingerprint: the navigator, Client Hints, screen, time zone, WebGL, media devices and more, plus readings no setting holds (the webdriver flag, plugins, canvas and audio hashes, headless markers). An https page or `about:blank` gives the whole fingerprint; an http page has no Client Hints or media devices. | `url` (opened first); `save_to` (a file name in the output folder, saved as JSON and private to its owner) |
-| `compare_fingerprint` | Asks whether the browser presents a fingerprint. It lists the settings the page contradicts, the ones it matches, and the ones no page can read (`accept_languages`, `geolocation`, `fonts`, `proxy`, `webrtc`), which never count as matches, then the contradictions between two surfaces of the page itself (the WebGPU adapter against the WebGL renderer, a worker against the window), loudest first, as a `contradictions` field. The text starts with `presents` and `verified`, each yes or no. | exactly one of `fingerprint` (a JSON object, or a string holding one), `path` (a file in the output folder, given relative to it; an absolute path, `..`, a link out of the folder and a missing file are refused alike) or `preset` |
-| `explain_fingerprint` | Says what a detection script would find: the signs of automation (the webdriver flag, headless markers, a software renderer, ...) with how loudly a detector reacts and what to change, whether the readings agree with each other (the fingerprint's own coherence, and the `contradictions` between two surfaces of the page; a loud one raises the risk), and the values a script reads first. | `url` (opened first) |
+In v0.10.0, fingerprint generation, validation, capture/comparison, and JS evasion providers moved out of `seleniumbase-rs` core into [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). Core `sbrs-mcp` retains browser automation, page inspection, debugging, and dev tools without bundled fingerprint MCP tools. See [Fingerprint & Stealth Profiles](/stealth/introduction) for configuring fingerprints in Rust code.
 
-```json
-{ "preset": "macos" }
-```
-
-The presets are `windows`, `edge`, `macos`, `linux`, `android` and `ios`. A proxy
-password in a fingerprint that a tool returns is shown as `***`; a file written with
-`save_to` keeps the real one.
-
-Related tools and prompts:
-
-- `start_browser` takes `fingerprint`, `fingerprint_path` or `fingerprint_preset`
-  and applies it as the browser starts. On `driver` and `sb` this is for Chrome,
-  Chromium and Edge, not Firefox.
-- The `sb` server also has `diff_fingerprints` (`a` is the expected fingerprint and
-  `b` the one found, each a preset name, a file path or JSON text) and
-  `patch_fingerprint` (an RFC 7386 JSON merge patch for a fingerprint, path or
-  preset, where `null` removes a setting; `save_to` saves a valid result). Neither
-  needs a browser.
-- The `check_fingerprint` prompt takes `file_or_preset` and walks a model through
-  `start_browser`, `capture_fingerprint`, `compare_fingerprint` and
-  `explain_fingerprint`.
-
-See [Fingerprint & Stealth Profiles](/stealth/introduction) for what the
-settings mean.
+</Note>
 
 
 ## Developer tools
@@ -1002,9 +972,9 @@ next to a browser server:
 | Job | Tools |
 | --- | --- |
 | Find the right method | `find_api`, `parity_lookup` |
-| Write Rust tests | `python_to_rust`, `scaffold` |
+| Write Rust tests & plugins | `python_to_rust`, `scaffold`, `scaffold_plugin` |
 | Use the command line | `cli_help`, `list_plugins`, `plugin_info`, `install_driver` |
-| Find out what is wrong | `explain_error`, `check_config`, `check_fingerprint`, `diagnose_environment` |
+| Find out what is wrong | `explain_error`, `check_config`, `diagnose_environment` |
 
 Only `install_driver` changes anything. Every other tool is annotated read-only,
 and none of them touches a web page.
@@ -1316,31 +1286,6 @@ quotes the lines of the file or the value it refused.
 }
 ```
 
-### `check_fingerprint`
-
-Parses JSON as a [fingerprint](/stealth/introduction) of this library, or, when
-it has `parameters` or `browser_type` with `os_type`, as the profile payload of an
-anti-detect browser tool, and returns what `Fingerprint::validate` finds: whether it
-is coherent, the errors (a platform that contradicts the user agent) and the
-warnings (a mobile agent without touch points). It is the same report as
-`validate_fingerprint` of the `sb` server gives for a preset. A document that is
-neither is described, with the reason for each parse, instead of guessed at.
-
-```json
-{ "json": "{\"user_agent\": \"Mozilla/5.0\"}" }
-```
-
-```json
-{
-  "coherent": false,
-  "errors": ["user-agent does not contain a token for OS persona Windows"],
-  "warnings": [],
-  "parsed": true,
-  "format": "fingerprint",
-  "fingerprint": { "os": "Windows", "browser": "Chromium", "user_agent": "Mozilla/5.0", "platform": "Win32", "screen": null }
-}
-```
-
 ### `diagnose_environment` on the dev server
 
 The same tool the `cdp`, `driver` and `sb` servers have, here too. Besides what
@@ -1358,7 +1303,7 @@ by the nearest folder above it, since the first tool that writes there makes it.
 | A wait or a navigation times out | `explain_error` (it tells `wait_timeout` from `navigation`); `get_failed_requests` on `cdp` and `sb`; `get_console_messages` with `start` true, then repeat the step |
 | The page is blank, half loaded or looks wrong | `inspect_page`, `get_console_messages`, `get_failed_requests`, then `capture_debug_bundle` to keep the evidence |
 | The driver and Chrome disagree ("session not created") | `diagnose_environment` (the `versions` field), then `install_driver`, then `diagnose_environment` again |
-| A site blocks or detects the browser | `check_fingerprint` on the fingerprint you use, `audit_page`; for a `stealth` or `patcher` error, `explain_error` |
+| A site blocks or detects the browser | `audit_page`, `seleniumbase-rs-stealth` coherence audit (`identity::fingerprint::audit_coherence`); for a `stealth` or `patcher` error, `explain_error` |
 | A setting is ignored, or the server stops at start | `check_config` (every problem at once), `list_plugins` for a plugin name |
 | An error text you do not understand | `explain_error` |
 | A flag or a method you do not remember | `cli_help`, `find_api`, `parity_lookup` |
@@ -1406,7 +1351,7 @@ Run diagnose_environment and check_config on the dev server. Explain the first p
 
 <Visibility for="agents">
 
-Summary for AI exports: `sbrs-mcp --server cdp|driver|sb|dev` serves MCP over stdio. On `cdp`, `driver` and `sb`, call `start_browser` once, use the tools, then `close_browser`; `dev` has no browser and helps with the library, the `sbrs` command line and diagnosing problems (`find_api`, `explain_error`, `check_config`, ...). Files are written under `SB_MCP_OUTPUT_DIR`. A failed call returns an error result with a `kind`, the call tried and next steps, not a protocol error. The `cdp`, `driver` and `sb` servers also have the page tools `page_snapshot` (its refs can be written `ref=e5` in any selector argument), `read_page_text`, `extract_links`, `extract_tables` and `extract_forms`, and the fingerprint tools `capture_fingerprint`, `compare_fingerprint` and `explain_fingerprint`. `sbrs-mcp tools|call|batch|resources|read|prompts|prompt` is an MCP client for the shell: `--server cdp|driver|sb|dev` starts this program as that server, `--connect PROGRAM` any stdio server, `--url` a running HTTP server (token in `SB_MCP_TOKEN` or `--token-file`); exit status 0 worked, 1 the tool failed, 2 a mistake in what was typed, 3 the server could not be reached.
+Summary for AI exports: `sbrs-mcp --server cdp|driver|sb|dev` serves MCP over stdio. On `cdp`, `driver` and `sb`, call `start_browser` once, use the tools, then `close_browser`; `dev` has no browser and helps with the library, the `sbrs` command line and diagnosing problems (`find_api`, `explain_error`, `check_config`, ...). Files are written under `SB_MCP_OUTPUT_DIR`. A failed call returns an error result with a `kind`, the call tried and next steps, not a protocol error. The `cdp`, `driver` and `sb` servers also have the page tools `page_snapshot` (its refs can be written `ref=e5` in any selector argument), `read_page_text`, `extract_links`, `extract_tables` and `extract_forms`. `sbrs-mcp tools|call|batch|resources|read|prompts|prompt` is an MCP client for the shell: `--server cdp|driver|sb|dev` starts this program as that server, `--connect PROGRAM` any stdio server, `--url` a running HTTP server (token in `SB_MCP_TOKEN` or `--token-file`); exit status 0 worked, 1 the tool failed, 2 a mistake in what was typed, 3 the server could not be reached.
 
 </Visibility>
 

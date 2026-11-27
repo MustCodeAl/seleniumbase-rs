@@ -3,7 +3,7 @@ title: "Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impe
 sidebarTitle: "Stealth parity plan"
 ---
 
-> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). It shipped there first as `seleniumbase-rs-wire`, `-scrape` and `-impersonate`; those crates are now `seleniumbase-rs-codec`, `seleniumbase-rs-scrape` and `seleniumbase-rs-mimic`, behind the `seleniumbase-rs-stealth` facade. This plan is kept as design history, with the paths the code had in this repository. The current guide is [Stealth scraping](/scraping/stealthy/overview).
+> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). In v0.10.0 those crates unified into the single 4-layer `seleniumbase-rs-stealth` crate (`identity`, `client`, `network`, `session`, plus standalone `h3d/`). This plan is kept as design history from this repository. The current guide is [Stealth scraping](/scraping/stealthy/overview).
 
 Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `4184e74`): **WP0 to WP17 are merged,
 including WP14 (`HttpSession`), WP15 (`MitmProxy`) and WP16 (`StealthSession`). The WP18 reviews (two

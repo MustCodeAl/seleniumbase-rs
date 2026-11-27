@@ -10,7 +10,7 @@
 //! | Find the right method | `find_api`, `parity_lookup` |
 //! | Write Rust tests | `python_to_rust`, `scaffold`, `scaffold_plugin` |
 //! | Use the command line | `cli_help`, `list_plugins`, `plugin_info`, `install_driver` |
-//! | Diagnose | `explain_error`, `check_config`, `check_fingerprint`, `diagnose_environment` |
+//! | Diagnose | `explain_error`, `check_config`, `diagnose_environment` |
 //!
 //! Only `install_driver` changes anything (it downloads a driver); the rest read
 //! embedded data or look at the machine. The design is in
@@ -46,7 +46,7 @@ is wrong. It starts no browser; load it next to the cdp, driver or sb server. fi
 parity_lookup find the right Rust method, by name or by the Python name. python_to_rust and \
 scaffold produce Rust tests. cli_help explains sbrs; list_plugins and plugin_info describe \
 the built-in plugins. For a problem: explain_error reads an error text, check_config checks \
-the settings and SB_* variables, check_fingerprint checks a fingerprint, and \
+the settings and SB_* variables, and \
 diagnose_environment checks Chrome, the driver and the machine. install_driver downloads a \
 driver, the only tool here that changes anything.";
 
