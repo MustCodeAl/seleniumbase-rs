@@ -278,7 +278,7 @@ expression above first checks that the element exists.
   `Page::capture_fingerprint` reads them. See [Detection and spoofing](/concepts/detection).
 - **Skip media you do not test.** `BlockResources::media()` blocks audio and video
   files (`.mp4`, `.webm`, `.mp3`, `.ogg`, `.wav`, `.m4a`) and `Rule::block().resource_type(ResourceType::Media)`
-  does so per page; see [block-resources](/plugins/block-resources). The first
+  does so per page; see [block-resources](/plugins/community/block-resources). The first
   goes by file extension and the second by the browser's own type for the
   request, so a player that fetches segments by script (the MSE case above) may
   need a URL pattern for its segments as well.
@@ -318,7 +318,7 @@ a tool outside the library.
   Chrome, Chromium, Firefox and WebKit, and what each ships.
 </Card>
 
-<Card title="block-resources" icon="ban" color="#d47628" href="/plugins/block-resources">
+<Card title="block-resources" icon="ban" color="#d47628" href="/plugins/community/block-resources">
   Stop a test page from loading images, fonts or media it does not need.
 </Card>
 

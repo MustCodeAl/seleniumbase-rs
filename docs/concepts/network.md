@@ -370,8 +370,8 @@ protects you from someone in the middle.
 
 Anything that wants to **read** encrypted traffic must sit in the middle with a
 certificate the browser trusts: that is how a debugging proxy or the
-[MitmProxy](/glossary#mitmproxy) of the stealth crates works, with an
-[ephemeral CA](/glossary#ephemeral-ca) installed for the one browser. TLS
+[MitmProxy](/concepts/glossary#mitmproxy) of the stealth crates works, with an
+[ephemeral CA](/concepts/glossary#ephemeral-ca) installed for the one browser. TLS
 also leaves a fingerprint of the client (JA3 and JA4); see
 [Detection](/concepts/detection#network-level-fingerprints).
 
@@ -572,9 +572,9 @@ data. Treat the file like a password, and do not commit or share it.
   (`None` for no limit). Its default changes nothing, so `NetworkThrottle::default()` puts the
   connection back, and `offline(true)` is the throttle that only sets `offline`. The WebDriver
   engine takes the same value in `BaseCase::set_network_throttle`; see
-  [CDP mode](/tutorials/cdp_mode#network-throttle). The throttle belongs to the tab.
+  [CDP mode](/guides/browser-engines/cdp-mode#network-throttle). The throttle belongs to the tab.
 - In a WebDriver session, CDP mode adds the same DevTools commands. See
-  [CDP mode](/tutorials/cdp_mode).
+  [CDP mode](/guides/browser-engines/cdp-mode).
 
 ## What the connection reveals
 
@@ -609,25 +609,25 @@ driven by seleniumbase-rs passes this check on its own.
 
 A plain HTTP client does not. When requests are made outside the browser (to
 continue a browser session faster), the experimental
-[stealth crates](/scraping/stealthy/overview), kept in the separate
+[stealth crates](/stealth/session/overview), kept in the separate
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 repository, reproduce Chrome's fingerprint:
 
 <Columns cols={2}>
 
-<Card title="JA3 and JA4" icon="fingerprint" color="#1a85d4" href="/stealth/api/codec-ja4">
+<Card title="JA3 and JA4" icon="fingerprint" color="#1a85d4" href="/stealth/api/network/ja4">
   How the TLS fingerprints are computed.
 </Card>
 
-<Card title="Akamai HTTP/2" icon="network-wired" color="#199f43" href="/stealth/api/codec-akamai">
+<Card title="Akamai HTTP/2" icon="network-wired" color="#199f43" href="/stealth/api/network/akamai">
   The HTTP/2 fingerprint string.
 </Card>
 
-<Card title="Wire formats" icon="code" color="#d47628" href="/stealth/advanced/wire-formats">
+<Card title="Wire formats" icon="code" color="#d47628" href="/stealth/advanced/network/wire-formats">
   Measured fingerprints and impersonating clients.
 </Card>
 
-<Card title="Limits" icon="triangle-exclamation" color="#d52c36" href="/scraping/advanced-stealthy/limits">
+<Card title="Limits" icon="triangle-exclamation" color="#d52c36" href="/stealth/advanced/session/limits">
   What is measured, and what is not.
 </Card>
 

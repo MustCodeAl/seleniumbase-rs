@@ -51,4 +51,4 @@ for (field, value) in form.fields() {
 }
 ```
 
-With the `ai` Cargo feature enabled on `seleniumbase-rs-plugin-extractor`, `ai::AiPromptBuilder` builds provider-agnostic JSON Schema prompts and `ai::parse_ai_response` / `ai::parse_ai_records` parse raw or code-fenced JSON replies without bundling an HTTP client. See the [AI & LLM Extraction tutorial](/tutorials/ai_extraction) and the [extractor plugin guide](/plugins/extractor).
+With the `ai` Cargo feature enabled on `seleniumbase-rs-plugin-extractor`, `ai::AiPromptBuilder` builds provider-agnostic JSON Schema prompts and `ai::parse_ai_response` / `ai::parse_ai_records` parse raw or code-fenced JSON replies without bundling an HTTP client. See the [AI & LLM Extraction tutorial](/guides/special-pages/ai-extraction) and the [extractor plugin guide](/plugins/builtin/extractor).

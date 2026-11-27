@@ -9,7 +9,7 @@ a default; every hook does nothing unless you override it. Items are in
 `seleniumbase_rs_plugin` (`seleniumbase_rs::plugin_api` from seleniumbase-rs),
 defined in `crates/seleniumbase-rs-plugin/src/lib.rs`. A walk-through is in
 [Writing your own](/plugins/writing-your-own); when each hook runs on each
-engine is in [When the hooks run](/tutorials/plugins#when-the-hooks-run).
+engine is in [When the hooks run](/plugins/guide#when-the-hooks-run).
 
 <RequestExample>
 
@@ -404,7 +404,7 @@ up, such as deleting temporary folders.
 Every one has a default body, so a plugin written for 0.1.0 compiles and
 behaves as before. A hook behind a capability reaches only plugins whose
 `metadata()` holds it. When and where each runs, with examples, is in
-[More hooks](/tutorials/plugins#more-hooks).
+[More hooks](/plugins/guide#more-hooks).
 
 ```rust
 fn network(&self) -> NetworkInterest;                 // rules and filters; default: none

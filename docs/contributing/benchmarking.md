@@ -8,8 +8,8 @@ keywords: ["benchmark", "hyperfine", "cargo bench", "performance", "latency", "b
 The repository has four benchmarks in `benches/`. They measure what the library
 itself costs: its own CPU work, what it adds on top of a Chrome that is
 already running, and what it allocates. This page says how to run them and how to compare a change.
-The measured figures are on [Benchmarks](/benchmarks), and advice for making
-your own tests faster is on [Performance](/performance).
+The measured figures are on [Benchmarks](/why-rust/benchmarks), and advice for making
+your own tests faster is on [Performance](/why-rust/performance).
 
 <Info>
 
@@ -220,11 +220,11 @@ cargo bench --bench cdp_latency > target/bench-cdp.md
 
 ## How the published figures were made
 
-[Benchmarks](/benchmarks) shows one run of each harness on one machine. That
+[Benchmarks](/why-rust/benchmarks) shows one run of each harness on one machine. That
 page names the machine, the Chrome version, the date and the commit, and says
 what is uncertain about each figure. The runs were release builds, headless,
 against a local page, with nothing else running. The tables there are the
-harness tables with some columns left out, and [Performance](/performance)
+harness tables with some columns left out, and [Performance](/why-rust/performance)
 quotes a few of their figures.
 
 <Warning>
@@ -368,7 +368,7 @@ This is what hyperfine 2.0.0 printed on the machine this section was written
 on, for `hyperfine --runs 3 'sbrs --version'`. It ran with three runs and no
 warm-up, so it shows the warning rather than a figure to quote, and `sbrs` was a
 mise shim there, not the binary: 111 ms is far above the 9 ms that
-[the CLI guide](/tutorials/cli_usage) measured for `sbrs version` itself.
+[the CLI guide](/ecosystem/cli/usage) measured for `sbrs version` itself.
 
 <Badge color="green" icon="check" stroke>Run here</Badge>
 
@@ -437,13 +437,13 @@ Add the file to the skeleton step of the `Dockerfile`, or the image build fails;
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Benchmarks" icon="chart-column" href="/benchmarks">
+<Card color="#1a85d4" title="Benchmarks" icon="chart-column" href="/why-rust/benchmarks">
 
 The figures from these harnesses, and what changed because of them.
 
 </Card>
 
-<Card color="#199f43" title="Performance" icon="gauge-high" href="/performance">
+<Card color="#199f43" title="Performance" icon="gauge-high" href="/why-rust/performance">
 
 How to make your own tests faster, and how to measure them.
 

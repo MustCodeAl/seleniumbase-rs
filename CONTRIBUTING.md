@@ -175,7 +175,7 @@ seleniumbase-rs/               # the workspace root
 │   │   │   ├── mcp_server.rs  # the sbrs-mcp server
 │   │   │   ├── fig.rs         # the Fig completion spec
 │   │   │   ├── report.rs      # sbrs report
-│   │   │   ├── reference.rs   # renders docs/help/cli_reference.md from the usage spec
+│   │   │   ├── reference.rs   # renders docs/ecosystem/cli/reference.md from the usage spec
 │   │   │   ├── strict.rs      # refuses, with status 2, what the parser is too loose about
 │   │   │   ├── trace.rs       # sbrs trace show: opens a trace folder's viewer
 │   │   │   └── mcp_install/   # sbrs-mcp install, uninstall, clients, repair and upgrade

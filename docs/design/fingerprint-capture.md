@@ -108,7 +108,7 @@ battery and the connection compare by presence, because their numbers move.
 
 ## The browser extension
 
-The Page tab of the companion extension ([seleniumbase-rs-companion](/ecosystem/browser-extension))
+The Page tab of the companion extension ([seleniumbase-rs-companion](/ecosystem/integrations/browser-extension))
 writes what the open page shows as a fingerprint file and reads one back; it is the same v2
 JSON, so a file moves in both directions: `sbrs fingerprint capture` reads a browser a script
 starts, the extension reads the browser a person uses, and either file goes to `check`, `diff`

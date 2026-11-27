@@ -102,5 +102,5 @@ BORING_BSSL_PATH="$HOME/.cache/seleniumbase-rs-stealth/boringssl-btls-sys-0.5.6"
 
 - [Build from source](/contributing/from-source): this repository's own build,
   which needs no BoringSSL.
-- [Wire formats](/stealth/advanced/wire-formats): what the BoringSSL build is
+- [Wire formats](/stealth/advanced/network/wire-formats): what the BoringSSL build is
   for.

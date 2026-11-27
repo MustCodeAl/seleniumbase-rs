@@ -10,12 +10,14 @@ and a Removed heading, or the word BREAKING anywhere in the section, gives
 Only the standard library is used.
 """
 
+import json
 import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "CHANGELOG.md"
 OUT = ROOT / "docs" / "changelog.md"
+DOCS_JSON = ROOT / "docs" / "docs.json"
 REPO = "https://github.com/MustCodeAl/seleniumbase-rs"
 
 RELEASE = re.compile(r"^## \[?(?P<version>[^\]\s]+)\]?(?: - (?P<date>\d{4}-\d{2}-\d{2}))?\s*$")
@@ -54,20 +56,57 @@ def tags(body):
     return found
 
 
+def _load_redirects():
+    if not DOCS_JSON.exists():
+        return {}
+    data = json.loads(DOCS_JSON.read_text(encoding="utf-8"))
+    return {r["source"]: r["destination"] for r in data.get("redirects", [])}
+
+
+REDIRECTS = _load_redirects()
+STATIC_DOC_ROUTES = {
+    "": "/",
+    "README": "/",
+    "README.md": "/",
+    "SUMMARY": "/SUMMARY",
+    "SUMMARY.md": "/SUMMARY",
+    "CONTRIBUTING": "/contributing/overview",
+    "CONTRIBUTING.md": "/contributing/overview",
+    "DEVELOPER_GUIDE": "/contributing/developer-guide",
+    "DEVELOPER_GUIDE.md": "/contributing/developer-guide",
+    "UPSTREAM_SYNC": "/contributing/upstream-sync",
+    "UPSTREAM_SYNC.md": "/contributing/upstream-sync",
+}
+
+
 def fix_link(target):
     """A link target that works from the changelog page, or None to drop the link.
 
     Every entry sits inside an <Update> component, where Docs7 does not rewrite
     `x.md` links (they would open the raw file), so a docs page becomes its site
-    route: docs/tutorials/x.md#a gives /tutorials/x#a.
+    route via docs/docs.json redirects when moved.
     """
     if re.match(r"https?://", target) or target.startswith("#"):
         return target
     if target.startswith("docs/"):
-        page, _, anchor = target[len("docs/"):].partition("#")
-        if page.endswith(".md"):
-            page = page[: -len(".md")]
-        return f"/{page}" + (f"#{anchor}" if anchor else "")
+        raw_page, _, anchor = target[len("docs/"):].partition("#")
+        if raw_page.rstrip("/") in STATIC_DOC_ROUTES:
+            route = STATIC_DOC_ROUTES[raw_page.rstrip("/")]
+        else:
+            page = raw_page[:-3] if raw_page.endswith(".md") else raw_page[:-4] if raw_page.endswith(".mdx") else raw_page
+            route = f"/{page.strip('/')}" if page.strip("/") else "/"
+            for _ in range(4):
+                if route in REDIRECTS:
+                    route = REDIRECTS[route]
+                else:
+                    break
+        doc_rel = route.lstrip("/")
+        if route != "/" and not (
+            (ROOT / "docs" / f"{doc_rel}.md").exists()
+            or (ROOT / "docs" / f"{doc_rel}.mdx").exists()
+        ):
+            return None
+        return route + (f"#{anchor}" if anchor else "")
     return None
 
 
@@ -141,7 +180,7 @@ def latest(tag):
         "",
         "</Columns>",
         "",
-        "The releases publish no prebuilt binaries; install the command line from the tag:",
+        "Install the prebuilt binaries (`mise`, `cargo binstall`, or the release archives) or build the command line from the tag:",
         "",
         "```bash Terminal",
         f"cargo install --git {REPO} --tag {tag} seleniumbase-rs-cli",

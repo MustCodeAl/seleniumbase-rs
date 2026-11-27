@@ -1606,7 +1606,7 @@ enum Commands {
     ///
     /// Python SeleniumBase's `sbase methods` in Rust spelling: the methods most tests use
     /// (`sb.open(url)`, `sb.click(selector)`, `sb.assert_text(text, selector)`, ...), each
-    /// with what it does. The whole API is in `cargo doc --open`, and docs/parity.md maps
+    /// with what it does. The whole API is in `cargo doc --open`, and docs/why-rust/parity.md maps
     /// Python's names to it.
     #[usage(help_heading = "Info and setup", example = "sbrs methods")]
     Methods,
@@ -3328,7 +3328,7 @@ fn devtools_browser(
         Some(BrowserArg::Firefox | BrowserArg::Safari | BrowserArg::Ie) => Err(
             "sbrs devtools launches Chromium browsers (Chrome, Chromium, Edge, ...), which \
              speak the DevTools Protocol; for Firefox and Safari see \
-             docs/tutorials/devtools_mcp.md"
+             docs/ecosystem/mcp/devtools.md"
                 .into(),
         ),
         Some(other) => {
@@ -5070,7 +5070,10 @@ mod devtools_cli_tests {
         assert_eq!(path, Some(PathBuf::from("/opt/edge")));
         for other in [BrowserArg::Firefox, BrowserArg::Safari, BrowserArg::Ie] {
             let error = devtools_browser(Some(other), None).expect_err("not Chromium");
-            assert!(error.to_string().contains("devtools_mcp.md"), "{error}");
+            assert!(
+                error.to_string().contains("docs/ecosystem/mcp/devtools.md"),
+                "{error}"
+            );
         }
     }
 
@@ -5949,13 +5952,13 @@ mod usage_spec_tests {
         assert_generated("docs/completions/fig-sbrs.ts", &fig::spec(Cli::spec()));
     }
 
-    /// `docs/help/cli_reference.md` is the usage spec rendered as a page of the Docs7
+    /// `docs/ecosystem/cli/reference.md` is the usage spec rendered as a page of the Docs7
     /// site (`reference.rs`), so the reference lists what the parser accepts.
     #[cfg(not(feature = "turso"))]
     #[test]
     fn the_committed_cli_reference_matches_the_cli() {
         let spec: usage_lib::Spec = Cli::to_kdl().parse().expect("the usage spec parses");
-        assert_generated("docs/help/cli_reference.md", &reference::render(&spec));
+        assert_generated("docs/ecosystem/cli/reference.md", &reference::render(&spec));
     }
 
     /// `man/man1/sbrs.1` is the usage spec rendered as a man page (`man.rs`), the page that

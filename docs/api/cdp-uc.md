@@ -6,7 +6,7 @@ description: "Chrome DevTools and undetected-mode helpers, including the GUI byp
 
 <Note>
 
-Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 
@@ -95,7 +95,7 @@ sbrs --uc --url https://example.com uc-click --css a
 sbrs --uc --url https://example.com uc-type --css '#q' --text hello
 ```
 
-`--url` is an alias of `--start-page`. A fingerprint on the same config is applied by UC mode; see [Stealth settings](/api/stealth-settings).
+`--url` is an alias of `--start-page`. A fingerprint on the same config is applied by UC mode; see [Settings and configuration](/settings/overview#stealth-and-fingerprint-settings).
 
 ## UC / GUI bypass helpers
 
@@ -120,4 +120,4 @@ anti-detection checks. They require a graphical desktop session.
 | `uc_gui_press_key(key)` | UC alias for `gui_press_key`. |
 | `uc_gui_handle_captcha(selector)` | Waits until the element is visible (the case timeout), then `gui_click_element`. It does not solve an image or audio challenge and does not check that the click passed. |
 
-See the [GUI Automation](/tutorials/gui_automation) tutorial for details.
+See the [GUI Automation](/guides/browser-engines/gui-automation) tutorial for details.

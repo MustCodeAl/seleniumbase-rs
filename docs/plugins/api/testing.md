@@ -344,8 +344,8 @@ Everything the plugins asked for, in order.
 
 Everything above is unchanged. These items came with the navigation, network,
 context and task hooks, so that a test can run them without a browser. The
-built-in plugins [fetcher](/plugins/fetcher), [batcher](/plugins/batcher) and
-[crawler](/plugins/crawler) are tested with them.
+built-in plugins [fetcher](/plugins/builtin/fetcher), [batcher](/plugins/builtin/batcher) and
+[crawler](/plugins/builtin/crawler) are tested with them.
 
 | Item | What it does |
 |---|---|

@@ -3,7 +3,7 @@ title: "ADR 003: Stealth Scraping Layout"
 sidebarTitle: "003: Stealth scraping layout"
 ---
 
-> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). In v0.10.0 those crates unified into the single 4-layer `seleniumbase-rs-stealth` crate (`identity`, `client`, `network`, `session`, plus standalone `h3d/`). The paths below are kept as design history from this repository. The current guide is [Stealth scraping](/scraping/stealthy/overview).
+> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). In v0.10.0 those crates unified into the single 4-layer `seleniumbase-rs-stealth` crate (`identity`, `client`, `network`, `session`, plus standalone `h3d/`). The paths below are kept as design history from this repository. The current guide is [Stealth scraping](/stealth/session/overview).
 
 ## Status
 Accepted (2026-10-11). `HttpSession`, `MitmProxy` and `StealthSession` have since been merged into the

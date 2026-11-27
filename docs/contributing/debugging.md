@@ -105,7 +105,7 @@ On a terminal a line reads `12:34:56  INFO browser::session: message path=/tmp/x
 with a coloured level, a dim time and module path, and file paths and steps
 highlighted. By default it has no span context (`new:connect:`), no crate name and no
 milliseconds; choosing a filter with `SB_LOG_LEVEL` or `RUST_LOG` brings them back.
-[Tracing and logs](/tutorials/tracing#what-a-log-line-looks-like) shows both forms.
+[Tracing and logs](/guides/configure-runs/tracing#what-a-log-line-looks-like) shows both forms.
 
 <CodeGroup>
 
@@ -183,7 +183,7 @@ Errors are logged as structured events with `error.category`, `error.transient`
 and `error.hint`. Log one yourself with `.log()` on a `SeleniumBaseError` or
 `.log_err()` on a result, and add where it happened with
 `.sb_context("while loading profile")`. See
-[Tracing and Logging](/tutorials/tracing#error-diagnostics).
+[Tracing and Logging](/guides/configure-runs/tracing#error-diagnostics).
 
 ## Features for a debugging build
 
@@ -283,7 +283,7 @@ SB_HEADLESS=false sbrs open https://example.com
 </Tabs>
 
 On Linux without a display, run under a virtual display such as Xvfb; see
-[Operating systems](/building#linux).
+[Operating systems](/guides/get-started/building#linux).
 
 ### Slow the run down
 
@@ -311,7 +311,7 @@ let config = BrowserConfig::builder()
 <Warning>
 
 Never leave demo or slow mode on in CI: the run waits on purpose. Which calls
-pause, and for how long, is in [Run settings](/tutorials/run_settings).
+pause, and for how long, is in [Run settings](/guides/configure-runs/run-settings).
 
 </Warning>
 
@@ -319,7 +319,7 @@ pause, and for how long, is in [Run settings](/tutorials/run_settings).
 
 `sbrs devtools` starts Chrome with the pure CDP engine and a DevTools endpoint
 on `127.0.0.1:9222`, and keeps it running until you press Ctrl+C. Attach a
-DevTools client to it; see [DevTools MCP servers](/tutorials/devtools_mcp).
+DevTools client to it; see [DevTools MCP servers](/ecosystem/mcp/devtools).
 
 ## Keep evidence when a test fails
 
@@ -441,7 +441,7 @@ Pushes a protocol event to everything listening, as the browser would.
   `src/api/base_case_impls/base_case_impl_common.rs`. It is `#[cfg(test)]`, so
   only those unit tests can use it.
 
-More in [Testing without Chrome](/tutorials/pure_cdp#testing-without-chrome).
+More in [Testing without Chrome](/guides/browser-engines/pure-cdp#testing-without-chrome).
 
 ## Record the network
 
@@ -459,7 +459,7 @@ har.save("latest_logs/example.har")?;
 Chrome's and Firefox's developer tools and HAR viewers open the file.
 `start_har_with(HarOptions::new().content(true))` keeps the response bodies too.
 A HAR holds cookies, so treat it like the session it came from. See
-[Recording a HAR](/tutorials/pure_cdp#recording-a-har).
+[Recording a HAR](/guides/browser-engines/pure-cdp#recording-a-har).
 
 ## Check the setup
 
@@ -475,18 +475,18 @@ Chrome. A problem it repairs is not a failure.
 ### Ask the MCP tools
 
 The MCP servers have debugging tools of their own, for an AI agent that is
-driving a browser. Each entry in the [MCP server reference](/tutorials/mcp_server)
+driving a browser. Each entry in the [MCP server reference](/ecosystem/mcp/server)
 has the fields and an example.
 
 | Tool | What it tells you | Servers |
 |---|---|---|
-| [`diagnose_environment`](/tutorials/mcp_server#diagnose_environment) | Whether Chrome and chromedriver are found and their major versions match, the driver cache, the output folder, the features of this build and the `SB_*` settings (secrets redacted). Needs no browser. | `cdp`, `driver`, `sb`, `dev` |
-| [`diagnose_selector`](/tutorials/mcp_server#diagnose_selector) | Why a selector finds nothing: invalid syntax, no match, hidden, covered or disabled matches, an iframe or shadow root, near misses. | `cdp`, `driver`, `sb` |
-| [`get_console_messages`](/tutorials/mcp_server#get_console_messages) | The page's console messages and uncaught script errors. | `cdp`, `driver`, `sb` |
-| [`get_failed_requests`](/tutorials/mcp_server#get_failed_requests) | The requests that failed, with their errors on the pure CDP engine. | `cdp`, `sb` |
-| [`capture_debug_bundle`](/tutorials/mcp_server#capture_debug_bundle) | A folder with a screenshot, the page source, the console messages, failed requests and the last tool calls, for a bug report. Typed text and scripts are redacted. | `cdp`, `driver`, `sb` |
+| [`diagnose_environment`](/ecosystem/mcp/server#diagnose_environment) | Whether Chrome and chromedriver are found and their major versions match, the driver cache, the output folder, the features of this build and the `SB_*` settings (secrets redacted). Needs no browser. | `cdp`, `driver`, `sb`, `dev` |
+| [`diagnose_selector`](/ecosystem/mcp/server#diagnose_selector) | Why a selector finds nothing: invalid syntax, no match, hidden, covered or disabled matches, an iframe or shadow root, near misses. | `cdp`, `driver`, `sb` |
+| [`get_console_messages`](/ecosystem/mcp/server#get_console_messages) | The page's console messages and uncaught script errors. | `cdp`, `driver`, `sb` |
+| [`get_failed_requests`](/ecosystem/mcp/server#get_failed_requests) | The requests that failed, with their errors on the pure CDP engine. | `cdp`, `sb` |
+| [`capture_debug_bundle`](/ecosystem/mcp/server#capture_debug_bundle) | A folder with a screenshot, the page source, the console messages, failed requests and the last tool calls, for a bug report. Typed text and scripts are redacted. | `cdp`, `driver`, `sb` |
 
-[Debugging: which tool for which symptom](/tutorials/mcp_server#debugging-which-tool-for-which-symptom)
+[Debugging: which tool for which symptom](/ecosystem/mcp/server#debugging-which-tool-for-which-symptom)
 says which to call first.
 
 ## Driver problems
@@ -532,8 +532,8 @@ Before it starts a driver, the launcher makes the file runnable
 (`browser::driver_access::make_runnable`): it sets a missing execute bit,
 removes the macOS quarantine flag and, after a patch on macOS, signs the binary
 again ad hoc. Firefox and Edge use geckodriver and msedgedriver; see
-[Operating systems](/building#firefox-and-edge) and
-[Troubleshooting](/help/common_problems).
+[Operating systems](/guides/get-started/building#firefox-and-edge) and
+[Troubleshooting](/guides/help/common-problems).
 
 ## The MCP server's logs
 
@@ -558,7 +558,7 @@ server's standard error depends on the client.
 - A failed tool call is answered with a report: a stable `kind`, the call that
   was tried, the page's state, a hint and up to three next tools to try, such as
   `get_console_messages` and `diagnose_environment`. See
-  [When a call fails](/tutorials/mcp_server#when-a-call-fails).
+  [When a call fails](/ecosystem/mcp/server#when-a-call-fails).
 - From a checkout, `SB_LOG_LEVEL=debug cargo run --bin sbrs-mcp -- --server cdp`
   starts the server by hand; it reads the protocol on standard input and stops
   when that closes, or on Ctrl+C.
@@ -778,13 +778,13 @@ The binary was built without the `tui` feature. It prints a hint; build with
 
 <Columns cols={2}>
 
-<Card color="#1a85d4" title="Tracing and Logging" icon="scroll" href="/tutorials/tracing">
+<Card color="#1a85d4" title="Tracing and Logging" icon="scroll" href="/guides/configure-runs/tracing">
 
 Spans, error events and the `SB_*` variables in full.
 
 </Card>
 
-<Card color="#199f43" title="Troubleshooting" icon="life-ring" href="/help/common_problems">
+<Card color="#199f43" title="Troubleshooting" icon="life-ring" href="/guides/help/common-problems">
 
 Error messages and what to do about them.
 

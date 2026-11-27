@@ -1,0 +1,711 @@
+---
+title: "Settings and Global Configuration"
+sidebarTitle: "Settings"
+---
+
+`seleniumbase-rs` supports multiple configuration layers: built-in defaults, a
+global config file, `SB_*` environment variables, and programmatic
+`BrowserConfig` overrides. This makes it easy to keep environment-specific
+settings out of source code while still allowing per-test customization.
+
+This page explains the configuration hierarchy, the available settings, and how
+to load and combine them.
+
+## Configuration hierarchy
+
+Settings are resolved from lowest to highest priority. A higher-priority source
+overrides a lower-priority one:
+
+1. Built-in defaults.
+2. Global config file (`sbase_config.toml`, `.sbase_config.toml`, or `.sbase_config`).
+3. Environment variables (`SB_*`).
+4. Programmatic `BrowserConfig`.
+5. CLI flags (when using `sbrs`): the pairs of `SettingsOverrides`, the last layer of the
+   settings ([how the layers are merged](#how-the-layers-are-merged)).
+
+<Info>
+
+This means a `BrowserConfig` value in code wins over an environment variable,
+and a CLI flag wins over everything else.
+
+</Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: settings resolve from lowest to highest priority: built-in defaults, the global config file (`sbase_config.toml`, `.sbase_config.toml` or `.sbase_config` in the current directory), `SB_*` environment variables, a programmatic `BrowserConfig`, and CLI flags when using `sbrs`. `Settings::load()` reads the global file and applies the variables; `Settings::from_file(path)` reads the file alone; `settings.to_browser_config()` makes the `BrowserConfig`. `BrowserConfig::default()` reads no variables, while `BrowserConfig::from_env()` reads the runtime ones such as `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`.
+
+</Visibility>
+
+## Global config file
+
+Create `sbase_config.toml` in your project root (or a `.sbase_config` file in
+JSON; a flat `KEY=VALUE` file is not supported):
+
+<CodeGroup>
+
+```toml sbase_config.toml
+browser = "chrome"
+headless = false
+timeout_seconds = 30
+window_width = 1920
+window_height = 1080
+proxy = "http://proxy.example.com:8080"
+proxy_pac_url = ""
+mode = "webdriver"
+reuse_session = false
+reuse_class_session = false
+mobile = false
+threads = 2
+locale = "en-US"
+user_agent = ""
+user_data_dir = ""
+extension_dir = ""
+ad_block = false
+esc_end = false
+rec_sb_cdp = false
+```
+
+```json .sbase_config
+{ "headless": false, "locale": "en-US", "timeout_seconds": 10 }
+```
+
+</CodeGroup>
+
+The file is optional. If it is missing, built-in defaults are used. The
+`Settings::load_global()` function searches for `sbase_config.toml`, then
+`.sbase_config.toml`, then `.sbase_config` in the current directory.
+
+## Flat keys and tables
+
+A setting is written flat (`demo = true`, `timeout_seconds = 12`: the key `sbrs options` lists)
+or in the table of its group. The groups that have a table today:
+
+| Table | Holds | In code |
+|---|---|---|
+| `[run]` | how a whole run behaves: `default_timeout` (flat: `timeout_seconds`), `demo_mode` (`demo`), `slow_mode` (`slow`), `demo_sleep`, `message_duration`, `skip_js_waits`, `highlights`, `interval`, `verify_delay`, `check_js`, `wait_for_angularjs`, `disable_beforeunload`, `timeout_multiplier`, `reset_visual_baseline` (`visual_baseline`), `record_sleep` | `settings.run` (a `RunSettings`) |
+| `[report]` | the reports and the evidence: `dashboard`, `dash_title`, `html`, `junit_xml`, `allure_dir`, `archive_logs`, `archive_downloads`, `list_fail_page`, `save_screenshot`, `no_screenshot`, `with_db_reporting`, `database_env`, `db`, `databases`, `with_s3_logging` | `settings.report` (a `ReportSettings`) |
+| `[test]` | test data, debug modes, reruns, the recorder: `env`, `account`, `data`, `var1` to `var3`, `variables`, `pdb`, `trace`, `final_debug`, `reruns`, `reruns_delay`, `time_limit`, `runner`, `recorder`, `rec_behave`, `rec_print`, `rec_sb_mgr` | `settings.test` (a `TestSettings`) |
+
+```toml sbase_config.toml
+timeout_seconds = 30        # the same as [run] default_timeout = 30
+
+[report]
+html = "reports/report.html"
+junit_xml = "reports/report.xml"
+
+[test]
+reruns = 2
+```
+
+The aliases of an option work in a table as they do at the top level (`ftrace` for
+`final_debug`), and a key that is no setting of the table is an error that names the table:
+`[test] rerun = 2` is refused, where it used to be dropped without a word. One setting written
+twice (`demo = true` and `[run] demo_mode = true`) is refused too. `[test]` still reads the
+report keys it held (`html`, `dashboard`, `databases`, ...) and `rec_sleep`; they land in
+`settings.report` and `settings.run`. A settings file cannot set `settings_file`: that setting
+names the file (`--settings-file`, `SB_SETTINGS_FILE`).
+
+## The nested form
+
+A settings file may also write the settings the way `Settings` serializes them: the tables
+`[browser]` and `[session]`, and the tables and maps inside them (`browser.proxy`,
+`browser.chromium`, `browser.switches`, `session.grid`), beside the flat keys of other settings.
+A file written from a serialized `Settings` (`toml::to_string(&settings)`,
+`serde_json::to_string(&settings)`) loads back equal, in TOML and in JSON.
+
+```toml sbase_config.toml
+headless = true                 # a flat key
+
+[browser.proxy]
+server = "proxy.example.com:8080"
+
+[browser.switches]
+dark-mode = true
+
+[session.grid]
+server = "hub.example.com"
+port = 4445
+```
+
+The names in a nested table are the field names of the serialized settings, not the flat keys:
+`server` of `[browser.proxy]` is the flat `proxy`, `dark-mode` of `[browser.switches]` is
+`dark_mode`, `server` of `[session.grid]` is the flat `server`. A key that is no field of
+`[browser]`, `[browser.proxy]`, `[browser.chromium]`, `[session]` or `[session.grid]` is refused
+(`[browser] hedless = true`). The small tables inside them (`window_size`, `window_position`,
+`device_metrics`, `virtual_display` and `[session.firefox]`) do not refuse a key they do not
+know, so spell those with care. The nested tables are read as written, without the trimming of
+the flat keys (see Blanks below). One setting written in both forms is refused, naming both
+spellings:
+
+```text
+"dark_mode" and "[browser.switches] dark-mode" are the same setting (browser.switches.dark-mode) in the settings file
+```
+
+The one pair that is not refused is `chromium_arg` and `[browser.chromium] disable_features`: the
+`disable-features=` items of `chromium_arg` join the features of `disable_features` when the
+browser is launched, so the two add up (`chromium_arg = "disable-features=Foo"` beside
+`disable_features = ["Bar"]` disables both).
+
+A lone `window_width` beside `[browser.window_size] height = 600` is one size, as a lone side
+is laid over a lower source's. A `browser` that is a text is the flat key of the browser kind
+(`browser = "firefox"`); a table of that name is the nested form.
+
+## How the layers are merged
+
+Each source is read into the settings it gives, and a higher source wins for each setting it
+gives and leaves the others alone (the layers are merged key by key, so a variable that sets the
+proxy does not touch the window size the file set):
+
+* **One value** (a name, a number, a switch): the value of the higher source, even when it is
+  the default of the setting (`SB_PORT=4444` over a file's `port = 4445` sets 4444, and
+  `SB_TIMEOUT_MULTIPLIER=1` over `timeout_multiplier = 3` sets 1). A switch that a higher
+  source turns off (`SB_DARK_MODE=false`) turns off what a lower source turned on.
+* **A list** (`extension_dir`, `chromium_arg`, `SB_PLUGINS`): the list of the higher source
+  replaces the list of the lower one, and a list with no item (`SB_PROXY_BYPASS_LIST=,`) empties
+  it. `SB_PLUGINS` replaces the names in `[plugins] enable` (an empty value means no plugin) and
+  the options of the plugins it names stay.
+* **Blanks.** The settings are read by one rule in every source: a value is trimmed, and a value
+  that is empty or only blanks is unset, so it leaves what a lower source says. It holds for the
+  variables, the pairs, a flat key of the settings file (`user_agent = ""` sets nothing), the
+  runtime variables (`SB_CHROMEDRIVER_PORT`, `SB_SHUTDOWN_TIMEOUT_SECS`, ...), `SB_REPORT_DB`
+  and the S3 variables. Two things are read as they are written. `SB_PLUGINS`: an empty or blank
+  value is an answer (no plugin). The tables of the nested form: the file hands them to serde
+  unchanged, so `[browser] user_agent = ""` sets an empty text and a padded value keeps its
+  blanks. A few variables of one tool that name a key, a file or a folder (`SB_ENCRYPTION_KEY`,
+  `SB_REC_FILE`, `SB_OCR_MODELS`, `SB_GRID_DIR` and `SB_REPORT_ROOT`, which `sbrs test` sets to
+  its working directory) are not trimmed.
+* **Capabilities** (`cap_file`, `cap_string`): merged key by key, the higher source winning on a
+  key.
+* **Two spellings of one setting** (`window_size`, or `window_width` and `window_height`;
+  `locale`, or `locale_code`): the source decides, not the spelling. A `window_size` in the file
+  therefore loses to `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT`; within one source the size and
+  the locale code win. A window width or height given alone is laid over the size of a lower
+  source.
+* **Explicit pairs**: the flags of `sbrs` are the `(SB_* variable, text)` pairs of
+  `SettingsOverrides`. `SettingsOverrides::try_apply(&mut settings)` (or `Settings::apply_options`
+  with the pairs) lays them over everything else; assigning to a field of the `Settings` that
+  `load` returns is the last word.
+
+A value that is refused names its source and where in it. A variable is named with its flag,
+and a value of the settings file with the file and the key as the file wrote it (the value
+itself is not repeated, because it may be a secret: it is hidden where the message quotes it (as
+serde escapes it too) or ends with it, and so is an item of a list that the message quotes. A
+value of three characters or more is also hidden where it stands alone, so a secret that spells a
+word of the message hides that word; a shorter value never changes the words of the message):
+
+```text
+SB_HEADLESS (--headless): cannot parse bool: maybe
+failed to parse TOML settings: sbase_config.toml: headless: cannot parse bool: …
+```
+
+`Settings::check` reports every problem and not only the first: each value of the file that is
+refused, each variable that is refused, then the window size, the plugins and the fingerprint.
+The problems of the file and of the variables are listed in the order of the rows of the option
+table (the order of `sbrs options --all`), whichever source gave each one, and a value that is
+refused is left out of its source so that the rest is still read.
+
+
+## Loading settings programmatically
+
+```rust
+use seleniumbase_rs::config::settings::Settings;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Load the global config file (if present) and apply SB_* env overrides.
+    let settings = Settings::load()?;
+
+    // Or load a specific file, with the SB_* overrides on top.
+    let settings = Settings::load_from("staging.toml")?;
+
+    // Or only the file, leaving the environment out.
+    let settings = Settings::from_file("staging.toml")?;
+
+    // Convert to BrowserConfig.
+    let config = settings.to_browser_config();
+
+    Ok(())
+}
+```
+
+`Settings::load()` reads the global config file and `Settings::load_from(path)`
+reads the file you name; both apply the environment variables on top.
+`Settings::from_file` reads the file alone. All three refuse a `browser` or
+`mode` that is not a known name (`SB_BROWSER=chrom` is an error, not Chrome),
+and a `window_width` without a `window_height`.
+
+## Environment variables
+
+Every setting in `Settings` can be overridden with an `SB_` prefixed variable:
+
+| Variable | Maps to |
+|----------|---------|
+| `SB_BROWSER` | `browser` |
+| `SB_HEADLESS` | `headless` (see [Headless and headed browsers](/guides/configure-runs/headless) for which entry points read it) |
+| `SB_TIMEOUT` | `timeout_seconds` (`run.default_timeout` in code): the default wait `run_browser_test` gives its `BaseCase` |
+| `SB_PROXY` | `proxy` |
+| `SB_PROXY_PAC_URL` | `proxy_pac_url` |
+| `SB_WINDOW_WIDTH` | `window_width`: with `window_height`, the browser window's size |
+| `SB_WINDOW_HEIGHT` | `window_height` |
+| `SB_WEBDRIVER_URL` | `webdriver_url` (default `http://localhost:4444`) |
+| `SB_CHROME_BIN` | `chrome_bin`: the browser binary |
+| `SB_USER_DATA_DIR` | `user_data_dir` |
+| `SB_EXTENSION_DIR` | `extension_dir` |
+| `SB_LOCALE` | `locale` |
+| `SB_USER_AGENT` | `user_agent` |
+| `SB_MODE` | `mode` (`webdriver`, `cdp`, or `uc`) |
+| `SB_AD_BLOCK` | `ad_block` |
+| `SB_REUSE_SESSION` | `reuse_session` |
+| `SB_REUSE_CLASS_SESSION` | `reuse_class_session` |
+| `SB_MOBILE` | `mobile` |
+| `SB_THREADS` | `threads` |
+| `SB_ESC_END` | `esc_end`: pressing ESC in the browser ends the test (Python's `--esc-end`) |
+| `SB_REC_SB_CDP` | `rec_sb_cdp`: recordings are written as pure CDP code (Python's `--rec-sb-cdp`) |
+| `SB_REMOTE_WEBDRIVER_TIMEOUT` | `remote_webdriver_timeout_seconds` |
+
+Boolean values accept `true`/`false`, `1`/`0`, `yes`/`no`, or `on`/`off`.
+
+Example:
+
+```bash
+export SB_BROWSER=firefox
+export SB_HEADLESS=true
+export SB_TIMEOUT=60
+export SB_PROXY=http://proxy:8080
+export SB_THREADS=4
+```
+
+### Variables of `sbrs` and `sbrs-mcp`
+
+The table above is the keys of the settings file. The two command lines read more:
+every setting of `sbrs` has an `SB_*` variable, and `sbrs-mcp` has `SB_MCP_*`
+variables for its own flags. The `--help` of a flag ends with its variable
+(`(SB_DARK_MODE)`, or `(SB_MODE=uc)` for a shorthand flag). To see them all, with
+who reads each one, the flag that sets the same thing, its default and what it sets:
+
+```bash
+sbrs options --env
+sbrs options --env --markdown
+```
+
+`--markdown` prints the table for documentation. The list is made from the option
+table and the list of the other variables, so it names every variable the command
+lines read.
+
+**Order.** A flag wins over its variable, which wins over the settings file, which
+wins over the default. A variable is read trimmed, and one that is empty or blank counts as
+unset (the Blanks rule under [How the layers are merged](#how-the-layers-are-merged) lists
+what it does not cover).
+
+**A bad value stops the program.** A variable that cannot be used ends `sbrs` or
+`sbrs-mcp` with status 2, before a browser starts or the server listens, and the
+message names the variable and the flag it stands for:
+
+```text
+SB_HEADLESS (--headless): cannot parse bool: maybe
+```
+
+A few variables only warn, such as a `SB_LOG_FORMAT` that is neither `pretty` nor
+`json`: it is reported and the default is used.
+
+Variables that are not keys of the settings file include these (the rest are in
+`sbrs options --env`):
+
+| Variable | Flag | Default | What it sets |
+| --- | --- | --- | --- |
+| `SB_PROXY_LIST` | `sbrs --proxy-list` | none | A file of proxies to choose from; without a proxy a random one is used |
+| `SB_SAVE_SCREENSHOT` | `sbrs --save-screenshot` | off | Save a screenshot to `latest_logs/` just before the browser closes, and print its path |
+| `SB_PATCH_CACHE_DIR` | `sbrs patch-chrome --cache-dir` | the user cache folder | The folder that holds patched browser binaries |
+| `SB_MCP_SERVER` | `sbrs-mcp --server` | `sb` | Which toolset the MCP server serves: `cdp`, `driver`, `sb` or `dev` |
+| `SB_MCP_TRANSPORT` | `sbrs-mcp --transport` | `stdio`, or `http` when a listen address is given | How the server talks to its client: `stdio` or `http` |
+| `SB_MCP_LISTEN` | `sbrs-mcp --listen` | `127.0.0.1:8931` for http | The IP address and port of the HTTP endpoint; setting it serves over HTTP |
+| `SB_MCP_PATH` | `sbrs-mcp --path` | `/mcp` | The URL path of the HTTP endpoint |
+| `SB_MCP_TOKEN` | none | none | The bearer token the HTTP endpoint asks for; an address that is not loopback needs one |
+| `SB_MCP_TOKEN_FILE` | `sbrs-mcp --token-file` | none | A file that holds the bearer token; it wins over `SB_MCP_TOKEN` |
+| `SB_MCP_NO_TOKEN` | `sbrs-mcp --no-token` | `false` | Serve HTTP on a loopback address without a bearer token; without it a loopback listener given no token gets a random one, printed once and written to `mcp-token` in the output folder |
+| `SB_MCP_ALLOW_ORIGIN` | `sbrs-mcp --allow-origin` | none | Origins (`scheme://host[:port]`) of browser pages that may use the HTTP endpoint, separated by commas |
+| `SB_MCP_ALLOW_HOST` | `sbrs-mcp --allow-host` | none | Host names accepted in the `Host` header besides localhost, separated by commas |
+| `SB_MCP_MAX_SESSIONS` | `sbrs-mcp --max-sessions` | `4` | The most MCP sessions, and so browsers, the HTTP server holds at once |
+| `SB_MCP_OUTPUT_DIR` | `sbrs-mcp install --output-dir` | `./mcp_output` | The folder the tools of the MCP server write their files to |
+| `SB_MCP_URL` | `--url` of the `sbrs-mcp` client commands | none | The server that `tools`, `call` and the other client commands connect to when no flag names one (not in the `options --env` list) |
+
+See [MCP servers](/ecosystem/mcp/server#calling-tools-from-a-shell) for the client
+commands and the `--url` and `--token-file` flags.
+
+
+## Runtime environment variables
+
+In addition to `Settings`, the crate reads `SB_*` runtime configuration for
+library behavior (`RuntimeConfig`). Three of the variables below are settings of the browser,
+rows of the option table: `Settings` and `BrowserConfig::from_env()` read them, both by the one
+rule of the table (a blank value is unset), and `RuntimeConfig` does not hold them. The others
+are read by the same rule: trimmed, and a blank value is unset (`SB_CHROMEDRIVER_PORT=" 9515"`
+is the port 9515).
+
+<ParamField body="SB_WEBDRIVER_URL" type="string" default="http://localhost:4444">
+
+WebDriver endpoint. A blank value is unset.
+
+</ParamField>
+
+<ParamField body="SB_CHROME_BIN" type="string" default="auto-detect">
+
+Explicit Chrome/Chromium binary path. A blank value is unset.
+
+</ParamField>
+
+<ParamField body="SB_PATCH_CACHE_DIR" type="string" default="platform cache">
+
+Directory for patched Chrome/Chromedriver copies.
+
+</ParamField>
+
+<ParamField body="SB_LOG_LEVEL" type="string">
+
+The tracing filter. Unset, blank or invalid, `sbrs` and `sbrs-mcp` use `RUST_LOG`,
+then `info`.
+
+</ParamField>
+
+<ParamField body="SB_LOG_FORMAT" type="string" default="pretty">
+
+`pretty` (a readable line, coloured on a terminal) or `json` (one object per line, never
+coloured). Anything else is reported and the default is used.
+
+</ParamField>
+
+<ParamField body="NO_COLOR" type="any value">
+
+Turns colour off for the log lines, for the banners of `sbrs mkrec` and for the
+[debug prompts](/guides/write-tests/rust-test-tooling#debug-prompts) (`--pdb`, `--trace`, `breakpoint`)
+([no-color.org](https://no-color.org)). An empty value does not count. Colour is used only when the
+stream (standard error for logs and prompts, standard output for banners) is a terminal and `TERM`
+is not `dumb`.
+
+</ParamField>
+
+<ParamField body="SB_SHUTDOWN_TIMEOUT_SECS" type="integer" default="30">
+
+Graceful shutdown timeout.
+
+</ParamField>
+
+<ParamField body="SB_CHROMEDRIVER_PORT" type="integer" default="0">
+
+<Badge color="gray">Not read yet</Badge>
+
+Parsed into `RuntimeConfig::chromedriver_port`; nothing in the crate reads it yet.
+
+</ParamField>
+
+<ParamField body="SB_IMPLICIT_WAIT_SECS" type="integer" default="30">
+
+<Badge color="gray">Not read yet</Badge>
+
+Parsed into `RuntimeConfig::implicit_wait`; nothing in the crate reads it yet. For
+the default wait of a test, use `SB_TIMEOUT` or `BaseCase::set_timeout`.
+
+</ParamField>
+
+<ParamField body="SB_REMOTE_WEBDRIVER_TIMEOUT" type="integer">
+
+Unset by default. Client-side timeout, in seconds, for each HTTP request sent to
+a Remote WebDriver server.
+
+</ParamField>
+
+## Remote WebDriver timeout
+
+When tests run against a Selenium Grid, a node that dies mid-session can leave a
+command waiting forever, because the WebDriver client has no reason to give up
+on a connection that never closes. `remote_webdriver_timeout_seconds` (or the
+`SB_REMOTE_WEBDRIVER_TIMEOUT` variable) puts a client-side limit on each HTTP
+request sent to the server.
+
+It is unset by default, matching SeleniumBase's `REMOTE_WEBDRIVER_TIMEOUT`, so
+the client keeps its own default until you opt in.
+
+<Warning>
+
+If you set it, make it larger than your page-load timeout and larger than the
+longest a new-session request may wait in the grid's queue. A value below either
+one cuts off sessions that were healthy.
+
+</Warning>
+
+<CodeGroup>
+
+```toml sbase_config.toml
+remote_webdriver_timeout_seconds = 600
+```
+
+```bash Environment
+export SB_REMOTE_WEBDRIVER_TIMEOUT=600
+```
+
+</CodeGroup>
+
+## BrowserConfig in code
+
+For per-test overrides, build a `BrowserConfig` directly:
+
+```rust
+use seleniumbase_rs::{BrowserConfig, DriverMode};
+
+let config = BrowserConfig::builder()
+    .mode(DriverMode::Uc)
+    .headless(true)
+    .proxy("http://proxy:8080")
+    .locale("en-US")
+    .extra_args(vec!["--disable-blink-features=AutomationControlled".into()])
+    .build()?;
+```
+
+A `BrowserConfig` keeps what it holds in groups, and a field is read through its group:
+
+| Group | Type | Holds | Examples |
+|---|---|---|---|
+| `browser` | `BrowserSettings` | what both engines start: the browser, its window, proxy, profile and switches | `config.browser.headless`, `config.browser.kind`, `config.browser.proxy.server`, `config.browser.has(LaunchSwitch::DarkMode)` |
+| `session` | `SessionSettings` | what only a WebDriver session reads: the driver mode, the server, the Grid, reuse, capabilities | `config.session.mode`, `config.session.webdriver_url()`, `config.session.reuse` |
+| `run` | `RunSettings` | demo, slow and timeout settings of the run | `config.run_settings()` |
+
+The pure CDP engine (`LaunchOptionsBuilder::browser_config`) reads `browser` whole and ignores
+`session`. `BrowserSettings::default()` opens a window, as Python does; a default `BrowserConfig`
+is headless. Replace a whole group with `browser_settings` and `session_settings`.
+
+`BrowserConfig` also supports `from_env()` to load runtime variables directly:
+
+```rust
+use seleniumbase_rs::BrowserConfig;
+
+let config = BrowserConfig::from_env()?;
+```
+
+## Proxy lists and ad-block lists
+
+Two small types in `seleniumbase_rs::config` hold lists that are too long for
+a config file field.
+
+`ProxyList` is Python's `PROXY_LIST`: proxies, optionally named, read from a
+text file (see [CLI usage](/ecosystem/cli/usage#proxies-from-a-list) for the format).
+Each entry is validated when it is read. It resolves a name or a literal proxy
+(`resolve`), and hands proxies out in turn (`next_round_robin`) or at random
+(`random`); the turn counter is atomic, so one list can serve parallel tests:
+
+```rust
+use seleniumbase_rs::config::proxy_list::ProxyList;
+use seleniumbase_rs::BrowserConfig;
+
+let proxies = ProxyList::from_file("proxies.txt")?;
+let entry = proxies.next_round_robin().expect("a non-empty list");
+let config = BrowserConfig::builder().proxy(entry.spec()).build()?;
+```
+
+`ProxyEntry`'s `Debug` and `Display` never show a password; only `spec()` does.
+
+`pick(site)` chooses by the list's `RotationStrategy`, set with `rotation`: in
+turn (`RoundRobin`, the default), at random (`Random { seed }`, where a seed
+repeats the same order and `None` is `random`'s pick), the proxy with the fewest
+reported failures (`LeastFailures`), or the same proxy for the same site
+(`StickyPerSite`). `report(entry, outcome)` records what a request through a
+proxy met (`ProxyOutcome::Success`, `ConnectFailed`, `Challenged`, `Blocked`), and
+`quarantine(after_failures, rest)` rests a proxy that failed that many times in
+a row. `pick_other(current, site)` never returns `current`, so a rotation really
+moves:
+
+```rust
+use std::time::Duration;
+use seleniumbase_rs::config::proxy_list::{ProxyList, ProxyOutcome, RotationStrategy};
+
+let proxies = ProxyList::from_file("proxies.txt")?
+    .rotation(RotationStrategy::LeastFailures)
+    .quarantine(3, Duration::from_secs(600));
+let entry = proxies.pick(Some("shop.example")).expect("a proxy that is not resting");
+proxies.report(entry, ProxyOutcome::ConnectFailed);
+```
+
+A proxy rests until a moment that the list reads from the clock. A caller that keeps
+its own clock (a proxy pool that holds Unix seconds, or a test that moves time by
+hand) uses the forms that take the time as a `std::time::SystemTime`, the last
+argument: `pick_at(site, now)`, `pick_other_at(current, site, now)` and
+`report_at(entry, outcome, now)`. `pick`, `pick_other` and `report` are the same
+calls with the time of the clock. `pick_where(accept, site)` and
+`pick_where_at(accept, site, now)` choose only among the proxies a closure over the
+entry allows (the proxies named for one country, say), and a site that stuck to a
+proxy the closure refuses moves to one it allows. The list stays `Send + Sync`, so
+one list serves threads whichever clock drives it:
+
+```rust
+use std::time::{Duration, UNIX_EPOCH};
+use seleniumbase_rs::config::proxy_list::{ProxyList, ProxyOutcome};
+
+let proxies = ProxyList::parse("de = de.proxy.example:8080\nfr = fr.proxy.example:8080\n")?
+    .quarantine(1, Duration::from_secs(600));
+let at = |seconds| UNIX_EPOCH + Duration::from_secs(seconds);
+
+let german = proxies
+    .pick_where_at(|entry| entry.name() == Some("de"), None, at(1_000))
+    .expect("a German proxy");
+proxies.report_at(german, ProxyOutcome::Blocked, at(1_000));
+// It rests until second 1,600; the French proxy serves meanwhile.
+assert!(proxies.pick_where_at(|entry| entry.name() == Some("de"), None, at(1_599)).is_none());
+assert!(proxies.pick_where_at(|entry| entry.name() == Some("de"), None, at(1_600)).is_some());
+```
+
+The turn is a position in the list, so a proxy that starts to rest in the middle of a
+cycle leaves a gap and the others keep their order. A rest is held to a hundred years.
+
+
+
+`AdBlockList` is a set of hosts to refuse, with their subdomains.
+`AdBlockList::builtin()` is the crate's starter list of advertising and
+tracking hosts, `AdBlockList::parse` reads the host rules of a hosts file or
+an Adblock Plus list (and counts the rules it cannot express), and
+`url_patterns()` gives the patterns for the DevTools command
+`Network.setBlockedURLs`. `is_blocked(url)` matches on the parsed host, so a
+blocked name inside a query string does not block the page.
+
+A Chromium WebDriver session sends such a list to the browser when
+`BrowserConfig::ad_block` is on: the built-in list, or yours through
+`ad_block_list(list)`, which replaces it. `bounded_url_patterns()` is what
+is sent. It leaves out a host whose parent domain is also listed and refuses a
+list that needs more than 2,000 patterns, so the browser is never given half of
+what you asked for. See [Blocking ads](/settings/customizing-test-runs#blocking-ads).
+
+## Stealth and fingerprint settings
+
+Since 0.10.0, fingerprint and stealth delivery types (`Fingerprint`, `Spoof`, `Specimen`, `StealthPolicy`) live in `seleniumbase_rs_stealth::identity`, and browser application (`StealthLayer`, extension traits, evasion providers) lives in `seleniumbase_rs_stealth::client` inside [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). Core `seleniumbase-rs` keeps Layer 0 undetected helpers and configuration loading (`[fingerprint]` in `sbase_config.toml`, `SB_FINGERPRINT`, and `sbrs --fingerprint FILE`).
+
+A `Fingerprint` is what the browser claims. Each setting is one `Spoof<T>`: leave the browser's own value, draw a coherent random value, pass a literal value, disable the API, or mimic a recorded `Specimen`. A `StealthPolicy` controls how those claims are delivered and which protections run beside them without changing any setting. UC mode (`DriverMode::Uc`) is separate and does not build a fingerprint by itself; see [CDP and UC helpers](/api/cdp-uc#uc-mode).
+
+### Loading fingerprints from config, env, or CLI
+
+| Source | How it works |
+|---|---|
+| `sbase_config.toml` (`[fingerprint]` table) | Lowest priority fingerprint source, loaded with `Settings::load()`. |
+| `SB_FINGERPRINT` | Environment variable pointing to a fingerprint JSON file; overrides `[fingerprint]`. |
+| `sbrs --fingerprint FILE` | Global CLI flag overriding both `SB_FINGERPRINT` and `[fingerprint]`. |
+| `LaunchOptionsFingerprintExt::with_fingerprint(&fp)` / `with_stealth(&layer)` | Pure CDP (from `seleniumbase_rs_stealth::client`, re-exported at crate root). Copies unset launch settings (user agent, language, timezone, geolocation, platform, WebRTC policy) without overwriting explicit caller values, and runs CDP overrides and init scripts on every tab before the first navigation. |
+| `BrowserConfigFingerprintExt::with_fingerprint(&fp)` / `with_stealth(&layer)` | WebDriver/UC config extension trait. |
+| `PageFingerprintExt::apply_fingerprint(&fp)` / `BaseCaseFingerprintExt::apply_fingerprint(&fp)` | Applies CDP overrides and init scripts to an already open `sb_cdp::Page` or `BaseCase`. |
+
+```rust
+use seleniumbase_rs_stealth::sb_cdp::LaunchOptions;
+use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt};
+
+let fp = Fingerprint::windows_desktop();
+let _cdp = LaunchOptions::builder().build()?.with_fingerprint(&fp)?;
+```
+
+### `Spoof<T>` and `Specimen`
+
+`Spoof<T>` wraps one setting (default `Natural`). Plain values convert via `Into`, so `"Europe/Berlin"` becomes `Spoof::Value`.
+
+| State | Meaning |
+|---|---|
+| `Natural` | The browser's own value. Default. `is_natural()` is true. |
+| `Random` | Draw a coherent value when the fingerprint is built. A built fingerprint does not keep `Random`. |
+| `Value(T)` | Exact literal value. `value()` and `into_value()` return it. |
+| `Off` | The API is unavailable or denied. `build()` returns an error naming the setting if it has no off state. |
+| `Mimic(Specimen)` | Mimics a named recorded specimen (`Build`, `Machine`, `Place`, or `Rendering`). |
+
+In JSON, a `Spoof` is `"natural"`, `"random"`, `"off"`, `{"mimic": "<specimen-name>"}`, or the value itself (`null` reads as `Natural`). Helper methods include `is_natural()`, `is_random()`, `is_value()`, `is_off()`, `is_mimic()`, `is_set()`, `specimen()`, `mimic(specimen)`, `as_ref()`, and `map(f)`.
+
+| Specimen kind | Type | Lookup | Examples |
+|---|---|---|---|
+| Browser build | `Build` | `Build::named(name)` | `"chrome-156-windows"`, `"chrome-156-macos"`, `"chrome-156-linux"`, `"chrome-157-macos"`, or `"chrome-<major>-<os>"` / `"edge-<major>-windows"` |
+| Machine model | `Machine` | `Machine::named(name)` | `"macbook-13-m1"`, `"thinkpad-x1-carbon-gen9"`, `"pixel-7"`, `"iphone-14-pro"` |
+| Place | `Place` | `Place::named(name)` | `"de-de-berlin"`, `"en-us-new-york"`, `"ja-jp-tokyo"` |
+| Rendering | `Rendering` | `Rendering::named(name)` | Recorded WebGL/Canvas output bundles |
+
+`Specimen::named(name)` looks up any specimen by name and returns `UnknownSpecimen` listing candidates when unknown.
+
+### `Fingerprint` and `FingerprintBuilder`
+
+Build a `Fingerprint` with `Fingerprint::builder()`, a fixed preset (`windows_desktop()`, `edge_desktop()`, `macos_desktop()`, `linux_desktop()`, `android_mobile()`, `ios_mobile_safari()`), or a seeded draw (`Fingerprint::randomized(os, seed)` / `randomized_with_major(os, seed, major)`). Use `to_builder()` to fork an existing fingerprint, `validate()` for a `CoherenceReport`, and `is_masked(dimension)` to test whether a `Dimension` is active.
+
+Each builder setter accepts `impl Into<Spoof<T>>` (later calls replace earlier ones). `build()` validates invalid `Off`/`Random` states, draws every `Random` from one seed, derives `languages` and `keyboard_layout` from `locale` and `platform` from a recognized user agent when omitted, and applies `StealthPolicy`:
+
+| Builder methods | Settings |
+|---|---|
+| `browser_type`, `os_type`, `core_version`, `seed` | Persona, OS, Chromium major, and deterministic noise seed. |
+| `user_agent`, `platform`, `hardware_concurrency`, `device_memory`, `max_touch_points`, `vendor`, `oscpu`, `product_sub`, `build_id`, `app_version` | `navigator` claims (`oscpu` and `build_id` have no `Random` value). |
+| `locale`, `languages`, `languages_list`, `accept_languages`, `timezone`, `keyboard_layout` | Language tags, timezone, and `KeyboardLayout` (`Qwerty`, `Qwertz`, `Azerty`). |
+| `screen`, `screen_spoof`, `avail_screen`, `pixel_ratio`, `color_depth`, `media_features` | Display geometry and `matchMedia` (`color_gamut`, `color_scheme`, `reduced_motion`, `contrast`, `forced_colors`). |
+| `webgl`, `webgl_vendor`, `webgl_renderer`, `audio_sample_rate` | WebGL vendor/renderer and Web Audio sample rate (e.g. `44100` or `48000` Hz). |
+| `media_devices`, `media_device_counts`, `geolocation`, `fonts`, `speech_voices`, `client_hints`, `battery`, `connection`, `bluetooth`, `storage_quota` | Device, location, media, quota, and Client Hints APIs (`Off` disables supported APIs; `storage_quota` has no `Off`). |
+| `proxy`, `webrtc`, `local_storage`, `save_service_worker`, `custom_start_urls`, `cmd_params`, `humanize` | Network proxy (no `Random`), WebRTC IP overrides, profile flags, and `HumanizeConfig`. |
+| `policy`, `change_policy`, `webrtc_policy`, `canvas_noise`, `audio_noise`, `native_spoofing`, `grant_permissions`, `block_trackers`, `blocked_trackers`, `blocked_ports`, `disable_csp`, `quic` | Delivery policy and policy shortcuts (shortcuts run after `policy()` in call order). |
+
+Read accessors on `Fingerprint` mirror the setting names (`&Spoof<T>`), plus `webgl_vendor()`, `webgl_renderer()`, `audio_sample_rate()`, `policy()`, `humanize()`, `tracker_hosts()`, `local_storage()`, and `save_service_worker()`.
+
+### `StealthPolicy`
+
+`StealthPolicy` controls delivery mechanics and auxiliary protections:
+
+| Field | Default | What it does |
+|---|---|---|
+| `webrtc_policy` | `None` | WebRTC IP-handling flag (`DisableNonProxiedUdp`, `PublicAndPrivateInterfaces`, `PublicInterfaceOnly`). |
+| `canvas_noise` | `CanvasNoise::Natural` | Pixel noise on `toDataURL`, `toBlob`, `getImageData` (`Natural`, `Persistent`, `Random`, `Low`). |
+| `audio_noise` | `AudioNoise::Natural` | Web Audio noise (`Natural`, `Persistent`, `Random`). |
+| `native_spoofing` | `false` | Deliver supported claims through CDP and launch flags instead of JS overrides. |
+| `native_tostring` | `true` | Mask `Function.prototype.toString` on patched getters/functions. |
+| `chrome_runtime` | `false` | Install `window.chrome` runtime, app, `csi`, and `loadTimes` stubs. |
+| `headless_fixes` | `false` | Permissions consistency, page visibility, and hairline media query fixes. |
+| `grant_permissions` | `false` | Grant common browser permissions at start. |
+| `block_trackers` / `blocked_trackers` | `false` / empty | Block tracker hosts (empty list uses the crate's default list). |
+| `blocked_ports` | empty | Loopback ports blocked from browser access. |
+| `quic` | `QuicMode::Natural` | QUIC policy (`Natural`, `Disabled`, `Enabled`, `ForceHttp2`, `Auto`). |
+| `disable_csp` | `false` | Bypass Content-Security-Policy for the page context. |
+| `open_shadow_roots` | `true` | Force closed shadow roots open (detectable by pages). |
+
+| Preset | What it enables |
+|---|---|
+| `StealthPolicy::default()` | `native_tostring` and `open_shadow_roots` only. |
+| `StealthPolicy::native_only()` | `DisableNonProxiedUdp` and `native_spoofing`; no canvas/audio noise or `window.chrome` stubs. |
+| `StealthPolicy::balanced()` | Preset default: `DisableNonProxiedUdp`, persistent canvas and audio noise, `chrome_runtime`, `headless_fixes`. |
+| `StealthPolicy::max()` | `balanced()`, plus tracker blocking, granted permissions, and `QuicMode::Disabled`. |
+
+For full Layer 1 and Layer 2 API references (including `BayesianSampler`, `StealthLayer` levels, the 42-surface `StealthScriptBundle`, and the 32 priority-ordered JS `EvasionProvider` passes), see [Stealth API: identity](/stealth/api/identity/overview) and [Stealth API: client](/stealth/api/client/overview).
+
+## Best practices
+
+- Commit a sample config file (e.g., `sbase_config.example.toml`) to the repo so
+  new contributors know what settings exist.
+- Keep secrets (passwords, API keys) out of config files; use environment
+  variables or a secrets manager.
+- Use `Settings::load_global()` in test harnesses and `BrowserConfig` overrides
+  for individual tests.
+- Use `BrowserConfig::from_env()` in deployable applications so operators can
+  change behavior without rebuilding.
+
+## Configuration checklist
+
+- [ ] A sample config file is committed to the repository.
+- [ ] Secrets are loaded from environment variables.
+- [ ] Per-test overrides use `BrowserConfig` builders.
+- [ ] CI uses environment variables or a dedicated config file.
+- [ ] `SB_*` variables are documented for operators.
+
+## Related reading
+
+<Columns cols={2}>
+
+<Card color="#1a85d4" title="CLI Usage" icon="terminal" href="/ecosystem/cli/usage">
+
+Command-line overrides and flags.
+
+</Card>
+
+<Card color="#199f43" title="Tracing and Logging" icon="list" href="/guides/configure-runs/tracing">
+
+`SB_LOG_LEVEL` and `SB_LOG_FORMAT`.
+
+</Card>
+
+<Card color="#d47628" title="Docker Guide" icon="box" href="/guides/production/docker">
+
+Containerized configuration.
+
+</Card>
+
+</Columns>

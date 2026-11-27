@@ -218,7 +218,7 @@ classic way to dodge IP-based rate limits and blocks.
   on these, and fails fast on `404` or `403`, is more useful than one that
   treats every non-200 the same.
 - **WebSockets need to be allowed through.** A reverse proxy must forward the
-  `Upgrade` header for [WebSocket](/glossary#websocket) connections; if it does
+  `Upgrade` header for [WebSocket](/concepts/glossary#websocket) connections; if it does
   not, a page can load and its live part still never works.
 
 ## APIs
@@ -638,7 +638,7 @@ CDN; it sees them only through the browser. Three places where they meet:
 For API calls inside a test, use any Rust HTTP client, for example `reqwest`;
 the library does not wrap one for you. The optional `turso` feature stores test
 results and browser profiles in a database (see
-[Results and profiles](/tutorials/results_and_profiles)); it is separate from
+[Results and profiles](/guides/results-and-reports/results-and-profiles)); it is separate from
 the database of the application under test.
 
 </Note>
@@ -696,7 +696,7 @@ are faster and narrower, and the two together find more than either alone.
   What an edge proxy may ask of a visitor before the site sees it.
 </Card>
 
-<Card title="Glossary" icon="book" color="#1a85d4" href="/glossary">
+<Card title="Glossary" icon="book" color="#1a85d4" href="/concepts/glossary">
   Short definitions of the terms used here.
 </Card>
 

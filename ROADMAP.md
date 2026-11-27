@@ -440,6 +440,20 @@ page gets (puppeteer-extra and Zorilla are examples of the ecosystem). Design an
   plugins, the real Bootstrap Tour and Hopscotch libraries for the two tour
   themes that fall back to the built-in tour today).
 
+## 8. Desktop, Launcher, Proxy & IDE Integrations (planned)
+
+- **Desktop GUI (Tauri):** desktop app matching Python SeleniumBase Commander / Behave Commander / Case Plans / Recorder workflows, built with Tauri (`tauri-profile-manager` pattern).
+- **Binary & Developer CLI split:** interactive TUI by default on `sbrs plugin new`, `sbrs-dev` developer-focused CLI, and full `sbrs plugin install|search|upgrade|uninstall|ls|enable|disable|directory` plugin store lifecycle (supporting local paths and remote registries), plus full-screen Ratatui debugger TUI for `sbrs record` breakpoints.
+- **Desktop Application Launchers for `sbrs` / `sbrs-mcp`:**
+  - Microsoft PowerToys Run / Command Palette extension (`https://learn.microsoft.com/en-us/windows/powertoys/`)
+  - Raycast extension (`https://www.raycast.com/developers`)
+  - KDE Plasma KRunner / Desktop Launcher integration (`https://kde.org/plasma-desktop/`)
+- **Security Proxies & Container Workflows:**
+  - Burp Suite integration (proxy routing, CA trust, extension / sitemap export)
+  - OWASP ZAP integration (active/passive scan bridge alongside the `owasp` plugin)
+  - Docker images & Compose recipes for headless browser grids, CI runners, and isolated test execution
+- **IDE Support (Usage & Plugin Development):** first-class integrations and starter workflows for VS Code, Cursor, Zed, JetBrains / CLion, Neovim, and Helix — both for running/debugging browser tests and for scaffolding/testing plugins.
+
 ## Publishing
 
 Work happens on a feature branch. To publish: run the quality gate on a clean

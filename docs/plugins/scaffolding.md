@@ -346,7 +346,7 @@ fn main() -> Result<(), seleniumbase_rs::cli::plugin_scaffold::PluginScaffoldErr
 
 ## MCP `dev` server tool (`scaffold_plugin`)
 
-When an AI coding assistant is connected to the browserless [DevTools MCP server](/tutorials/devtools_mcp) (`sbrs-mcp --server dev`), it can call the `scaffold_plugin` tool to preview every file `sbrs plugin new` would produce.
+When an AI coding assistant is connected to the browserless [DevTools MCP server](/ecosystem/mcp/devtools) (`sbrs-mcp --server dev`), it can call the `scaffold_plugin` tool to preview every file `sbrs plugin new` would produce.
 
 Because `scaffold_plugin` has `Effect::Inspect`, it calls `render_plugin_files` in memory and **writes nothing to disk**. The response contains each file framed under `=== <path> ===` followed by the quick-start instructions, allowing the agent to inspect, tailor, and write the files using its own workspace tools.
 

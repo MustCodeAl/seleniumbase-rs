@@ -6,7 +6,7 @@ description: "What seleniumbase_rs re-exports at its root and what each item is 
 
 <Note>
 
-Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 
@@ -17,7 +17,7 @@ Items marked with a feature need that Cargo feature; the default feature set
 is empty. For stealth and scraping, the unified `seleniumbase-rs-stealth`
 facade re-exports this core API alongside `fingerprint`, `codec`, `scrape` and
 optional `wire`. Use `seleniumbase_rs_stealth` paths with the
-[single dependency](/scraping/stealthy/overview#which-crate-to-depend-on). Optional core
+[single dependency](/stealth/session/overview#which-crate-to-depend-on). Optional core
 APIs retain their feature gates.
 
 ### Browser, configuration and test runner
@@ -25,7 +25,7 @@ APIs retain their feature gates.
 | Item | What it is |
 |---|---|
 | `BaseCase` | The browser test case. `BaseCase::new(config).await` connects; `BaseCase::without_session(config)` does not. WebDriver is the default; `cdp_url` or `cdp_discovery` attaches the pure engine for `cdp_*` methods without starting a driver. |
-| `BrowserConfig` | The session configuration. Fields and `with_*` builders are listed in [Getting Started](/tutorials/getting_started#configuration). `BrowserConfig::default()` reads no environment variables; `BrowserConfig::from_env()` returns `Result<BrowserConfig>` and honours the `SB_*` variables. |
+| `BrowserConfig` | The session configuration. Fields and `with_*` builders are listed in [Getting Started](/guides/get-started/getting-started#configuration). `BrowserConfig::default()` reads no environment variables; `BrowserConfig::from_env()` returns `Result<BrowserConfig>` and honours the `SB_*` variables. |
 | `Browser` | Enum of browsers: `Chrome` (default), `Chromium`, `Edge`, `Firefox`, `Brave`, `Comet`, `Opera`, `Safari`, `InternetExplorer`, `ChromeForTesting`, `ChromeHeadlessShell`. It parses from text such as `chrome`, `edge`, `ie`, `cft`, `chs` (`FromStr`). `is_chromium_based()` and `name()` are `const fn`s. |
 | `DriverMode` | `WebDriver` (default), `Cdp` or `Uc` (undetected mode). |
 | `BrowserSession` | Owns a WebDriver session or a directly attached pure CDP page. `BrowserSession::connect(config).await` is what `BaseCase::new` calls. `pure_cdp_page() -> Option<&sb_cdp::Page>` exposes the attached page and its browser; it returns `None` for WebDriver. |
@@ -90,16 +90,16 @@ Macros exported at the crate root for concise test writing, configuration, and i
 
 | Item | What it is |
 |---|---|
-| `Chart`, `ChartType` | A chart that renders to HTML with Chart.js: `Chart::new(title, chart_type)` with `ChartType::Pie`, `Bar` (horizontal), `Line`, `Area` or `Column` (vertical). Data points are `(label, i32)` pairs; extra series go in `extra_series`. See [Charts](/tutorials/charts). |
-| `TourTheme` | `SeleniumBase` (default), `Shepherd`, `IntroJs`, `DriverJs`, `Bootstrap`, `Hopscotch`; `as_str()` gives the lowercase name. See [Tours](/tutorials/tours). |
+| `Chart`, `ChartType` | A chart that renders to HTML with Chart.js: `Chart::new(title, chart_type)` with `ChartType::Pie`, `Bar` (horizontal), `Line`, `Area` or `Column` (vertical). Data points are `(label, i32)` pairs; extra series go in `extra_series`. See [Charts](/guides/results-and-reports/charts). |
+| `TourTheme` | `SeleniumBase` (default), `Shepherd`, `IntroJs`, `DriverJs`, `Bootstrap`, `Hopscotch`; `as_str()` gives the lowercase name. See [Tours](/guides/results-and-reports/tours). |
 
 ### Undetected patching and stealth
 
-Binary patching and undetected-Chrome launch helpers stay in core (`seleniumbase_rs::undetected`, re-exported at the crate root). Fingerprint spoofing, `Spoof`, `StealthPolicy`, `EvasionRegistry`, `ProfileParams`, `StealthPlan`, and the `fingerprint!` macro moved in `v0.10.0` to [`seleniumbase-rs-stealth`](/stealth/api/evasion) (`seleniumbase-rs-stealth`).
+Binary patching and undetected-Chrome launch helpers stay in core (`seleniumbase_rs::undetected`, re-exported at the crate root). Fingerprint spoofing, `Spoof`, `StealthPolicy`, `EvasionRegistry`, `ProfileParams`, `StealthPlan`, and the `fingerprint!` macro moved in `v0.10.0` to [`seleniumbase-rs-stealth`](/stealth/api/client/migration) (`seleniumbase-rs-stealth`).
 
 | Item | What it is |
 |---|---|
-| Patching | `find_system_chrome() -> Option<PathBuf>` and `find_system_chrome_with(...)` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, and `EnginePatch` (`balanced()`, `all()`, `aggressive()`, `chrome_binary()`, `headless_chrome()`, `stealth_browser()`, `custom_rule`, `custom_rules`, `from_rules`). Diagnostic and rule types: `PatchPreset`, `BinaryFormat`, `BinaryPatchRule` (`try_new`, `ascii`, `neutralize`, `neutralize_nul`, `from_hex`), `MarkerCounts`, `BinaryMarkerReport` (`inspect`, `from_bytes`, `needs_patch`, `has_markers`, `summary`), `PatchedBrowserBundle`, and in-memory `undetected::patcher::patch_bytes`. See [Binary patching](/stealth/advanced/binary-patching). |
+| Patching | `find_system_chrome() -> Option<PathBuf>` and `find_system_chrome_with(...)` (checks `CHROME_BIN` and `CHROMIUM_BIN`, well-known paths, then `which`), `engine_spoofing_args() -> Vec<String>` (launch flags that reduce engine-level automation signals), `ChromeBinaryPatcher`, `ChromedriverPatcher`, and `EnginePatch` (`balanced()`, `all()`, `aggressive()`, `chrome_binary()`, `headless_chrome()`, `stealth_browser()`, `custom_rule`, `custom_rules`, `from_rules`). Diagnostic and rule types: `PatchPreset`, `BinaryFormat`, `BinaryPatchRule` (`try_new`, `ascii`, `neutralize`, `neutralize_nul`, `from_hex`), `MarkerCounts`, `BinaryMarkerReport` (`inspect`, `from_bytes`, `needs_patch`, `has_markers`, `summary`), `PatchedBrowserBundle`, and in-memory `undetected::patcher::patch_bytes`. See [Binary patching](/stealth/advanced/core/binary-patching). |
 
 ### Python migration
 
@@ -119,9 +119,9 @@ The remaining public API sits in modules: `api`, `artifacts`,
 `browser` (including `browser::options::StealthOptions` and `WebRtcPolicy`), `cli`, `common`, `config`, `core`, `drivers` (the raw `WebDriver`,
 `WebElement` and `WebDriverError` of the escape hatches), `error`, `js_code`, `json` (`json!` and `Value`), `macros`,
 `tokio` (the runtime, re-exported so `#[tokio::main]` needs no `tokio` line; see
-[Imports and dependencies](/tutorials/getting_started#imports-and-dependencies)),
+[Imports and dependencies](/guides/get-started/getting-started#imports-and-dependencies)),
 `plugins` (test-reporting plugins, including `s3` feature), `resources`,
-`sb_cdp` (the [pure CDP engine](/tutorials/pure_cdp), including `sb_cdp::human::{behavior, humanize}`), `tracing_util`,
+`sb_cdp` (the [pure CDP engine](/guides/browser-engines/pure-cdp), including `sb_cdp::human::{behavior, humanize}`), `tracing_util`,
 `undetected` (`patcher`, `dprocess`, `reactor`, `uc`),
 `utilities`, `utils`; and, behind features, `mcp` (`mcp-server`),
 `plugin_api` (`plugins`, the browser plugin API), `builtin_plugins` (any of
@@ -129,4 +129,4 @@ The remaining public API sits in modules: `api`, `artifacts`,
 `plugin-extractor`, `plugin-batcher`, `plugin-crawler`, `plugin-browser`, `plugin-imap`, `plugin-tor` or `plugins-builtin`: the
 official plugins and their `registry()`, see [Choosing plugins](/plugins/selecting)),
 `storage` (`turso`), `testing` (`testing` / `bdd`), and `visual` (`visual`).
-Fingerprinting and JS evasions live in [`seleniumbase-rs-stealth`](/stealth/api/evasion), while OCR and GCS/Azure cloud uploads live in [`seleniumbase-rs-plugin-ocr`](/plugins/community/ocr) and [`seleniumbase-rs-plugin-cloud-logging`](/plugins/community/cloud-logging).
+Fingerprinting and JS evasions live in [`seleniumbase-rs-stealth`](/stealth/api/client/migration), while OCR and GCS/Azure cloud uploads live in [`seleniumbase-rs-plugin-ocr`](/plugins/community/ocr) and [`seleniumbase-rs-plugin-cloud-logging`](/plugins/community/cloud-logging).

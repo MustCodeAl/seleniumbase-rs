@@ -1,0 +1,284 @@
+---
+title: "API Reference: BaseCase, Capability Traits and the Crate Root"
+sidebarTitle: "API reference"
+---
+
+`BaseCase` is the main entry point for writing browser automation in
+`seleniumbase-rs`. It wraps a WebDriver/CDP session, provides a fluent API for
+navigation, interaction, waits, assertions, and exposes advanced helpers for
+stealth, CDP, tours, and screenshots.
+
+This page is a high-level reference. For exact signatures and generic bounds,
+build the rustdocs with:
+
+```bash Terminal
+cargo doc --no-deps --open
+```
+
+<Info>
+
+**What you will learn**
+
+- The lifecycle methods for creating and closing sessions.
+- Common navigation, interaction, and query methods.
+- Wait and assertion patterns.
+- Script execution, scrolling, file handling, and advanced interactions.
+- CDP/UC helpers and when to use them.
+- The capability traits (`BrowserApi`, `ElementApi`, `AssertionApi`, `ScreenshotApi`) that both engines implement.
+- The public items re-exported at the crate root and what each is for.
+- Where to find rustdocs for deeper detail.
+
+</Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: `BaseCase` methods are grouped as lifecycle, navigation, interaction, scrolling, waits, assertions, deferred assertions, queries, windows, frames and drivers, cookies and storage, screenshots, script execution, downloads and PDF, CDP and UC helpers, GUI helpers (feature `gui`), alerts, MFA, tours and charts, recorder, and utilities. Selectors are CSS by default, XPath for `//...`, and link text for `link=...`. Methods return `seleniumbase_rs::Result<T>`, so use `?`. `assert_text(text, selector)` takes the text first. `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi` are implemented by both `BaseCase` (WebDriver) and `sb_cdp::Page` (pure CDP). For exact signatures run `cargo doc --no-deps --open`.
+
+</Visibility>
+
+## Reading this page
+
+The tables list each method as `name(arguments)`, without the `sb.` in front
+and the `.await?` after. So the row `set_attribute(selector, attr, value)`
+stands for a call like this:
+
+<CodeGroup>
+
+```rust,ignore As written in a test
+sb.set_attribute("#email", "placeholder", "you@example.com").await?;
+```
+
+```rust,ignore The signature
+pub async fn set_attribute(&mut self, selector: impl Into<Selector>, attribute: &str, value: &str)
+    -> Result<(), SeleniumBaseError>
+```
+
+</CodeGroup>
+
+### Common arguments
+
+The same names mean the same thing in every table. The signatures sometimes
+use a longer name (`timeout_secs` for `timeout`).
+
+| Argument | Type | What it is |
+|---|---|---|
+| `selector` (also `src`, `dst`, `container`) | `impl Into<Selector>` | Which element to act on, as CSS, XPath or link text (see [Selector syntax](#selector-syntax)). A string, or a `Selector` built with `css`, `xpath`, `link_text` or `partial_link_text` to skip the guess. The first match is used. |
+| `text`, `expected` | `&str` | Text to type, or the text an assertion expects. `assert_text(text, selector)` takes the text first. |
+| `attr`, `prop` | `&str` | An attribute or property name, such as `"href"` or `"value"`. |
+| `value` | `&str` | The value to set: of an attribute, a field or a storage item. |
+| `url` | `&str` | A full URL, such as `"https://example.com/login"`. |
+| `timeout`, `timeout_secs` | `u64` | How many seconds to wait before failing. A method that takes a `Duration` says so in its signature. |
+| `seconds` | `f64` | A pause, as in `sleep(1.5)`. |
+| `x`, `y` | integer | A position in pixels (`i32` or `i64`, depending on the method). |
+| `path`, `filename` | `&str` or `&Path` | A file to read or write. |
+| `index` | `usize` | A position in a list, such as an `<option>` of a `<select>`. |
+| `key` | `&str` | A storage key (`local_storage_item(key)`) or a key name (`gui_press_key(key)`). |
+| `name` | `&str` | A name the method looks up: a cookie, a tour, a chart, a saved baseline. |
+| `script` | `&str` | JavaScript to run in the page. |
+
+### Selector syntax
+
+A `selector` string picks its own lookup strategy, as SeleniumBase does:
+
+| Selector starts with | Strategy | Example |
+|---|---|---|
+| anything else | CSS (the default) | `"#submit"`, `"form input[name=q]"` |
+| `/`, `./`, `../`, `(`, or an axis such as `parent::` | XPath | `"//button[text()='Go']"`, `"(//a)[2]"` |
+| `link=`, `link_text=`, `text=` | Link text (exact) | `"link=Sign in"` |
+| `partial_link_text=`, `partial_link=`, `partial_text=`, `p_link_text=`, `p_link=`, `p_text=` | Link text (contains) | `"p_text=Sign"` |
+
+The prefixes are case-sensitive (`LINK=Home` is CSS). More in the
+[Selectors guide](/guides/write-tests/selectors).
+
+### What methods return
+
+Almost every method returns `seleniumbase_rs::Result<T>`, so a test ends each
+call with `?` (`sleep` is an exception: it cannot fail).
+
+| Kind of method | Returns |
+|---|---|
+| Actions (`click`, `type_text`, `open`, `set_attribute`, ...) and assertions | `()`: nothing, or an error |
+| `text`, `title`, `current_url` and the like | `String` |
+| `attribute(selector, attr)`, `property(selector, prop)` | `Option<String>`: `None` when it is not set (`attribute` goes by the DOM property first, as Selenium does: what was typed, not the `value=""` of the markup) |
+| `find_element(selector)` | an `Element`: a handle to the first match, found within 10 seconds |
+| `find_elements(selector)` | `Vec<Element>`: every match, possibly none |
+| `execute_script(script)` | `seleniumbase_rs::json::Value`: what the script returned |
+| `save_screenshot(filename)` | `PathBuf`: where the file was written |
+
+An `Element` is the WebDriver engine's own type, `seleniumbase_rs::Element`: the
+node the browser found at that moment, as Python's `WebElement` is. It has the
+methods of the pure CDP engine's `Locator` under the same names (`text`,
+`html`, `tag`, `attribute`, `property`, `bounding_box`, `is_visible`,
+`is_enabled`, `is_selected`, `click`, `double_click`, `right_click`, `hover`,
+`clear`, `send_keys`, `type_text`, `press`, `select_option`, `submit`,
+`scroll_into_view`, `drag_to`) and `find`, `find_all` and `parent` for the
+elements inside and above it (a search stays inside the element: `//td` would
+match the whole page, so it is refused, as is a union with such a branch; write `.//td`). It does not wait, and once the page replaces the
+node its methods fail with `StaleElement`, which names the selector it was
+found by. For a `thirtyfour` call it has no method for,
+`element.as_webdriver_element()` gives the raw `drivers::WebElement`.
+
+```rust
+let row = sb.find_element("#cart .row").await?;
+println!("{}", row.text().await?);
+row.find(".remove").await?.click().await?;
+```
+
+Keep the selector instead when you can: the `BaseCase` methods look the element
+up again on each call, so they do not go stale when the page re-renders. The
+pure CDP engine's `Locator` (from `page.locator(selector)`) is lazy in the same
+way.
+
+## Reference pages
+
+<Columns cols={2}>
+
+<Card color="#1a85d4" title="Lifecycle and navigation" icon="rocket" href="/api/lifecycle-navigation">
+  Create and close a BaseCase session, open pages and move through history.
+</Card>
+
+<Card color="#199f43" title="Interaction" icon="hand-pointer" href="/api/interaction">
+  Click, type, select, hover, drag, press keys and scroll.
+</Card>
+
+<Card color="#d47628" title="Waits and assertions" icon="hourglass-half" href="/api/waits-assertions">
+  Wait for elements and text, assert on the page, and collect deferred assertions.
+</Card>
+
+<Card color="#a631be" title="Queries" icon="magnifying-glass" href="/api/queries">
+  Read text, attributes, properties, counts and page state.
+</Card>
+
+<Card color="#1ca1c7" title="Windows, frames and drivers" icon="window-restore" href="/api/windows-frames">
+  Switch windows, tabs and frames, and drive several browsers.
+</Card>
+
+<Card color="#d32a61" title="Cookies and storage" icon="cookie-bite" href="/api/cookies-storage">
+  Read and write cookies, local storage and session storage.
+</Card>
+
+<Card color="#693acf" title="Screenshots and scripts" icon="camera" href="/api/screenshots-scripts">
+  Take screenshots, run JavaScript and change the DOM.
+</Card>
+
+<Card color="#d5a910" title="Files, downloads and PDF" icon="file-arrow-down" href="/api/files">
+  Download and upload files and work with PDFs.
+</Card>
+
+<Card color="#17a5af" title="CDP and UC helpers" icon="user-secret" href="/api/cdp-uc">
+  Chrome DevTools and undetected-mode helpers, including the GUI bypass helpers.
+</Card>
+
+<Card color="#5b4db3" title="Settings & stealth config" icon="sliders" href="/settings/overview#stealth-and-fingerprint-settings">
+  Global settings, SB_* variables, Spoof, Fingerprint, and StealthPolicy configuration.
+</Card>
+
+<Card color="#199f43" title="Stealth API: identity" icon="id-card" href="/stealth/api/identity/overview">
+  Layer 1: Fingerprint, Spoof, StealthPolicy, Specimen, BayesianSampler, and capture.
+</Card>
+
+<Card color="#1a85d4" title="Stealth API: client" icon="mask" href="/stealth/api/client/overview">
+  Layer 2: StealthLayer levels, 42-surface StealthScriptBundle, 32 JS providers, and StealthPlan.
+</Card>
+
+<Card color="#d47628" title="Stealth API: network" icon="network-wired" href="/stealth/api/network/overview">
+  Layer 3: Pure TLS/H2/H3/header specs, proxy pools, WireFormat, MitmProxy, and HTTP/3.
+</Card>
+
+<Card color="#a631be" title="Stealth API: session" icon="spider" href="/stealth/api/session/overview">
+  Layer 4: CdpSession, HttpSession, HybridSession, challenge mitigation, CookieJar, and Ledger.
+</Card>
+
+<Card color="#2f7d4a" title="Testing fixtures" icon="flask" href="/api/testing-fixtures">
+  Sb, SbCdp and run, behind the testing feature.
+</Card>
+
+<Card color="#d52c36" title="Alerts and MFA" icon="bell" href="/api/alerts-mfa">
+  Handle JavaScript dialogs and generate TOTP codes.
+</Card>
+
+<Card color="#1a85d4" title="Tours, charts, recorder and utilities" icon="map" href="/api/tours-recorder">
+  Tours, presentations, charts, the recorder and other helpers.
+</Card>
+
+<Card color="#199f43" title="Capability traits" icon="layer-group" href="/api/traits">
+  BrowserApi, ElementApi, AssertionApi and ScreenshotApi, shared by both engines.
+</Card>
+
+<Card color="#d47628" title="Public items of the crate root" icon="cube" href="/api/crate-root">
+  What seleniumbase_rs re-exports at its root and what each item is for.
+</Card>
+
+</Columns>
+
+The pure CDP engine (Chrome over the DevTools Protocol, with no WebDriver) has its own reference, starting at [Pure CDP](/api/pure-cdp/overview).
+
+## Common error handling pattern
+
+Most `BaseCase` methods return `Result<T, SeleniumBaseError>`. Use `?` inside an
+async function or the `sb_test!` macro:
+
+```rust
+use seleniumbase_rs::{BaseCase, BrowserConfig};
+
+async fn login(sb: &mut BaseCase) -> Result<(), seleniumbase_rs::SeleniumBaseError> {
+    sb.open("https://example.com/login").await?;
+    sb.type_text("#username", "alice").await?;
+    sb.type_text("#password", "secret").await?;
+    sb.click("#submit").await?;
+    sb.assert_element_visible("#dashboard").await?;
+    Ok(())
+}
+```
+
+## Further reading
+
+<Columns cols={2}>
+
+<Card color="#a631be" title="Selectors" icon="crosshairs" href="/guides/write-tests/selectors" horizontal>
+
+CSS, XPath, link text and shadow DOM: how a selector string is read.
+
+</Card>
+
+<Card color="#1ca1c7" title="Waits and Assertions" icon="clock" href="/guides/write-tests/utilities#waits-and-assertions" horizontal>
+
+Wait for the page, then check it, without sleeps.
+
+</Card>
+
+<Card color="#d32a61" title="CDP Mode" icon="bolt" href="/guides/browser-engines/cdp-mode" horizontal>
+
+The CDP helpers on `BaseCase`, raw commands and the network reactor.
+
+</Card>
+
+<Card color="#693acf" title="UC Mode" icon="user-secret" href="/stealth/core/uc-mode" horizontal>
+
+Run Chrome so sites see a person's browser.
+
+</Card>
+
+<Card color="#d5a910" title="Macros" icon="wand-magic-sparkles" href="/guides/write-tests/utilities#macros" horizontal>
+
+Convenience macros from the crate root.
+
+</Card>
+
+<Card color="#17a5af" title="GUI Automation" icon="computer-mouse" href="/guides/browser-engines/gui-automation" horizontal>
+
+Native OS input instead of WebDriver.
+
+</Card>
+
+</Columns>
+
+For exact signatures, run `cargo doc --no-deps --open`.
+
+---
+
+<Callout icon="clipboard-check" color="#10B981">
+
+Checked against the source of this branch: the argument lists and argument order of the `BaseCase` tables (names and counts, by script), the capability traits and the crate-root items. The multi-driver rows (`new_driver` to `driver_count`) were checked earlier, against commit 8e9180f. The one-line descriptions of the other `BaseCase` methods were not all re-read.
+
+</Callout>

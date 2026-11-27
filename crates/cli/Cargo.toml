@@ -121,7 +121,7 @@ full-tracing = ["seleniumbase-rs/full-tracing"]
 tokio-console = ["seleniumbase-rs/tokio-console"]
 
 [dev-dependencies]
-# Writes the CLI reference page (docs/help/cli_reference.md) from the usage spec in a
+# Writes the CLI reference page (docs/ecosystem/cli/reference.md) from the usage spec in a
 # test, and the man pages (man/man1/*.1) from the same spec; usage-lib is the renderer of the
 # usage tool (`usage generate markdown`, `usage generate manpage`), and the binary does not
 # link it. The same release train as `usage-rs` above.

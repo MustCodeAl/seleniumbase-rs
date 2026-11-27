@@ -6,7 +6,7 @@ description: "Tours, presentations, charts, the recorder and other helpers."
 
 <Note>
 
-Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 
@@ -27,7 +27,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `add_data_point(label, value)` | Adds data to the current chart. |
 | `save_chart(path)` | Saves chart HTML. |
 
-See the [Tours](/tutorials/tours) and [Charts](/tutorials/charts) pages for details.
+See the [Tours](/guides/results-and-reports/tours) and [Charts](/guides/results-and-reports/charts) pages for details.
 
 ## Recorder
 
@@ -45,7 +45,7 @@ See the [Tours](/tutorials/tours) and [Charts](/tutorials/charts) pages for deta
 | `finish_recording()` | Writes the Recorder Mode files now; `quit` does it otherwise. |
 | `save_recorded_actions()` | Python's: keeps what the page recorded in this tab, for a test that goes to another origin in the same tab. |
 
-See [Recorder Mode](/tutorials/recorder_mode) for `sbrs mkrec`, the output formats and replay.
+See [Recorder Mode](/guides/record-and-replay/recorder-mode) for `sbrs mkrec`, the output formats and replay.
 
 ## Utility / misc helpers
 

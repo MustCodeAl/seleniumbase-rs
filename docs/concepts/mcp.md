@@ -421,7 +421,7 @@ A few settings belong to the person who starts the server, not to the model:
   give every browser the server starts a built-in plugin. They add to the
   `[plugins]` table of the settings file and to `SB_PLUGINS`, and a mistake stops
   the server before it listens. No tool argument can add a plugin. See
-  [Plugins](/tutorials/plugins).
+  [Plugins](/plugins/guide).
 - **Output.** Files that tools write (screenshots, saved pages, exported tests)
   go to `./mcp_output`, or to the directory named by `SB_MCP_OUTPUT_DIR`.
 - **Logging.** `SB_*` environment variables configure the run; a bad one is
@@ -519,11 +519,11 @@ a browser.
 
 <Columns cols={2}>
 
-<Card title="The MCP server guide" icon="robot" color="#1a85d4" href="/tutorials/mcp_server">
+<Card title="The MCP server guide" icon="robot" color="#1a85d4" href="/ecosystem/mcp/server">
   Install it, pick a toolset, and try it with an assistant.
 </Card>
 
-<Card title="DevTools MCP" icon="screwdriver-wrench" color="#199f43" href="/tutorials/devtools_mcp">
+<Card title="DevTools MCP" icon="screwdriver-wrench" color="#199f43" href="/ecosystem/mcp/devtools">
   The tools that read a page's console, network and DOM.
 </Card>
 
@@ -531,7 +531,7 @@ a browser.
   What the cdp toolset speaks to Chrome.
 </Card>
 
-<Card title="Glossary: MCP" icon="book" color="#a631be" href="/glossary#mcp">
+<Card title="Glossary: MCP" icon="book" color="#a631be" href="/concepts/glossary#mcp">
   The short definition.
 </Card>
 

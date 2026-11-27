@@ -6,7 +6,7 @@ description: "Wait for elements and text, assert on the page, and collect deferr
 
 <Note>
 
-Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 
@@ -32,7 +32,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `sleep(seconds)` | Async sleep helper. |
 | `wait(seconds)` | The same as `sleep`; takes whole or fractional seconds (`wait(2)`, `wait(0.5)`). |
 
-See [Waits and Assertions](/tutorials/utilities#waits-and-assertions) for detailed examples.
+See [Waits and Assertions](/guides/write-tests/utilities#waits-and-assertions) for detailed examples.
 
 ## Assertions
 

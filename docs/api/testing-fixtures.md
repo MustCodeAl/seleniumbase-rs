@@ -6,7 +6,7 @@ description: "The sb and sb_cdp fixtures: Sb, SbCdp, and run, behind the testing
 
 <Note>
 
-These types are available with the Cargo feature `testing` (`seleniumbase_rs::testing`). They are not `BaseCase` methods. Names below are the public items. Argument names and return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+These types are available with the Cargo feature `testing` (`seleniumbase_rs::testing`). They are not `BaseCase` methods. Names below are the public items. Argument names and return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 

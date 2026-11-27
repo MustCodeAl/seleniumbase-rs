@@ -149,11 +149,11 @@ A real-Chrome test needs no screen:
   `SBRS_XVFB=1` in the test container, or use `--xvfb` /
   `BrowserConfigBuilder::virtual_display` outside it. The container commands,
   with Xvfb installed, are in
-  [Run the tests in a container](/building#run-the-tests-in-a-container).
+  [Run the tests in a container](/guides/get-started/building#run-the-tests-in-a-container).
 
 Real-Chrome behaviour differs between headless and headed runs, so a coverage
 figure from one mode says little about the other. The modes themselves are
-explained in [Headless mode](/tutorials/headless).
+explained in [Headless mode](/guides/configure-runs/headless).
 
 ## In CI
 
@@ -182,7 +182,7 @@ Logs, a mocked browser and stepping through a test with lldb.
 
 </Card>
 
-<Card color="#199f43" title="Headless mode" icon="ghost" href="/tutorials/headless">
+<Card color="#199f43" title="Headless mode" icon="ghost" href="/guides/configure-runs/headless">
 
 How the browser runs without a window.
 

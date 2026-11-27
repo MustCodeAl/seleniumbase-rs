@@ -1,0 +1,313 @@
+---
+title: "CDP Mode Guide"
+sidebarTitle: "CDP mode"
+---
+
+CDP mode lets you control the browser through the Chrome DevTools Protocol
+(CDP). It is useful when WebDriver is too high-level, when a site detects
+WebDriver traffic, or when you need to manipulate network behavior, cache,
+cookies, or headers.
+
+This page explains how to enable CDP mode, use the CDP helpers on `BaseCase`,
+send raw CDP commands, and intercept network requests.
+
+<Note>
+
+"CDP mode" means two things in these docs. Here it is `DriverMode::Cdp`: a
+`BaseCase` WebDriver session with a DevTools connection next to it. Python
+SeleniumBase's CDP Mode (`sb.cdp`), which drives Chrome with no driver, is the
+[pure CDP engine](/guides/browser-engines/pure-cdp) in this crate; the
+[Python parity table](/why-rust/parity#cdp-mode-methods) maps its methods there. See
+[The DevTools Protocol](/concepts/cdp) for both.
+
+</Note>
+
+<Info>
+
+**What you will learn**
+
+- How to enable CDP mode in `BrowserConfig`.
+- Which CDP helpers are available on `BaseCase`.
+- How to send raw CDP commands with and without parameters.
+- How to use the `CdpReactor` to mutate request headers.
+
+</Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: `DriverMode::Cdp` still uses WebDriver for the session and activates CDP domains. Call `sb.activate_cdp_mode().await?` before raw commands, then `execute_cdp(method)` or `execute_cdp_with_params(method, params)`. Helpers on `BaseCase` include `cdp_click`, `cdp_insert_text`, `cdp_fast_type`, `set_network_throttle`, `set_timezone`, `set_geolocation`, `clear_browser_cache` and `clear_browser_cookies`. `CdpReactor::start(host, port, headers)` continues every paused request with custom headers and needs a browser launched with `--remote-debugging-port=9222`.
+
+</Visibility>
+
+## Enable CDP mode
+
+Set the driver mode to `Cdp`:
+
+```rust
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut sb = BaseCase::new(BrowserConfig::builder().mode(DriverMode::Cdp).build()?).await?;
+
+    sb.open("https://seleniumbase.io").await?;
+    let text = sb.text("h1").await?;
+    println!("{text}");
+
+    sb.quit().await?;
+    Ok(())
+}
+```
+
+<Info>
+
+`DriverMode::Cdp` still uses WebDriver for the session lifecycle but activates
+CDP domains so you can call raw CDP commands and use CDP-based helpers.
+
+</Info>
+
+## Activating CDP domains
+
+Before sending raw CDP commands, activate CDP mode on the session:
+
+```rust
+sb.activate_cdp_mode().await?;
+```
+
+<Tip>
+
+This is done automatically by helpers that need CDP, but explicit activation is
+useful when you send raw commands directly.
+
+</Tip>
+
+## CDP helpers on BaseCase
+
+| Method | Description |
+|--------|-------------|
+| `cdp_mouse_click(x, y)` | Dispatch a CDP mouse click at viewport coordinates: CSS pixels from the top-left of the visible page, without the scroll position. |
+| `cdp_insert_text(text)` | Insert text into whatever has focus with one CDP command (`Input.insertText`): no key events, no selector, nothing cleared. |
+| `cdp_click(selector)` | Scroll the element into view and click its centre with CDP input events. |
+| `execute_cdp(method)` | Send a raw CDP command with no parameters. |
+| `execute_cdp_with_params(method, params)` | Send a raw CDP command with JSON parameters. |
+| `execute_cdp_cmd(command, params)` | Alias for `execute_cdp_with_params`. |
+| `set_network_throttle(&throttle)` | Slow the network of the current window down, cut it off, or put it back, with a `NetworkThrottle`. It works in every driver mode on a Chromium browser. |
+| `set_timezone(id)` | Override the browser timezone via CDP. |
+| `set_geolocation(lat, lon, acc)` | Override geolocation via CDP. |
+| `clear_browser_cache()` | Clear the HTTP cache via CDP. |
+| `clear_browser_cookies()` | Clear cookies via CDP. |
+| `cookies()` | Return the cookies of the current page as `Vec<Cookie>` via CDP; plain WebDriver mode answers the same type. |
+| `cdp_fast_type(selector, text)` | Clear the field and insert text in one operation. |
+| `cdp_wait_for_element_present(selector, timeout)` | Poll until the element exists in the DOM. |
+| `cdp_select_option_by_index(selector, index)` | Select a dropdown option by zero-based index. |
+| `cdp_click(selector)` | Wait up to 7 seconds for the element, scroll it into view and click its center with CDP input events. |
+| `cdp_evaluate(expression)` | Evaluate JavaScript and return its value, dropping a final `return` as Python's `sb.cdp.evaluate` does; a script that throws is `CdpDriver`. |
+| `cdp_get_text(selector)`, `cdp_get_attribute(selector, name)` | Read an element at once, without waiting; `ElementNotFound` if it is missing (`cdp_wait_for_element_present` first for a late one), and `None` for an attribute it lacks. |
+
+### Typing: realistic or fast
+
+`cdp_type` sends one key event per character, which is what pages watching for
+genuine keyboard input expect. `cdp_fast_type` clears the field and inserts the
+whole string in a single operation: much quicker, but it emits no per-character
+key events.
+
+<Warning>
+
+`cdp_fast_type` is the wrong choice when you are trying not to stand out.
+
+</Warning>
+
+```rust,no_run
+use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
+use std::time::Duration;
+async fn demo(sb: &mut BaseCase) -> Result<(), SeleniumBaseError> {
+    // Wait for the field, then type it the way a person would.
+    sb.cdp_wait_for_element_present("#search", Duration::from_secs(10)).await?;
+    sb.cdp_type("#search", "seleniumbase").await?;
+
+    // Or fill it as fast as possible when stealth does not matter.
+    sb.cdp_fast_type("#notes", "a long block of text").await?;
+
+    // Dropdowns can be chosen by text, value, or index.
+    sb.cdp_select_option_by_index("#country", 2).await?;
+    Ok(())
+}
+```
+
+## Raw CDP commands
+
+For operations not covered by the helpers, send raw CDP commands through the
+underlying session:
+
+```rust
+use seleniumbase_rs::json::{json, to_string_pretty, Value};
+
+sb.activate_cdp_mode().await?;
+
+let version: Value = sb.execute_cdp("Browser.getVersion").await?;
+println!("{}", to_string_pretty(&version)?);
+
+sb.execute_cdp_with_params("Network.setCacheDisabled", json!({"cacheDisabled": true})).await?;
+```
+
+`execute_cdp` sends a command with no parameters. `execute_cdp_with_params`
+accepts a JSON object of parameters (a `seleniumbase_rs::json::Value`).
+
+## Common raw CDP commands
+
+| Command | Purpose |
+|---------|---------|
+| `Browser.getVersion` | Get browser and protocol version. |
+| `Network.setCacheDisabled` | Enable or disable the HTTP cache. |
+| `Network.setUserAgentOverride` | Override user agent, accept language, and platform. |
+| `Emulation.setDeviceMetricsOverride` | Override screen size and device scale factor. |
+| `Emulation.setGeolocationOverride` | Override geolocation. |
+| `Emulation.setTimezoneOverride` | Override timezone. |
+| `Page.captureScreenshot` | Capture a screenshot. |
+
+## Network reactor
+
+The `CdpReactor` connects to a browser's debug WebSocket, enables the `Fetch`
+domain, and continues every paused request with custom headers. This lets you
+mutate requests in real time without blocking the main WebDriver loop.
+
+```mermaid
+sequenceDiagram
+    participant R as CdpReactor
+    participant B as Browser
+    R->>B: connect to the debug WebSocket
+    R->>B: enable the Fetch domain
+    B-->>R: a request is paused
+    R->>B: continue it with the custom headers
+```
+
+*What CdpReactor does*
+
+```rust
+use std::collections::HashMap;
+use seleniumbase_rs::undetected::reactor::CdpReactor;
+use seleniumbase_rs::tokio;
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut headers = HashMap::new();
+    headers.insert("Accept-Language".into(), "en-US,en;q=0.9".into());
+
+    let mut reactor = CdpReactor::start("127.0.0.1", 9222, headers).await?;
+
+    // The reactor runs in the background and intercepts every request.
+    tokio::time::sleep(std::time::Duration::from_secs(30)).await;
+
+    reactor.stop();
+    Ok(())
+}
+```
+
+`CdpReactor::start` takes the debugger host, port, and a map of header
+overrides. It returns a reactor handle you can stop later with `stop()`.
+
+## Network throttle
+
+Throttle the connection through CDP to simulate slow networks. A `NetworkThrottle` says how:
+whether the network is cut off (`offline`), the `latency` added before each response starts to
+arrive, and the most bytes per second the page may receive (`download`) and send (`upload`).
+`None` is no limit, and the default throttles nothing:
+
+```rust
+use std::time::Duration;
+
+use seleniumbase_rs::NetworkThrottle;
+
+sb.set_network_throttle(&NetworkThrottle {
+    latency: Duration::from_millis(200),
+    download: Some(256 * 1024),
+    upload: Some(64 * 1024),
+    ..NetworkThrottle::default()
+})
+.await?;
+
+// Back to the connection as it is.
+sb.set_network_throttle(&NetworkThrottle::default()).await?;
+```
+
+The throttle needs no CDP mode: it goes through the driver's DevTools channel in the plain
+WebDriver mode too, on any Chromium browser. Firefox, Safari and Internet Explorer have no such
+channel, so they answer `Unsupported`. A throttle belongs to the window it was set on and is not
+repeated for a window the session switches to. The pure CDP engine takes the same value:
+`page.emulation().network_throttle(&throttle)`.
+
+## Cache and cookies
+
+Clear the browser cache and cookies via CDP:
+
+```rust
+sb.clear_browser_cache().await?;
+sb.clear_browser_cookies().await?;
+```
+
+## When to use CDP mode
+
+<Tip>
+
+Use CDP mode when:
+
+- A page detects and blocks normal WebDriver commands.
+- You need to set custom request headers or throttle the network.
+- You want lower-level control over input events and JavaScript evaluation.
+- You are building custom anti-detection tooling that needs raw protocol access.
+
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="execute_cdp fails" icon="plug">
+
+**Likely cause:** CDP not activated.
+
+**Fix:** Call `activate_cdp_mode()` first.
+
+</Accordion>
+
+<Accordion title="cdp_mouse_click misses" icon="computer-mouse">
+
+**Likely cause:** The coordinates are the document's, not the viewport's, on a scrolled page.
+
+**Fix:** Click by selector with `cdp_click`, which scrolls the element into view first.
+
+</Accordion>
+
+<Accordion title="Reactor does not intercept" icon="network-wired">
+
+**Likely cause:** Wrong debugger port.
+
+**Fix:** Verify the browser was launched with `--remote-debugging-port=9222`.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Related reading
+
+<Columns cols={2}>
+
+<Card color="#1a85d4" title="Undetected (UC) Mode" icon="user-secret" href="/stealth/core/uc-mode">
+
+Combining CDP with anti-detection.
+
+</Card>
+
+<Card color="#199f43" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
+
+Using CDP for native spoofing.
+
+</Card>
+
+<Card color="#d47628" title="Binary Patching" icon="wrench" href="/stealth/advanced/core/binary-patching">
+
+Removing driver-level markers.
+
+</Card>
+
+</Columns>

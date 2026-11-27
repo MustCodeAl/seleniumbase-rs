@@ -157,7 +157,7 @@ pub(crate) fn methods_listing() -> String {
         "The common methods of the test API, as they are called on `sb`, a BaseCase.\n\
          Each one is async: write `.await` after the call, as in `sb.open(url).await?`.\n\
          Selectors are CSS. Every method: `cargo doc --open`, and the map from Python's\n\
-         names in docs/parity.md.\n\n",
+         names in docs/why-rust/parity.md.\n\n",
     );
     for (call, what) in METHODS {
         text.push_str(&format!("  {call:<width$}  {what}\n"));

@@ -23,7 +23,7 @@ Semantic Versioning.
 
 </Columns>
 
-The releases publish no prebuilt binaries; install the command line from the tag:
+Install the prebuilt binaries (`mise`, `cargo binstall`, or the release archives) or build the command line from the tag:
 
 ```bash Terminal
 cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 seleniumbase-rs-cli
@@ -231,7 +231,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   runs nothing, `--client NAME` limits it, `--name NAME` names the entries. Exit status 0 when
   nothing is left broken, 1 when a fix failed or `--dry-run` found something to fix, 2 when
   something cannot be fixed here. See
-  [the MCP server tutorial](/tutorials/mcp_server#repair-a-registration).
+  [the MCP server tutorial](/ecosystem/mcp/server#repair-a-registration).
 - **`sbrs-mcp upgrade`** (alias `update`) rewrites the `seleniumbase` and `seleniumbase-dev`
   entries of every client to what `install` writes today for this program (its absolute path, and
   the server, plugins and output folder they had), then finds out how sbrs-mcp was installed and
@@ -240,7 +240,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   `cargo install --git ... --tag <latest tag> seleniumbase-rs-cli --locked` for `cargo install`
   (the tag comes from `git ls-remote`), the releases page for a release archive or anything else.
   The command runs only with `--run`; `--dry-run` writes and runs nothing; `--client NAME`
-  limits the clients. See [the MCP server tutorial](/tutorials/mcp_server#upgrade).
+  limits the clients. See [the MCP server tutorial](/ecosystem/mcp/server#upgrade).
 
 ### Breaking
 
@@ -301,7 +301,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   `Scaffold::replacing(true)`) and the command-line flags stay `bool`.
 
 
-- **Where each flag's variable is named**: [the CLI usage page](/tutorials/cli_usage#look-up-methods-and-options)
+- **Where each flag's variable is named**: [the CLI usage page](/ecosystem/cli/usage#look-up-methods-and-options)
   says that `sbrs --help`, the CLI reference and the man pages name the `SB_*` variable of every
   flag in its help, and that the flag wins over the variable, which wins over the settings file.
   The flags do not declare usage's `env`: usage then reads the variable itself while it parses and
@@ -1607,7 +1607,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   policy's own schedule (base delay, factor, cap, no spread) instead of `backoff`'s
   doubling.
 
-- Docs: a pure CDP API reference on the Reference tab. [Pure CDP](/api/cdp-overview) introduces `Browser`, `Page` and `Locator`; the pages beside it cover the browser and launch options, the page, locators and expectations, input, network (intercept, HAR, trace, downloads), tab state, and the browser pool.
+- Docs: a pure CDP API reference on the Reference tab. [Pure CDP](/api/pure-cdp/overview) introduces `Browser`, `Page` and `Locator`; the pages beside it cover the browser and launch options, the page, locators and expectations, input, network (intercept, HAR, trace, downloads), tab state, and the browser pool.
 
 - `sbrs doctor --fix` applies the repairs the check already names. It installs a missing or
   mismatched chromedriver (the same download as `sbrs install chromedriver`, not a browser) and
@@ -1630,7 +1630,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   neither, so there `wait_for_workers` and `save_on_close` fail at launch, naming the option.
 
 - Docs: the Stealth tab has three sections. **Undetected browsing** holds UC mode and a new
-  [CDP Mode](/stealth/cdp-mode) page (the pure CDP engine as the undetected path).
+  [CDP Mode](/stealth/core/cdp-mode) page (the pure CDP engine as the undetected path).
   **Stealth** has an overview and one page per aspect (fingerprints, evasions and launch flags,
   policies, identities and profiles, proxies and network, human-like input, troubleshooting),
   split from the old *Fingerprint & Stealth Profiles* page. **Advanced stealth** holds evasion
@@ -1645,7 +1645,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   when the recording stops) in the system's default browser; `--print` prints its path instead.
   A folder that is not a trace, or whose recording was not stopped, exits with status 2.
 
-- Docs: [Install sbrs with mise](/building). mise's built-in backends install
+- Docs: [Install sbrs with mise](/guides/get-started/building). mise's built-in backends install
   `sbrs` and `sbrs-mcp` with no plugin: `github:` takes the macOS arm64 release archive and lists
   the versions from the release tags, `cargo:` builds from a git tag on every other platform, and
   one `mise.toml` with `os = ["macos/arm64"]` picks between them. `docs/building.md` no longer
@@ -1690,7 +1690,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   There is no setting for it. No mise on the `PATH`, a failing mise, one that takes
   more than 5 seconds and a bad answer are all silent. A pinned `--driver-version`
   still downloads that build. See
-  [Manage chromedriver with mise](/building).
+  [Manage chromedriver with mise](/guides/get-started/building).
 
 - `tools/release/build-binaries.sh` (`mise run release-binaries`) builds the release archives of
   `sbrs` and `sbrs-mcp` for Linux arm64, Linux x86_64 and macOS Intel on an Apple silicon Mac,
@@ -2164,7 +2164,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   concurrent flow, headless through `SB_HEADLESS`, a body safe to run twice, raw protocol calls in one
   helper, tests of page-driving code on `Browser::new_mocked()`, credentials from the run). They adapt
   the checklist that thirtyfour publishes for generated tests to this crate's API. The page
-  [Best practices for reliable tests](/best-practices) explains each rule with a do and an
+  [Best practices for reliable tests](/guides/write-tests/best-practices) explains each rule with a do and an
   avoid, and lists what the crate cannot enforce yet (no strict single match, no scoped query on
   `BaseCase`, no hard time limit outside the fixtures). `CLAUDE.md` points to both.
 
@@ -2183,7 +2183,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   `sbrs mkdir` writes lists `seleniumbase-rs` alone (plus `rstest-bdd` for Gherkin). The new crate
   `crates/own-imports` proves it: its manifest lists only `seleniumbase-rs` and `rstest-bdd`, its
   tests import nothing else, and a doctest compiles every golden file there. The page
-  [Imports and dependencies](/tutorials/getting_started#imports-and-dependencies) lists the lines that stay and why, and
+  [Imports and dependencies](/guides/get-started/getting-started#imports-and-dependencies) lists the lines that stay and why, and
   `tests/docs_current.rs` fails when a page gains a `use thirtyfour`, `use rstest`, `use rstest_bdd`,
   `use serde_json`, `use tokio` or `use async_trait` outside the pages that must name them.
 - **A fingerprint's stealth for a webview an app embeds, with no debugging port.**
@@ -2195,7 +2195,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   the channel's page is `default_page()`, its commands carry no `sessionId`, ordered commands
   wait for each answer, and it opens no tabs. `Page::apply_fingerprint` now asks for the tab's
   browser context only when the fingerprint grants a permission. See
-  [the Tauri guide](/ecosystem/tauri-browser#give-your-shipped-webview-a-fingerprint).
+  [the Tauri guide](/ecosystem/integrations/tauri/browser#give-your-shipped-webview-a-fingerprint).
 - **`solve_captcha` finds the widget wherever it is, waits for it, presses like a hand and
   checks the result.** The widget is looked for in the page, its open shadow roots and the frames
   it may read, by the id and title Cloudflare gives its frame as well as by address; a page that
@@ -3241,7 +3241,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
   `zed`. A config file is backed up to `FILE.bak-sbrs-mcp`, changed only in the entries
   concerned and replaced atomically, and a file with comments is not rewritten (the
   snippet to add by hand is printed). Running `sbrs-mcp` with no command still serves.
-  See [the MCP server tutorial](/tutorials/mcp_server#install-into-a-client).
+  See [the MCP server tutorial](/ecosystem/mcp/server#install-into-a-client).
 - **A fourth MCP server, `dev`** (`sbrs-mcp --server dev`, `mcp::Profile::Dev`,
   `mcp::dev::host`). It starts no browser and helps with developing with the
   library, using the `sbrs` command line and diagnosing problems, in twelve tools.
@@ -4567,7 +4567,7 @@ and the documentation gains a guide to testing pages with a CAPTCHA.
 - `browser::driver_version::major_without_running` reads a program's major
   version from its files only, and `version_flag_major` runs `--version` with a
   time limit.
-- Tutorial [Testing Pages with a CAPTCHA](/tutorials/captcha_testing): vendor test keys, and tests that click the test widget and read the token.
+- Tutorial [Testing Pages with a CAPTCHA](/guides/help/captcha-testing): vendor test keys, and tests that click the test widget and read the token.
 - `docs/completions/`: a Fig completion spec for `sbrs`, prepared for withfig/autocomplete (not submitted), with the steps.
 
 ### Fixed
@@ -4630,7 +4630,7 @@ A breaking release: the experimental stealth scraping layer leaves this crate.
   `impersonate`), which build on the public API of this crate and stay
   experimental. Current installation uses the unified root facade
   `seleniumbase-rs-stealth`; see the updated
-  [Stealth Scraping setup](/tutorials/stealth_scraping).
+  [Stealth Scraping setup](/stealth/session/first-fetch).
 - With the layer go the optional dependencies `psl`, `wreq`, `btls`,
   `tokio-btls`, `brotli`, `hyper`, `hyper-util` and `http-body-util`; the
   examples `capture_tls`, `capture_hints`, `capture_h2`, `cookie_jar`,

@@ -14,27 +14,27 @@ system, async runtime, and native distribution model.
 
 <Columns cols={2}>
 
-<Card title="Walkthrough" icon="rocket" color="#d47628" href="/tutorials/getting_started">
+<Card title="Walkthrough" icon="rocket" color="#d47628" href="/guides/get-started/getting-started">
   Create a Rust project, add seleniumbase-rs, and run your first test.
 </Card>
 
-<Card title="Writing Browser Tests" icon="flask" color="#199f43" href="/rust-test-tooling">
+<Card title="Writing Browser Tests" icon="flask" color="#199f43" href="/guides/write-tests/rust-test-tooling">
   BaseCase, selectors, waits and assertions for maintainable tests.
 </Card>
 
-<Card title="Migrate from Python, Playwright or Puppeteer" icon="arrow-right-arrow-left" color="#1a85d4" href="/python-migration">
+<Card title="Migrate from Python, Playwright or Puppeteer" icon="arrow-right-arrow-left" color="#1a85d4" href="/guides/migrate/python">
   Keep a similar API while gaining compile-time guarantees.
 </Card>
 
-<Card title="Stealth and Browser Modes" icon="user-secret" color="#a631be" href="/tutorials/uc_mode">
+<Card title="Stealth and Browser Modes" icon="user-secret" color="#a631be" href="/stealth/core/uc-mode">
   UC mode, CDP, pure CDP, fingerprints and binary patching.
 </Card>
 
-<Card title="CLI Usage" icon="terminal" color="#1ca1c7" href="/tutorials/cli_usage">
+<Card title="CLI Usage" icon="terminal" color="#1ca1c7" href="/ecosystem/cli/usage">
   The sbrs CLI, Commander, and the MCP servers for AI agents.
 </Card>
 
-<Card title="Why Rust?" icon="gear" color="#d32a61" href="/why-rust">
+<Card title="Why Rust?" icon="gear" color="#d32a61" href="/why-rust/overview">
   Security, reliability, performance and how it compares.
 </Card>
 
@@ -42,7 +42,7 @@ system, async runtime, and native distribution model.
   Browser plugins as Rust crates: privacy hardening, block resources, load extensions, run WebAssembly.
 </Card>
 
-<Card title="Stealth scraping" icon="fingerprint" color="#d5a910" href="/scraping/stealthy/overview">
+<Card title="Stealth scraping" icon="fingerprint" color="#d5a910" href="/stealth/session/overview">
   Wire fingerprints, identities and the browser scraper (experimental).
 </Card>
 
@@ -74,7 +74,7 @@ cd my_first_test
 The crate is installed from git (it is not on crates.io). It is the only
 dependency: it re-exports the Tokio runtime that runs the async code
 (`seleniumbase_rs::tokio`), so the examples need no other crate. See
-[Imports and dependencies](/tutorials/getting_started#imports-and-dependencies) for what else it re-exports.
+[Imports and dependencies](/guides/get-started/getting-started#imports-and-dependencies) for what else it re-exports.
 
 ```toml Cargo.toml
 [dependencies]
@@ -163,7 +163,7 @@ check ends the program with an error that names the selector.
 
 No Rust project yet? The `sbrs` command line drives a browser on its own:
 `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli`,
-then `sbrs --headless open https://example.com`. See the [CLI TL;DR](/help/cli_tldr).
+then `sbrs --headless open https://example.com`. See the [CLI TL;DR](/ecosystem/cli/tldr).
 
 </Tip>
 
@@ -194,7 +194,7 @@ By reading this book you will learn how to:
 
 ## What is included
 
-- **Browser modes**: <Tooltip tip="The Selenium protocol: the test talks to chromedriver, which drives the browser.">WebDriver</Tooltip>, <Tooltip tip="Chrome DevTools Protocol: the browser's own debugging protocol, spoken over a WebSocket." cta="Pure CDP engine" href="/tutorials/pure_cdp">CDP</Tooltip>, <Tooltip tip="Undetected Chromedriver mode: a browser launch and session setup that avoid common bot checks; the driver itself is not patched." cta="Undetected (UC) mode" href="/tutorials/uc_mode">UC</Tooltip> (Undetected Chromedriver), and an optional
+- **Browser modes**: <Tooltip tip="The Selenium protocol: the test talks to chromedriver, which drives the browser.">WebDriver</Tooltip>, <Tooltip tip="Chrome DevTools Protocol: the browser's own debugging protocol, spoken over a WebSocket." cta="Pure CDP engine" href="/guides/browser-engines/pure-cdp">CDP</Tooltip>, <Tooltip tip="Undetected Chromedriver mode: a browser launch and session setup that avoid common bot checks; the driver itself is not patched." cta="Undetected (UC) mode" href="/stealth/core/uc-mode">UC</Tooltip> (Undetected Chromedriver), and an optional
   Playwright bridge (the `seleniumbase-rs-playwright` crate: `rustwright` attached to a stealthy CDP browser).
 - **`BaseCase` API**: more than 200 methods for navigation, element interaction,
   assertions, waits, frames, windows, cookies, storage, uploads, PDF handling,
@@ -227,7 +227,7 @@ let mut sb = BaseCase::new(config).await?;
 ```
 
 Fingerprints, stealth policies and binary patching go further; see
-[Undetected (UC) Mode](/tutorials/uc_mode) and
+[Undetected (UC) Mode](/stealth/core/uc-mode) and
 [Fingerprint & Stealth Profiles](/stealth/introduction).
 
 ### Human-like input
@@ -254,7 +254,7 @@ sb.wait_for_element_absent("#loading-spinner", 5).await?;
 sb.assert_element_present(".user-profile").await?;
 ```
 
-See [Waits and Assertions](/tutorials/utilities#waits-and-assertions).
+See [Waits and Assertions](/guides/write-tests/utilities#waits-and-assertions).
 
 ### PDF files and HTML parsing
 
@@ -267,33 +267,33 @@ let text = sb.pdf_text("page.pdf")?;
 let soup = sb.beautiful_soup_object().await?;
 ```
 
-See [PDF Parsing](/tutorials/pdf_parsing).
+See [PDF Parsing](/guides/special-pages/pdf-parsing).
 
 ### More of BaseCase
 
 <Columns cols={2}>
 
-<Card title="Tours and charts" icon="route" href="/tutorials/tours">
-  Step-by-step product tours on any page, and charts saved as HTML (see also [Charts](/tutorials/charts)).
+<Card title="Tours and charts" icon="route" href="/guides/results-and-reports/tours">
+  Step-by-step product tours on any page, and charts saved as HTML (see also [Charts](/guides/results-and-reports/charts)).
 </Card>
 
-<Card title="Shadow DOM" icon="layer-group" href="/tutorials/selectors#shadow-dom">
+<Card title="Shadow DOM" icon="layer-group" href="/guides/write-tests/selectors#shadow-dom">
   Selectors that reach into shadow trees, open or closed, for every method that takes one.
 </Card>
 
-<Card title="GUI automation" icon="computer-mouse" href="/tutorials/gui_automation">
+<Card title="GUI automation" icon="computer-mouse" href="/guides/browser-engines/gui-automation">
   Mouse and keyboard at the operating-system level, for native dialogs.
 </Card>
 
-<Card title="CDP mode" icon="bolt" href="/tutorials/cdp_mode">
+<Card title="CDP mode" icon="bolt" href="/guides/browser-engines/cdp-mode">
   Chrome DevTools Protocol commands from a BaseCase test.
 </Card>
 
-<Card title="MasterQA" icon="clipboard-check" href="/tutorials/masterqa">
+<Card title="MasterQA" icon="clipboard-check" href="/guides/special-pages/masterqa">
   Manual verification steps recorded during a run, exported as a report.
 </Card>
 
-<Card title="All of the API" icon="book" href="/tutorials/api_reference">
+<Card title="All of the API" icon="book" href="/api/api_reference">
   Where each group of methods is documented.
 </Card>
 
@@ -306,10 +306,10 @@ fails the test when there are any.
 ## Low-code tests
 
 Tests do not have to start as Rust. seleniumbase-rs reads
-[Selenium IDE](/tutorials/selenium_ide) recordings, runs Gherkin scenarios as
-cargo tests ([Behave and Gherkin](/tutorials/utilities#gherkin-scenarios-with-rstest-bdd)), converts Python, Playwright
-and Puppeteer scripts ([Migrate from Python](/python-migration)), and records your
-clicks as a ready-to-run test ([Recorder Mode](/tutorials/recorder_mode)).
+[Selenium IDE](/guides/record-and-replay/selenium-ide) recordings, runs Gherkin scenarios as
+cargo tests ([Behave and Gherkin](/guides/write-tests/utilities#gherkin-scenarios-with-rstest-bdd)), converts Python, Playwright
+and Puppeteer scripts ([Migrate from Python](/guides/migrate/python)), and records your
+clicks as a ready-to-run test ([Recorder Mode](/guides/record-and-replay/recorder-mode)).
 
 ## The command line
 
@@ -349,25 +349,25 @@ Commander needs a build with the `tui` feature.
 
 </Steps>
 
-Every command and flag is in the [CLI reference](/help/cli_reference);
-[CLI Usage](/tutorials/cli_usage) explains them by task.
+Every command and flag is in the [CLI reference](/ecosystem/cli/reference);
+[CLI Usage](/ecosystem/cli/usage) explains them by task.
 
 ## Configuration
 
 Settings come from `sbase_config.toml` in the project, `SB_*` environment
 variables, `BrowserConfig` in code and command-line flags, each overriding the
-one before it. See [Settings and Configuration](/tutorials/settings_and_config).
+one before it. See [Settings and Configuration](/settings/overview).
 
 ## MCP server for AI agents
 
 `sbrs-mcp` gives MCP clients a browser. `--server cdp|driver|sb|dev` picks the
 tool set (`dev` starts no browser), and `sbrs-mcp install CLIENT` registers it
 with a client. The browser starts on the first `start_browser` call, so a client
-can list the tools without one. See [MCP Server](/tutorials/mcp_server).
+can list the tools without one. See [MCP Server](/ecosystem/mcp/server).
 
 ## For contributors
 
-[API Reference](/tutorials/api_reference) maps the crate's modules; `cargo doc
+[API Reference](/api/api_reference) maps the crate's modules; `cargo doc
 --open` builds the generated documentation locally.
 
 
@@ -377,32 +377,32 @@ can list the tools without one. See [MCP Server](/tutorials/mcp_server).
 
 <Tab title="New to the crate" icon="rocket">
 
-Start with [Getting Started](/tutorials/getting_started)
-and then read [Writing Browser Tests](/rust-test-tooling) and
-[Waits and Assertions](/tutorials/utilities#waits-and-assertions).
+Start with [Getting Started](/guides/get-started/getting-started)
+and then read [Writing Browser Tests](/guides/write-tests/rust-test-tooling) and
+[Waits and Assertions](/guides/write-tests/utilities#waits-and-assertions).
 
 </Tab>
 
 <Tab title="Migrating from Python" icon="arrow-right-arrow-left">
 
-Jump to [Migrate Python Tests](/python-migration)
-and then read [Selectors](/tutorials/selectors) for the differences in selector
+Jump to [Migrate Python Tests](/guides/migrate/python)
+and then read [Selectors](/guides/write-tests/selectors) for the differences in selector
 syntax and test lifecycle.
 
 </Tab>
 
 <Tab title="Anti-detection" icon="user-secret">
 
-Read [Undetected (UC) Mode](/tutorials/uc_mode),
+Read [Undetected (UC) Mode](/stealth/core/uc-mode),
 [Fingerprint & Stealth Profiles](/stealth/introduction), and
-[Binary Patching](/stealth/advanced/binary-patching) in that order.
+[Binary Patching](/stealth/advanced/core/binary-patching) in that order.
 
 </Tab>
 
 <Tab title="Day to day" icon="terminal">
 
-Keep [CLI Usage](/tutorials/cli_usage) and
-[Troubleshooting](/help/common_problems) handy.
+Keep [CLI Usage](/ecosystem/cli/usage) and
+[Troubleshooting](/guides/help/common-problems) handy.
 
 </Tab>
 
@@ -411,14 +411,14 @@ Keep [CLI Usage](/tutorials/cli_usage) and
 ## Current status
 
 Every API of Python SeleniumBase 4.58.3 has a recorded status in the
-[parity table](/parity). Development happens on
+[parity table](/why-rust/parity). Development happens on
 [MustCodeAl/seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs),
 and releases are tagged there.
 
 <Note>
 
 The crate is not on crates.io yet: install it
-from a release tag (see [Building and installing](/building)).
+from a release tag (see [Building and installing](/guides/get-started/building)).
 
 </Note>
 

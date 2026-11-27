@@ -26,7 +26,7 @@ use crate::mcp::support::{json_output, nonempty};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 
 /// The common-problems page.
-const COMMON_PROBLEMS: &str = include_str!("../../../docs/help/common_problems.md");
+const COMMON_PROBLEMS: &str = include_str!("../../../docs/guides/help/common-problems.md");
 
 /// The most text of an error message one call reads.
 const MAX_TEXT_BYTES: usize = 256 * 1024;

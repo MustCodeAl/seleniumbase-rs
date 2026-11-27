@@ -328,7 +328,7 @@ Autofill prompts still depend on the profile, so use a fresh one.
   Why a page reacts to events, and how waiting works.
 </Card>
 
-<Card title="Glossary" icon="book" color="#199f43" href="/glossary">
+<Card title="Glossary" icon="book" color="#199f43" href="/concepts/glossary">
   Short definitions of every term used in these pages.
 </Card>
 

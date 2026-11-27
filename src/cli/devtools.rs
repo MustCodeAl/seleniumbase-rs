@@ -156,7 +156,7 @@ pub fn ready_message(endpoint: &DevToolsEndpoint, browser: &str) -> String {
          Edge: run sbrs devtools --browser edge (or --browser-path pointing at Edge) and use the \
          same configs. chrome-devtools-mcp supports only Chrome officially; Playwright MCP's \
          --cdp-endpoint works with any Chromium browser.\n\
-         Firefox and Safari do not speak this protocol: see docs/tutorials/devtools_mcp.md for \
+         Firefox and Safari do not speak this protocol: see docs/ecosystem/mcp/devtools.md for \
          @mozilla/firefox-devtools-mcp and safaridriver --mcp.\n\
          \n\
          The endpoint listens on 127.0.0.1 only, and any program on this machine can drive the \

@@ -114,7 +114,7 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
 
 This page takes you from a fresh machine to a checkout that builds and passes
 the checks. To install `sbrs` without a checkout, or for every system package a
-feature needs, see [Building and installing](/building).
+feature needs, see [Building and installing](/guides/get-started/building).
 
 <Info>
 
@@ -187,7 +187,7 @@ sudo dnf install -y gcc gcc-c++ make pkgconf-pkg-config curl git chromium
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 ```
 
-Google Chrome's own package works too; see [Building and installing](/building#what-you-need).
+Google Chrome's own package works too; see [Building and installing](/guides/get-started/building#what-you-need).
 
 </Tab>
 
@@ -333,7 +333,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutFile name="mcp_server.rs" highlight note="the sbrs-mcp server" />
 <LayoutFile name="fig.rs" note="the Fig completion spec" />
 <LayoutFile name="report.rs" note="sbrs report" />
-<LayoutFile name="reference.rs" note="renders docs/help/cli_reference.md from the usage spec" />
+<LayoutFile name="reference.rs" note="renders docs/ecosystem/cli/reference.md from the usage spec" />
 <LayoutFile name="strict.rs" note="refuses, with status 2, what the parser is too loose about" />
 <LayoutFile name="trace.rs" note="sbrs trace show: opens a trace folder's viewer" />
 <LayoutDir name="mcp_install" note="sbrs-mcp install, uninstall, clients, repair and upgrade" />
@@ -358,8 +358,15 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="docs" note="the pages of this site">
 <LayoutFile name="docs.json" note="the Docs7 navigation and settings" />
 <LayoutFile name="SUMMARY.md" note="the mdBook table of contents" />
-<LayoutDir name="tutorials" note="step-by-step guides" />
-<LayoutDir name="help" note="help pages" />
+<LayoutDir name="guides" note="step-by-step guides" />
+<LayoutDir name="stealth" note="stealth layers, advanced guides, and stealth API reference" />
+<LayoutDir name="ecosystem" note="MCP servers, CLI guides, and integrations" />
+<LayoutDir name="plugins" note="plugin guides, built-in and community plugins, and plugin API" />
+<LayoutDir name="api" note="BaseCase, Pure CDP, and testing fixture references" />
+<LayoutDir name="settings" note="settings, options, and translation guides" />
+<LayoutDir name="concepts" note="architecture and browser concepts" />
+<LayoutDir name="why-rust" note="benchmarks, security, comparisons, and Python parity" />
+<LayoutDir name="contributing" note="contributor and release guides" />
 <LayoutDir name="design" note="design notes" />
 <LayoutDir name="adr" note="architecture decision records" />
 </LayoutDir>
@@ -377,6 +384,9 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 </LayoutDir>
 </LayoutDir>
 <LayoutDir name="contrib" note="files that are not part of the crate">
+<LayoutDir name="mise" note="mise plugins">
+<LayoutDir name="sbrs" note="vfox plugin that installs sbrs and sbrs-mcp release binaries" />
+</LayoutDir>
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
@@ -384,7 +394,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 </LayoutDir>
 <LayoutDir name="tools" note="scripts for the docs, the parity manifests, the Linux check and the release archives">
 <LayoutDir name="mdx-check" note="mise run mdx: builds every docs page as Docs7 does" />
-<LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/parity.md)" />
+<LayoutDir name="parity" note="extracts, seeds and renders the parity manifest (docs/why-rust/parity.md)" />
 <LayoutDir name="layout_tree" note="the tree component that docs_layout_tree.py copies onto the pages" />
 <LayoutDir name="linux-check" note="mise run linux-check: the test suite and the Chrome tests in a Linux container" />
 <LayoutDir name="release" note="build-binaries.sh: the release archives for Linux and macOS Intel" />
@@ -420,7 +430,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 {/* layout-tree:end */}
 
 The module map of `src/` is in `CLAUDE.md` and in the
-[Developer guide](/DEVELOPER_GUIDE#repository-layout).
+[Developer guide](/contributing/developer-guide#repository-layout).
 
 ## Build
 
@@ -473,7 +483,7 @@ cargo build -p seleniumbase-rs-cli --no-default-features    # sbrs alone, withou
 
 `sbrs-mcp` needs the `mcp-server` feature, so a build without default features
 has `sbrs` only. Every feature and what it costs is in
-[Building and installing](/building#features).
+[Building and installing](/guides/get-started/building#features).
 
 ### Install the binaries
 
@@ -705,7 +715,7 @@ mise run chrome
   downloads it into `downloaded_drivers/`. The pure CDP tests need none.
 - As root or in a container, Chrome needs `--no-sandbox`: the tests pass it when
   `CI` is set. To run them in Docker with Chromium and Xvfb, see
-  [Run the tests in a container](/building#run-the-tests-in-a-container).
+  [Run the tests in a container](/guides/get-started/building#run-the-tests-in-a-container).
 
 ## Write the generated files again
 
@@ -790,7 +800,7 @@ docker run --rm seleniumbase-rs doctor
 The `Dockerfile` builds `sbrs` with Rust 1.99, without the command line's
 default features, and copies it into a `debian:bookworm-slim` image with
 Chromium and its driver. It runs as the non-root user `sbrs`. More is under
-[Container](/building#container) and [Deployment](/deployment).
+[Container](/guides/get-started/building#container) and [Deployment](/guides/production/deployment).
 
 <Warning>
 
@@ -833,7 +843,7 @@ Neither is needed to build, test or contribute. `tokensave init` writes its
 index to `.tokensave/`, which the repository's `.gitignore` does not list: if
 `git status` shows it, add it to `.git/info/exclude`. Whoever opens the pull
 request owns the result; see
-[Working with AI assistants](/CONTRIBUTING#working-with-ai-assistants).
+[Working with AI assistants](/contributing/overview#working-with-ai-assistants).
 
 <Prompt description="Paste into an AI coding assistant that can run commands in this checkout" actions={["copy"]}>
 
@@ -923,7 +933,7 @@ crate is in the library's `[dependencies]`: it belongs in
 
 </AccordionGroup>
 
-More system-specific notes are in [Operating systems](/building#operating-systems).
+More system-specific notes are in [Operating systems](/guides/get-started/building#operating-systems).
 
 ## Next steps
 
@@ -947,13 +957,13 @@ Which lines the tests reach, with a mocked browser and with a real one.
 
 </Card>
 
-<Card color="#1ca1c7" title="Contributing" icon="code-branch" href="/CONTRIBUTING">
+<Card color="#1ca1c7" title="Contributing" icon="code-branch" href="/contributing/overview">
 
 Code style, testing rules and how to open a pull request.
 
 </Card>
 
-<Card color="#d32a61" title="Developer guide" icon="book-open" href="/DEVELOPER_GUIDE">
+<Card color="#d32a61" title="Developer guide" icon="book-open" href="/contributing/developer-guide">
 
 How `BaseCase`, the engines and the stealth layer fit together.
 

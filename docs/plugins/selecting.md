@@ -48,16 +48,16 @@ Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`
 | Feature | Turns on |
 |---|---|
 | `plugins` | The plugin API (`seleniumbase_rs::plugin_api`) and the hooks of both engines. No plugin of its own |
-| `plugin-shield` | `plugins`, and the [shield](/plugins/shield) plugin |
-| `plugin-block-resources` | `plugins`, and the [block-resources](/plugins/block-resources) plugin |
-| `plugin-crx` | `plugins`, and the [crx](/plugins/crx) plugin |
-| `plugin-fetcher` | `plugins`, and the [fetcher](/plugins/fetcher) plugin: fetch rules and response records, and a fetch task; Chromium on the pure CDP engine |
-| `plugin-extractor` | `plugins`, and the [extractor](/plugins/extractor) plugin: find and extract structured data from pages, as a task; Chromium on the pure CDP engine |
-| `plugin-batcher` | `plugins`, and the [batcher](/plugins/batcher) plugin: a task that runs many jobs with bounded concurrency, retries and a resume file; Chromium on the pure CDP engine |
-| `plugin-crawler` | `plugins`, and the [crawler](/plugins/crawler) plugin: a task that follows a site's links and reports broken pages and console errors; Chromium on the pure CDP engine |
-| `plugin-browser` | `plugins`, and the [browser](/plugins/browser) plugin: loads extensions from `.zip` and `.crx` files and unpacked folders; it cannot be used together with `crx` |
-| `plugin-imap` | `plugins`, and the [imap](/plugins/imap) plugin: a task that waits for a verification mail in a mailbox you own and reads its code or link; read only, and the pure CDP engine only. With `sbrs-mcp` it also gives the `cdp` server the tool `wait_for_email` |
-| `plugin-tor` | `plugins`, and the [tor](/plugins/tor) plugin: routes the browser through a Tor SOCKS listener you run yourself, with circuits of their own for each browser context; a browser the program starts on the pure CDP engine only |
+| `plugin-shield` | `plugins`, and the [shield](/plugins/builtin/shield) plugin |
+| `plugin-block-resources` | `plugins`, and the [block-resources](/plugins/community/block-resources) plugin |
+| `plugin-crx` | `plugins`, and the [crx](/plugins/builtin/crx) plugin |
+| `plugin-fetcher` | `plugins`, and the [fetcher](/plugins/builtin/fetcher) plugin: fetch rules and response records, and a fetch task; Chromium on the pure CDP engine |
+| `plugin-extractor` | `plugins`, and the [extractor](/plugins/builtin/extractor) plugin: find and extract structured data from pages, as a task; Chromium on the pure CDP engine |
+| `plugin-batcher` | `plugins`, and the [batcher](/plugins/builtin/batcher) plugin: a task that runs many jobs with bounded concurrency, retries and a resume file; Chromium on the pure CDP engine |
+| `plugin-crawler` | `plugins`, and the [crawler](/plugins/builtin/crawler) plugin: a task that follows a site's links and reports broken pages and console errors; Chromium on the pure CDP engine |
+| `plugin-browser` | `plugins`, and the [browser](/plugins/builtin/browser) plugin: loads extensions from `.zip` and `.crx` files and unpacked folders; it cannot be used together with `crx` |
+| `plugin-imap` | `plugins`, and the [imap](/plugins/community/imap) plugin: a task that waits for a verification mail in a mailbox you own and reads its code or link; read only, and the pure CDP engine only. With `sbrs-mcp` it also gives the `cdp` server the tool `wait_for_email` |
+| `plugin-tor` | `plugins`, and the [tor](/plugins/builtin/tor) plugin: routes the browser through a Tor SOCKS listener you run yourself, with circuits of their own for each browser context; a browser the program starts on the pure CDP engine only |
 | `plugins-builtin` | All of the above |
 
 A build compiles only the plugin crates it asks for: `plugin-shield` does not
@@ -68,7 +68,7 @@ built-in plugins.
 
 <Note>
 
-[browser](/plugins/browser) and [crx](/plugins/crx) both load extensions, and `browser` declares that it cannot
+[browser](/plugins/builtin/browser) and [crx](/plugins/builtin/crx) both load extensions, and `browser` declares that it cannot
 share a set with `crx`: naming both builds the set, and the check every launch
 makes refuses it with ``plugin `browser` cannot be combined with plugin `crx` ``,
 before a browser starts. Name one of them. `browser` takes `extension_zip` (`.zip`
@@ -85,9 +85,9 @@ variable that holds the password (`password_env`, never the password itself, and
 for example `[plugins.imap]` with `host`, `user` and `password_env`. It only
 reads: the mailbox is opened read only and nothing is sent, deleted or marked.
 It is a task plugin, so it works with the pure CDP engine only and the
-WebDriver engine refuses it. See [imap](/plugins/imap). `tor` routes a browser
+WebDriver engine refuses it. See [imap](/plugins/community/imap). `tor` routes a browser
 the program starts through a Tor SOCKS listener you run yourself and never
-installs or starts one; see [tor](/plugins/tor). Both declare `host.net`, so a
+installs or starts one; see [tor](/plugins/builtin/tor). Both declare `host.net`, so a
 settings file in the current folder cannot turn either on by itself.
 
 </Note>
@@ -345,11 +345,11 @@ browser, its place among the other plugins, and the options in effect. When the
 plugin refuses those options, or cannot start without any (`crx` needs its
 `files`), the page says so with the plugin's own message. The plugin API of this
 release does not describe the options a plugin accepts, so the page cannot list
-them: each plugin's page does ([shield](/plugins/shield),
-[block-resources](/plugins/block-resources), [crx](/plugins/crx),
-[fetcher](/plugins/fetcher), [extractor](/plugins/extractor),
-[batcher](/plugins/batcher), [crawler](/plugins/crawler),
-[browser](/plugins/browser), [imap](/plugins/imap) and [tor](/plugins/tor)).
+them: each plugin's page does ([shield](/plugins/builtin/shield),
+[block-resources](/plugins/community/block-resources), [crx](/plugins/builtin/crx),
+[fetcher](/plugins/builtin/fetcher), [extractor](/plugins/builtin/extractor),
+[batcher](/plugins/builtin/batcher), [crawler](/plugins/builtin/crawler),
+[browser](/plugins/builtin/browser), [imap](/plugins/community/imap) and [tor](/plugins/builtin/tor)).
 
 An unknown name exits with status 2 and lists the ones the build has:
 

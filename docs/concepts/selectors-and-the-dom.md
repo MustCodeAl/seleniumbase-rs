@@ -144,13 +144,13 @@ companies are often built this way. How each tool crosses the boundary:
   **closed** ones, as Python does. The **pure CDP engine** (`page.locator`)
   walks the roots in its page script and can enter **open** roots only; Python's
   CDP mode has no such selector.
-- The [companion extension](/ecosystem/browser-extension) records a click on a
+- The [companion extension](/ecosystem/integrations/browser-extension) records a click on a
   shadow element as a click on the shadow **host**, because that is what an
   outside selector can name.
 
-See the [Shadow DOM guide](/tutorials/selectors#shadow-dom), the
-[Selectors guide](/tutorials/selectors#shadow-dom), the glossary entry
-[Shadow DOM](/glossary#shadow-dom) and the
+See the [Shadow DOM guide](/guides/write-tests/selectors#shadow-dom), the
+[Selectors guide](/guides/write-tests/selectors#shadow-dom), the glossary entry
+[Shadow DOM](/concepts/glossary#shadow-dom) and the
 [web components](/concepts/modern-web#web-components-and-shadow-dom) entry of
 the modern web page.
 
@@ -374,7 +374,7 @@ is why `BaseCase` methods take a selector and find it again (see
 The companion extension's inspector shows, for a picked element, every selector
 it can think of in order of preference together with **how many elements each
 one matches**, and the recorder only writes selectors it has checked in the
-page. See [Browser extension](/ecosystem/browser-extension).
+page. See [Browser extension](/ecosystem/integrations/browser-extension).
 
 ## How seleniumbase-rs reads a selector
 
@@ -520,8 +520,8 @@ sb.click("link=Sign up").await?;
 sb.assert_text_visible("$42.00", "[data-testid='total']").await?;
 ```
 
-See the [Selectors guide](/tutorials/selectors) for every form and for
-shadow DOM, and [Best practices](/best-practices) for the habits around them.
+See the [Selectors guide](/guides/write-tests/selectors) for every form and for
+shadow DOM, and [Best practices](/guides/write-tests/best-practices) for the habits around them.
 
 </Tab>
 
@@ -556,7 +556,7 @@ problems that make role- and label-based selectors fail.
   Element references and how they go stale.
 </Card>
 
-<Card title="Selectors guide" icon="crosshairs" color="#1a85d4" href="/tutorials/selectors">
+<Card title="Selectors guide" icon="crosshairs" color="#1a85d4" href="/guides/write-tests/selectors">
   Every selector form, shadow DOM and XPath to CSS.
 </Card>
 

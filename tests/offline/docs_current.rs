@@ -244,25 +244,21 @@ const ALLOWED: &[(&str, &[&str])] = &[
         &[
             "docs/plugins/",
             "docs/stealth/api/",
-            "docs/scraping/stealthy/",
-            "docs/scraping/advanced-stealthy/",
-            "docs/stealth/advanced/mitm-proxy.md",
-            "docs/stealth/advanced/wire-formats.md",
+            "docs/stealth/session/",
+            "docs/stealth/advanced/session/",
+            "docs/stealth/advanced/network/mitm-proxy.md",
+            "docs/stealth/advanced/network/wire-formats.md",
             "docs/contributing/",
-            "docs/DEVELOPER_GUIDE.md",
-            "docs/CONTRIBUTING.md",
             "CONTRIBUTING.md",
         ],
     ),
-    ("serde_json::json!(", &["docs/scraping/stealthy/"]),
+    ("serde_json::json!(", &["docs/stealth/session/"]),
     ("use async_trait", &["docs/plugins/"]),
     ("use tokio", &["docs/plugins/", "docs/ecosystem/"]),
     (
         "use rstest::",
         &[
             "docs/contributing/",
-            "docs/DEVELOPER_GUIDE.md",
-            "docs/CONTRIBUTING.md",
             "CONTRIBUTING.md",
         ],
     ),
@@ -542,7 +538,7 @@ fn the_list_covers_the_pages_people_read() {
     assert!(pages.iter().any(|p| p.ends_with("README.md")));
     assert!(pages
         .iter()
-        .any(|p| p.to_string_lossy().contains("docs/tutorials")));
+        .any(|p| p.to_string_lossy().contains("docs/guides")));
     assert!(pages.len() > 50, "only {} pages found", pages.len());
 }
 

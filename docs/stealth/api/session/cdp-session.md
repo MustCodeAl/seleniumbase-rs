@@ -1,0 +1,205 @@
+---
+title: "session::cdp_session"
+sidebarTitle: "CdpSession"
+description: "CdpSession, its builder, CdpFetch and the Launcher."
+---
+
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
+
+`runtime::browser_scraper` drives one real Chrome through `sb_cdp`. It does no TLS spoofing: Chrome's own handshake leaves the machine. `fetch` loads a URL, reads the rendered page, and follows `MitigationPolicy`. `close` takes the scraper by value.
+
+Import the main types from `seleniumbase_rs_stealth::session`. The fetch loop is on [CdpSession](/stealth/session/cdp-session).
+
+<RequestExample>
+
+```rust A scraper behind a German proxy
+use seleniumbase_rs_stealth::session::{CdpSession, CountryCode, SessionError};
+use seleniumbase_rs_stealth::tokio;
+
+#[tokio::main]
+async fn main() -> Result<(), SessionError> {
+    let mut scraper = CdpSession::builder()
+        .geo_proxies([("http://user:pass@de.proxy.example:8080", CountryCode::try_new("DE")?)])?
+        .max_challenge_attempts(4)
+        .build()
+        .await?;
+    let page = scraper.fetch("https://example.com/").await?;
+    println!("{} bytes, status {}", page.body.len(), page.status);
+    scraper.close().await
+}
+```
+
+</RequestExample>
+
+## Constants and type aliases
+
+```rust
+// runtime/browser_scraper/builder.rs
+pub type Clock = Arc<dyn Fn() -> u64 + Send + Sync>;
+```
+
+
+- `Clock`: Tells the scraper the time, in seconds since the Unix epoch. Tests replace it.
+
+## `runtime::browser_scraper`
+
+### `CdpFetch`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct CdpFetch {
+    pub url: String,
+    pub status: u16,
+    pub headers: Vec<(String, String)>,
+    pub body: String,
+    pub detection: Detection,
+    pub attempts: u32,
+    pub solved: Option<ChallengeKind>,
+    pub proxy: Option<ProxyKey>,
+}
+```
+
+A page fetched through a real browser.
+
+### `CdpSession`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct CdpSession
+```
+
+A scraper that drives one real browser. See the [module documentation](/stealth/api/session/overview).
+
+### `CdpSession` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn builder() -> CdpSessionBuilder
+pub fn page(&self) -> &Page
+pub fn browser(&self) -> &Browser
+pub fn fingerprint(&self) -> &Fingerprint
+pub fn seed(&self) -> u64
+pub fn proxy_route(&self) -> Option<&ProxyKey>
+pub fn session_store(&self) -> &SessionStore
+pub async fn close(self) -> Result<(), SessionError>
+pub async fn fetch(&mut self, url: &str) -> Result<CdpFetch, SessionError>
+pub async fn solve_challenge(&mut self) -> Result<Detection, SessionError>
+pub async fn rotate_proxy(&mut self) -> Result<(), SessionError>
+pub async fn rotate_fingerprint(&mut self) -> Result<(), SessionError>
+pub async fn export_identity(&self) -> Result<Identity, SessionError>
+pub async fn import_identity(&mut self, identity: &Identity) -> Result<(), SessionError>
+pub async fn save_session(&self, name: impl Into<String>) -> Result<(), SessionError>
+pub async fn load_session(&self, name: &str) -> Result<bool, SessionError>
+```
+
+
+- `builder`: Starts configuring a scraper.
+- `page`: The tab the scraper loads pages in. It changes when the egress or the profile does.
+- `browser`: The browser the scraper drives. It changes when the profile does.
+- `fingerprint`: The fingerprint the browser presents.
+- `seed`: The noise seed of the profile in use.
+- `proxy_route`: The proxy the browser leaves through; `None` for the direct connection.
+- `session_store`: The sessions saved with `save_session`.
+- `close`: Closes the browser. A scraper that is dropped instead leaves the browser to its own drop.
+- `fetch`: Fetches `url` through the browser, solving challenges on the way.
+- `solve_challenge`: Reads the page now open, solves the challenge on it if there is one, and waits for the browser to show the clearance. Returns what the page is afterwards.
+- `rotate_proxy`: Leaves through another egress of the pool.
+- `rotate_fingerprint`: Presents a new browser profile.
+- `export_identity`: Takes the identity out of the scraper: the fingerprint, the cookies the browser holds, the clearances among them, and the egress they were earned through.
+- `import_identity`: Puts an identity into the scraper: the browser is started again with its fingerprint when it differs from the one in use, and its cookies are set.
+- `save_session`: Saves the cookies of the browser context and the local storage of the page's origin in the scraper's `SessionStore` as `name`, the way a pool lease saves its login.
+- `load_session`: Loads the session saved as `name` into the browser context. Returns `false`, changing nothing, when there is no such session.
+
+## `runtime::browser_scraper::builder`
+
+### `CdpSessionBuilder`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct CdpSessionBuilder
+```
+
+Configures a [`CdpSession`]; see [`CdpSession::builder`].
+
+### `CdpSessionBuilder` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn launch_options(mut self, launch: LaunchOptions) -> Self
+pub fn geo_proxies<I, S>(mut self, proxies: I) -> Result<Self, SessionError>
+    where
+        I: IntoIterator<Item = (S, CountryCode)>,
+        S: AsRef<str>,
+pub fn proxy_rotation(mut self, rotation: RotationStrategy) -> Self
+pub fn max_challenge_attempts(mut self, attempts: u32) -> Self
+pub fn mitigation(mut self, policy: MitigationPolicy) -> Self
+pub fn ledger(mut self, store: Arc<dyn Ledger>) -> Self
+pub fn event_sink(mut self, sink: Arc<dyn EventSink>) -> Self
+pub fn geo_resolver(mut self, geo: Arc<dyn GeoResolver>) -> Self
+pub fn rate_limit(mut self, calls: usize, window: Duration) -> Self
+pub fn seed(mut self, seed: u64) -> Self
+pub fn fingerprint(mut self, fingerprint: Fingerprint) -> Self
+pub fn proxy_switch(mut self, switch: Box<dyn ProxySwitch>) -> Self
+pub fn launcher<F, Fut>(mut self, launch: F) -> Self
+    where
+        F: Fn(LaunchOptions) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
+pub fn session_store(mut self, sessions: SessionStore) -> Self
+pub fn clock(mut self, clock: Clock) -> Self
+pub async fn build(self) -> Result<CdpSession, SessionError>
+```
+
+
+- `launch_options`: The launch options of the browser, a built `LaunchOptions`. The scraper adds its fingerprint to a copy of them (`LaunchOptions::with_fingerprint`), so a setting made here (a user agent, say) wins over the fingerprint's.
+- `geo_proxies`: Adds proxies, each with the country it exits in. The country decides the language and the time zone the browser presents while it leaves through that proxy.
+- `proxy_rotation`: How the pool picks an egress when one is needed: at the start and at each rotation. Takes core's `seleniumbase_rs::config::proxy_list::RotationStrategy`.
+- `max_challenge_attempts`: How many loads of one URL a fetch may make before it gives up. Zero is read as one.
+- `mitigation`: The whole mitigation policy: when to rotate, how long to cool down, and how long a solved challenge is waited for (its `solve` options: `SolveOptions::new().verify_timeout(..)`; the default policy waits `DEFAULT_VERIFY_TIMEOUT`, 30 s). The attempts set by `max_challenge_attempts` still apply on top.
+- `ledger`: Where what is learned about each site is kept between fetches.
+- `event_sink`: Where the scraper reports what it does.
+- `geo_resolver`: How the country, time zone and language of an egress are found.
+- `rate_limit`: At most `calls` fetches of one site in `window`. The limit is per site, not global.
+- `seed`: The seed of the first profile. The same seed gives the same profile, and each rotation derives the next seed from the last, so a run can be repeated.
+- `fingerprint`: The first profile itself, instead of one drawn from the seed. A rotation replaces it with a generated profile of the same operating system.
+- `proxy_switch`: How the egress is changed. The default opens a browser context behind the new proxy.
+- `launcher`: How a browser is started: a closure from the `LaunchOptions` to a `Browser`, as core's `BrowserPool::with_launcher` takes (see [`Launcher`]). The default is core's `Browser::launch`.
+- `session_store`: The store `save_session` writes to, to share logins with other scrapers or a `BrowserPool`.
+- `clock`: The clock the scraper reads. The default is the system clock.
+- `build`: Starts the browser and returns the scraper.
+
+## `runtime::browser_scraper::launcher`
+
+### `Launcher`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct Launcher(/* private */);
+```
+
+Starts a browser for a `CdpSession` or a `HybridSession`: a launch closure, as core's `BrowserPool::with_launcher` takes. The default is core's `Browser::launch`; another closure can start a different build, reuse a browser, or hand out a scripted one in a test. It is cloneable, implements `Default` and `Debug`.
+
+### `Launcher` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn new<F, Fut>(launch: F) -> Self
+    where
+        F: Fn(LaunchOptions) -> Fut + Send + Sync + 'static,
+        Fut: Future<Output = Result<Browser, SeleniumBaseError>> + Send + 'static,
+pub async fn launch(&self, options: LaunchOptions) -> Result<Browser, SessionError>
+```
+
+
+- `new`: A launcher that calls `launch`, a closure from the launch options to a browser.
+- `launch`: Starts a browser with `options`.
+
+## Related
+
+The guide is [CdpSession](/stealth/session/cdp-session). The overview is [scrape](/stealth/api/session/overview).

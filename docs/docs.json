@@ -35,67 +35,67 @@
   "redirects": [
     {
       "source": "/tutorials/behave",
-      "destination": "/tutorials/utilities",
+      "destination": "/guides/write-tests/utilities",
       "permanent": true
     },
     {
       "source": "/tutorials/reliable_tests",
-      "destination": "/best-practices",
+      "destination": "/guides/write-tests/best-practices",
       "permanent": true
     },
     {
       "source": "/tutorials/mise_sbrs",
-      "destination": "/building",
+      "destination": "/guides/get-started/building",
       "permanent": true
     },
     {
       "source": "/tutorials/mise_chromedriver",
-      "destination": "/building",
+      "destination": "/guides/get-started/building",
       "permanent": true
     },
     {
       "source": "/tutorials/debug_modes",
-      "destination": "/tutorials/tracing",
+      "destination": "/guides/configure-runs/tracing",
       "permanent": true
     },
     {
       "source": "/tutorials/shadow_dom",
-      "destination": "/tutorials/selectors",
+      "destination": "/guides/write-tests/selectors",
       "permanent": true
     },
     {
       "source": "/help/syntax_formats",
-      "destination": "/tutorials/selectors",
+      "destination": "/guides/write-tests/selectors",
       "permanent": true
     },
     {
       "source": "/tutorials/macros",
-      "destination": "/tutorials/utilities",
+      "destination": "/guides/write-tests/utilities",
       "permanent": true
     },
     {
       "source": "/help/html_inspector",
-      "destination": "/tutorials/utilities",
+      "destination": "/guides/write-tests/utilities",
       "permanent": true
     },
     {
       "source": "/tutorials/waits_assertions",
-      "destination": "/tutorials/utilities",
+      "destination": "/guides/write-tests/utilities",
       "permanent": true
     },
     {
       "source": "/tutorials/writing_tests",
-      "destination": "/rust-test-tooling",
+      "destination": "/guides/write-tests/rust-test-tooling",
       "permanent": true
     },
     {
       "source": "/help/uc_mode",
-      "destination": "/tutorials/uc_mode",
+      "destination": "/stealth/core/uc-mode",
       "permanent": true
     },
     {
       "source": "/imports",
-      "destination": "/tutorials/getting_started#imports-and-dependencies",
+      "destination": "/guides/get-started/getting-started#imports-and-dependencies",
       "permanent": true
     },
     {
@@ -205,57 +205,57 @@
     },
     {
       "source": "/tutorials/stealth_scraping",
-      "destination": "/scraping/stealthy/first-fetch",
+      "destination": "/stealth/session/first-fetch",
       "permanent": true
     },
     {
       "source": "/tutorials/binary_patching",
-      "destination": "/stealth/advanced/binary-patching",
+      "destination": "/stealth/advanced/core/binary-patching",
       "permanent": true
     },
     {
       "source": "/stealth/overview",
-      "destination": "/scraping/stealthy/overview",
+      "destination": "/stealth/session/overview",
       "permanent": true
     },
     {
       "source": "/stealth/browser-scraper",
-      "destination": "/scraping/stealthy/browser-scraper",
+      "destination": "/stealth/session/cdp-session",
       "permanent": true
     },
     {
       "source": "/stealth/http-session",
-      "destination": "/scraping/stealthy/http-session",
+      "destination": "/stealth/advanced/session/http-session",
       "permanent": true
     },
     {
       "source": "/stealth/stealth-session",
-      "destination": "/scraping/advanced-stealthy/stealth-session",
+      "destination": "/stealth/advanced/session/hybrid-session",
       "permanent": true
     },
     {
       "source": "/stealth/identity",
-      "destination": "/scraping/advanced-stealthy/identity",
+      "destination": "/stealth/advanced/session/identity",
       "permanent": true
     },
     {
       "source": "/stealth/examples",
-      "destination": "/scraping/advanced-stealthy/examples",
+      "destination": "/stealth/advanced/session/examples",
       "permanent": true
     },
     {
       "source": "/stealth/limits",
-      "destination": "/scraping/advanced-stealthy/limits",
+      "destination": "/stealth/advanced/session/limits",
       "permanent": true
     },
     {
       "source": "/stealth/wire-formats",
-      "destination": "/stealth/advanced/wire-formats",
+      "destination": "/stealth/advanced/network/wire-formats",
       "permanent": true
     },
     {
       "source": "/stealth/mitm-proxy",
-      "destination": "/stealth/advanced/mitm-proxy",
+      "destination": "/stealth/advanced/network/mitm-proxy",
       "permanent": true
     },
     {
@@ -272,6 +272,766 @@
       "source": "/scraping/advanced",
       "destination": "/plugins/overview",
       "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire",
+      "destination": "/stealth/api/network/overview",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec",
+      "destination": "/stealth/api/network/overview",
+      "permanent": true
+    },
+    {
+      "source": "/api/stealth-settings",
+      "destination": "/settings/overview",
+      "permanent": true
+    },
+    {
+      "source": "/building",
+      "destination": "/guides/get-started/building",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/getting_started",
+      "destination": "/guides/get-started/getting-started",
+      "permanent": true
+    },
+    {
+      "source": "/rust-test-tooling",
+      "destination": "/guides/write-tests/rust-test-tooling",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/selectors",
+      "destination": "/guides/write-tests/selectors",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/utilities",
+      "destination": "/guides/write-tests/utilities",
+      "permanent": true
+    },
+    {
+      "source": "/best-practices",
+      "destination": "/guides/write-tests/best-practices",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/avoid-bot-detection",
+      "destination": "/guides/write-tests/avoid-bot-detection",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/mfa_totp",
+      "destination": "/guides/special-pages/mfa-totp",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/verify_by_email",
+      "destination": "/guides/special-pages/verify-by-email",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/pdf_parsing",
+      "destination": "/guides/special-pages/pdf-parsing",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/masterqa",
+      "destination": "/guides/special-pages/masterqa",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/ai_extraction",
+      "destination": "/guides/special-pages/ai-extraction",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/crawler",
+      "destination": "/guides/special-pages/crawler",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/pure_cdp",
+      "destination": "/guides/browser-engines/pure-cdp",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/cdp_mode",
+      "destination": "/guides/browser-engines/cdp-mode",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/bidi_and_streaming",
+      "destination": "/guides/browser-engines/bidi-and-streaming",
+      "permanent": true
+    },
+    {
+      "source": "/help/playwright_mode",
+      "destination": "/guides/browser-engines/playwright-mode",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/gui_automation",
+      "destination": "/guides/browser-engines/gui-automation",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/run_settings",
+      "destination": "/guides/configure-runs/run-settings",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/headless",
+      "destination": "/guides/configure-runs/headless",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/browser_profiles",
+      "destination": "/guides/configure-runs/browser-profiles",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/tracing",
+      "destination": "/guides/configure-runs/tracing",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/recorder_mode",
+      "destination": "/guides/record-and-replay/recorder-mode",
+      "permanent": true
+    },
+    {
+      "source": "/help/recorder_cli",
+      "destination": "/guides/record-and-replay/recorder-cli",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/selenium_ide",
+      "destination": "/guides/record-and-replay/selenium-ide",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/results_and_profiles",
+      "destination": "/guides/results-and-reports/results-and-profiles",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/charts",
+      "destination": "/guides/results-and-reports/charts",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/tours",
+      "destination": "/guides/results-and-reports/tours",
+      "permanent": true
+    },
+    {
+      "source": "/python-migration",
+      "destination": "/guides/migrate/python",
+      "permanent": true
+    },
+    {
+      "source": "/playwright-migration",
+      "destination": "/guides/migrate/playwright",
+      "permanent": true
+    },
+    {
+      "source": "/puppeteer-migration",
+      "destination": "/guides/migrate/puppeteer",
+      "permanent": true
+    },
+    {
+      "source": "/deployment",
+      "destination": "/guides/production/deployment",
+      "permanent": true
+    },
+    {
+      "source": "/help/docker",
+      "destination": "/guides/production/docker",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/cloud_integrations",
+      "destination": "/guides/production/cloud-integrations",
+      "permanent": true
+    },
+    {
+      "source": "/help/common_problems",
+      "destination": "/guides/help/common-problems",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/captcha_testing",
+      "destination": "/guides/help/captcha-testing",
+      "permanent": true
+    },
+    {
+      "source": "/help/faq",
+      "destination": "/guides/help/faq",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/uc_mode",
+      "destination": "/stealth/core/uc-mode",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/cdp-mode",
+      "destination": "/stealth/core/cdp-mode",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/human-input",
+      "destination": "/stealth/core/human-input",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/fingerprints",
+      "destination": "/stealth/identity/fingerprints",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/policies",
+      "destination": "/stealth/identity/policies",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/profiles",
+      "destination": "/stealth/identity/profiles",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/evasions",
+      "destination": "/stealth/client/evasions",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/proxies",
+      "destination": "/stealth/network/proxies",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/stealthy/overview",
+      "destination": "/stealth/session/overview",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/stealthy/first-fetch",
+      "destination": "/stealth/session/first-fetch",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/stealthy/browser-scraper",
+      "destination": "/stealth/session/cdp-session",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/advanced/binary-patching",
+      "destination": "/stealth/advanced/core/binary-patching",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/advanced/fingerprinting",
+      "destination": "/stealth/advanced/identity/signal-spoofing",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/advanced/providers",
+      "destination": "/stealth/advanced/client/providers",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/advanced/playwright",
+      "destination": "/stealth/advanced/client/playwright",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/advanced/wire-formats",
+      "destination": "/stealth/advanced/network/wire-formats",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/advanced/mitm-proxy",
+      "destination": "/stealth/advanced/network/mitm-proxy",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/advanced/http3",
+      "destination": "/stealth/advanced/network/http3",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/stealthy/http-session",
+      "destination": "/stealth/advanced/session/http-session",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/advanced-stealthy/overview",
+      "destination": "/stealth/advanced/session/overview",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/advanced-stealthy/stealth-session",
+      "destination": "/stealth/advanced/session/hybrid-session",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/advanced-stealthy/identity",
+      "destination": "/stealth/advanced/session/identity",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/advanced-stealthy/examples",
+      "destination": "/stealth/advanced/session/examples",
+      "permanent": true
+    },
+    {
+      "source": "/scraping/advanced-stealthy/limits",
+      "destination": "/stealth/advanced/session/limits",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/mcp_server",
+      "destination": "/ecosystem/mcp/server",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/vibe_coding",
+      "destination": "/ecosystem/mcp/vibe-coding",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/devtools_mcp",
+      "destination": "/ecosystem/mcp/devtools",
+      "permanent": true
+    },
+    {
+      "source": "/help/cli_tldr",
+      "destination": "/ecosystem/cli/tldr",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/cli_usage",
+      "destination": "/ecosystem/cli/usage",
+      "permanent": true
+    },
+    {
+      "source": "/help/commander",
+      "destination": "/ecosystem/cli/commander",
+      "permanent": true
+    },
+    {
+      "source": "/help/caseplans",
+      "destination": "/ecosystem/cli/caseplans",
+      "permanent": true
+    },
+    {
+      "source": "/help/behave-gui",
+      "destination": "/ecosystem/cli/behave-gui",
+      "permanent": true
+    },
+    {
+      "source": "/help/cli_reference",
+      "destination": "/ecosystem/cli/reference",
+      "permanent": true
+    },
+    {
+      "source": "/ecosystem/browser-extension",
+      "destination": "/ecosystem/integrations/browser-extension",
+      "permanent": true
+    },
+    {
+      "source": "/ecosystem/tauri",
+      "destination": "/ecosystem/integrations/tauri/overview",
+      "permanent": true
+    },
+    {
+      "source": "/ecosystem/tauri-driver",
+      "destination": "/ecosystem/integrations/tauri/driver",
+      "permanent": true
+    },
+    {
+      "source": "/ecosystem/tauri-client",
+      "destination": "/ecosystem/integrations/tauri/client",
+      "permanent": true
+    },
+    {
+      "source": "/ecosystem/tauri-browser",
+      "destination": "/ecosystem/integrations/tauri/browser",
+      "permanent": true
+    },
+    {
+      "source": "/ecosystem/homebrew",
+      "destination": "/ecosystem/integrations/homebrew",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/shield",
+      "destination": "/plugins/builtin/shield",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/tor",
+      "destination": "/plugins/builtin/tor",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/crx",
+      "destination": "/plugins/builtin/crx",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/browser",
+      "destination": "/plugins/builtin/browser",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/fetcher",
+      "destination": "/plugins/builtin/fetcher",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/extractor",
+      "destination": "/plugins/builtin/extractor",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/batcher",
+      "destination": "/plugins/builtin/batcher",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/crawler",
+      "destination": "/plugins/builtin/crawler",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/block-resources",
+      "destination": "/plugins/community/block-resources",
+      "permanent": true
+    },
+    {
+      "source": "/plugins/imap",
+      "destination": "/plugins/community/imap",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/plugins",
+      "destination": "/plugins/guide",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/test_plugins",
+      "destination": "/plugins/test-plugins",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/api_reference",
+      "destination": "/api/api_reference",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/remaining_helpers",
+      "destination": "/api/remaining-helpers",
+      "permanent": true
+    },
+    {
+      "source": "/ABI_API",
+      "destination": "/api/abi-api",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-overview",
+      "destination": "/api/pure-cdp/overview",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-browser",
+      "destination": "/api/pure-cdp/browser",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-page",
+      "destination": "/api/pure-cdp/page",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-locator",
+      "destination": "/api/pure-cdp/locator",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-input",
+      "destination": "/api/pure-cdp/input",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-network",
+      "destination": "/api/pure-cdp/network",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-state",
+      "destination": "/api/pure-cdp/state",
+      "permanent": true
+    },
+    {
+      "source": "/api/cdp-pool",
+      "destination": "/api/pure-cdp/pool",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/identity",
+      "destination": "/stealth/api/identity/overview",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/fingerprint",
+      "destination": "/stealth/api/identity/fingerprint",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/client",
+      "destination": "/stealth/api/client/overview",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/evasion",
+      "destination": "/stealth/api/client/migration",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/network",
+      "destination": "/stealth/api/network/overview",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-tls-spec",
+      "destination": "/stealth/api/network/tls-spec",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-client-hello",
+      "destination": "/stealth/api/network/client-hello",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-ja3",
+      "destination": "/stealth/api/network/ja3",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-ja4",
+      "destination": "/stealth/api/network/ja4",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-h2-spec",
+      "destination": "/stealth/api/network/h2-spec",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-h2-frames",
+      "destination": "/stealth/api/network/h2-frames",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-h3-spec",
+      "destination": "/stealth/api/network/h3-spec",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-akamai",
+      "destination": "/stealth/api/network/akamai",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-header-spec",
+      "destination": "/stealth/api/network/header-spec",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-measurement",
+      "destination": "/stealth/api/network/measurement",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/codec-ids",
+      "destination": "/stealth/api/network/ids",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire-client",
+      "destination": "/stealth/api/network/wire-format",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire-convert",
+      "destination": "/stealth/api/network/convert",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire-mitm",
+      "destination": "/stealth/api/network/mitm-proxy",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire-tls-server",
+      "destination": "/stealth/api/network/tls-server",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire-capture-h2",
+      "destination": "/stealth/api/network/capture-h2",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire-http-session",
+      "destination": "/stealth/api/network/http-session",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/wire-stealth-session",
+      "destination": "/stealth/api/network/hybrid-session",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape",
+      "destination": "/stealth/api/session/overview",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-browser-scraper",
+      "destination": "/stealth/api/session/cdp-session",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-challenge",
+      "destination": "/stealth/api/session/challenge",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-egress",
+      "destination": "/stealth/api/session/egress",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-jar",
+      "destination": "/stealth/api/session/jar",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-passport",
+      "destination": "/stealth/api/session/passport",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-ledger",
+      "destination": "/stealth/api/session/ledger",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-runtime",
+      "destination": "/stealth/api/session/runtime",
+      "permanent": true
+    },
+    {
+      "source": "/stealth/api/scrape-error",
+      "destination": "/stealth/api/session/error",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/settings_and_config",
+      "destination": "/settings/overview",
+      "permanent": true
+    },
+    {
+      "source": "/help/test_options",
+      "destination": "/settings/test-options",
+      "permanent": true
+    },
+    {
+      "source": "/help/customizing_test_runs",
+      "destination": "/settings/customizing-test-runs",
+      "permanent": true
+    },
+    {
+      "source": "/tutorials/translations",
+      "destination": "/settings/translations",
+      "permanent": true
+    },
+    {
+      "source": "/glossary",
+      "destination": "/concepts/glossary",
+      "permanent": true
+    },
+    {
+      "source": "/why-rust",
+      "destination": "/why-rust/overview",
+      "permanent": true
+    },
+    {
+      "source": "/rust-advantages",
+      "destination": "/why-rust/rust-advantages",
+      "permanent": true
+    },
+    {
+      "source": "/comparison",
+      "destination": "/why-rust/comparison",
+      "permanent": true
+    },
+    {
+      "source": "/performance",
+      "destination": "/why-rust/performance",
+      "permanent": true
+    },
+    {
+      "source": "/benchmarks",
+      "destination": "/why-rust/benchmarks",
+      "permanent": true
+    },
+    {
+      "source": "/reliability",
+      "destination": "/why-rust/reliability",
+      "permanent": true
+    },
+    {
+      "source": "/security",
+      "destination": "/why-rust/security",
+      "permanent": true
+    },
+    {
+      "source": "/parity",
+      "destination": "/why-rust/parity",
+      "permanent": true
+    },
+    {
+      "source": "/CONTRIBUTING",
+      "destination": "/contributing/overview",
+      "permanent": true
+    },
+    {
+      "source": "/DEVELOPER_GUIDE",
+      "destination": "/contributing/developer-guide",
+      "permanent": true
+    },
+    {
+      "source": "/UPSTREAM_SYNC",
+      "destination": "/contributing/upstream-sync",
+      "permanent": true
+    },
+    {
+      "source": "/completions/README",
+      "destination": "/contributing/completions",
+      "permanent": true
+    },
+    {
+      "source": "/feature-requests",
+      "destination": "/contributing/feature-requests",
+      "permanent": true
     }
   ],
   "navigation": {
@@ -285,96 +1045,97 @@
             "icon": "rocket",
             "pages": [
               "README",
-              "building",
-              "tutorials/getting_started"
+              "guides/get-started/building",
+              "guides/get-started/getting-started"
             ]
           },
           {
             "group": "Write tests",
             "icon": "flask",
             "pages": [
-              "rust-test-tooling",
-              "tutorials/selectors",
-              "tutorials/utilities",
-              "best-practices"
+              "guides/write-tests/rust-test-tooling",
+              "guides/write-tests/selectors",
+              "guides/write-tests/utilities",
+              "guides/write-tests/best-practices",
+              "guides/write-tests/avoid-bot-detection"
             ]
           },
           {
             "group": "Special pages",
             "icon": "star",
             "pages": [
-              "tutorials/mfa_totp",
-              "tutorials/verify_by_email",
-              "tutorials/pdf_parsing",
-              "tutorials/masterqa",
-              "tutorials/ai_extraction",
-              "tutorials/crawler"
+              "guides/special-pages/mfa-totp",
+              "guides/special-pages/verify-by-email",
+              "guides/special-pages/pdf-parsing",
+              "guides/special-pages/masterqa",
+              "guides/special-pages/ai-extraction",
+              "guides/special-pages/crawler"
             ]
           },
           {
             "group": "Browser engines",
             "icon": "globe",
             "pages": [
-              "tutorials/pure_cdp",
-              "tutorials/cdp_mode",
-              "tutorials/bidi_and_streaming",
-              "help/playwright_mode",
-              "tutorials/gui_automation"
+              "guides/browser-engines/pure-cdp",
+              "guides/browser-engines/cdp-mode",
+              "guides/browser-engines/bidi-and-streaming",
+              "guides/browser-engines/playwright-mode",
+              "guides/browser-engines/gui-automation"
             ]
           },
           {
             "group": "Configure runs",
             "icon": "sliders",
             "pages": [
-              "tutorials/run_settings",
-              "tutorials/headless",
-              "tutorials/browser_profiles",
-              "tutorials/tracing"
+              "guides/configure-runs/run-settings",
+              "guides/configure-runs/headless",
+              "guides/configure-runs/browser-profiles",
+              "guides/configure-runs/tracing"
             ]
           },
           {
             "group": "Record and replay",
             "icon": "circle-dot",
             "pages": [
-              "tutorials/recorder_mode",
-              "help/recorder_cli",
-              "tutorials/selenium_ide"
+              "guides/record-and-replay/recorder-mode",
+              "guides/record-and-replay/recorder-cli",
+              "guides/record-and-replay/selenium-ide"
             ]
           },
           {
             "group": "Results and reports",
             "icon": "chart-pie",
             "pages": [
-              "tutorials/results_and_profiles",
-              "tutorials/charts",
-              "tutorials/tours"
+              "guides/results-and-reports/results-and-profiles",
+              "guides/results-and-reports/charts",
+              "guides/results-and-reports/tours"
             ]
           },
           {
             "group": "Migrate",
             "icon": "right-left",
             "pages": [
-              "python-migration",
-              "playwright-migration",
-              "puppeteer-migration"
+              "guides/migrate/python",
+              "guides/migrate/playwright",
+              "guides/migrate/puppeteer"
             ]
           },
           {
             "group": "Run in production",
             "icon": "server",
             "pages": [
-              "deployment",
-              "help/docker",
-              "tutorials/cloud_integrations"
+              "guides/production/deployment",
+              "guides/production/docker",
+              "guides/production/cloud-integrations"
             ]
           },
           {
             "group": "Help",
             "icon": "circle-question",
             "pages": [
-              "help/common_problems",
-              "tutorials/captcha_testing",
-              "help/faq"
+              "guides/help/common-problems",
+              "guides/help/captcha-testing",
+              "guides/help/faq"
             ]
           }
         ]
@@ -384,25 +1145,51 @@
         "icon": "user-secret",
         "groups": [
           {
-            "group": "Undetected browsing",
-            "icon": "mask",
-            "pages": [
-              "tutorials/uc_mode",
-              "stealth/cdp-mode"
-            ]
-          },
-          {
             "group": "Stealth",
             "icon": "user-secret",
             "pages": [
               "stealth/introduction",
-              "stealth/avoid-bot-detection",
-              "stealth/fingerprints",
-              "stealth/evasions",
-              "stealth/policies",
-              "stealth/profiles",
-              "stealth/proxies",
-              "stealth/human-input",
+              {
+                "group": "Layer 0: Core undetected",
+                "icon": "mask",
+                "pages": [
+                  "stealth/core/uc-mode",
+                  "stealth/core/cdp-mode",
+                  "stealth/core/human-input"
+                ]
+              },
+              {
+                "group": "Layer 1: identity",
+                "icon": "id-card",
+                "pages": [
+                  "stealth/identity/fingerprints",
+                  "stealth/identity/policies",
+                  "stealth/identity/profiles"
+                ]
+              },
+              {
+                "group": "Layer 2: client",
+                "icon": "sliders",
+                "pages": [
+                  "stealth/client/evasions"
+                ]
+              },
+              {
+                "group": "Layer 3: network",
+                "icon": "network-wired",
+                "pages": [
+                  "stealth/network/proxies"
+                ]
+              },
+              {
+                "group": "Layer 4: session",
+                "icon": "spider",
+                "pages": [
+                  "stealth/session/overview",
+                  "stealth/session/first-fetch",
+                  "stealth/session/cdp-session"
+                ]
+              },
               "stealth/troubleshooting"
             ]
           },
@@ -411,30 +1198,47 @@
             "icon": "shield-halved",
             "pages": [
               "stealth/advanced/overview",
-              "stealth/advanced/providers",
-              "stealth/advanced/fingerprinting",
-              "stealth/advanced/binary-patching",
-              "stealth/advanced/playwright",
-              "stealth/advanced/wire-formats",
-              "stealth/advanced/mitm-proxy",
-              "stealth/advanced/http3",
               {
-                "group": "Stealthy scraping",
+                "group": "Layer 0: Core undetected",
+                "icon": "mask",
                 "pages": [
-                  "scraping/stealthy/overview",
-                  "scraping/stealthy/first-fetch",
-                  "scraping/stealthy/browser-scraper",
-                  "scraping/stealthy/http-session"
+                  "stealth/advanced/core/binary-patching"
                 ]
               },
               {
-                "group": "Advanced stealthy scraping",
+                "group": "Layer 1: identity",
+                "icon": "id-card",
                 "pages": [
-                  "scraping/advanced-stealthy/overview",
-                  "scraping/advanced-stealthy/stealth-session",
-                  "scraping/advanced-stealthy/identity",
-                  "scraping/advanced-stealthy/examples",
-                  "scraping/advanced-stealthy/limits"
+                  "stealth/advanced/identity/signal-spoofing"
+                ]
+              },
+              {
+                "group": "Layer 2: client",
+                "icon": "sliders",
+                "pages": [
+                  "stealth/advanced/client/providers",
+                  "stealth/advanced/client/playwright"
+                ]
+              },
+              {
+                "group": "Layer 3: network",
+                "icon": "network-wired",
+                "pages": [
+                  "stealth/advanced/network/wire-formats",
+                  "stealth/advanced/network/mitm-proxy",
+                  "stealth/advanced/network/http3"
+                ]
+              },
+              {
+                "group": "Layer 4: session",
+                "icon": "spider",
+                "pages": [
+                  "stealth/advanced/session/http-session",
+                  "stealth/advanced/session/overview",
+                  "stealth/advanced/session/hybrid-session",
+                  "stealth/advanced/session/identity",
+                  "stealth/advanced/session/examples",
+                  "stealth/advanced/session/limits"
                 ]
               }
             ]
@@ -449,20 +1253,20 @@
             "group": "MCP",
             "icon": "robot",
             "pages": [
-              "tutorials/mcp_server",
-              "tutorials/vibe_coding",
-              "tutorials/devtools_mcp"
+              "ecosystem/mcp/server",
+              "ecosystem/mcp/vibe-coding",
+              "ecosystem/mcp/devtools"
             ]
           },
           {
             "group": "CLI",
             "icon": "terminal",
             "pages": [
-              "help/cli_tldr",
-              "tutorials/cli_usage",
-              "help/commander",
-              "help/caseplans",
-              "help/behave-gui"
+              "ecosystem/cli/tldr",
+              "ecosystem/cli/usage",
+              "ecosystem/cli/commander",
+              "ecosystem/cli/caseplans",
+              "ecosystem/cli/behave-gui"
             ]
           },
           {
@@ -470,17 +1274,17 @@
             "icon": "cubes",
             "pages": [
               "ecosystem/overview",
-              "ecosystem/browser-extension",
+              "ecosystem/integrations/browser-extension",
               {
                 "group": "Tauri",
                 "pages": [
-                  "ecosystem/tauri",
-                  "ecosystem/tauri-driver",
-                  "ecosystem/tauri-client",
-                  "ecosystem/tauri-browser"
+                  "ecosystem/integrations/tauri/overview",
+                  "ecosystem/integrations/tauri/driver",
+                  "ecosystem/integrations/tauri/client",
+                  "ecosystem/integrations/tauri/browser"
                 ]
               },
-              "ecosystem/homebrew"
+              "ecosystem/integrations/homebrew"
             ]
           },
           {
@@ -490,23 +1294,22 @@
               {
                 "group": "Built-in",
                 "pages": [
-                  "plugins/shield",
-                  "plugins/block-resources",
-                  "plugins/crx",
-                  "plugins/fetcher",
-                  "plugins/extractor",
-                  "plugins/batcher",
-                  "plugins/crawler",
-                  "plugins/browser",
-                  "plugins/imap",
-                  "plugins/tor",
-                  "plugins/wasm"
+                  "plugins/builtin/shield",
+                  "plugins/builtin/tor",
+                  "plugins/builtin/crx",
+                  "plugins/builtin/browser",
+                  "plugins/builtin/fetcher",
+                  "plugins/builtin/extractor",
+                  "plugins/builtin/batcher",
+                  "plugins/builtin/crawler"
                 ]
               },
               {
                 "group": "Community",
                 "pages": [
                   "plugins/community/overview",
+                  "plugins/community/block-resources",
+                  "plugins/community/imap",
                   "plugins/community/antibot-detector",
                   "plugins/community/behavior-dataset",
                   "plugins/community/cloud-logging",
@@ -516,11 +1319,12 @@
                 ]
               },
               "plugins/overview",
-              "tutorials/plugins",
-              "tutorials/test_plugins",
+              "plugins/guide",
+              "plugins/test-plugins",
               "plugins/selecting",
               "plugins/scaffolding",
               "plugins/writing-your-own",
+              "plugins/wasm",
               "plugins/architecture"
             ]
           }
@@ -530,7 +1334,7 @@
         "tab": "Reference",
         "icon": "code",
         "pages": [
-          "tutorials/api_reference"
+          "api/api_reference"
         ],
         "productGroups": [
           {
@@ -559,8 +1363,8 @@
                       "api/traits",
                       "api/crate-root",
                       "api/playwright",
-                      "tutorials/remaining_helpers",
-                      "ABI_API"
+                      "api/remaining-helpers",
+                      "api/abi-api"
                     ]
                   }
                 ]
@@ -573,27 +1377,26 @@
                   {
                     "group": "Pure CDP API",
                     "pages": [
-                      "api/cdp-overview",
-                      "api/cdp-browser",
-                      "api/cdp-page",
-                      "api/cdp-locator",
-                      "api/cdp-input",
-                      "api/cdp-network",
-                      "api/cdp-state",
-                      "api/cdp-pool"
+                      "api/pure-cdp/overview",
+                      "api/pure-cdp/browser",
+                      "api/pure-cdp/page",
+                      "api/pure-cdp/locator",
+                      "api/pure-cdp/input",
+                      "api/pure-cdp/network",
+                      "api/pure-cdp/state",
+                      "api/pure-cdp/pool"
                     ]
                   }
                 ]
               },
               {
-                "product": "Stealth settings and fixtures",
-                "icon": "sliders",
-                "description": "Core StealthOptions, settings, and testing fixtures",
+                "product": "Testing fixtures",
+                "icon": "flask",
+                "description": "Sb, SbCdp, and browser test runner fixtures behind the testing feature",
                 "groups": [
                   {
-                    "group": "Stealth settings and fixtures",
+                    "group": "Testing fixtures",
                     "pages": [
-                      "api/stealth-settings",
                       "api/testing-fixtures"
                     ]
                   }
@@ -634,8 +1437,8 @@
                   {
                     "group": "Stealth API: identity",
                     "pages": [
-                      "stealth/api/identity",
-                      "stealth/api/fingerprint"
+                      "stealth/api/identity/overview",
+                      "stealth/api/identity/fingerprint"
                     ]
                   }
                 ]
@@ -648,32 +1451,49 @@
                   {
                     "group": "Stealth API: client",
                     "pages": [
-                      "stealth/api/client",
-                      "stealth/api/evasion"
+                      "stealth/api/client/overview",
+                      "stealth/api/client/migration"
                     ]
                   }
                 ]
               },
               {
-                "product": "Stealth API: network::spec",
-                "icon": "fingerprint",
-                "description": "Pure TLS, HTTP/2, HTTP/3 and header wire specs",
+                "product": "Stealth API: network",
+                "icon": "network-wired",
+                "description": "Layer 3: Pure TLS/H2/H3/header specs, proxy pools, BoringSSL WireFormat, MitmProxy, HTTP/3, and wire-backed sessions",
                 "groups": [
                   {
-                    "group": "Stealth API: network::spec",
+                    "group": "Overview",
                     "pages": [
-                      "stealth/api/codec",
-                      "stealth/api/codec-tls-spec",
-                      "stealth/api/codec-client-hello",
-                      "stealth/api/codec-ja3",
-                      "stealth/api/codec-ja4",
-                      "stealth/api/codec-h2-spec",
-                      "stealth/api/codec-h2-frames",
-                      "stealth/api/codec-h3-spec",
-                      "stealth/api/codec-akamai",
-                      "stealth/api/codec-header-spec",
-                      "stealth/api/codec-measurement",
-                      "stealth/api/codec-ids"
+                      "stealth/api/network/overview"
+                    ]
+                  },
+                  {
+                    "group": "Wire specs (network::spec)",
+                    "pages": [
+                      "stealth/api/network/tls-spec",
+                      "stealth/api/network/client-hello",
+                      "stealth/api/network/ja3",
+                      "stealth/api/network/ja4",
+                      "stealth/api/network/h2-spec",
+                      "stealth/api/network/h2-frames",
+                      "stealth/api/network/h3-spec",
+                      "stealth/api/network/akamai",
+                      "stealth/api/network/header-spec",
+                      "stealth/api/network/measurement",
+                      "stealth/api/network/ids"
+                    ]
+                  },
+                  {
+                    "group": "Wire engine & sessions (network / http3)",
+                    "pages": [
+                      "stealth/api/network/wire-format",
+                      "stealth/api/network/convert",
+                      "stealth/api/network/mitm-proxy",
+                      "stealth/api/network/tls-server",
+                      "stealth/api/network/capture-h2",
+                      "stealth/api/network/http-session",
+                      "stealth/api/network/hybrid-session"
                     ]
                   }
                 ]
@@ -681,40 +1501,20 @@
               {
                 "product": "Stealth API: session",
                 "icon": "spider",
-                "description": "CdpSession, challenge mitigation, CookieJar, Ledger and Identity",
+                "description": "Layer 4: CdpSession, challenge mitigation, CookieJar, Ledger, and Identity passport",
                 "groups": [
                   {
                     "group": "Stealth API: session",
                     "pages": [
-                      "stealth/api/scrape",
-                      "stealth/api/scrape-browser-scraper",
-                      "stealth/api/scrape-challenge",
-                      "stealth/api/scrape-egress",
-                      "stealth/api/scrape-jar",
-                      "stealth/api/scrape-passport",
-                      "stealth/api/scrape-ledger",
-                      "stealth/api/scrape-runtime",
-                      "stealth/api/scrape-error"
-                    ]
-                  }
-                ]
-              },
-              {
-                "product": "Stealth API: network & sessions",
-                "icon": "masks-theater",
-                "description": "WireFormat, MitmProxy, EphemeralCa, HttpSession and HybridSession",
-                "groups": [
-                  {
-                    "group": "Stealth API: network & sessions",
-                    "pages": [
-                      "stealth/api/wire",
-                      "stealth/api/wire-client",
-                      "stealth/api/wire-convert",
-                      "stealth/api/wire-http-session",
-                      "stealth/api/wire-mitm",
-                      "stealth/api/wire-tls-server",
-                      "stealth/api/wire-stealth-session",
-                      "stealth/api/wire-capture-h2"
+                      "stealth/api/session/overview",
+                      "stealth/api/session/cdp-session",
+                      "stealth/api/session/challenge",
+                      "stealth/api/session/egress",
+                      "stealth/api/session/jar",
+                      "stealth/api/session/passport",
+                      "stealth/api/session/ledger",
+                      "stealth/api/session/runtime",
+                      "stealth/api/session/error"
                     ]
                   }
                 ]
@@ -754,7 +1554,7 @@
                   {
                     "group": "Command line",
                     "pages": [
-                      "help/cli_reference"
+                      "ecosystem/cli/reference"
                     ]
                   }
                 ]
@@ -762,15 +1562,15 @@
               {
                 "product": "Settings and options",
                 "icon": "sliders",
-                "description": "sbase_config.toml, SB_* variables, and the test and run options",
+                "description": "sbase_config.toml, SB_* variables, stealth and fingerprint settings, and test/run options",
                 "groups": [
                   {
                     "group": "Settings and options",
                     "pages": [
-                      "tutorials/settings_and_config",
-                      "help/test_options",
-                      "help/customizing_test_runs",
-                      "tutorials/translations"
+                      "settings/overview",
+                      "settings/test-options",
+                      "settings/customizing-test-runs",
+                      "settings/translations"
                     ]
                   }
                 ]
@@ -868,7 +1668,7 @@
                           "concepts/media-and-video"
                         ]
                       },
-                      "glossary"
+                      "concepts/glossary"
                     ]
                   }
                 ]
@@ -881,14 +1681,14 @@
                   {
                     "group": "Why Rust?",
                     "pages": [
-                      "why-rust",
-                      "rust-advantages",
-                      "comparison",
-                      "performance",
-                      "benchmarks",
-                      "reliability",
-                      "security",
-                      "parity"
+                      "why-rust/overview",
+                      "why-rust/rust-advantages",
+                      "why-rust/comparison",
+                      "why-rust/performance",
+                      "why-rust/benchmarks",
+                      "why-rust/reliability",
+                      "why-rust/security",
+                      "why-rust/parity"
                     ]
                   }
                 ]
@@ -918,9 +1718,9 @@
             "group": "Contribute",
             "icon": "hands-helping",
             "pages": [
-              "CONTRIBUTING",
+              "contributing/overview",
               "contributing/from-source",
-              "DEVELOPER_GUIDE",
+              "contributing/developer-guide",
               "contributing/debugging",
               "contributing/benchmarking",
               "contributing/coverage",
@@ -929,9 +1729,9 @@
               "contributing/consumers",
               "contributing/manual-checks",
               "contributing/stealth-boringssl",
-              "UPSTREAM_SYNC",
-              "completions/README",
-              "feature-requests"
+              "contributing/upstream-sync",
+              "contributing/completions",
+              "contributing/feature-requests"
             ]
           },
           {
@@ -955,7 +1755,6 @@
               "design/settings_v2",
               "design/element_type",
               "design/typed_selectors",
-
               "design/cookie_type",
               "design/driver_error",
               "design/network_throttle",

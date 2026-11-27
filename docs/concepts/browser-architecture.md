@@ -387,7 +387,7 @@ browser and is much harder to tell apart from it. You can ask for it by name wit
 The old implementation was removed from the main Chrome binary in version 132.
 It is still published as a separate download, **chrome-headless-shell**, for
 people who want the small and fast one for screenshots and PDF. See the
-[glossary](/glossary#chrome-headless-shell).
+[glossary](/concepts/glossary#chrome-headless-shell).
 
 </Step>
 
@@ -405,7 +405,7 @@ In seleniumbase-rs, `LaunchOptions::builder().headless(true)` or `.headless(fals
 chooses explicitly, and `LaunchOptions::is_headless()` tells you what was chosen.
 When you do not choose, a launch is headless only on Linux, where there is often
 no display. On a machine with no display at all, a virtual one (`Xvfb`) lets a
-headed browser run; see [Headless and headed](/tutorials/headless).
+headed browser run; see [Headless and headed](/guides/configure-runs/headless).
 
 ## Chrome, Chromium and Chrome for Testing
 
@@ -424,7 +424,7 @@ extension uses a different route (see
 Second, a driver such as chromedriver must match the browser's major version;
 Chrome for Testing publishes both side by side. See
 [WebDriver and drivers](/concepts/webdriver) and the glossary entry
-[Chrome for Testing](/glossary#chrome-for-testing).
+[Chrome for Testing](/concepts/glossary#chrome-for-testing).
 
 ## Profiles: where a browser keeps its state
 
@@ -561,17 +561,17 @@ enum in `src/browser/config.rs` (`seleniumbase_rs::browser::config::Browser`).
   downloaded when missing; Chrome for Testing and `chrome-headless-shell` are
   downloaded too. Opera, Safari and Internet Explorer need their own driver
   already installed, and Safari needs `sudo safaridriver --enable` once. See
-  [Building](/building) and [customising test runs](/help/customizing_test_runs).
+  [Building](/guides/get-started/building) and [customising test runs](/settings/customizing-test-runs).
 - **Chromium gets the extras.** `Browser::is_chromium_based` is true for
   everything except Firefox, Safari and Internet Explorer. The
-  [CDP mode](/tutorials/cdp_mode), the undetected (UC) mode, the pure CDP engine
-  ([Pure CDP](/tutorials/pure_cdp)), Chrome extensions and mobile emulation need
+  [CDP mode](/guides/browser-engines/cdp-mode), the undetected (UC) mode, the pure CDP engine
+  ([Pure CDP](/guides/browser-engines/pure-cdp)), Chrome extensions and mobile emulation need
   a Chromium browser. A Firefox session gets its options as `moz:firefoxOptions`
   (headless, arguments, preferences, the user agent and locale), and Chrome-only
   settings are not sent to it.
 - **The optional `seleniumbase-rs-playwright` crate** attaches the `rustwright`
   CDP engine to a Chromium browser, not WebKit or Gecko (see
-  [Playwright mode](/help/playwright_mode)).
+  [Playwright mode](/guides/browser-engines/playwright-mode)).
 - **One user agent is not an engine.** A fingerprint can claim to be Safari by
   changing the `User-Agent` text, but the engine that runs is still Blink, and
   a site can tell by checking behaviour. See
@@ -693,7 +693,7 @@ browser's port inside the container.
   The rules the browser enforces between sites: same-origin policy, CORS and CSP.
 </Card>
 
-<Card title="Glossary" icon="book" color="#a631be" href="/glossary">
+<Card title="Glossary" icon="book" color="#a631be" href="/concepts/glossary">
   Short definitions of every term used in these pages.
 </Card>
 

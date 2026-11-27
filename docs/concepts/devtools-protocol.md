@@ -139,7 +139,7 @@ WebDriver BiDi is not implemented here. [WebDriver](/concepts/webdriver#webdrive
 says what it would add.
 
 `DriverMode::Cdp` is the other use: a `BaseCase` session keeps chromedriver
-and opens a CDP socket beside it. That is [CDP mode](/tutorials/cdp_mode), not
+and opens a CDP socket beside it. That is [CDP mode](/guides/browser-engines/cdp-mode), not
 the driverless engine.
 
 ## `sbrs devtools`

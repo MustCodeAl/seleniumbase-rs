@@ -6,7 +6,7 @@ description: "Take screenshots, run JavaScript and change the DOM."
 
 <Note>
 
-Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 
@@ -19,7 +19,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 | `screenshot_as_png()` | Returns the current page screenshot as PNG bytes. |
 | `save_as_html_to_logs(name)` | Saves the current page HTML source to `latest_logs/<name>.html` and returns the destination `PathBuf`. |
 | `check_window(name, level)` | Compares the page's tag structure to a baseline saved under `visual_baseline/<test>/<name>/`, as Python 4.55.2 does: level 1 the tag names in order, level 2 adds the sorted attribute names, level 3 adds the attribute values. The first run (or a missing file) saves the baseline; level 0 is a dry run that only logs a difference; levels 1 to 3 fail on a difference. The screenshot is saved, not compared. |
-| `assert_visual_match(name)` | Feature `visual`, not in Python. Compares the screenshot's pixels with `visual_baseline/<test>/<name>.png`, `<test>` being the test binary, module path and function joined with `.`, by structural similarity (threshold 0.999), saving it the first time; a mismatch fails and leaves `<name>.actual.png` and `<name>.diff.png`. See [Visual regression testing](/tutorials/remaining_helpers#visual-regression-testing-pixels). |
+| `assert_visual_match(name)` | Feature `visual`, not in Python. Compares the screenshot's pixels with `visual_baseline/<test>/<name>.png`, `<test>` being the test binary, module path and function joined with `.`, by structural similarity (threshold 0.999), saving it the first time; a mismatch fails and leaves `<name>.actual.png` and `<name>.diff.png`. See [Visual regression testing](/api/remaining-helpers#visual-regression-testing-pixels). |
 
 ## Script execution and DOM modification
 

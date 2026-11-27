@@ -1,4 +1,4 @@
-//! `docs/help/cli_reference.md`, the usage spec rendered as a page of the Docs7 site.
+//! `docs/ecosystem/cli/reference.md`, the usage spec rendered as a page of the Docs7 site.
 //!
 //! The page lists every command in a table, then gives each one a section: its help,
 //! its usage in a titled `bash` block, and a `ParamField` for each argument and flag,
@@ -19,7 +19,7 @@ pub(crate) fn render(spec: &Spec) -> String {
          Generated from the usage spec of `sbrs` (`completions/sbrs.usage.kdl`) by \
          `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`. \
          Do not edit it by hand. For the common commands by task, see the \
-         [CLI TL;DR](/help/cli_tldr).\n\n\
+         [CLI TL;DR](/ecosystem/cli/tldr).\n\n\
          </Info>\n\n",
     );
     let root = &spec.cmd;

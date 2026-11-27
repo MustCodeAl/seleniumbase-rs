@@ -8,7 +8,7 @@ CI runs on GitLab.com (`gitlab.com/seleniumbaserust/seleniumbase-rs`), on its sh
 runners, and the definition is `.gitlab-ci.yml`. The repository is mirrored there by the lead;
 the GitHub workflows in `.github/workflows` still exist, and only the release and Docker ones
 run there. This page is the long form of the "CI on GitLab" part of
-[Contributing](/CONTRIBUTING). The GitLab pages it relies on were read on 2026-11-06, when
+[Contributing](/contributing/overview). The GitLab pages it relies on were read on 2026-11-06, when
 GitLab.com ran 19.6; GitLab renames and retires CI features often, so check the page a section
 names before you change that part of `.gitlab-ci.yml`.
 

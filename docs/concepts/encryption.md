@@ -269,7 +269,7 @@ afford to leak.
   TLS fingerprints, proxies and what a site sees on the wire.
 </Card>
 
-<Card title="Glossary" icon="book" color="#199f43" href="/glossary">
+<Card title="Glossary" icon="book" color="#199f43" href="/concepts/glossary">
   Short definitions of every term used in these pages.
 </Card>
 

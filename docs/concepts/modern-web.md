@@ -180,7 +180,7 @@ screen.
 seleniumbase-rs lets you set the strings a page reads (the WebGL vendor and
 renderer are settings of the `Fingerprint`) and add repeatable noise to canvas
 and audio output. See [Detection and spoofing](/concepts/detection) and the
-glossary entry [Canvas noise](/glossary#canvas-noise).
+glossary entry [Canvas noise](/concepts/glossary#canvas-noise).
 
 ## WebRTC
 
@@ -195,7 +195,7 @@ world sees, plus the machine's own local addresses.
 - **Leaks.** Those candidates can contain your real public and local IP address,
   even when the web traffic goes through a proxy. A page can read them with a few
   lines of script. See [WebRTC leaks](/concepts/network#webrtc-leaks) and the
-  glossary entry [WebRTC leak](/glossary#webrtc-leak). seleniumbase-rs has a
+  glossary entry [WebRTC leak](/concepts/glossary#webrtc-leak). seleniumbase-rs has a
   module for it (`sb_cdp::webrtc`) and a fingerprint setting for the addresses.
 - **Cameras and microphones.** A page that asks for them triggers a permission
   prompt that a script cannot click. Chrome has flags for tests:
@@ -226,7 +226,7 @@ Alt-Svc: h3=":443"; ma=86400
   `http/1.1` only) sees no HTTP/3 at all, because the browser is held to TCP.
 - **Fingerprints.** The TLS handshake inside QUIC is a fingerprint like any other
   (JA4 marks QUIC with a `q`). See [Network](/concepts/network) and the glossary
-  entry [QUIC](/glossary#quic).
+  entry [QUIC](/concepts/glossary#quic).
 - **Firewalls.** Some networks drop UDP on port 443. Chrome then falls back. The
   switch `--disable-quic` forces TCP if you need to test that path.
 
@@ -311,9 +311,9 @@ Set-Cookie: session=abc123; Secure; SameSite=None; Partitioned; Path=/
   third-party-cookie behaviour for testing, `--test-third-party-cookie-phaseout`.
 
 See [Sessions, cookies and storage](/concepts/sessions-and-state) and the glossary
-entries [Third-party cookie](/glossary#third-party-cookie),
-[Partitioned cookie](/glossary#partitioned-cookie) and
-[SameSite](/glossary#samesite).
+entries [Third-party cookie](/concepts/glossary#third-party-cookie),
+[Partitioned cookie](/concepts/glossary#partitioned-cookie) and
+[SameSite](/concepts/glossary#samesite).
 
 ## User-Agent Client Hints
 
@@ -343,7 +343,7 @@ seleniumbase-rs treats them as one setting, the `client_hints` entry of the
 `Fingerprint`, applied with `Page::apply_fingerprint`, and the companion
 extension's Page tab shows both side by side. See
 [Detection and spoofing](/concepts/detection) and the glossary entry
-[Client Hints](/glossary#client-hints).
+[Client Hints](/concepts/glossary#client-hints).
 
 ## WebDriver BiDi
 
@@ -362,7 +362,7 @@ seleniumbase-rs does not use BiDi today: its events and interception come from t
 [DevTools Protocol](/concepts/cdp), which is Chromium only, and the WebDriver
 engine uses the classic protocol. See
 [WebDriver BiDi](/concepts/webdriver#webdriver-bidi) and the glossary entry
-[WebDriver BiDi](/glossary#webdriver-bidi).
+[WebDriver BiDi](/concepts/glossary#webdriver-bidi).
 
 ## Three eras
 

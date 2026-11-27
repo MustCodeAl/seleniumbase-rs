@@ -7,7 +7,7 @@ keywords: ["playwright", "rustwright", "PlaywrightSidecar", "PlaywrightTarget", 
 
 <Note>
 
-This page is the reference for the crate `seleniumbase-rs-playwright`. The guide, with the Python formats that map to Rust, the table of Playwright calls and the conversion of a regular Playwright script, is [Playwright mode](/help/playwright_mode). The browser the bridge attaches to is the [pure CDP engine](/tutorials/pure_cdp) (`sb_cdp`), which is what Python's CDP Mode (`sb.cdp`) maps to, or the Chrome of a `BaseCase` in UC mode.
+This page is the reference for the crate `seleniumbase-rs-playwright`. The guide, with the Python formats that map to Rust, the table of Playwright calls and the conversion of a regular Playwright script, is [Playwright mode](/guides/browser-engines/playwright-mode). The browser the bridge attaches to is the [pure CDP engine](/guides/browser-engines/pure-cdp) (`sb_cdp`), which is what Python's CDP Mode (`sb.cdp`) maps to, or the Chrome of a `BaseCase` in UC mode.
 
 </Note>
 
@@ -240,7 +240,7 @@ See [the errors of the crate root](/api/crate-root#errors) for the helpers every
 
 ## See also
 
-- [Playwright mode](/help/playwright_mode): the guide, the Python-to-Rust mapping and the conversion of a regular Playwright script.
+- [Playwright mode](/guides/browser-engines/playwright-mode): the guide, the Python-to-Rust mapping and the conversion of a regular Playwright script.
 - [CDP and UC helpers](/api/cdp-uc): `BaseCase::devtools_endpoint()`, the endpoint a UC session shares.
-- [Pure CDP engine](/tutorials/pure_cdp): the browser the bridge attaches to (`Browser`, `Page`, `LaunchOptions`).
+- [Pure CDP engine](/guides/browser-engines/pure-cdp): the browser the bridge attaches to (`Browser`, `Page`, `LaunchOptions`).
 - [Crate root](/api/crate-root): `SeleniumBaseError` and the other items of `seleniumbase_rs`.

@@ -617,7 +617,7 @@ run your own application's tests with its real policy on.
   Logins, tokens, MFA and fast test logins.
 </Card>
 
-<Card title="Glossary" icon="book" color="#a631be" href="/glossary">
+<Card title="Glossary" icon="book" color="#a631be" href="/concepts/glossary">
   Short definitions of every term used in these pages.
 </Card>
 

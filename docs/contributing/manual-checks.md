@@ -14,7 +14,7 @@ put the password in a file, a flag or the command line.
 
 ## IMAP, on a real mailbox
 
-From [the imap plugin](/plugins/imap) and [Verify by email](/tutorials/verify_by_email).
+From [the imap plugin](/plugins/community/imap) and [Verify by email](/guides/special-pages/verify-by-email).
 The binary needs the `plugin-imap` feature (`cargo install --path crates/cli`
 already turns the built-in plugins on). Use a test inbox. The plugin never
 marks mail as read, so empty the inbox or mark its mail read between runs, and
@@ -46,7 +46,7 @@ password.
 
 ## Tor, with a local daemon
 
-From [the tor plugin](/plugins/tor). Start Tor yourself first. `sbrs` does not
+From [the tor plugin](/plugins/builtin/tor). Start Tor yourself first. `sbrs` does not
 install or start it. The SocksPort must be loopback. The default the plugin
 dials is `127.0.0.1:9050`. The Tor Browser bundle uses `9150`; pass that with
 `--plugin-opt` if that is the daemon you started.
@@ -94,7 +94,7 @@ Worked when every command exits 0.
 The image in the repository `Dockerfile` is Linux. It contains `sbrs` only
 (the entrypoint is `/usr/local/bin/sbrs`), plus Chromium and a chromedriver
 linked at `downloaded_drivers/chromedriver`. Build and run it as
-[Container](/building#container) describes:
+[Container](/guides/get-started/building#container) describes:
 
 ```sh
 docker build --build-arg CARGO_BUILD_JOBS=2 -t seleniumbase-rs .

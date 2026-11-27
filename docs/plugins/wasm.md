@@ -1,35 +1,24 @@
 ---
-title: "wasm Plugin Host"
-sidebarTitle: "wasm"
+title: "WebAssembly Plugin Host (Framework Feature)"
+sidebarTitle: "WebAssembly host"
 ---
 
-Run [seleniumbase-rs](https://github.com/MustCodeAl/seleniumbase-rs) plugins that
-are written in **any language that compiles to WebAssembly** (Rust, C, Zig, Go,
-AssemblyScript, or plain WAT), sandboxed by the pure-Rust interpreter
-[wasmi](https://github.com/wasmi-labs/wasmi).
+<Badge color="blue">Framework feature: seleniumbase-rs-plugin/wasm</Badge>
 
-A module describes a plugin in data: a name, browser switches, scripts for
-pages, URL patterns to block. The host reads that data **once**, when it loads
-the module, checks every value, and then drops the module. Nothing of the module
-runs while the browser does. The module has no imports: no files, network,
-clock or randomness, and it cannot call back into the host. Only pure functions
-cross the boundary.
+WebAssembly plugin hosting is an opt-in feature of the **`seleniumbase-rs-plugin`** framework (`features = ["wasm"]`, module `seleniumbase_rs_plugin::wasm`), not a separate user plugin. Enable it to run plugins written in **any language that compiles to WebAssembly** (Rust, C, Zig, Go, AssemblyScript, or plain WAT), sandboxed by the pure-Rust interpreter [wasmi](https://github.com/wasmi-labs/wasmi).
 
-```sh Terminal
-cargo add seleniumbase-rs-plugin-wasm --git https://github.com/MustCodeAl/seleniumbase-rs-plugins --rev 0666904475f4f1f422f8f426f169f6a0e533e824
+A module describes a plugin in data: a name, browser switches, scripts for pages, and URL patterns to block. The host reads that data **once**, when it loads the module, checks every value, and then drops the module. Nothing of the module runs while the browser does. The module has no imports (no files, network, clock, or randomness) and cannot call back into the host.
+
+```toml Cargo.toml
+[dependencies]
+seleniumbase-rs-plugin = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", features = ["wasm"] }
 ```
 
 <GitHub.Repo repo="MustCodeAl/seleniumbase-rs-plugins" />
 
-<Info>
-
-Install it from the same revision of the plugins repository that your seleniumbase-rs pins; see [Installing a plugin](/tutorials/plugins#installing-a-plugin). The plugins overview is [here](/plugins/overview).
-
-</Info>
-
 <Visibility for="agents">
 
-Summary for AI exports: a wasm plugin module has no imports and exports `memory`, `sbrs_abi_version() -> i32` (returns `1`) and `sbrs_name() -> i64`, and optionally `sbrs_launch_args`, `sbrs_scripts` and `sbrs_blocked_urls`. Each text-returning function packs a pointer and a length into one `i64`, `(pointer << 32) | length`, pointing at UTF-8 JSON in the module's memory. Load it with `WasmPlugin::from_file` or `from_bytes`; the host reads the data once, checks it and drops the module. Defaults: module 4 MiB, memory 16 MiB, 20,000,000 fuel for each call.
+Summary for AI exports: WebAssembly plugin hosting lives in `seleniumbase_rs_plugin::wasm` behind the `wasm` Cargo feature of `seleniumbase-rs-plugin`. A wasm plugin module has no imports and exports `memory`, `sbrs_abi_version() -> i32` (returns `1`) and `sbrs_name() -> i64`, and optionally `sbrs_launch_args`, `sbrs_scripts` and `sbrs_blocked_urls`. Load it with `seleniumbase_rs_plugin::wasm::WasmPlugin::from_file` or `from_bytes`. Defaults: module 4 MiB, memory 16 MiB, 20,000,000 fuel per call.
 
 </Visibility>
 
@@ -37,7 +26,7 @@ Summary for AI exports: a wasm plugin module has no imports and exports `memory`
 
 ```rust,no_run
 use seleniumbase_rs_plugin::PluginSet;
-use seleniumbase_rs_plugin_wasm::WasmPlugin;
+use seleniumbase_rs_plugin::wasm::WasmPlugin;
 
 let plugins = PluginSet::new().with(WasmPlugin::from_file("hello.wasm")?)?;
 Ok::<(), Box<dyn std::error::Error>>(())

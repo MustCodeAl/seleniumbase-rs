@@ -112,16 +112,16 @@ with three more: **block-resources**, **crx** and **imap**. Each has a page:
 
 | Plugin | Category | What it does |
 |---|---|---|
-| [shield](/plugins/shield) | Privacy | Hardens the browser's privacy settings |
-| [block-resources](/plugins/block-resources) | Core | Stops pages from loading images, fonts or media |
-| [crx](/plugins/crx) | Extension | Loads packed `.crx` extensions |
-| [fetcher](/plugins/fetcher) | Core | Request rules, response records and a fetch task |
-| [extractor](/plugins/extractor) | Core | Finds and extracts structured data from pages, as a task |
-| [batcher](/plugins/batcher) | Environment | Runs a list of jobs in tabs, with retries and a resume file |
-| [crawler](/plugins/crawler) | Testing | Crawls a site you own and reports broken pages |
-| [browser](/plugins/browser) | Extension | Loads extensions from `.zip` and `.crx` files and folders |
-| [imap](/plugins/imap) | Testing | Waits for a verification mail and reads its code or link |
-| [tor](/plugins/tor) | Privacy | Routes the browser through a Tor daemon you run |
+| [shield](/plugins/builtin/shield) | Privacy | Hardens the browser's privacy settings |
+| [block-resources](/plugins/community/block-resources) | Core | Stops pages from loading images, fonts or media |
+| [crx](/plugins/builtin/crx) | Extension | Loads packed `.crx` extensions |
+| [fetcher](/plugins/builtin/fetcher) | Core | Request rules, response records and a fetch task |
+| [extractor](/plugins/builtin/extractor) | Core | Finds and extracts structured data from pages, as a task |
+| [batcher](/plugins/builtin/batcher) | Environment | Runs a list of jobs in tabs, with retries and a resume file |
+| [crawler](/plugins/builtin/crawler) | Testing | Crawls a site you own and reports broken pages |
+| [browser](/plugins/builtin/browser) | Extension | Loads extensions from `.zip` and `.crx` files and folders |
+| [imap](/plugins/community/imap) | Testing | Waits for a verification mail and reads its code or link |
+| [tor](/plugins/builtin/tor) | Privacy | Routes the browser through a Tor daemon you run |
 
 ## What is built
 

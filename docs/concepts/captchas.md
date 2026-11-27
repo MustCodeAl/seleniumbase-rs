@@ -54,8 +54,8 @@ The vendors you meet most:
   checks in the browser and rarely asks for anything. A site can pick
   *managed*, *non-interactive* or *invisible* modes.
 - **Cloudflare challenge pages**: not a widget on your page but a page that
-  stands in front of it. See [Challenge](/glossary#challenge),
-  [Interstitial](/glossary#interstitial) and [Clearance](/glossary#clearance).
+  stands in front of it. See [Challenge](/concepts/glossary#challenge),
+  [Interstitial](/concepts/glossary#interstitial) and [Clearance](/concepts/glossary#clearance).
 - **Friendly Captcha** and **DataDome**: a proof-of-work widget, and a bot
   management service that can show a slider.
 
@@ -138,7 +138,7 @@ Google, hCaptcha and Cloudflare publish site and secret keys for testing. With
 them the widget always passes (or, for the other keys, always fails) and the
 vendor's server agrees. You run the application under test with those keys, so
 the code you test is the code you ship. The page
-[Handling CAPTCHAs](/tutorials/captcha_testing) shows the keys, the
+[Handling CAPTCHAs](/guides/help/captcha-testing) shows the keys, the
 steps and the failure cases.
 
 </Step>
@@ -371,7 +371,7 @@ for an API, a feed or an allowlist.
 
 <Columns cols={2}>
 
-<Card title="Handling CAPTCHAs" icon="vial" color="#199f43" href="/tutorials/captcha_testing">
+<Card title="Handling CAPTCHAs" icon="vial" color="#199f43" href="/guides/help/captcha-testing">
   Vendor test keys, the widget steps and the failure paths.
 </Card>
 
@@ -387,7 +387,7 @@ for an API, a feed or an allowlist.
   Where the edge proxy that shows a challenge sits.
 </Card>
 
-<Card title="Glossary" icon="book" color="#1a85d4" href="/glossary">
+<Card title="Glossary" icon="book" color="#1a85d4" href="/concepts/glossary">
   Challenge, clearance, interstitial and more.
 </Card>
 

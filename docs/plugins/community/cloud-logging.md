@@ -8,7 +8,7 @@ description: "Standalone plugin and library uploaders for sending test artifacts
 
 `seleniumbase-rs-plugin-cloud-logging` (`plugins/cloud-logging` in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)) uploads test artifacts (screenshots, logs, traces, HAR files) to **Google Cloud Storage** or **Azure Blob Storage**.
 
-In `v0.10.0`, the GCS and Azure uploaders moved out of `seleniumbase-rs` core into this plugin crate so core builds stay lightweight (`s3` remains in core behind its optional feature; see [Cloud uploads](/tutorials/cloud_integrations)).
+In `v0.10.0`, the GCS and Azure uploaders moved out of `seleniumbase-rs` core into this plugin crate so core builds stay lightweight (`s3` remains in core behind its optional feature; see [Cloud uploads](/guides/production/cloud-integrations)).
 
 <Visibility for="agents">
 

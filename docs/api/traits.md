@@ -6,7 +6,7 @@ description: "BrowserApi, ElementApi, AssertionApi and ScreenshotApi, shared by 
 
 <Note>
 
-Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 
@@ -23,7 +23,7 @@ type; to keep an element handle, use `BaseCase::find_element` (an
 `Element`) or `Page::locator(..)`. Every method returns
 `seleniumbase_rs::Result<T>`. Selector strings are the same on both engines:
 CSS by default, XPath for `//...`, link text for `link=...` (see the
-[Selectors guide](/tutorials/selectors)). A selector parameter is `impl Into<Selector> + Send`: a string, or a `Selector` built with `css`, `xpath`, `link_text` or `partial_link_text` to skip the guess.
+[Selectors guide](/guides/write-tests/selectors)). A selector parameter is `impl Into<Selector> + Send`: a string, or a `Selector` built with `css`, `xpath`, `link_text` or `partial_link_text` to skip the guess.
 
 ```rust,no_run
 use seleniumbase_rs::{AssertionApi, BrowserApi, ElementApi};

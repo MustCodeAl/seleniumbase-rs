@@ -450,7 +450,7 @@ let title = page.evaluate("document.title").await?;
 
 `DriverMode::Cdp` keeps a normal `BaseCase` WebDriver session and opens a CDP
 connection next to it, for what WebDriver cannot do, such as printing to PDF or
-setting the time zone. See [CDP mode](/tutorials/cdp_mode).
+setting the time zone. See [CDP mode](/guides/browser-engines/cdp-mode).
 
 </Tab>
 
@@ -554,7 +554,7 @@ sources, breakpoints and the performance recording.
 
 <Columns cols={2}>
 
-<Card title="Pure CDP" icon="bolt" color="#1a85d4" href="/tutorials/pure_cdp">
+<Card title="Pure CDP" icon="bolt" color="#1a85d4" href="/guides/browser-engines/pure-cdp">
   The engine's guide: pages, locators, interception and pools.
 </Card>
 
@@ -570,11 +570,11 @@ sources, breakpoints and the performance recording.
   Interception, HAR recording and proxies, built on the Fetch and Network domains.
 </Card>
 
-<Card title="Headless and headed" icon="eye-slash" color="#d52c36" href="/tutorials/headless">
+<Card title="Headless and headed" icon="eye-slash" color="#d52c36" href="/guides/configure-runs/headless">
   Running Chrome without a window.
 </Card>
 
-<Card title="Taking advantage of Rust" icon="gears" color="#1a85d4" href="/rust-advantages">
+<Card title="Taking advantage of Rust" icon="gears" color="#1a85d4" href="/why-rust/rust-advantages">
   Many CDP browsers at once with BrowserPool.
 </Card>
 

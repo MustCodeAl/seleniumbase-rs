@@ -308,7 +308,7 @@ fading) will not show up. Keep at least some tests with animations on.
   often a different origin, so automation must switch into it (WebDriver) or
   attach to it as a separate target (CDP).
 - **Shadow DOM** hides part of a component's tree from ordinary selectors. See
-  [Shadow DOM](/glossary#shadow-dom).
+  [Shadow DOM](/concepts/glossary#shadow-dom).
 - **Popups and new tabs** are new windows, with their own load.
 - **Service workers** can answer requests from a cache without the network at
   all, so a "load" may never touch the server.

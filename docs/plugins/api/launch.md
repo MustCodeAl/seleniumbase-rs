@@ -272,7 +272,7 @@ holds `launch.args`, `launch.prefs`, `launch.headless`, `launch.proxy` and
 
 A refusal on Firefox or Safari is `SeleniumBaseError::Plugin` (`a plugin's
 before_launch asked for what Firefox cannot do here: ...`). The guide has the
-details per browser: [The WebDriver engine](/tutorials/plugins#the-webdriver-engine).
+details per browser: [The WebDriver engine](/plugins/guide#the-webdriver-engine).
 
 ## LaunchSettings::profile
 

@@ -1,0 +1,267 @@
+---
+title: "ABI & API Stability"
+sidebarTitle: "Stability"
+---
+
+This page describes the public API surface of `seleniumbase-rs`, the stability
+guarantees that apply, and how to integrate the crate with foreign code.
+
+<Visibility for="agents">
+
+Summary for AI exports: the crate root re-exports `BaseCase`, `BrowserConfig`, `Browser`, `DriverMode`, `BrowserSession`, `SelectorRef`, the capability traits `BrowserApi`, `ElementApi`, `AssertionApi` and `ScreenshotApi`, `run_browser_test`, `Result` and `SeleniumBaseError`. Rust has no stable ABI: treat the API as source-compatible only, and use a C shim for foreign code. The crate follows Semantic Versioning, but as a `0.x` crate its minor releases may break the API, so pin the version. Fingerprints, JS evasion providers, wire impersonation, and hybrid stealth sessions live in the unified 4-layer `seleniumbase-rs-stealth` crate (`identity`, `client`, `network`, `session`).
+
+</Visibility>
+
+## Public modules
+
+The crate root exposes the following modules:
+
+| Module | Purpose |
+|---|---|
+| `api` | `BaseCase`, capability traits, tours, charts, recorder, scenario runner, CDP page/driver helpers. |
+| `artifacts` | The `latest_logs` folder, collision-free artifact names, and the check that keeps a caller-supplied file name inside it. |
+| `behave` | Gherkin/BDD parser, step registry, and runner. |
+| `browser` | `BrowserConfig`, `BrowserSession`, driver launching, and optional Playwright session. |
+| `cli` | `sbrs` command-line script implementations. |
+| `common` | Decorators, obfuscation, and shared exception types. |
+| `config` | Settings, proxy lists, and ad-block lists. |
+| `core` | Test result records and the JSON and HTML reports made from them. |
+| `drivers` | The raw WebDriver types of the escape hatches: `WebElement` behind an `Element` (`as_webdriver_element()`), `WebDriver` behind a session (`BrowserSession::webdriver()`), and `WebDriverError` for the calls made on them, so a project needs no `thirtyfour` line. Extra capabilities are `browser::options::CapabilityOverrides`, given to `BrowserConfigBuilder::capabilities`. See [Imports and dependencies](/guides/get-started/getting-started#imports-and-dependencies). |
+
+| `error` | `SeleniumBaseError` and the `Result<T>` alias. |
+| `js_code` | `quote`, which turns a Rust string into a JavaScript string literal for the scripts the crate builds. |
+| `json` | `json!`, `Value` and the parsing functions of `serde_json` that the API uses, so a project needs no `serde_json` line. |
+
+| `macros` | `#[macro_export]` convenience macros (also re-exported at the crate root). |
+| `mcp` | MCP servers (`cdp`, `driver`, `sb`, `dev`) and the types to build more: `Host`, `ToolDef`, `Args`, `Output`, `ToolError`. Behind the `mcp-server` feature. |
+| `plugins` | Reporting and logging plugin interfaces (S3, screenshots, page source, driver manager, observer). |
+| `resources` | Where downloaded browser drivers live and how a chromedriver is found. |
+| `sb_cdp` | Pure CDP engine: `Browser`, `Page`, `Locator`, input, human-paced input (`sb_cdp::human`), cookies/storage/window/emulation, retrying expectations, CAPTCHA solving, isolated `BrowserContext`s, a `BrowserPool` with an in-memory `SessionStore`, and (with `test-util`) a mock browser. |
+| `undetected` | Undetected-Chrome launch helpers (`uc`), binary patching (`patcher`), detached process management (`dprocess`), and CDP request reactor (`reactor`). |
+| `utilities` | Selenium IDE, Grid, and Python-to-Rust importer. |
+| `utils` | Selectors, shadow DOM helpers, translations, and extension builders. |
+
+<Note>
+
+Fingerprinting, JS evasion providers, wire-level TLS/HTTP/2/HTTP/3 impersonation,
+loopback MitM proxying, and hybrid stealth sessions live in the companion crate
+[seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth),
+organized into four layers (`identity`, `client`, `network`, `session`, plus
+standalone `h3d/` for HTTP/3) alongside the full `seleniumbase-rs` public API.
+See the [single-dependency setup](/stealth/session/overview#which-crate-to-depend-on).
+
+</Note>
+
+## Crate-root re-exports
+
+The most common types are re-exported from the crate root for convenience:
+
+| Type | Re-exported from crate root |
+|---|---|
+| `BaseCase`, `CookieExpiry`, `DriverId` | yes |
+| `BrowserConfig`, `BrowserConfigBuilder`, `Browser`, `DriverMode`, `BrowserSession`, `Element` | yes |
+| `SelectorRef`, `Selector`, `By`, `Keys`, `Key`, `Select`, `SelectBy`, `ResilientLocator` | yes |
+| `Cookie`, `SameSite`, `NetworkThrottle`, `WebRtcPolicy`, `BidiNetworkEvent`, `BiDi` | yes |
+| `ChromedriverPatcher`, `ChromeBinaryPatcher`, `EnginePatch`, `BinaryFormat`, `BinaryMarkerReport`, `BinaryPatchRule`, `MarkerCounts`, `PatchPreset`, `patch_chromedriver` | yes |
+| `Chart`, `ChartType`, `TourTheme`, `Gui`, `Alert`, `Color`, `RetryPolicy` | yes |
+| `run_browser_test`, `run_cdp_test`, `RunSettings`, `RunSettingsBuilder`, `PauseKind`, `Settings`, `SettingsOverrides`, `RuntimeConfig`, `LogFormat` | yes |
+| `AssertionApi`, `BrowserApi`, `ElementApi`, `ScreenshotApi` | yes |
+| `Result<T>`, `SeleniumBaseError`, `ResultExt`, `DriverError`, `DriverErrorKind` | yes |
+| `import_python`, `ImportDiagnostic`, `ImportOptions`, `ImportResult`, `ImportSeverity`, `PythonSource` | yes |
+
+`#[macro_export]` macros such as `selector!`, `sb_test!`, `sb_open!`, and
+`uc_config!` are also imported from the crate root:
+
+```rust
+use seleniumbase_rs::{selector, sb_test, sb_open, uc_config};
+```
+
+## Capability traits
+
+The public API is organized into capability traits in `api::traits`. They are
+implemented by `BaseCase` (WebDriver) and by `sb_cdp::Page` (Pure CDP), and can
+be used to write helpers that run on either engine. None of their signatures
+mentions an engine's own types. Their methods are native `async fn`s whose futures
+are `Send`, so a generic helper can be passed to `tokio::spawn`; the traits are not
+dyn compatible, so take a generic or an `impl Trait`, not a `dyn`:
+
+| Trait | Responsibility |
+|---|---|
+| `BrowserApi` | Navigation and lifecycle: `open`, `quit`, `refresh`, `go_back`, `go_forward`, `title`, `url`. |
+| `ElementApi` | Interacting with elements: `click`, `double_click`, `type_text`, `text`, `attribute`. (Holding an element handle is engine-specific: `BaseCase::find_element` returns an `Element`, a `Page` offers `locator(..)`.) |
+| `AssertionApi` | Test assertions: `assert_title`, `assert_element`, `assert_text`, `assert_no_js_errors`. |
+| `ScreenshotApi` | Screenshot capture: `save_screenshot`, `screenshot_as_png`. |
+
+```mermaid
+flowchart LR
+  A["BaseCase (WebDriver)"] -- implements --> T["BrowserApi, ElementApi, AssertionApi, ScreenshotApi"]
+  B["sb_cdp::Page (Pure CDP)"] -- implements --> T
+  H["your helper"] -- needs --> T
+```
+
+*Both engines implement the capability traits; a helper depends on the traits, not on an engine.*
+
+Use these traits when writing helpers that should work with any type exposing
+the same capability, or as a blueprint for adding new cross-cutting concerns:
+
+```rust
+use seleniumbase_rs::{AssertionApi, ElementApi};
+
+async fn assert_logged_in<E>(sb: &mut E) -> Result<(), seleniumbase_rs::SeleniumBaseError>
+where
+    E: ElementApi + AssertionApi,
+{
+    sb.assert_element("#dashboard").await?;
+    sb.assert_text("Alice", "#user-name").await
+}
+```
+
+## ABI note
+
+<Warning>
+
+Rust does not have a stable application binary interface. Do not pass
+`seleniumbase-rs` types across a dynamic-library boundary or assume a fixed
+memory layout.
+
+</Warning>
+
+If you need to drive the crate from another language, write a
+small `extern "C"` shim that accepts C-compatible arguments and internally
+builds a `BaseCase` or calls the Rust API:
+
+```rust,ignore C shim
+#[no_mangle]
+pub extern "C" fn sb_open_url(url: *const c_char) {
+    let url = unsafe { CStr::from_ptr(url).to_string_lossy() };
+    // spawn runtime, create BaseCase, etc.
+}
+```
+
+The default toolchain, target, and compiler version can all change the layout
+of public structs.
+
+<Info>
+
+Treat the Rust API as source-compatible only.
+
+</Info>
+
+## Versioning policy
+
+`seleniumbase-rs` follows [Semantic Versioning](https://semver.org/):
+
+* Patch releases fix bugs without changing the public API.
+* Minor releases add functionality in a backward-compatible way.
+* Major releases may break the public API.
+
+<Warning>
+
+Because the crate is pre-1.0, minor releases (`0.x`) may contain breaking
+changes. Pin to an exact version or a narrow range in production.
+
+</Warning>
+
+## Feature flags
+
+The crate uses Cargo features to keep heavy dependencies off by default:
+
+| Feature | Effect | Default |
+|---|---|---|
+| `s3` | Enables AWS S3 artifact uploads. | no |
+| `azure` | Enables Azure Blob Storage artifact uploads. | no |
+| `gcp` | Enables Google Cloud Storage artifact uploads. | no |
+| `mcp-server` | Enables the `mcp` module and builds the `sbrs-mcp` binary using `rmcp`. | no |
+| `test-util` | Exposes `sb_cdp::Browser::new_mocked` and `MockCtrl` for testing code that drives pages without Chrome. | no |
+| `turso` | Enables the `storage` module (`ResultStore`, `ProfileVault`, built on the embedded Turso database) and the `sbrs report` command. A Turso dependency needs Rust 1.90, which the crate's `rust-version` (1.99) already covers. | no |
+| `full-tracing` | Enables `tracing-timing` histograms. | no |
+| `error-backtrace` | Reserved for future backtrace capture on every `SeleniumBaseError`. | no |
+
+The experimental features `scrape` and `impersonate` were removed in 0.3.0 (see
+the modules above).
+
+When adding feature-gated code, use `#[cfg(feature = "...")]` and declare the
+dependency as `optional = true` in `Cargo.toml`.
+
+## Error design
+
+`SeleniumBaseError` is a rich, structured error enum:
+
+* **Element errors** carry the selector and detected strategy:
+  `ElementNotFound`, `ElementNotInteractable`, `StaleElement`,
+  `InvalidSelector`.
+* **Lifecycle errors** carry the binary path or URL:
+  `BrowserLaunch`, `BrowserDisconnected`, `Navigation`, `SessionNotStarted`.
+* **Subsystem errors** give context without string parsing:
+  `Patcher`, `Stealth`, `Network`, `Download`, `Screenshot`, `Pdf`,
+  `CdpDriver`, `Playwright`, `Mcp`, `PythonMigration`.
+
+Every error exposes:
+
+<ResponseField name="category()" type="&'static str">
+
+A stable snake_case tag for dashboards.
+
+</ResponseField>
+
+<ResponseField name="is_transient()" type="bool">
+
+`true` for retryable network/disconnect/timeout failures.
+
+</ResponseField>
+
+<ResponseField name="is_skipped()" type="bool">
+
+`true` for the `Skipped` variant.
+
+</ResponseField>
+
+<ResponseField name="hint()" type="Option<String>">
+
+A one-sentence remediation hint when available.
+
+</ResponseField>
+
+<ResponseField name="log() / log_in_context(op)">
+
+Structured `tracing::error!` events.
+
+</ResponseField>
+
+Use the `ResultExt` trait to attach context:
+
+```rust
+use seleniumbase_rs::{Result, ResultExt};
+
+fn read_config(path: &str) -> Result<String> {
+    std::fs::read_to_string(path)
+        .sb_context(format!("loading config from {path}"))
+}
+```
+
+## What is not covered
+
+<Warning>
+
+**`seleniumbase_rs_stealth::client::providers::session_registry` is not yet a stable API.** It lives in
+the `client` layer of `seleniumbase-rs-stealth` (moved from core in 0.10.0): its names
+and behaviour may change in any release, even a patch release, as measurements and reviews come in.
+
+</Warning>
+
+<Note>
+
+Internal helper modules, `#[doc(hidden)]` items, and items under
+`api::base_case_impls` are implementation details. They may change without a
+major version bump. Rely only on the public modules and re-exports listed
+above.
+
+</Note>
+
+## API stability checklist for consumers
+
+- [ ] Import types from the crate root or documented public modules.
+- [ ] Avoid relying on paths inside `api::base_case_impls` or `#[doc(hidden)]` items.
+- [ ] Pin the crate version in production.
+- [ ] Do not pass `seleniumbase-rs` types across FFI boundaries without a C shim.
+- [ ] Test feature-gated code with the same feature set you ship.

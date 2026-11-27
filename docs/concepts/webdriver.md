@@ -42,7 +42,7 @@ SeleniumBase, was built around.
 | The browser | Chrome, Edge, Firefox or Safari, started and controlled by the driver. |
 
 The client and the driver can run on different machines, which is how
-[Selenium Grid](/glossary#selenium-grid) and cloud testing services work: the
+[Selenium Grid](/concepts/glossary#selenium-grid) and cloud testing services work: the
 "driver" is then a server somewhere else that hands your commands to a browser
 it runs for you. `BaseCase` uses the `thirtyfour` crate to speak the protocol.
 
@@ -218,7 +218,7 @@ follow:
 
 The standard defines five ways to find an element: `css selector`,
 `xpath`, `link text`, `partial link text` and `tag name`. A
-[CSS selector](/glossary#css-selector) is the usual choice because it is short
+[CSS selector](/concepts/glossary#css-selector) is the usual choice because it is short
 and fast.
 
 ## Clicking, typing and scripts
@@ -280,7 +280,7 @@ The rule of thumb is to wait for a **condition**, never for a fixed time. A
 `sleep(2)` is either too short (still flaky) or too long (slow suite). The
 SeleniumBase approach is to build the wait into the action methods, so `click`
 waits for its element to appear and be clickable before it acts, and tests rarely
-need hand-written waits (see [Waits and Assertions](/tutorials/utilities#waits-and-assertions)).
+need hand-written waits (see [Waits and Assertions](/guides/write-tests/utilities#waits-and-assertions)).
 [How a page loads](/concepts/how-a-page-loads) explains
 why "the page loaded" does not mean "the page is ready".
 
@@ -412,7 +412,7 @@ and a warning is logged.
 
 `chrome-headless-shell` is a separate, headless-only Chrome build that also runs
 with chromedriver; choose it with `Browser::ChromeHeadlessShell` (`--browser chs`).
-See [Headless and headed browsers](/tutorials/headless).
+See [Headless and headed browsers](/guides/configure-runs/headless).
 
 </Tip>
 
@@ -428,15 +428,15 @@ See [Headless and headed browsers](/tutorials/headless).
   What happens between a URL and a page you can click, and why waits are needed.
 </Card>
 
-<Card title="Troubleshooting" icon="triangle-exclamation" color="#d52c36" href="/help/common_problems">
+<Card title="Troubleshooting" icon="triangle-exclamation" color="#d52c36" href="/guides/help/common-problems">
   Driver version mismatches and other startup errors.
 </Card>
 
-<Card title="CDP mode" icon="code" color="#a631be" href="/tutorials/cdp_mode">
+<Card title="CDP mode" icon="code" color="#a631be" href="/guides/browser-engines/cdp-mode">
   DevTools commands inside a WebDriver session.
 </Card>
 
-<Card title="UC mode" icon="user-secret" color="#d47628" href="/tutorials/uc_mode">
+<Card title="UC mode" icon="user-secret" color="#d47628" href="/stealth/core/uc-mode">
   A WebDriver session set up to avoid common bot checks.
 </Card>
 

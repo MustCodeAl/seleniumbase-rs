@@ -17,7 +17,7 @@ marked _to verify_ was not checked and must be checked by the lane before it bui
 ## The request
 
 Today every setting of a `Fingerprint` is one `Spoof` with four states
-([One setting, four states](/stealth/fingerprints#one-setting-four-states)): `Natural`,
+([One setting, four states](/stealth/identity/fingerprints#one-setting-four-states)): `Natural`,
 `Random`, `Value(v)` and `Off`. The owner wants a fifth state for **every** setting: the
 setting shows what a named, real browser or device shows. The main case is the canvas: render
 as Chrome 156 on Windows 11 with an Intel UHD 620, or as Chrome on macOS with an Apple GPU,
@@ -84,7 +84,7 @@ No data should be copied twice. These already exist:
 `build()` takes the OS (the given one, else the one the user agent names, else Windows,
 `fingerprint.rs:1876-1884`), then one seeded `randomize::draw` decides a machine and a place
 (`randomize.rs:1039-1063`, `Profile` and `Draw` at `:1003-1031`), and every `Random` setting is
-read from that one draw ([How Random stays coherent](/stealth/fingerprints#how-random-stays-coherent)).
+read from that one draw ([How Random stays coherent](/stealth/identity/fingerprints#how-random-stays-coherent)).
 So a random GPU is one the OS reports, a random position lies in the time zone's city, and
 random Client Hints name the major the user agent names. `validate()` (`fingerprint.rs:978-1073`)
 checks platform against OS, user agent against OS, touch points, locale against languages,
@@ -497,7 +497,7 @@ refusal in `validate_mode_support` (`launch.rs:24-30`) for the fingerprint path 
    resolved?** Recommendation: keep it. Files stay small, a rendering's data never lands in
    them, and the file says what it claims. The cost is that a crate upgrade can change the
    values behind a name, as it can change what a seed draws today
-   ([Randomised identities](/stealth/fingerprints#randomised-identities)); a file that must
+   ([Randomised identities](/stealth/identity/fingerprints#randomised-identities)); a file that must
    outlive an upgrade can still be exported with values.
 3. **Canvas, WebGL output and audio become settings.** Recommendation: yes; the noise stays
    policy, and a mimic with noise on is refused. Alternative: a policy `CanvasNoise::Mimic`,

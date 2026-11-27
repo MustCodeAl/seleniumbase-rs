@@ -168,7 +168,7 @@ See [the network](/concepts/network) for requests and responses and
   `BlockResources::media()` and `BlockResources::patterns(...)` stop a page from
   loading some resources by sending `Network.setBlockedURLs`. A pattern such as
   `*://ads.example.com/*` blocks one host. See
-  [block-resources](/plugins/block-resources).
+  [block-resources](/plugins/community/block-resources).
 - **Rules on one page.** `Page::intercept` takes `Rule` values, so
   `Rule::block().url("*://www.google-analytics.com/*")` drops a tracker's requests
   and `Rule::modify().set_header("X-Test-Run", "42")` marks the rest. The returned
@@ -271,7 +271,7 @@ server's debug bundle leaves out typed text and scripts for the same reason.
   Requests, interception, blocking and HAR.
 </Card>
 
-<Card title="block-resources" icon="ban" color="#d47628" href="/plugins/block-resources">
+<Card title="block-resources" icon="ban" color="#d47628" href="/plugins/community/block-resources">
   The plugin that blocks images, fonts, media and chosen hosts.
 </Card>
 

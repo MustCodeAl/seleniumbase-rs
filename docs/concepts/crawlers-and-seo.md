@@ -536,12 +536,12 @@ Modern enterprise web crawling requires concurrent execution across isolated bro
 
 `seleniumbase-rs` natively provides:
 
-- **`Crawler` & `CrawlerBuilder`**: Bounded concurrency over pooled headless browser leases ([`BrowserPool`](/tutorials/pure_cdp)), token-bucket rate limiting, and exponential retry backoff.
+- **`Crawler` & `CrawlerBuilder`**: Bounded concurrency over pooled headless browser leases ([`BrowserPool`](/guides/browser-engines/pure-cdp)), token-bucket rate limiting, and exponential retry backoff.
 - **`RobotsPolicy`**: RFC 9309 compliant `robots.txt` parser supporting User-agent specific matching, longest-rule precedence (`Allow` vs `Disallow`), `Crawl-delay`, and automatic `robots.txt` fetching.
 - **`sitemap`**: Fast parsing and HTTP retrieval of standard XML sitemaps and sitemap indexes without heavy external XML libraries.
 - **`Spider`**: Breadth-first graph crawler managing visited URL sets, depth boundaries (`max_depth`), domain fencing, and regex URL path filters.
 
-See the [Autonomous Web Crawling Tutorial](/tutorials/crawler) for end-to-end implementation examples.
+See the [Autonomous Web Crawling Tutorial](/guides/special-pages/crawler) for end-to-end implementation examples.
 
 ## Where to go next
 

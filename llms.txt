@@ -9,30 +9,30 @@ Start here if you are an AI agent working in the repository or using the crate.
 - [AGENTS.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/AGENTS.md): commands, rules, boundaries.
 - [CLAUDE.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/CLAUDE.md): the module map and gotchas.
 - [CONTRIBUTING.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/CONTRIBUTING.md): the checks and how to add things.
-- [docs/building.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/building.md): features, binaries, Docker.
+- [docs/guides/get-started/building.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/guides/get-started/building.md): features, binaries, Docker.
 
 ## Using the crate
 
 - [README.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/README.md): what it is and the project status.
-- [docs/tutorials/getting_started.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/getting_started.md): a first test.
-- [docs/best-practices.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/best-practices.md): habits and rules for browser tests that do not flake, in terms of this crate's API (the rules are also in AGENTS.md).
-- [docs/tutorials/pure_cdp.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/pure_cdp.md): the driver-free engine.
-- [docs/tutorials/mcp_server.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/mcp_server.md): the MCP servers and their tools.
-- [docs/tutorials/vibe_coding.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/vibe_coding.md): explore a page, export a test, read a failure.
-- [docs/scraping/stealthy/overview.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/scraping/stealthy/overview.md): where the layered stealth companion crate lives in https://github.com/MustCodeAl/seleniumbase-rs-stealth (`identity`, `client`, `network`, `session`, plus standalone `h3d/` for HTTP/3): unified fingerprints, 42-surface JS masking, 32 evasion providers, `StealthLayer`, `StealthPlan`, wire specs, `MitmProxy`, `CdpSession`, `HttpSession`, and `HybridSession`.
-- [docs/tutorials/run_settings.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/run_settings.md): `RunSettings`, the run-wide knobs Python takes from pytest options (demo, slow, fast, demo sleep, message duration, skip JS waits, record sleep, visual baseline reset), and which `BaseCase` calls honour each (the pauses reach `open`, `click`, `type_text`, `update_text` and `press_keys` only).
-- [docs/reliability.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/reliability.md): waits, errors, cleanup.
-- [docs/help/common_problems.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/help/common_problems.md): troubleshooting.
+- [docs/guides/get-started/getting-started.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/guides/get-started/getting-started.md): a first test.
+- [docs/guides/write-tests/best-practices.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/guides/write-tests/best-practices.md): habits and rules for browser tests that do not flake, in terms of this crate's API (the rules are also in AGENTS.md).
+- [docs/guides/browser-engines/pure-cdp.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/guides/browser-engines/pure-cdp.md): the driver-free engine.
+- [docs/ecosystem/mcp/server.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/ecosystem/mcp/server.md): the MCP servers and their tools.
+- [docs/ecosystem/mcp/vibe-coding.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/ecosystem/mcp/vibe-coding.md): explore a page, export a test, read a failure.
+- [docs/stealth/session/overview.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/stealth/session/overview.md): where the layered stealth companion crate lives in https://github.com/MustCodeAl/seleniumbase-rs-stealth (`identity`, `client`, `network`, `session`, plus standalone `h3d/` for HTTP/3): unified fingerprints, 42-surface JS masking, 32 evasion providers, `StealthLayer`, `StealthPlan`, wire specs, `MitmProxy`, `CdpSession`, `HttpSession`, and `HybridSession`.
+- [docs/guides/configure-runs/run-settings.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/guides/configure-runs/run-settings.md): `RunSettings`, the run-wide knobs Python takes from pytest options (demo, slow, fast, demo sleep, message duration, skip JS waits, record sleep, visual baseline reset), and which `BaseCase` calls honour each (the pauses reach `open`, `click`, `type_text`, `update_text` and `press_keys` only).
+- [docs/why-rust/reliability.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/why-rust/reliability.md): waits, errors, cleanup.
+- [docs/guides/help/common-problems.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/guides/help/common-problems.md): troubleshooting.
 
 ## Reference
 
-- [docs/parity.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/parity.md): the status of every upstream API (generated from `parity/api.toml`).
-- [docs/tutorials/api_reference.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/tutorials/api_reference.md): the `BaseCase` API.
+- [docs/why-rust/parity.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/why-rust/parity.md): the status of every upstream API (generated from `parity/api.toml`).
+- [docs/api/api_reference.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/api/api_reference.md): the `BaseCase` API.
 - [docs/stealth/introduction.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/stealth/introduction.md): fingerprints and masking.
-- [docs/comparison.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/comparison.md) and [docs/faq.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/faq.md): when to use it, and answers to common questions.
+- [docs/why-rust/comparison.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/why-rust/comparison.md) and [docs/faq.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/faq.md): when to use it, and answers to common questions.
 
 ## Optional
 
 - [docs/design/stealth_parity_plan.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/design/stealth_parity_plan.md): the design history of TLS/HTTP/2 impersonation and stealth scraping (WP0 to WP17 were built here; the code moved to seleniumbase-rs-stealth on 2026-10-15).
-- [docs/benchmarks.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/benchmarks.md) and [docs/performance.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/performance.md).
+- [docs/why-rust/benchmarks.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/why-rust/benchmarks.md) and [docs/why-rust/performance.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/docs/why-rust/performance.md).
 - [ROADMAP.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/ROADMAP.md) and [CHANGELOG.md](https://github.com/MustCodeAl/seleniumbase-rs/blob/main/CHANGELOG.md).

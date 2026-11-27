@@ -34,7 +34,7 @@ fn methods_prints_the_common_methods_and_starts_no_browser() {
     }
     // The introduction says the calls are async and where the rest of the API is.
     assert!(listing.contains(".await"), "{listing}");
-    assert!(listing.contains("docs/parity.md"), "{listing}");
+    assert!(listing.contains("docs/why-rust/parity.md"), "{listing}");
 }
 
 #[test]

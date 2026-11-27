@@ -6,7 +6,7 @@ description: "Click, type, select, hover, drag, press keys and scroll."
 
 <Note>
 
-Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/tutorials/api_reference#reading-this-page).
+Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...).await?`. The argument names, the selector syntax and the return types are explained in [Reading the API reference](/api/api_reference#reading-this-page).
 
 </Note>
 
@@ -55,7 +55,7 @@ Methods are listed as `name(arguments)`, called on a `BaseCase` as `sb.name(...)
 For standard keyboard keys and special control keystrokes, see the [`Keys` reference](/api/keys).
 
 All `selector` arguments accept the same formats described in the
-[Selectors guide](/tutorials/selectors).
+[Selectors guide](/guides/write-tests/selectors).
 
 A method that returns a call builder takes Python's keyword arguments as
 methods of the builder and runs when it is awaited, so the plain form is still

@@ -6,7 +6,7 @@ description: "Community and standalone plugins in the seleniumbase-rs ecosystem,
 
 <Badge color="blue">Feature: plugins</Badge>
 
-Beyond the ten built-in plugins compiled into `sbrs` (`plugins-builtin`) and the `wasm` sandbox host, the `seleniumbase-rs` plugin ecosystem includes **standalone and community plugin crates** built on `seleniumbase-rs-plugin`.
+Beyond the seven built-in plugins (`shield`, `crx`, `browser`, `fetcher`, `extractor`, `batcher`, `crawler`) and the plugin framework's opt-in [`wasm` feature](/plugins/wasm), the `seleniumbase-rs` plugin ecosystem includes **standalone and community plugin crates** built on `seleniumbase-rs-plugin`.
 
 Community plugins can be distributed as independent crates (discovered on GitHub/GitLab via the `seleniumbase-rs-plugin` topic or workspace sub-crates in [seleniumbase-rs-plugins](https://github.com/MustCodeAl/seleniumbase-rs-plugins)) and attached to any `PluginSet` with the same capability declarations, hook ordering, and mock testing harness as built-in plugins.
 
@@ -14,13 +14,15 @@ Community plugins can be distributed as independent crates (discovered on GitHub
 
 | Crate / Plugin | Repository | What it provides |
 |---|---|---|
+| [`block-resources`](/plugins/community/block-resources) | `MustCodeAl/seleniumbase-rs-plugins` | Declarative CDP resource blocking for images, fonts, media, stylesheets, and scripts to cut bandwidth and speed up loads |
+| [`imap`](/plugins/community/imap) | `MustCodeAl/seleniumbase-rs-plugins` | Read-only IMAP mailbox watcher extracting verification codes and magic links (`wait_for_email`) with env-var credentials |
 | [`antibot-detector`](/plugins/community/antibot-detector) | `MustCodeAl/seleniumbase-rs-plugins` | Multi-signal detection for Cloudflare, DataDome, Akamai, Kasada, PerimeterX, Imperva, AWS WAF, FingerprintJS, reCAPTCHA, and hCaptcha |
 | [`behavior-dataset`](/plugins/community/behavior-dataset) | `MustCodeAl/seleniumbase-rs-plugins` | Live-site user journey explorer (`SiteExplorer`) and synthetic human kinematic ML dataset exporter (JSON, JSONL, CSV) |
 | [`cloud-logging`](/plugins/community/cloud-logging) | `MustCodeAl/seleniumbase-rs-plugins` | Upload test artifacts to Google Cloud Storage (`GcsUploader`) or Azure Blob Storage (`AzureBlobUploader`) on `on_close` or `Task::run` |
 | [`langchain`](/plugins/community/langchain) | `MustCodeAl/seleniumbase-rs-plugins` | `SeleniumBaseLoader` (Markdown + head metadata for RAG) and `SeleniumBaseTool` (agent action schema & runner) |
 | [`ocr`](/plugins/community/ocr) | `MustCodeAl/seleniumbase-rs-plugins` | Pinned OCR model cache resolution (`OCR_MODELS`, `SB_OCR_MODELS`), PNG validation, and OCR `Task` orchestration |
 | [`owasp`](/plugins/community/owasp) | `MustCodeAl/seleniumbase-rs-plugins` | Passive OWASP Top 10:2021 auditor (headers, CSP, CORS, cookies, JWTs, DOM/storage, forms, client-side SCA, SARIF 2.1.0, async PTK bridge) |
-| [`tauri-plugin-sbrs-automation`](/ecosystem/tauri) | `MustCodeAl/tauri-plugin-sbrs-automation` | Desktop app Tauri 3 integration for WebDriver testing, CDP discovery, and `stealth` webview fingerprinting via `seleniumbase-rs-stealth` |
+| [`tauri-plugin-sbrs-automation`](/ecosystem/integrations/tauri/overview) | `MustCodeAl/tauri-plugin-sbrs-automation` | Desktop app Tauri 3 integration for WebDriver testing, CDP discovery, and `stealth` webview fingerprinting via `seleniumbase-rs-stealth` |
 
 ## Scaffold a new community plugin
 

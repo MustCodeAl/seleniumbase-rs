@@ -401,7 +401,7 @@ uses.
 Saved cookies are credentials: anyone with the file is signed in as you. Keep
 them out of version control. With the `turso` feature, `ProfileVault` stores
 browser profiles encrypted; see
-[Results database and encrypted profiles](/tutorials/results_and_profiles).
+[Results database and encrypted profiles](/guides/results-and-reports/results-and-profiles).
 
 </Warning>
 
@@ -480,7 +480,7 @@ another.load_session("alice").await?; // signed in, without logging in again
 another.release().await;
 ```
 
-See [Pure CDP](/tutorials/pure_cdp).
+See [Pure CDP](/guides/browser-engines/pure-cdp).
 
 </Tab>
 
@@ -599,11 +599,11 @@ authenticator commands could be used.
   Every BaseCase cookie and storage method.
 </Card>
 
-<Card title="Browser profiles" icon="id-card" color="#199f43" href="/tutorials/browser_profiles">
+<Card title="Browser profiles" icon="id-card" color="#199f43" href="/guides/configure-runs/browser-profiles">
   Profiles and how their settings map to a browser.
 </Card>
 
-<Card title="Pure CDP" icon="bolt" color="#d47628" href="/tutorials/pure_cdp">
+<Card title="Pure CDP" icon="bolt" color="#d47628" href="/guides/browser-engines/pure-cdp">
   Contexts, pools and the session store.
 </Card>
 
@@ -623,7 +623,7 @@ authenticator commands could be used.
   How the login form itself works, and how tests fill it in.
 </Card>
 
-<Card title="Glossary" icon="book" color="#a631be" href="/glossary">
+<Card title="Glossary" icon="book" color="#a631be" href="/concepts/glossary">
   Short definitions of every term used in these pages.
 </Card>
 

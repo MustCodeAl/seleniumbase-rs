@@ -25,7 +25,7 @@ and depends on this crate's public API.
 
 1. `CLAUDE.md`: the module map, the commands, what has bitten before.
 2. The file you are about to change, and the tests next to it.
-3. `parity/api.toml` (and `docs/parity.md` / https://mustcodeal-seleniumbase-rs.docs7.io/parity) before adding or changing any public API. Python `get_*` methods are already mapped to idiomatic Rust methods without `get_`.
+3. `parity/api.toml` (and `docs/why-rust/parity.md` / https://mustcodeal-seleniumbase-rs.docs7.io/why-rust/parity) before adding or changing any public API. Python `get_*` methods are already mapped to idiomatic Rust methods without `get_`.
 4. `docs/design/api_guidelines_audit.md`: the crate's strict Rust API rules (C-GETTER, C-CONV, C-CTOR, C-COMMON-TRAITS).
 
 ## Commands
@@ -73,7 +73,7 @@ cargo check --features turso --all-targets
 - **Check external APIs against their documentation**, not memory (crates,
   protocols, browser flags).
 - **Follow strict Rust API Guidelines and parity mappings (R1 - R50 from `docs/design/api_guidelines_audit.md`):**
-  - **No `get_` getters (R3 / C-GETTER / D2):** Never add a `get_` prefix to getters on `BaseCase`, `Element`, `Page`, or any other type. A getter is `foo()` or `foo_mut()`, never `get_foo()`. Python SeleniumBase getters (`get_text`, `get_title`, `get_current_url`, `get_cookies`, `get_attribute`, etc.) are mapped to Rust methods without `get_` (`text`, `title`, `current_url`, `cookies`, `attribute`, etc.). Check `parity/api.toml` and `docs/parity.md` (or https://mustcodeal-seleniumbase-rs.docs7.io/parity) first — Python methods are already tracked and mapped to their idiomatic Rust equivalents. Never add redundant `get_*` aliases that violate Rust API conventions.
+  - **No `get_` getters (R3 / C-GETTER / D2):** Never add a `get_` prefix to getters on `BaseCase`, `Element`, `Page`, or any other type. A getter is `foo()` or `foo_mut()`, never `get_foo()`. Python SeleniumBase getters (`get_text`, `get_title`, `get_current_url`, `get_cookies`, `get_attribute`, etc.) are mapped to Rust methods without `get_` (`text`, `title`, `current_url`, `cookies`, `attribute`, etc.). Check `parity/api.toml` and `docs/why-rust/parity.md` (or https://mustcodeal-seleniumbase-rs.docs7.io/why-rust/parity) first — Python methods are already tracked and mapped to their idiomatic Rust equivalents. Never add redundant `get_*` aliases that violate Rust API conventions.
   - **Standard conversions & traits (R2, R9, R10 / C-CONV, C-COMMON-TRAITS):** `as_` for cheap borrow, `to_` for costly conversion, `into_` for consuming (C-CONV). Value types must implement standard traits: `FromStr`, `Display`, `Debug`, `Clone`, `PartialEq`, `Eq`, `Hash`.
   - **Constructors & builders (R4, R5, R34 / C-CTOR, C-BUILDER):** Constructors are `new()`, `try_new()` for fallible. Builders are separate types whose setters match field names (no `with_`), and `.build()` validates and returns `Result`.
   - **Strong typing (R6, R7, R13 / C-NEWTYPE, C-CUSTOM-TYPE):** Use enums or newtypes rather than bare `bool` or string primitives. Add `#[non_exhaustive]` on public types that may grow.
@@ -85,14 +85,14 @@ cargo check --features turso --all-targets
   outside tests, a doc comment on every public item, `tracing` instead of
   `println!`. `src/mcp` and `src/sb_cdp` use the pedantic lint set: an `#[allow]`
   needs `reason = "..."`, and a function over 100 lines fails.
-- **Do not edit generated files by hand:** `docs/parity.md` is generated from
+- **Do not edit generated files by hand:** `docs/why-rust/parity.md` is generated from
   `parity/api.toml` (`mise run parity-docs`).
 - **A new `[[bin]]`, `[[bench]]`, `[[example]]` or `[[test]]`**, in either
   manifest, must also be listed in the `Dockerfile` skeleton step
   (`tests/dockerfile_skeleton.rs` checks). Keep `usage` and other command-line
   dependencies in `crates/cli` (`tests/library_manifest.rs` checks).
 - **After changing the command line** (`crates/cli/src/sbrs.rs`), write the
-  generated `completions/sbrs.usage.kdl` and `docs/help/cli_reference.md` again with
+  generated `completions/sbrs.usage.kdl` and `docs/ecosystem/cli/reference.md` again with
   `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs usage_spec`
   (that also writes `man/man1/sbrs.1`; the man page of `sbrs-mcp` is written by
   `SB_UPDATE_COMPLETIONS=1 cargo test -p seleniumbase-rs-cli --bin sbrs-mcp man_page`).

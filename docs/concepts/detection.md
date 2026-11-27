@@ -190,7 +190,7 @@ shows:
 
 Since Chrome 112, `--headless=new` runs the same code as the headed browser, which
 removed most of these. The old, separate headless build lives on as
-`chrome-headless-shell`. See [Headless and headed browsers](/tutorials/headless#headless-and-stealth).
+`chrome-headless-shell`. See [Headless and headed browsers](/guides/configure-runs/headless#headless-and-stealth).
 
 ## Fingerprint surfaces
 
@@ -381,7 +381,7 @@ gone. In the pure CDP engine, `LaunchOptions::builder()` takes the pieces:
 `user_data_dir(..)`, `arg(..)` for any other Chrome flag, and `preference(..)`.
 UC mode sets up a WebDriver session to avoid common bot checks, and replaces
 `HeadlessChrome` in the user agent when running headless. See
-[Binary patching](/stealth/advanced/binary-patching) and [UC mode](/tutorials/uc_mode).
+[Binary patching](/stealth/advanced/core/binary-patching) and [UC mode](/stealth/core/uc-mode).
 
 </Accordion>
 
@@ -418,10 +418,10 @@ the `Human` type.
 A proxy changes the IP the site sees, and the WebRTC policy keeps the real IP
 from leaking through WebRTC. A real Chrome already sends a Chrome TLS
 fingerprint; for plain HTTP requests made outside the browser, the
-[stealth crates](/scraping/stealthy/overview) in the separate
+[stealth crates](/stealth/session/overview) in the separate
 [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 repository reproduce the same TLS and HTTP/2 fingerprint (see the
-[codec API](/stealth/api/codec) and [JA3 and JA4](/stealth/api/codec-ja4)).
+[network API](/stealth/api/network/overview) and [JA3 and JA4](/stealth/api/network/ja4)).
 
 </Accordion>
 
@@ -512,7 +512,7 @@ separate step: see [The `cdc_` variables](#the-cdc_-variables). Python's UC
 Mode docs describe that patch as renaming the DevTools console variables
 ([UC Mode](https://seleniumbase.io/help_docs/uc_mode/)). It is the
 launch-level layer of the diagram above, applied to a `BaseCase` session. The
-details and the options are in the [UC mode guide](/tutorials/uc_mode); the
+details and the options are in the [UC mode guide](/stealth/core/uc-mode); the
 pure CDP engine reaches the same goal with the fingerprint and launch options
 shown above, and needs no driver to hide.
 
@@ -522,7 +522,7 @@ shown above, and needs no driver to hide.
 
 No layer makes a browser undetectable. Each closes known signals; a site can
 look for new ones. The stealth scraping layer is experimental; see its
-[limits](/scraping/advanced-stealthy/limits).
+[limits](/stealth/advanced/session/limits).
 
 </Warning>
 
@@ -544,11 +544,11 @@ how you use the library.
   Build and apply a fingerprint and a policy.
 </Card>
 
-<Card title="UC mode" icon="user-secret" color="#199f43" href="/tutorials/uc_mode">
+<Card title="UC mode" icon="user-secret" color="#199f43" href="/stealth/core/uc-mode">
   A WebDriver session that avoids common bot checks.
 </Card>
 
-<Card title="Headless and stealth" icon="eye-slash" color="#d47628" href="/tutorials/headless#headless-and-stealth">
+<Card title="Headless and stealth" icon="eye-slash" color="#d47628" href="/guides/configure-runs/headless#headless-and-stealth">
   What gives a headless browser away.
 </Card>
 
@@ -556,7 +556,7 @@ how you use the library.
   Proxies, TLS and the connection a site sees.
 </Card>
 
-<Card title="Stealth scraping" icon="spider" color="#a631be" href="/scraping/stealthy/overview">
+<Card title="Stealth scraping" icon="spider" color="#a631be" href="/stealth/session/overview">
   The experimental crates for network-level fingerprints, in the separate seleniumbase-rs-stealth repository.
 </Card>
 

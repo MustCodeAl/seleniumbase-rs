@@ -115,7 +115,7 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
 A plugin is a Rust type that changes how a browser starts and what every tab
 gets. This page builds one, from an empty folder to a tested crate that a
 program turns on by name. For turning plugins on and attaching a set to a
-browser, read the [Browser Plugins guide](/tutorials/plugins). This page is
+browser, read the [Browser Plugins guide](/plugins/guide). This page is
 about the plugin itself.
 
 <Info>
@@ -237,9 +237,9 @@ what it adds. They come back as `SeleniumBaseError::Plugin`, which names the
 plugin and the hook. At each point, plugins run in the order of their phase,
 then of their `requires`, `after` and `before` edges, then in the order they
 were added. The exact points for each engine are in
-[When the hooks run](/tutorials/plugins#when-the-hooks-run),
-[The WebDriver engine](/tutorials/plugins#the-webdriver-engine) and
-[When a plugin fails](/tutorials/plugins#when-a-plugin-fails).
+[When the hooks run](/plugins/guide#when-the-hooks-run),
+[The WebDriver engine](/plugins/guide#the-webdriver-engine) and
+[When a plugin fails](/plugins/guide#when-a-plugin-fails).
 
 ## Write your own
 
@@ -1064,7 +1064,7 @@ or `ProfileView::Persistent(path)`.
 
 On Firefox and Safari a plugin that sets one of the Chromium-only fields is
 refused; what each browser accepts is in
-[The WebDriver engine](/tutorials/plugins#the-webdriver-engine).
+[The WebDriver engine](/plugins/guide#the-webdriver-engine).
 
 </ResponseField>
 
@@ -1125,7 +1125,7 @@ them.
 
 Runs `source` in every document the tab loads from now on, before the page's own
 scripts. On Firefox and Safari it runs after them; see
-[The WebDriver engine](/tutorials/plugins#the-webdriver-engine).
+[The WebDriver engine](/plugins/guide#the-webdriver-engine).
 
 </ResponseField>
 
@@ -1309,7 +1309,7 @@ In code: the value you pass, usually `json!(...)`.
 </ResponseField>
 
 Document the options on the plugin's page, as the built-in plugins do
-([shield](/plugins/shield#options)): `sbrs plugin info` cannot list them,
+([shield](/plugins/builtin/shield#options)): `sbrs plugin info` cannot list them,
 because the plugin API does not describe options yet. For `hello`:
 
 <ParamField body="message" type="string" default="hello from a plugin">
@@ -1355,9 +1355,9 @@ does the same from a `PluginSelection` and reports a mistake as
 
 ## Worked example: block-resources
 
-The built-in [block-resources](/plugins/block-resources) plugin is a whole
+The built-in [block-resources](/plugins/community/block-resources) plugin is a whole
 plugin in about a hundred lines. The tabs show its parts and those of
-[crx](/plugins/crx), which works before the browser starts.
+[crx](/plugins/builtin/crx), which works before the browser starts.
 
 <Tabs>
 
@@ -1537,7 +1537,7 @@ What to copy from it:
 
 </Tabs>
 
-[shield](/plugins/shield) shows the rest: `packages`, a `before_launch` that
+[shield](/plugins/builtin/shield) shows the rest: `packages`, a `before_launch` that
 sets preferences and network settings, and options read with serde.
 
 ## Packaging and sharing
@@ -1734,7 +1734,7 @@ The cargo features, the `[plugins]` table, `SB_PLUGINS`, `--plugin` and the buil
 
 </Card>
 
-<Card color="#d47628" title="Browser Plugins guide" icon="book" href="/tutorials/plugins">
+<Card color="#d47628" title="Browser Plugins guide" icon="book" href="/plugins/guide">
 
 Attach a set to a browser, and see when each hook runs on each engine.
 
@@ -1752,13 +1752,13 @@ Plugins written in any language that compiles to WebAssembly.
 
 </Card>
 
-<Card color="#d32a61" title="block-resources" icon="ban" href="/plugins/block-resources">
+<Card color="#d32a61" title="block-resources" icon="ban" href="/plugins/community/block-resources">
 
 The worked example above, as a plugin you can turn on.
 
 </Card>
 
-<Card color="#693acf" title="shield" icon="shield" href="/plugins/shield">
+<Card color="#693acf" title="shield" icon="shield" href="/plugins/builtin/shield">
 
 A privacy plugin with `packages`, launch settings and serde options.
 

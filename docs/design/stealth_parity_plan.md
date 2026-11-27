@@ -3,14 +3,14 @@ title: "Stealth parity plan: stealthscraper-rs features, JA3/JA4 and Akamai impe
 sidebarTitle: "Stealth parity plan"
 ---
 
-> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). In v0.10.0 those crates unified into the single 4-layer `seleniumbase-rs-stealth` crate (`identity`, `client`, `network`, `session`, plus standalone `h3d/`). This plan is kept as design history from this repository. The current guide is [Stealth scraping](/scraping/stealthy/overview).
+> **Moved:** on 2026-10-15 (version 0.3.0) this code moved to [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth). In v0.10.0 those crates unified into the single 4-layer `seleniumbase-rs-stealth` crate (`identity`, `client`, `network`, `session`, plus standalone `h3d/`). This plan is kept as design history from this repository. The current guide is [Stealth scraping](/stealth/session/overview).
 
 Status (2026-10-11, branch `feat/pure-cdp-and-mcp-parity` at `4184e74`): **WP0 to WP17 are merged,
 including WP14 (`HttpSession`), WP15 (`MitmProxy`) and WP16 (`StealthSession`). The WP18 reviews (two
 passes) are done and their fixes are in progress. WP19 (re-exports and documentation) is in progress.**
 The plan was written on 2026-10-10 as design only, at `8c1394d`. Where the code differs from what is
 written below, [the next section](#status-and-what-the-code-changed) says how, and the code wins. Sections
-3.11 to 3.13 describe what was built. The user-facing description of what exists is [Stealth Scraping](/scraping/stealthy/first-fetch);
+3.11 to 3.13 describe what was built. The user-facing description of what exists is [Stealth Scraping](/stealth/session/first-fetch);
 the layout rules are recorded in [ADR 003](/adr/003-stealth-scraping-layout).
 Sources: the project memory (`stealthscraper-feature-parity`, `project-priorities-2026-10-10`),
 three Context7 reads of `/ypno/stealthscraper-rs`, the wreq 6.0.0-rc.31, wreq-proto 0.2.6,

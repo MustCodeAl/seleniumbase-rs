@@ -156,7 +156,7 @@ the pure CDP engine.
 <Tab title="A packed .crx file" icon="box">
 
 Chrome only takes unpacked folders from the command line, so the
-[`crx` plugin](/plugins/crx) reads a `.crx` file (CRX3 or the older CRX2),
+[`crx` plugin](/plugins/builtin/crx) reads a `.crx` file (CRX3 or the older CRX2),
 strips its header, unpacks the zip into a temporary folder and adds that folder
 to the browser's start-up settings.
 
@@ -208,7 +208,7 @@ a good small example of everything above:
 
 Its messages use a small versioned format, `{ v: 1, type: "recorder/step", ... }`,
 and a router that refuses a message from the wrong kind of sender. The full
-guide, with how to build and load it, is [Browser extension](/ecosystem/browser-extension).
+guide, with how to build and load it, is [Browser extension](/ecosystem/integrations/browser-extension).
 
 ## The crx plugin in a test
 
@@ -226,18 +226,18 @@ let plugins = PluginSet::new().with(CrxExtensions::new(["extensions/dark-reader.
 ```
 
 The library also bundles a few extensions of its own (`src/utils/extensions`),
-used by features such as ad blocking. See [Plugins](/tutorials/plugins) for how a
-plugin set is built, and the glossary entry [crx](/glossary#crx).
+used by features such as ad blocking. See [Plugins](/plugins/guide) for how a
+plugin set is built, and the glossary entry [crx](/concepts/glossary#crx).
 
 ## Where to go next
 
 <Columns cols={2}>
 
-<Card title="Browser extension (companion)" icon="puzzle-piece" color="#1a85d4" href="/ecosystem/browser-extension">
+<Card title="Browser extension (companion)" icon="puzzle-piece" color="#1a85d4" href="/ecosystem/integrations/browser-extension">
   Record a test, inspect selectors, export Rust.
 </Card>
 
-<Card title="crx plugin" icon="box" color="#199f43" href="/plugins/crx">
+<Card title="crx plugin" icon="box" color="#199f43" href="/plugins/builtin/crx">
   Load packed Chrome extensions in a test.
 </Card>
 

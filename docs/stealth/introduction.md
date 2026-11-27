@@ -17,11 +17,11 @@ Summary for AI exports: Core `seleniumbase-rs` provides Layer 0 (`undetected::{p
 
 | Layer | Crate / Feature | BoringSSL? | What it owns | API reference |
 |---|---|---|---|---|
-| **0. Core undetected** | `seleniumbase-rs` (always on) | No | Binary patching (`undetected::patcher`), detached processes (`undetected::dprocess`), UC mode (`undetected::uc`), human-paced input (`sb_cdp::human::{behavior, humanize}`), `StealthOptions` | [Stealth settings](/api/stealth-settings) |
-| **1. `identity`** | `seleniumbase-rs-stealth` (`default-features = false`) | No | Persona and fingerprint data: `Fingerprint`, `ProfileFingerprint`, `FingerprintGenerator`, `FingerprintOptions`, `BayesianSampler`, `HeaderGenerator`, `FingerprintConverter`, `audit_coherence`, `Spoof<T>`, `StealthPolicy`, `mimic` specimens, `profile_payloads`, `capture` | [Stealth API: identity](/stealth/api/identity) |
-| **2. `client`** | `seleniumbase-rs-stealth` (`features = ["client"]`) | No | Browser-side masking: `StealthLayer` (`default`, `minimal`, `balanced`, `strict`), 42-surface `StealthScriptBundle` / `StealthScriptOptions`, 32 JS `EvasionProvider`s, `StealthPlan`, engine extension traits (`LaunchOptionsFingerprintExt`, `BrowserConfigFingerprintExt`, `PageFingerprintExt`, `BaseCaseFingerprintExt`) | [Stealth API: client](/stealth/api/client) |
-| **3. `network`** | `network-spec` *(pure)* / `network` + `http3` *(BoringSSL)* | Only `network` / `http3` | Pure `spec` (TLS `ClientHello`, JA3/JA4/peetprint, Akamai H2, H3, headers, measured browser tables) and `proxy` (`ProxyPool`, `GeoResolver`); opt-in BoringSSL `WireFormat`, `MitmProxy`, `EphemeralCa`, wire `capture`, and `http3` (`Http3Client`, `Http3Pool`, standalone `h3d/`) | [network::spec](/stealth/api/codec) / [network & sessions](/stealth/api/wire) |
-| **4. `session`** | `session` (**default**) | Only with `network` | Stateful anti-bot sessions: `CdpSession` (pure CDP, default), `HttpSession` (wire HTTP/2+3, with `network`), `HybridSession` (dual-mode HTTP and Chrome behind `MitmProxy`, with `network`), challenge detection and `MitigationPolicy`, `CookieJar`, `Ledger`, `Identity` passport | [Stealth API: session](/stealth/api/scrape) |
+| **0. Core undetected** | `seleniumbase-rs` (always on) | No | Binary patching (`undetected::patcher`), detached processes (`undetected::dprocess`), UC mode (`undetected::uc`), human-paced input (`sb_cdp::human::{behavior, humanize}`), `StealthOptions` | [Settings and configuration](/settings/overview#stealth-and-fingerprint-settings) |
+| **1. `identity`** | `seleniumbase-rs-stealth` (`default-features = false`) | No | Persona and fingerprint data: `Fingerprint`, `ProfileFingerprint`, `FingerprintGenerator`, `FingerprintOptions`, `BayesianSampler`, `HeaderGenerator`, `FingerprintConverter`, `audit_coherence`, `Spoof<T>`, `StealthPolicy`, `mimic` specimens, `profile_payloads`, `capture` | [Stealth API: identity](/stealth/api/identity/overview) |
+| **2. `client`** | `seleniumbase-rs-stealth` (`features = ["client"]`) | No | Browser-side masking: `StealthLayer` (`default`, `minimal`, `balanced`, `strict`), 42-surface `StealthScriptBundle` / `StealthScriptOptions`, 32 JS `EvasionProvider`s, `StealthPlan`, engine extension traits (`LaunchOptionsFingerprintExt`, `BrowserConfigFingerprintExt`, `PageFingerprintExt`, `BaseCaseFingerprintExt`) | [Stealth API: client](/stealth/api/client/overview) |
+| **3. `network`** | `network-spec` *(pure)* / `network` + `http3` *(BoringSSL)* | Only `network` / `http3` | Pure `spec` (TLS `ClientHello`, JA3/JA4/peetprint, Akamai H2, H3, headers, measured browser tables) and `proxy` (`ProxyPool`, `GeoResolver`); opt-in BoringSSL `WireFormat`, `MitmProxy`, `EphemeralCa`, wire `capture`, and `http3` (`Http3Client`, `Http3Pool`, standalone `h3d/`) | [Stealth API: network](/stealth/api/network/overview) |
+| **4. `session`** | `session` (**default**) | Only with `network` | Stateful anti-bot sessions: `CdpSession` (pure CDP, default), `HttpSession` (wire HTTP/2+3, with `network`), `HybridSession` (dual-mode HTTP and Chrome behind `MitmProxy`, with `network`), challenge detection and `MitigationPolicy`, `CookieJar`, `Ledger`, `Identity` passport | [Stealth API: session](/stealth/api/session/overview) |
 
 ## Stealth levels
 
@@ -34,27 +34,27 @@ Choose your protection level at two places: **Cargo feature tier** (which layers
 | **Balanced (default)** | `StealthLayer::default()` / `StealthLayer::balanced(os, seed)` / `StealthScriptOptions::balanced()` | 35 JS surfaces (core, workers, console canary, mouse coords, WebRTC, Intl, codecs, geometry, media) with pixel/audio/SVG/timing noise off for visually lossless output | Everyday browser automation and screenshot-sensitive pages |
 | **Strict / Max** | `StealthLayer::strict(os, seed)` + `StealthPolicy::max()` | All 42 JS surfaces (adds seeded canvas, `OffscreenCanvas`, `toBlob`, Web Audio, `DOMRect`, SVG, and `performance.now()` jitter) plus tracker blocking, granted permissions, and QUIC off (`beacon_guard` opt-in) | Strict anti-bot fingerprinting checks |
 
-See [Policies & levels](/stealth/policies) for the complete field-by-field breakdown of `StealthLayer`, `StealthScriptOptions`, and `StealthPolicy`.
+See [Policies & levels](/stealth/identity/policies) for the complete field-by-field breakdown of `StealthLayer`, `StealthScriptOptions`, and `StealthPolicy`.
 
 ## Topic pages
 
 | Page | Layer | What it covers |
 |---|---|---|
-| [Fingerprints](/stealth/fingerprints) | Layer 1 (`identity`) | Five-state `Spoof`, presets, randomized identities, custom builders, self-consistency checks |
-| [Evasions and launch flags](/stealth/evasions) | Layer 2 (`client`) | Chrome flags, init scripts, native-level (CDP) spoofing, complementary binary patching |
-| [Policies & levels](/stealth/policies) | Layers 1 & 2 | `StealthLayer` levels, `StealthScriptOptions` 42 surfaces, `StealthPolicy` presets, JSON format |
-| [Identities and profiles](/stealth/profiles) | Layer 1 (`identity`) | External JSON profile payloads (`ProfileParams`) and coherence validation |
-| [Proxies and network](/stealth/proxies) | Layers 1 & 3 | Authenticated proxies, WebRTC IP handling, QUIC controls |
-| [Human-like input](/stealth/human-input) | Layer 0 (core) | Minimum-jerk pointer paths, Gaussian typing rhythm, eased scrolling |
+| [Fingerprints](/stealth/identity/fingerprints) | Layer 1 (`identity`) | Five-state `Spoof`, presets, randomized identities, custom builders, self-consistency checks |
+| [Evasions and launch flags](/stealth/client/evasions) | Layer 2 (`client`) | Chrome flags, init scripts, native-level (CDP) spoofing, complementary binary patching |
+| [Policies & levels](/stealth/identity/policies) | Layers 1 & 2 | `StealthLayer` levels, `StealthScriptOptions` 42 surfaces, `StealthPolicy` presets, JSON format |
+| [Identities and profiles](/stealth/identity/profiles) | Layer 1 (`identity`) | External JSON profile payloads (`ProfileParams`) and coherence validation |
+| [Proxies and network](/stealth/network/proxies) | Layers 1 & 3 | Authenticated proxies, WebRTC IP handling, QUIC controls |
+| [Human-like input](/stealth/core/human-input) | Layer 0 (core) | Minimum-jerk pointer paths, Gaussian typing rhythm, eased scrolling |
 | [Troubleshooting](/stealth/troubleshooting) | All layers | Diagnosing leaks when a site still flags automation |
 | [Advanced stealth](/stealth/advanced/overview) | Layers 0 to 4 | Providers, binary patching, Playwright mode, wire formats, MitmProxy, HTTP/3, stealthy scraping |
 
 ## Which launch paths apply a fingerprint or `StealthLayer`
 
 A `Fingerprint` or `StealthLayer` reaches the page through any launch path that has a CDP channel:
-[Pure CDP](/stealth/cdp-mode) (`LaunchOptionsFingerprintExt`),
-[UC mode](/tutorials/uc_mode) (`DriverMode::Uc` via `BrowserConfigFingerprintExt`),
-`DriverMode::Cdp`, or the Playwright session ([Stealth with Playwright mode](/stealth/advanced/playwright)).
+[Pure CDP](/stealth/core/cdp-mode) (`LaunchOptionsFingerprintExt`),
+[UC mode](/stealth/core/uc-mode) (`DriverMode::Uc` via `BrowserConfigFingerprintExt`),
+`DriverMode::Cdp`, or the Playwright session ([Stealth with Playwright mode](/stealth/advanced/client/playwright)).
 With plain `DriverMode::WebDriver`, only launch arguments apply (no init script or CDP protocol overrides).
 
 ## Quick start
@@ -136,7 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 <Warning>
 
-* Layers 1 and 2 (`identity` and `client`) do not change the TLS or HTTP/2 handshake leaving the machine; Chrome sends its own wire handshake. For JA3/JA4/peetprint/Akamai parsing, measured browser tables (Chrome 155 on macOS), `WireFormat`, `MitmProxy`, `HttpSession`, and `HybridSession`, enable Layer 3 (`features = ["network"]` or `features = ["http3"]`) and see [Stealthy scraping](/scraping/stealthy/overview).
+* Layers 1 and 2 (`identity` and `client`) do not change the TLS or HTTP/2 handshake leaving the machine; Chrome sends its own wire handshake. For JA3/JA4/peetprint/Akamai parsing, measured browser tables (Chrome 155 on macOS), `WireFormat`, `MitmProxy`, `HttpSession`, and `HybridSession`, enable Layer 3 (`features = ["network"]` or `features = ["http3"]`) and see [Stealthy scraping](/stealth/session/overview).
 * Some dimensions (WebGL vendor/renderer, canvas and audio noise, media devices, fonts, battery) have no CDP override and remain JavaScript-based even when `native_spoofing` is enabled.
 * Chromium source patching is not performed. Layer 0 binary patchers (`undetected::patcher`) edit equal-length byte markers in an existing `chromedriver` or Chrome binary.
 

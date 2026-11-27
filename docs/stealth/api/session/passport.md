@@ -1,0 +1,254 @@
+---
+title: "session::passport"
+sidebarTitle: "Identity"
+description: "Identity, the escalation policy and the wire measurement reference."
+---
+
+<Badge color="orange">Experimental</Badge> <Badge color="blue">Layer: session</Badge>
+
+`passport` is the identity a scrape carries between the browser and plain HTTP: the fingerprint, the cookies (a core `Session`), the clearances and the wire measurement it claims. `EscalationPolicy` says when that identity should stay on HTTP and when it should go to the browser.
+
+See [Identity and cookies](/stealth/advanced/session/identity).
+
+<RequestExample>
+
+```rust The wire measurement an identity claims
+use seleniumbase_rs::browser::config::Browser;
+use seleniumbase_rs_stealth::identity::fingerprint::OsType;
+use seleniumbase_rs_stealth::session::WireMeasurementRef;
+
+fn chrome_on_macos(major: u32) -> WireMeasurementRef {
+    WireMeasurementRef {
+        kind: Browser::Chrome,
+        major,
+        os: OsType::Macos,
+    }
+}
+```
+
+</RequestExample>
+
+## Constants and type aliases
+
+```rust
+// passport/identity.rs
+pub const IDENTITY_SCHEMA: u32 = 2;
+pub const NO_EXPIRY: u64 = u64::MAX;
+// passport/policy.rs
+pub const DEFAULT_CLEARANCE_MARGIN_SECS: u64 = 120;
+```
+
+
+- `IDENTITY_SCHEMA`: The version of the identity layout. A file with another version is refused, not guessed at. Version 2 holds the cookies and the local storage as a core `Session`; a version 1 file (a cookie jar) is refused.
+- `NO_EXPIRY`: The expiry recorded for a clearance cookie that has none (a session cookie): no known end.
+- `DEFAULT_CLEARANCE_MARGIN_SECS`: How close to its end a clearance may get before an HTTP session goes back to the browser.
+
+## `passport::identity`
+
+### `WireMeasurementRef`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct WireMeasurementRef {
+    pub kind: Browser,
+    pub major: u32,
+    pub os: OsType,
+}
+```
+
+The measured browser whose TLS, HTTP/2 and headers an identity presents.
+
+### `Clearance`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct Clearance {
+    pub site: String,
+    pub vendor: ProtectionVendor,
+    pub cookie: String,
+    pub expires_at: u64,
+}
+```
+
+Proof that a site let the identity through: the vendor's clearance cookie is in the jar.
+
+### `Identity`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct Identity {
+    pub schema: u32,
+    pub fingerprint: Fingerprint,
+    pub wire_measurement: WireMeasurementRef,
+    pub session: Session,
+    pub accept_ch: BTreeMap<String, Vec<String>>,
+    pub proxy: Option<ProxyKey>,
+    pub clearances: Vec<Clearance>,
+    pub created_at: u64,
+}
+```
+
+A fingerprint, its wire measurement, and what the identity earned with them. `session` is the core's `sb_cdp::Session`: the cookies (and the local storage of one origin) as core keeps a browser's login state; [`Identity::cookie_jar`] gives them to an HTTP client.
+
+### `Identity` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn new(
+        fingerprint: Fingerprint,
+        wire_measurement: WireMeasurementRef,
+        proxy: Option<ProxyKey>,
+        now: u64,
+    ) -> Result<Self, IdentityError>
+pub fn validate(&self) -> Result<(), IdentityError>
+pub fn cookie_jar(&self, now: u64) -> CookieJar
+pub fn replace_cookies(&mut self, jar: &CookieJar, now: u64)
+pub fn refresh_clearances(&mut self, now: u64)
+pub fn clearance_for(&self, site: &str) -> Option<&Clearance>
+pub fn check_proxy(&self, proxy: Option<&ProxyKey>) -> Result<(), IdentityError>
+pub fn check_wire_measurement(&self, measured: &WireMeasurementRef) -> Result<(), IdentityError>
+```
+
+
+- `new`: Makes an identity from a fingerprint. See the module documentation for what it refuses.
+- `validate`: Checks an identity that was read from outside: its schema, its fingerprint, and that it carries no proxy.
+- `cookie_jar`: The identity's cookies as an HTTP cookie jar at `now`, for a client that receives `Set-Cookie` headers and sends `Cookie` ones. Expired cookies, and ones the jar refuses, are left out.
+- `replace_cookies`: Keeps the live cookies of `jar` at `now` as the identity's, in place of the ones it had. The local storage stays.
+- `refresh_clearances`: Records a [`Clearance`] for every live clearance cookie in the jar, replacing the old list.
+- `clearance_for`: The clearance for `site`, a registrable domain or any host on it. When several vendors cleared the site, the one that lasts longest. It may already be expired: compare [`Clearance::expires_at`] with the time.
+- `check_proxy`: Checks that a request leaves through the proxy this identity belongs to.
+- `check_wire_measurement`: Checks that the browser measured now is the one the identity was made for.
+
+### `IdentityError`
+
+<Badge color="blue" shape="pill">enum</Badge>
+
+```rust
+pub enum IdentityError {
+    ProxyMismatch {
+            /// The egress the identity is bound to.
+            expected: Option<ProxyKey>,
+            /// The egress the request would leave through.
+            found: Option<ProxyKey>,
+        },
+    Schema(u32),
+    Incoherent(Vec<String>),
+    WireMeasurementMismatch {
+            /// The major version the identity claims.
+            identity: u32,
+            /// The major version that was measured.
+            measured: u32,
+        },
+}
+```
+
+Why an identity was refused.
+
+## `passport::policy`
+
+### `EscalationPolicy`
+
+<Badge color="blue" shape="pill">struct</Badge>
+
+```rust
+pub struct EscalationPolicy {
+    pub require_clearance_for_http: bool,
+    pub clearance_margin: Duration,
+    pub demote_after_solve: bool,
+    pub prefer: FetchKind,
+}
+```
+
+When a session changes mode.
+
+### `EscalationPolicy` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn before_fetch(
+        &self,
+        fetch_kind: FetchKind,
+        id: &Identity,
+        site: &str,
+        st: Option<&SiteRecord>,
+        now: u64,
+    ) -> Escalation
+pub fn after_fetch(
+        &self,
+        fetch_kind: FetchKind,
+        d: &Detection,
+        a: &Mitigation,
+        id: &Identity,
+    ) -> Escalation
+```
+
+
+- `before_fetch`: Whether to change mode before fetching `site`. See the module documentation for the table.
+- `after_fetch`: Whether to change mode after the action chosen for `d` has been carried out. See the module documentation for the table.
+
+### `Escalation`
+
+<Badge color="blue" shape="pill">enum</Badge>
+
+```rust
+#[non_exhaustive]
+pub enum Escalation {
+    Stay,
+    Escalate(EscalateReason),
+    Demote(DemoteReason),
+}
+```
+
+A change of mode, or none.
+
+### `Escalation` methods
+
+<Badge color="yellow" shape="pill">method</Badge>
+
+```rust
+pub fn resulting_kind(self, current: FetchKind) -> FetchKind
+```
+
+
+- `resulting_kind`: The mode a session in `current` is in after this transition.
+
+### `EscalateReason`
+
+<Badge color="blue" shape="pill">enum</Badge>
+
+```rust
+pub enum EscalateReason {
+    Challenge(ChallengeKind),
+    ClearanceExpiring {
+            /// Seconds left; zero once it has ended.
+            remaining_secs: u64,
+        },
+    NoClearance,
+    SiteNeedsBrowser,
+    Manual,
+}
+```
+
+Why a session goes to the browser.
+
+### `DemoteReason`
+
+<Badge color="blue" shape="pill">enum</Badge>
+
+```rust
+pub enum DemoteReason {
+    ChallengeSolved,
+    Manual,
+}
+```
+
+Why a session goes back to HTTP.
+
+## Related
+
+The guide is [Identity and cookies](/stealth/advanced/session/identity). The overview is [scrape](/stealth/api/session/overview).

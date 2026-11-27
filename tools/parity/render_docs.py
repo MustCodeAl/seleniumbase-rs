@@ -38,7 +38,7 @@ def cell(text):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--out", type=pathlib.Path, default=ROOT / "docs/parity.md")
+    parser.add_argument("--out", type=pathlib.Path, default=ROOT / "docs/why-rust/parity.md")
     out_path = parser.parse_args().out
     manifest = tomllib.loads((ROOT / "parity/api.toml").read_text(encoding="utf-8"))
     pinned = tomllib.loads((ROOT / "parity/upstream.toml").read_text(encoding="utf-8"))

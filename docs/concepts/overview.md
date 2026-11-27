@@ -76,4 +76,4 @@ group that matches the problem you have.
 
 ## Reference
 
-- [Glossary](/glossary): short definitions of every term used in these pages.
+- [Glossary](/concepts/glossary): short definitions of every term used in these pages.

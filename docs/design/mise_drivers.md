@@ -12,7 +12,7 @@ plugin only duplicated that. This page stays as the record of the design.
 
 A [mise](https://mise.jdx.dev) plugin that installs, upgrades and removes
 chromedriver. Versions come from the Chrome for Testing JSON this crate already
-uses. How to use it: [Manage chromedriver with mise](/building#manage-chromedriver-with-mise).
+uses. How to use it: [Manage chromedriver with mise](/guides/get-started/building#manage-chromedriver-with-mise).
 This page records what was chosen and why, and what is left.
 
 ## A tool plugin

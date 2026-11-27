@@ -4,7 +4,7 @@ sidebarTitle: "Overview"
 description: "The Tauri plugin's WebDriver endpoint and Chromium CDP discovery: authentication, replies, errors, command groups, and CEF/WebView2 configuration."
 ---
 
-The [Tauri plugin](/ecosystem/tauri) serves a subset of W3C WebDriver over HTTP
+The [Tauri plugin](/ecosystem/integrations/tauri/overview) serves a subset of W3C WebDriver over HTTP
 from inside your app. `BaseCase`, `sbrs` and any other WebDriver client speak it
 for you; these pages document each route as the plugin's code answers it, with
 raw HTTP requests you can send with cURL.

@@ -97,19 +97,19 @@ A single `Identity` binds a browser `Fingerprint` (JS/CDP persona) with its matc
 
 <Columns cols={2}>
 
-<Card title="Wire formats (API guide)" icon="code" color="#a631be" href="/stealth/advanced/wire-formats">
+<Card title="Wire formats (API guide)" icon="code" color="#a631be" href="/stealth/advanced/network/wire-formats">
   Configure `WireFormat`, JA3/JA4/Akamai strings, and handle validation errors.
 </Card>
 
-<Card title="Loopback MitM proxy" icon="shield-halved" color="#1a85d4" href="/stealth/advanced/mitm-proxy">
+<Card title="Loopback MitM proxy" icon="shield-halved" color="#1a85d4" href="/stealth/advanced/network/mitm-proxy">
   Run `MitmProxy` alongside real Chromium with ephemeral SPKI pinning.
 </Card>
 
-<Card title="HTTP/3 and QUIC" icon="bolt" color="#199f43" href="/stealth/advanced/http3">
+<Card title="HTTP/3 and QUIC" icon="bolt" color="#199f43" href="/stealth/advanced/network/http3">
   Configure `H3Spec`, `Http3Client`, and `WireProtocol::Http3` profiles.
 </Card>
 
-<Card title="Advanced stealthy scraping" icon="spider" color="#d47628" href="/scraping/advanced-stealthy/overview">
+<Card title="Advanced stealthy scraping" icon="spider" color="#d47628" href="/stealth/advanced/session/overview">
   Coordinate browser solves and direct HTTP fetches under `HybridSession`.
 </Card>
 

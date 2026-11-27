@@ -384,7 +384,7 @@ same interval. `Page::human(Behavior)` returns a `Human` whose
 element and type at an uneven rhythm. The events are the same trusted input;
 only the path and timing differ. It is slower on purpose, so use it where a page
 watches how input arrives. See [Detection and spoofing](/concepts/detection) and
-the glossary entry [Human-paced input](/glossary#human-paced-input).
+the glossary entry [Human-paced input](/concepts/glossary#human-paced-input).
 
 ```rust,ignore src/main.rs
 use seleniumbase_rs::sb_cdp::human::behavior::Behavior;

@@ -340,7 +340,7 @@ Cargo features, `--plugin`, the `[plugins]` table and `SB_PLUGINS`.
 
 </Card>
 
-<Card title="Browser Plugins guide" icon="book" href="/tutorials/plugins">
+<Card title="Browser Plugins guide" icon="book" href="/plugins/guide">
 
 When each hook runs on each engine, and what happens when a plugin fails.
 

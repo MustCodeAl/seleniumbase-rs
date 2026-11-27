@@ -1,0 +1,580 @@
+---
+title: "Customizing Test Runs"
+sidebarTitle: "Customize runs"
+---
+
+SeleniumBase for Rust can be configured through the `BrowserConfig` builder, a
+global config file, environment variables, or CLI flags. This guide explains the
+full hierarchy and shows how to make each source of configuration work for your
+workflow.
+
+<Info>
+
+**What you will learn**
+
+- How to configure a run with the `BrowserConfig` builder.
+- How to create a global TOML config file.
+- How to override settings with `SB_*` environment variables.
+- How CLI flags interact with programmatic and file configuration, and how
+  `sbrs test` hands them to your tests, with `-k`, `-m`, `-n`, `--co` and `--runner`.
+
+</Info>
+
+<Visibility for="agents">
+
+Summary for AI exports: a run is configured by the `BrowserConfig` builder, a global `sbase_config.toml` (or `.sbase_config.toml`, `.sbase_config`) in the working directory, `SB_*` environment variables and `sbrs` flags. Later sources win: defaults, config file, `SB_*` variables, then programmatic changes. `sbrs` options go before or after the subcommand. `sbrs test` takes every option of Python's pytest plugin (see Test options), selects tests with `-k`, `-m`, `-n` and `--co`, picks `cargo` or `nextest` with `--runner`, and passes the options to the tests as `SB_*` variables.
+
+</Visibility>
+
+## BrowserConfig builder
+
+The most direct way to configure a run is the `BrowserConfig` builder.
+`BrowserConfig::builder()` starts from the default configuration, every setter
+returns the builder so calls can be chained, and `build()` returns the
+`BrowserConfig` (it refuses an empty Selenium Grid server name and a plugin name
+that does not exist). A default configuration is headless, reads no environment
+variables, and starts a chromedriver for you when none is running at the default
+WebDriver URL. To change a configuration you already hold, such as
+`Settings::to_browser_config()` or `BrowserConfig::from_env()`, start from
+`config.into_builder()`.
+
+```rust,no_run
+use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, DriverMode};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .headless(true)
+        .mobile(true)
+        .locale("en-US")
+        .proxy("http://proxy.example.com:8080")
+        .build()?;
+
+    let mut sb = BaseCase::new(config).await?;
+    sb.set_timeout(15).await?;
+    sb.open("https://seleniumbase.io").await?;
+    sb.quit().await?;
+    Ok(())
+}
+```
+
+Key builder methods:
+
+| Method | Effect |
+|---|---|
+| `mode(mode)` | Set `DriverMode::WebDriver`, `Cdp`, or `Uc`. |
+| `browser(browser)` | Set `Browser::Chrome`, `Chromium`, `Edge`, or `Firefox`. |
+| `headless(bool)` | Run without a visible window. |
+| `webdriver_url(url)` | Connect to this WebDriver server instead of auto-starting a local chromedriver. |
+| `user_agent(s)` | Override the user agent string. |
+| `mobile(bool)` | Emulate a mobile device: a 390x844 window and an Android Chrome user agent, unless you set your own user agent. |
+| `locale(s)` | Set `navigator.languages` / `Accept-Language`. |
+| `proxy(url)` | Route traffic through an HTTP/HTTPS/SOCKS proxy. |
+| `proxy_pac_url(url)` | Load proxy configuration from a <Tooltip tip="Proxy auto-config: a script that tells the browser which proxy to use for a URL.">PAC</Tooltip> file. |
+| `user_data_dir(path)` | Launch with an existing Chromium profile. |
+| `extension_dir(path)` | Load an unpacked extension. |
+| `start_page(url)` | The page `BaseCase::open_start_page` / `goto_start_page` returns to (default `about:blank`). |
+| `reuse_session(bool)` | Share browsers among the tests of the run (`--reuse-session`, `--rs`); see [Sharing a browser between tests](#sharing-a-browser-between-tests). |
+| `reuse_module_session(bool)` / `reuse_class_session(name)` | Share a browser only among the tests of one module, or of one name (`--rcs`). Both turn `reuse_session` on. |
+| `ad_block(bool)` | Sets `ad_block`: a Chromium WebDriver session refuses the requests of advertising and tracking hosts (see below). |
+| `ad_block_list(list)` | Block the hosts of this `AdBlockList` instead of the built-in list, and turn `ad_block` on. |
+| `fingerprint(fp)` | Apply a [`Fingerprint`](/stealth/introduction). |
+| `browser_binary_path(path)` | Use this Chrome/Chromium/Edge executable. |
+| `extra_args(vec)` / `extra_arg(s)` | Pass extra Chromium launch flags. |
+
+`remote_webdriver_timeout(Duration)` sets the client-side timeout of each
+request to a Remote WebDriver server (a part of a second rounds up to a whole
+second), the field `remote_webdriver_timeout_seconds`.
+
+| Builder | Effect |
+|---|---|
+| `run_settings(settings)` | The demo, slow, message and default-timeout settings a test starts with; see [Run settings](/guides/configure-runs/run-settings). |
+
+### Blocking ads
+
+<Badge color="blue">Chromium WebDriver sessions</Badge>
+
+`ad_block` makes a Chromium WebDriver session (Chrome, Chromium, Edge, Brave,
+Comet, Opera, Chrome for Testing, `chrome-headless-shell`) refuse every request
+to a listed advertising or tracking host and its subdomains. Once the session is
+connected it sends the hosts to the browser with `Network.setBlockedURLs`
+through chromedriver's DevTools channel. The list is the built-in
+`AdBlockList::builtin()`, or your own:
+
+```rust
+use seleniumbase_rs::config::ad_block_list::AdBlockList;
+use seleniumbase_rs::BrowserConfig;
+
+let list = AdBlockList::from_hosts(["ads.example.com", "tracker.example.net"])?;
+let config = BrowserConfig::builder().ad_block_list(list).build()?;
+Ok::<(), seleniumbase_rs::SeleniumBaseError>(())
+```
+
+A list of your own replaces the built-in one. A list that needs more than 2,000
+URL patterns is refused when the session starts. Limits:
+
+<Warning>
+
+- The block belongs to a window. The session repeats it for the window it opens
+  with and for each window it switches to (`switch_to_window`,
+  `switch_to_new_window`); a window reached any other way needs
+  `BrowserSession::apply_ad_block()`.
+- A URL that names a port (`https://ads.example.com:8443/`) is not matched.
+- A frame of another site is not stopped from loading, and what it requests is
+  not blocked (checked in Chrome 155). A frame of the page's own site is blocked
+  like the page. Ad frames are usually of another site, so this blocks the
+  scripts, pixels and images a page asks for, and not the frames that carry the
+  ads.
+- Firefox, Safari and Internet Explorer have no DevTools channel through
+  WebDriver, so the setting blocks nothing there and a warning says so.
+- Python hides the ad elements of a page once it has loaded; `BaseCase::ad_block`
+  does that, when called. The pure CDP engine blocks hosts with
+  `LaunchOptionsBuilder::ad_block`.
+
+</Warning>
+
+### Launch settings
+
+The Python SeleniumBase options that shape how a browser or its driver starts
+live in `BrowserConfig::browser` (a `BrowserSettings`, what both engines start) and
+`BrowserConfig::session` (a `SessionSettings`, what only a WebDriver session reads), and have
+builder methods of their own. Each value type reads the text the Python command line takes, so
+`"1280,720".parse::<WindowSize>()` and `"eager".parse::<PageLoadStrategy>()`
+work.
+
+| Method | Python option | Effect |
+|---|---|---|
+| `block_images(bool)`, `disable_js(bool)`, `disable_cookies(bool)`, `do_not_track(bool)`, `external_pdf(bool)` | `--block-images`, `--disable-js`, `--disable-cookies`, `--do-not-track`, `--external-pdf` | Browser preferences (Chrome `prefs`, Firefox preferences). |
+| `enable_sync(bool)` | `--enable-sync` | Leave Chrome Sync on; sessions switch it off otherwise. |
+| `disable_csp(bool)` | `--disable-csp`, `--dcsp`, `--no-csp` | Remove the Content-Security-Policy headers (bundled extension, Chromium only). |
+| `page_load_strategy(s)` | `--page-load-strategy`, `--pls` | `normal`, `eager` or `none`. |
+| `window_size(s)`, `window_position(p)` | `--window-size`, `--window-position` | Size and place the window. |
+| `device_metrics(m)` | `--metrics`, `d_width`, `d_height`, `d_p_r` | Emulate a phone screen (turns `mobile` on). |
+| `proxy_bypass_list(l)` | `--proxy-bypass-list` | Hosts that skip the proxy. |
+| `proxy_for_driver_download(bool)` | `--proxy-driver` | Download drivers and Chrome for Testing through the proxy. |
+| `extension_archive(a)` | `--extension-zip`, `--crx` | Load a `.zip` or `.crx` extension (Chromium). |
+| `automation_extension(bool)`, `recorder_extension(bool)` | `--use-auto-ext`, `recorder_ext` | Keep Chrome's automation extension; load the Recorder. |
+| `esc_end(bool)` | `--esc-end`, `--esc_end`, `--ee` | End the test when ESC is pressed in the browser (see below). |
+| `recording_sb_cdp(bool)` | `--rec-sb-cdp`, `rec_sb_cdp` | Write recordings as pure CDP code: `export_recording_as_rust` and `save_recording_to_logs` return `ActionRecorder::to_cdp_script` ([Recorder Mode](/guides/record-and-replay/recorder-mode#pure-cdp-code---rec-sb-cdp)). |
+| `firefox_options(o)` | `--firefox-arg`, `--firefox-pref` | Firefox arguments and preferences. |
+| `capabilities(c)` | `--cap-string`, `--cap-file` | Merge extra capabilities into the session's. |
+| `driver_version(v)` | `--driver-version` | Run this chromedriver (downloaded when missing). |
+| `remote_debug(bool)`, `remote_debug_port(p)` | `--remote-debug` | Open Chrome's debugger (9222 or a port you name). |
+| `cdp_events(c)` | `--log-cdp-events`, `--uc-cdp-events` | Keep the DevTools events; read them with `BrowserSession::cdp_events`. |
+| `virtual_display(d)` | `--xvfb`, `--xvfb-metrics` | Run a headed browser on <Tooltip tip="A virtual display server: it lets a headed browser run on a machine with no screen.">Xvfb</Tooltip> (Linux). |
+
+`browser` also takes `Brave`, `Comet`, `Opera`, `Safari`,
+`InternetExplorer`, `ChromeForTesting` and `ChromeHeadlessShell` (the Python
+`--brave`, `--comet`, `--opera`, `--safari`, `--ie`, `--cft` and `--chs`). Chrome
+for Testing and `chrome-headless-shell` are downloaded into `downloaded_drivers/`
+when missing; Opera, Safari and Internet Explorer need their own driver
+(`operadriver`, `safaridriver`, `IEDriverServer`) on the `PATH`.
+
+### Ending a test with ESC
+
+<Badge color="blue">WebDriver engine (`BaseCase`) only</Badge>
+
+`esc_end(true)` lets the person watching a headed run stop the test: `BaseCase`
+puts a key listener in the page, and the first `open`, `click`, `click_link_text`,
+`highlight`, `wait_for_element_visible`, `wait_for_ready_state_complete`, `type_text`,
+`update_text` or `press_keys` after ESC was pressed returns
+`SeleniumBaseError::Skipped` instead of doing its work. `run_browser_test`
+counts that as a skipped test, not a failure. A new page loses the listener, so
+`open`, `refresh`, `go_back`, `go_forward`, `click`, `click_link_text` and
+`wait_for_ready_state_complete` put it back. The listener is added with
+`addEventListener`, so the page keeps its own key handlers. Only the WebDriver
+engine (`BaseCase`) has the option.
+
+### Sharing a browser between tests
+
+`reuse_session(true)` (`--reuse-session`, `--reuse_session`, `--rs`,
+`SB_REUSE_SESSION`) keeps a browser open from one test to the next, as Python's
+option does. `BaseCase::new` attaches to a browser that an earlier test of the
+same process started with the same configuration (everything but the start
+page) and has given back, and `BaseCase::quit`, `run_browser_test` or dropping
+the case gives it back open instead of closing it:
+
+```rust,no_run
+use seleniumbase_rs::{run_browser_test, tokio, BrowserConfig};
+
+#[tokio::test]
+async fn login_page_loads() -> seleniumbase_rs::Result<()> {
+    let config = BrowserConfig::builder().reuse_session(true).build()?;
+    run_browser_test(config, async |sb| sb.open("https://example.com/login").await)
+    .await
+}
+```
+
+Each `#[tokio::test]` has its own Tokio runtime, so what is shared is the
+browser's WebDriver session, not a client: a process-wide registry keeps the
+address of its WebDriver server, its session id and the chromedriver this crate
+started, and each test attaches with a client of its own.
+
+- Before a test gets a browser back it is cleaned: an open dialog is dismissed,
+  every window but the first is closed, every cookie is deleted (through
+  DevTools on a Chromium browser), the open page's local and session storage is
+  cleared, and it goes to `about:blank` (then to the start page, if there is
+  one). Python keeps the cookies and the page unless `--crumbs` is given; here a
+  browser is always cleaned, because Rust tests run in any order and side by
+  side.
+- One test holds a browser at a time. A test that starts while every matching
+  browser is held gets a browser of its own, kept for reuse too, so a run with
+  four test threads ends up with up to four browsers. A browser that no longer
+  answers is closed and replaced.
+- `new_driver` browsers are never shared.
+- `BaseCase::session_id()` tells which browser a test has.
+
+`reuse_module_session(true)` (`--rcs`, `--reuse-class-session`,
+`SB_REUSE_CLASS_SESSION`) shares a browser only among the tests of one Rust
+module, which plays the part of Python's test class. The module is read from
+the name libtest gives the thread a test runs on: `login::tests::valid_password`
+is in `login::tests`, and every test at the root of an integration test file is
+in the root module. `reuse_class_session("Login")` shares one among the
+tests that pass the same name instead.
+
+Idle browsers are closed, with their chromedriver, by a background thread once
+no test has held them for five seconds (`seleniumbase_rs::browser::reuse::set_idle_timeout`,
+or `SB_REUSE_IDLE_SECS` in whole seconds), by
+`seleniumbase_rs::shutdown_reused_sessions()`, and by
+`common::shutdown::drain_cleanups`, which `sbrs` calls before it exits. A Rust
+test binary has no hook that runs after its last test, and it usually exits
+sooner than the idle timeout. On macOS and Linux the browser of the last tests
+still ends with the binary: every chromedriver and browser this crate starts
+belongs to a process group that a small watcher ends when the program that
+started it exits, also when that program is killed.
+
+<Warning>
+
+On Windows nothing watches
+them, so call `shutdown_reused_sessions()` where your run ends (the `main` of a
+`harness = false` test target, or the end of a program).
+
+</Warning>
+
+Under cargo-nextest
+each test is a process of its own, so nothing is shared.
+
+## Global config file
+
+Create `sbase_config.toml` in the directory you run from, for shared defaults:
+
+<CodeGroup>
+
+```toml sbase_config.toml
+browser = "chrome"
+headless = false
+mobile = false
+locale = "en-US"
+timeout_seconds = 10
+proxy = "http://proxy.example.com:8080"
+```
+
+```json .sbase_config
+{ "browser": "chrome", "headless": false, "timeout_seconds": 10 }
+```
+
+</CodeGroup>
+
+Every key is optional and any key you leave out keeps its default. The keys are
+the flat keys `sbrs options` lists (the [Settings page](/settings/overview) describes the `[run]`, `[report]` and `[test]` tables too): `browser`, `headless`, `timeout_seconds`,
+`proxy`, `proxy_pac_url`, `window_width`, `window_height`,
+`user_data_dir`, `extension_dir`, `locale`, `user_agent`, `mode` (`webdriver`,
+`cdp` or `uc`), `ad_block`, `reuse_session`, `reuse_class_session`, `mobile`, `threads`, `esc_end`,
+`rec_sb_cdp`, `remote_webdriver_timeout_seconds`, `webdriver_url` and `chrome_bin`.
+Note that `timeout_seconds` is a whole number of seconds. A `browser` or `mode`
+that is not a known name, or a `window_width` without a `window_height`, is an
+error when the file is read. The file may also write the nested form that `Settings`
+serializes to (`[browser]`, `[session]` and the tables inside them); the
+[Settings page](/settings/overview#the-nested-form) shows it.
+
+`Settings::load_global()` looks for these names, in this order, in the
+**current working directory only** (it does not search parent directories):
+`sbase_config.toml`, `.sbase_config.toml`, `.sbase_config`. A file whose name
+ends in `.toml` is read as TOML; any other name, including `.sbase_config`, is
+read as JSON (the second tab above).
+
+<Warning>
+
+A flat `key=value` file is not supported. `sbrs --config FILE` (or `-c FILE`)
+reads one specific file by the same rule.
+
+</Warning>
+
+<Note>
+
+`timeout_seconds` becomes the default wait of every `BaseCase` made from
+`settings.to_browser_config()` (`BaseCase::new`, so `run_browser_test` and the
+plugin runner too); `sb.set_timeout(..)` changes it later. `window_width` and
+`window_height` set the browser window when both are present.
+
+</Note>
+
+To build a `BrowserConfig` from the file in your own test:
+
+```rust,no_run
+use seleniumbase_rs::config::settings::Settings;
+use seleniumbase_rs::BaseCase;
+
+async fn demo() -> Result<(), Box<dyn std::error::Error>> {
+    // The global config file (if any), with the SB_* variables applied on top.
+    // `Settings::load_from(path)` reads a file you name instead.
+    let settings = Settings::load()?;
+    let config = settings.to_browser_config();
+
+    // `timeout_seconds` from the file or `SB_TIMEOUT` is already its default wait.
+    let mut sb = BaseCase::new(config).await?;
+    sb.quit().await?;
+    Ok(())
+}
+```
+
+`to_browser_config()` takes the WebDriver URL and the browser binary from
+`webdriver_url` and `chrome_bin` (`SB_WEBDRIVER_URL` and `SB_CHROME_BIN`), and
+does not set a fingerprint or extra arguments; add those with the builder
+methods afterwards.
+
+## Environment variables
+
+Environment variables override file values. The prefix is `SB_` (not `SBASE_`):
+
+```bash Terminal
+export SB_HEADLESS=true
+export SB_LOCALE=fr-FR
+export SB_BROWSER=chrome
+export SB_TIMEOUT=20
+```
+
+`Settings::load` and `Settings::from_env` read the variable of every row of the
+[option table](/settings/test-options), each written into the setting its row names (a path of
+the grouped settings, such as `browser.proxy.server`), over the settings file.
+The long-standing ones are `SB_BROWSER`, `SB_HEADLESS`, `SB_TIMEOUT`,
+`SB_REMOTE_WEBDRIVER_TIMEOUT`, `SB_PROXY`, `SB_PROXY_PAC_URL`,
+`SB_WINDOW_WIDTH`, `SB_WINDOW_HEIGHT`, `SB_USER_DATA_DIR`, `SB_EXTENSION_DIR`,
+`SB_LOCALE`, `SB_USER_AGENT`, `SB_MODE`, `SB_AD_BLOCK`, `SB_REUSE_SESSION`,
+`SB_REUSE_CLASS_SESSION`, `SB_MOBILE`, `SB_THREADS`, `SB_ESC_END`,
+`SB_REC_SB_CDP`, `SB_WEBDRIVER_URL` and `SB_CHROME_BIN`; every other option of
+Python's pytest plugin has one too (`SB_DARK_MODE`, `SB_ENV`, `SB_RERUNS`, ...),
+and `sbrs options` prints each with its settings key. Booleans accept
+`true`/`false`, `1`/`0`, `yes`/`no` and `on`/`off`. There is no automatic name
+mapping: a variable that is not in the table, such as `SB_LOGGING__LOG_LEVEL`,
+does nothing. See [Settings and Global Configuration](/settings/overview)
+for the table, including the separate runtime variables (`SB_LOG_LEVEL`,
+`SB_LOG_FORMAT`, ...), which `RuntimeConfig::from_env()` reads, and
+`BrowserConfig::from_env()`, which reads only `SB_WEBDRIVER_URL`,
+`SB_CHROME_BIN` and `SB_REMOTE_WEBDRIVER_TIMEOUT`, by the same rule as `Settings` (a blank
+value is unset):
+
+```bash Terminal
+export SB_WEBDRIVER_URL=http://localhost:4444/wd/hub
+```
+
+The `sbrs` binary reads the settings variables above when it drives a browser
+(`sbrs open`, `smoke` and the other browser commands). A bad value, such
+as `SB_HEADLESS=maybe`, stops the command with an error before any browser
+starts.
+
+## CLI flags
+
+<Note>
+
+The options of `sbrs` itself are global: they go before or after the
+subcommand, so `sbrs --headless open URL` and `sbrs open URL --headless` are the
+same command. With `sbrs test` a flag after `test` wins over one before it.
+
+</Note>
+
+```bash Terminal
+cargo run --bin sbrs -- --headless --proxy http://proxy.example.com:8080 open https://seleniumbase.io
+```
+
+Common flags:
+
+| Flag | Description |
+|------|-------------|
+| `--headless` / `--headed` | Run the browser without or with a visible window. |
+| `--mobile` | Emulate a mobile device (see `mobile`). |
+| `--esc-end` / `--esc_end` / `--ee` | End the test when ESC is pressed in the browser (see `esc_end`). |
+| `--rec-sb-cdp` / `--rec_sb_cdp` | Write recordings as pure CDP code (see `recording_sb_cdp`); `sbrs run-scenario` then saves a pure CDP program. |
+| `--proxy HOST:PORT` | Route traffic through a proxy (`scheme://host:port` also works). |
+| `--proxy-list FILE` | Choose from a file of proxies: a random one, or the entry named by `--proxy`. |
+| `--proxy-pac-url URL` | Use a PAC file for proxy configuration. |
+| `--user-data-dir DIR` | Load a Chromium user data directory. |
+| `--extension-dir DIR` | Load a Chromium extension. |
+| `--user-agent STRING` / `-a STRING` | Override the user agent. |
+| `--locale LOCALE` | Set the browser locale. |
+| `--ad-block` | Sets `ad_block`: a Chromium WebDriver session refuses the built-in list of ad and tracker hosts (`Network.setBlockedURLs`). Firefox and Safari block nothing. Images stay on; `--block-images` turns them off. |
+| `--reuse-session` / `--reuse_session` / `--rs` | Share browsers among the tests of the run (see [Sharing a browser between tests](#sharing-a-browser-between-tests)); `sbrs test` passes it on as `SB_REUSE_SESSION`. |
+| `--rcs` / `--reuse-class-session` / `--reuse_class_session` | Share a browser among the tests of one Rust module; `sbrs test` passes it on as `SB_REUSE_CLASS_SESSION`. |
+| `-n NUM` / `--threads NUM` | An option of `sbrs test` only: run that many tests at once (`--test-threads`), so that many browsers. `-n auto` leaves it to Cargo. |
+| `--browser NAME` | Select `chrome`, `chromium`, `edge`, or `firefox`. |
+| `--cdp` / `--uc` | Select CDP or UC mode (they cannot be combined). |
+| `--webdriver URL` | WebDriver server URL (default `SB_WEBDRIVER_URL`, else `http://localhost:4444`). |
+| `-c FILE` / `--config FILE` | Read settings from this TOML or JSON file instead of the global config file. |
+
+Run `sbrs --help` and `sbrs <subcommand> --help` for the full list of flags.
+
+### Running tests with `sbrs test`
+
+`sbrs test` runs `cargo test` (or `cargo nextest`, or one example) and carries
+the options into the tests as `SB_*` environment variables, so a test that
+loads `Settings` (the `sb` and `sb_cdp` fixtures do) sees them. It takes every
+option of Python SeleniumBase's pytest plugin as a flag, in each of its
+spellings; [Test options](/settings/test-options) lists them with their variables
+and settings keys.
+
+```bash Terminal
+# Sets SB_HEADLESS=true and SB_BROWSER=firefox, and runs 2 tests at a time.
+sbrs test --headless --browser firefox -n 2
+# Select by name or by module, run on nextest, rerun a failure twice.
+sbrs test -k "login and not slow" --runner nextest --reruns 2
+sbrs test -m smoke --env qa
+sbrs test --co                   # list the tests, run nothing
+sbrs test login --test checkout --release --features turso
+```
+
+| Flag | What it does |
+|---|---|
+| `FILTER` | Run the tests whose name contains this text. |
+| `-k EXPR` | Select tests by name, as pytest's `-k` (`login or signup`, `not slow`). With the cargo runner only `or` and `not` words work; `a and b` needs `--runner nextest`. |
+| `-m EXPR` | Select tests by marker. A marker is a module name: `-m smoke` runs the tests in `mod smoke`. |
+| `-n N` / `-n auto` | How many tests run at once (`--test-threads`); `auto` leaves it to Cargo. |
+| `--co` / `--collect-only` | List the tests and `collected N items`; start no browser. |
+| `--runner cargo` / `--runner nextest` | The runner (`SB_TEST_RUNNER`, key `runner` in `[test]`); cargo is the default. |
+| `--test NAME`, `--example NAME`, `--release`, `--features a,b` | What Cargo runs. |
+| `-s` | Show what the tests print (`--nocapture`). |
+| `--` then arguments | Passed to the test harness. |
+
+Only the options you actually pass become variables, so everything else still
+comes from your config file and environment. A non-default `--webdriver` URL
+reaches the tests as `SB_WEBDRIVER_URL`. Options before the command
+(`sbrs --headless test`) reach the tests too, and a flag after `test` wins.
+
+A run empties `latest_logs/` and `downloaded_files/` first (`--archive-logs` and
+`--archive-downloads` keep them in `archived_logs/` and `archived_files/`); a
+plain `cargo test` never does. The debug flags are in the [Debug
+modes tutorial](/guides/configure-runs/tracing#debug-modes).
+
+## Combining config sources
+
+For a test that builds its configuration with `Settings::load` and then adjusts
+it, later sources win:
+
+1. Built-in defaults (`Settings::default()`).
+2. Global config file (`sbase_config.toml`, `.sbase_config.toml` or `.sbase_config`).
+3. Environment variables (`SB_*`).
+4. Programmatic changes, such as `BrowserConfig` builder calls.
+
+```mermaid
+graph LR
+  A["Settings::default()"] -->|later wins| B["Config file"]
+  B -->|later wins| C["SB_* variables"]
+  C -->|later wins| D["Programmatic changes"]
+```
+
+`sbrs test` adds the command-line flags as step 3 for its tests. The `sbrs`
+binary follows the same order when it drives a browser directly (`sbrs open`
+and the like): it starts from the config file (the global one, or the one named
+by `--config`), applies the `SB_*` variables on top, and then the CLI flags
+override both. So `SB_HEADLESS=true sbrs open URL` runs headless, and
+`SB_HEADLESS=true sbrs --headed open URL` shows the window.
+
+Two settings can be written in two ways: the window size (`window_size`, or `window_width` and
+`window_height`) and the language (`locale`, or `locale_code`). The higher source decides,
+whichever spelling it uses: `SB_WINDOW_WIDTH` and `SB_WINDOW_HEIGHT` beat a `window_size` in the
+file, and `--locale` beats a `locale_code` in the environment. Only inside one source does the
+size beat the pair and the code beat the locale.
+
+The layers are merged setting by setting: a source that gives only `SB_PROXY` leaves the window
+size of the file alone, a list of a higher source (`extension_dir`, `chromium_arg`) replaces the
+list of the lower one, and a switch that a higher source turns off (`SB_DARK_MODE=false`) turns
+off what a lower one turned on. A value that is refused names its source: the variable with its
+flag, or the file with the key as the file wrote it. See
+[how the layers are merged](/settings/overview#how-the-layers-are-merged).
+
+
+<Tip>
+
+Use the config file for stable defaults, environment variables for CI-specific
+overrides, and the builder or CLI flags for one-off experiments.
+
+</Tip>
+
+## Troubleshooting
+
+<AccordionGroup>
+
+<Accordion title="Environment variable ignored" icon="key">
+
+**Likely cause:** Used `SBASE_` instead of `SB_`, or the variable is not one `Settings` reads.
+
+**Fix:** Use the `SB_` prefix and a name from the list above.
+
+</Accordion>
+
+<Accordion title="sbrs open still shows a window with SB_HEADLESS=true" icon="window-maximize">
+
+**Likely cause:** A `--headed` flag beats the variable, or the variable is not exported to `sbrs`.
+
+**Fix:** Drop `--headed`, and `export` the variable (or put it before the command on the same line).
+
+</Accordion>
+
+<Accordion title="Config file not loaded" icon="folder-open">
+
+**Likely cause:** File is in a parent directory, or has another name.
+
+**Fix:** Put it in the directory you run from, named `sbase_config.toml`.
+
+</Accordion>
+
+<Accordion title="Config file fails to parse" icon="file-circle-exclamation">
+
+**Likely cause:** A flat `key=value` file, or a float for `timeout_seconds`.
+
+**Fix:** Use TOML (`.toml` name) or JSON, and whole numbers of seconds.
+
+</Accordion>
+
+<Accordion title="CLI flag rejected as unexpected" icon="flag">
+
+**Likely cause:** A misspelled flag, or one the command does not take.
+
+**Fix:** Run `sbrs COMMAND --help`. The options of `sbrs` itself work before or
+after the command (`sbrs --headless open URL`).
+
+</Accordion>
+
+<Accordion title="Proxy not used" icon="network-wired">
+
+**Likely cause:** Format is invalid.
+
+**Fix:** Pass a full URL such as `http://host:8080`.
+
+</Accordion>
+
+</AccordionGroup>
+
+## Next steps
+
+<Columns cols={3}>
+
+<Card color="#1a85d4" title="Run settings" icon="sliders" href="/guides/configure-runs/run-settings">
+
+Demo and slow mode, and the other run-wide settings.
+
+</Card>
+
+<Card color="#199f43" title="Settings and Global Configuration" icon="gear" href="/settings/overview">
+
+The table of settings and the separate runtime variables.
+
+</Card>
+
+<Card color="#d47628" title="Fingerprint & Stealth Profiles" icon="fingerprint" href="/stealth/introduction">
+
+What `fingerprint` applies.
+
+</Card>
+
+</Columns>

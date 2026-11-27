@@ -435,9 +435,9 @@ fn the_rendered_parity_table_is_up_to_date() {
     let expected = fs::read_to_string(&fresh).expect("rendered table");
     let _ = fs::remove_file(&fresh);
     assert_eq!(
-        read("docs/parity.md"),
+        read("docs/why-rust/parity.md"),
         expected,
-        "docs/parity.md is out of date; run `mise run parity-docs`"
+        "docs/why-rust/parity.md is out of date; run `mise run parity-docs`"
     );
 }
 

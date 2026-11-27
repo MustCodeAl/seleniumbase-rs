@@ -248,7 +248,7 @@ format is another tool's, and reads the same words for every key:
 The policy keys (`canvas_noise`, `audio_masking`, `native_spoofing`,
 `grant_permissions`, `disable_csp`, `quic_mode`, `ports_masking`) map to the
 policy. The full table is in
-[Fingerprints: words every key reads](/stealth/profiles#words-every-key-reads).
+[Fingerprints: words every key reads](/stealth/identity/profiles#words-every-key-reads).
 
 ## As built
 
@@ -303,7 +303,7 @@ no protocol command denies the request for one tab.
   The 0.5.0 entry, with the migration snippet.
 </Card>
 
-<Card title="Browser profiles" icon="id-card" color="#a631be" href="/tutorials/browser_profiles">
+<Card title="Browser profiles" icon="id-card" color="#a631be" href="/guides/configure-runs/browser-profiles">
   External profile payloads and how their fields map to a fingerprint.
 </Card>
 

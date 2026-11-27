@@ -342,7 +342,7 @@ starts, then calls `on_browser` and gives the first window the packages and
 the session with `SeleniumBaseError::Plugin`. Plugins cannot be combined with
 `reuse_session` (`SeleniumBaseError::InvalidConfig`), and do not run with
 Internet Explorer. What each browser accepts is in
-[The WebDriver engine](/tutorials/plugins#the-webdriver-engine).
+[The WebDriver engine](/plugins/guide#the-webdriver-engine).
 
 ## BrowserConfigBuilder::plugins_named
 
