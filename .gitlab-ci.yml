@@ -5,8 +5,9 @@
 # GitHub workflows stay in .github/workflows: `docker` and multi-platform `release` run there, and
 # the pages deployment of `ci.yml` has no equivalent here.
 #
-# The group is on GitLab's Open Source plan (Ultimate, approved 2026-11-06), so the whole test
-# suite runs on every pipeline; the Chrome and msrv jobs stay manual. Pipelines are created only
+# The group is on GitLab's Open Source plan (Ultimate, approved 2026-11-06), so `gate`, `test`,
+# `supply-chain`, `msrv`, and `chrome` run automatically; `chrome:undetected` stays manual because
+# external Cloudflare/reCAPTCHA checks are sensitive to shared runner IPs. Pipelines are created only
 # for merge requests, for the default branch (which must be `main`), for `lane/` and `batch/`
 # branches that have no open merge request, for `vX.Y.Z` version tags, and by hand, and a new push
 # cancels a pipeline that is still running (every job is `interruptible`):
@@ -288,7 +289,7 @@ docs:
 msrv:
   extends: .rust
   rules:
-    - !reference [.rules_by_hand]
+    - !reference [.rules_automatic]
   before_script:
     - apt-get update -qq
     - apt-get install -y -qq --no-install-recommends libgtk-3-dev libx11-dev libxdo-dev libxkbcommon-dev libxtst-dev libssl-dev pkg-config
@@ -316,7 +317,7 @@ chrome:
     - .rust
     - .target_cache
   rules:
-    - !reference [.rules_by_hand]
+    - !reference [.rules_automatic]
   timeout: 3h
   cache:
     policy: pull
