@@ -26,7 +26,7 @@ concurrency:
 # `seleniumbase-rs-playwright` in `crates/playwright`. `default-members` names the
 # first two, so a plain `cargo build`, `cargo test` or `cargo clippy` covers both;
 # the `library` job runs the other two.
-# Features that only the library defines (`s3`, `azure`, ...) apply to the
+# Features that only the library defines (`s3`, `pdf`, ...) apply to the
 # library; the command line forwards the ones it needs.
 
 jobs:
@@ -68,7 +68,7 @@ jobs:
           - os: ubuntu-latest
             features: ""
           - os: ubuntu-latest
-            features: "s3,azure,gcp"
+            features: "s3"
           - os: ubuntu-latest
             features: "mcp-server,pdf"
           # The `sb` fixtures and the Gherkin steps: the mock-driven tests of `testing` and `bdd`.
@@ -80,7 +80,7 @@ jobs:
           - os: macos-latest
             features: ""
           - os: macos-latest
-            features: "s3,azure,gcp"
+            features: "s3"
           - os: macos-latest
             features: "mcp-server,pdf"
           - os: macos-latest
@@ -88,7 +88,7 @@ jobs:
           - os: windows-latest
             features: ""
           - os: windows-latest
-            features: "s3,azure,gcp"
+            features: "s3"
           - os: windows-latest
             features: "mcp-server,pdf"
 

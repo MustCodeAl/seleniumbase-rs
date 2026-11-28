@@ -420,9 +420,9 @@ chrome:undetected:
     paths:
       - undetected_logs/
 
-# Builds `sbrs` and `sbrs-mcp` for x86_64-unknown-linux-gnu and stages the release `.tgz` archive
-# with completions, man pages, Warp workflows, README.md, LICENSE and SHA256SUMS, matching the
-# archive layout of `.github/workflows/release.yml` and `[package.metadata.binstall]`.
+# Builds `sbrs` and `sbrs-mcp` for Linux x86_64 and Linux arm64 and stages release `.tgz` archives
+# with completions, man pages, Warp workflows, README.md, LICENSE and SHA256SUMS-linux, matching
+# the archive layout of `.github/workflows/release.yml` and `[package.metadata.binstall]`.
 release:binaries:
   stage: test
   extends:
@@ -436,30 +436,49 @@ release:binaries:
       when: manual
       allow_failure: true
   timeout: 2h
+  before_script:
+    - apt-get update -qq
+    - apt-get install -y -qq --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross
+    - !reference [.rust, before_script]
+    - mise exec -- rustup target add aarch64-unknown-linux-gnu
   script:
     - mise exec -- cargo build --release --locked --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features mcp-server,pdf,plugins-builtin
     - |
-      tag="${CI_COMMIT_TAG:-v0.9.4}"
-      name="seleniumbase-rs-${tag}-x86_64-unknown-linux-gnu"
-      stage="stage/${name}"
-      rm -rf stage dist
-      mkdir -p "$stage/completions" "$stage/man/man1" "$stage/warp/workflows" dist
-      cp target/release/sbrs target/release/sbrs-mcp "$stage/"
-      ./target/release/sbrs completions bash > "$stage/completions/sbrs.bash"
-      ./target/release/sbrs completions zsh > "$stage/completions/_sbrs"
-      ./target/release/sbrs completions fish > "$stage/completions/sbrs.fish"
-      ./target/release/sbrs completions powershell > "$stage/completions/_sbrs.ps1"
-      ./target/release/sbrs completions fig > "$stage/completions/sbrs.ts"
-      ./target/release/sbrs completions usage > "$stage/completions/sbrs.usage.kdl"
-      cp man/man1/*.1 "$stage/man/man1/"
-      cp .warp/workflows/*.yaml "$stage/warp/workflows/"
-      cp README.md LICENSE "$stage/"
-      tar -C "$stage" -czf "dist/${name}.tgz" .
-      tar -tzf "dist/${name}.tgz"
-      rm -rf stage
-      (cd dist && sha256sum -- * > SHA256SUMS && cat SHA256SUMS)
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+      CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
+      AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar \
+      mise exec -- cargo build --release --locked --target aarch64-unknown-linux-gnu --package "$CLI_PACKAGE" --bin sbrs --bin sbrs-mcp --features mcp-server,pdf,plugins-builtin
+    - |
+      version=$(sed -n 's/^version = "\([^"]*\)"/\1/p' Cargo.toml | head -n 1)
+      tag="${CI_COMMIT_TAG:-v${version}}"
+      rm -rf stage dist comp_tmp
+      mkdir -p comp_tmp dist
+      ./target/release/sbrs completions bash > comp_tmp/sbrs.bash
+      ./target/release/sbrs completions zsh > comp_tmp/_sbrs
+      ./target/release/sbrs completions fish > comp_tmp/sbrs.fish
+      ./target/release/sbrs completions powershell > comp_tmp/_sbrs.ps1
+      ./target/release/sbrs completions fig > comp_tmp/sbrs.ts
+      ./target/release/sbrs completions usage > comp_tmp/sbrs.usage.kdl
+      pack_target() {
+        local target="$1"
+        local bin_dir="$2"
+        local name="seleniumbase-rs-${tag}-${target}"
+        local stage="stage/${name}"
+        mkdir -p "$stage/completions" "$stage/man/man1" "$stage/warp/workflows"
+        cp "${bin_dir}/sbrs" "${bin_dir}/sbrs-mcp" "$stage/"
+        cp comp_tmp/* "$stage/completions/"
+        cp man/man1/*.1 "$stage/man/man1/"
+        cp .warp/workflows/*.yaml "$stage/warp/workflows/"
+        cp README.md LICENSE "$stage/"
+        tar -C "$stage" -czf "dist/${name}.tgz" .
+        tar -tzf "dist/${name}.tgz"
+      }
+      pack_target x86_64-unknown-linux-gnu target/release
+      pack_target aarch64-unknown-linux-gnu target/aarch64-unknown-linux-gnu/release
+      rm -rf stage comp_tmp
+      (cd dist && sha256sum -- *.tgz > SHA256SUMS-linux && cat SHA256SUMS-linux)
   artifacts:
-    name: "seleniumbase-rs-binaries-${CI_COMMIT_TAG:-v0.9.4}"
+    name: "seleniumbase-rs-binaries-${CI_COMMIT_TAG:-main}"
     when: always
     expire_in: 4 weeks
     paths:

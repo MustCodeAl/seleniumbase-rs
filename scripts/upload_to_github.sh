@@ -11,8 +11,12 @@ if [[ -z "${GH_PAT:-}" ]]; then
 fi
 
 GITHUB_REPO="${GITHUB_REPO:-MustCodeAl/seleniumbase-rs}"
-GITHUB_RELEASE_TAG="${GITHUB_RELEASE_TAG:-${CI_COMMIT_TAG:-v0.9.4}}"
 PROJECT_ROOT="${CI_PROJECT_DIR:-.}"
+MANIFEST_VERSION=""
+if [[ -f "${PROJECT_ROOT}/Cargo.toml" ]]; then
+  MANIFEST_VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' "${PROJECT_ROOT}/Cargo.toml" | head -n 1)
+fi
+GITHUB_RELEASE_TAG="${GITHUB_RELEASE_TAG:-${CI_COMMIT_TAG:-v${MANIFEST_VERSION}}}"
 ARTIFACTS_DIR="${ARTIFACTS_DIR:-${PROJECT_ROOT}/dist}"
 
 collect_dist_files() {
@@ -22,7 +26,7 @@ collect_dist_files() {
     "$dir"/*.tgz \
     "$dir"/*.tar.gz \
     "$dir"/*.zip \
-    "$dir"/SHA256SUMS \
+    "$dir"/SHA256SUMS* \
     "$dir"/*.sha256; do
     if [[ -f "$candidate" ]]; then
       FILES+=("$candidate")
