@@ -246,10 +246,28 @@ impl BaseCase {
     /// time of the tab's first action, so it sorts before that action and
     /// after whatever opened the tab.
     async fn note_new_tab(&mut self, handle: String) {
-        let by_page = self
-            .execute_script("return !!window.opener || document.referrer !== '';")
+        // An iframe blur opens a popout helper tab (`window.name` prefixed with
+        // `__sb_recorder_frame_`) so clicks inside the frame can be captured;
+        // replay uses `switch_to_frame` in the same tab, so never emit `n_tab`.
+        let info = self
+            .execute_script(
+                "var isFrame = (window.name || '').startsWith('__sb_recorder_frame_'); \
+                 if (isFrame) { window.name = ''; } \
+                 return [isFrame, !!window.opener || document.referrer !== ''];",
+            )
             .await
-            .ok()
+            .ok();
+        let is_frame = info
+            .as_ref()
+            .and_then(|value| value.get(0))
+            .and_then(|value| value.as_bool())
+            .unwrap_or(false);
+        if is_frame {
+            return;
+        }
+        let by_page = info
+            .as_ref()
+            .and_then(|value| value.get(1))
             .and_then(|value| value.as_bool())
             .unwrap_or(false);
         self.recording.new_tabs.insert(handle, by_page);
@@ -257,11 +275,24 @@ impl BaseCase {
 
     /// The mark for a tab that opened while recording: `n_tab` (move to the
     /// tab a page opened) or `o_tab` (open a tab), stamped just before the
-    /// tab's first action. `None` for a tab that was there from the start or
-    /// that recorded nothing.
-    fn tab_open_row(&self, handle: &str, tab: &[RawAction]) -> Option<RawAction> {
+    /// tab's first action (ignoring actions inherited via `sessionStorage`).
+    /// `None` for a tab that was there from the start or that recorded nothing.
+    fn tab_open_row(
+        &self,
+        handle: &str,
+        tab: &[RawAction],
+        prior: &[RawAction],
+    ) -> Option<RawAction> {
         let by_page = *self.recording.new_tabs.get(handle)?;
-        let first = tab.iter().map(|action| action.time_ms).min()?;
+        let first = tab
+            .iter()
+            .filter(|action| {
+                !prior
+                    .iter()
+                    .any(|prev| prev.time_ms == action.time_ms && prev.kind == action.kind)
+            })
+            .map(|action| action.time_ms)
+            .min()?;
         let kind = if by_page { "n_tab" } else { "o_tab" };
         Some(RawAction::new(
             kind,
@@ -534,7 +565,7 @@ impl BaseCase {
                         self.recording.stash_origins.push(prev_origin.clone());
                     }
                     self.recording.cache.insert(handle.clone(), tab.clone());
-                    if let Some(open) = self.tab_open_row(handle, &tab) {
+                    if let Some(open) = self.tab_open_row(handle, &tab, &actions) {
                         actions.push(open);
                     }
                     actions.extend(tab);
@@ -542,7 +573,7 @@ impl BaseCase {
                 // A dialog is open or the tab is gone: use what was kept.
                 None => {
                     if let Some(kept) = self.recording.cache.get(handle) {
-                        if let Some(open) = self.tab_open_row(handle, kept) {
+                        if let Some(open) = self.tab_open_row(handle, kept, &actions) {
                             actions.push(open);
                         }
                         actions.extend(kept.iter().cloned());
@@ -552,7 +583,7 @@ impl BaseCase {
         }
         for (handle, kept) in &self.recording.cache {
             if !order.contains(handle) {
-                if let Some(open) = self.tab_open_row(handle, kept) {
+                if let Some(open) = self.tab_open_row(handle, kept, &actions) {
                     actions.push(open);
                 }
                 actions.extend(kept.iter().cloned());
@@ -1014,5 +1045,42 @@ mod tests_recorder_mode {
     async fn the_watch_without_a_webdriver_ends_instead_of_panicking() {
         let mut sb = without_a_webdriver();
         assert!(sb.watch_tick().await, "there is no window to watch");
+    }
+
+    #[test]
+    fn tab_open_row_ignores_inherited_actions_from_prior_tabs() {
+        let mut sb = without_a_webdriver();
+        sb.recording.new_tabs.insert("w2".to_owned(), true);
+
+        let prior = vec![
+            RawAction::new(
+                "begin",
+                serde_json::json!("https://a.test"),
+                serde_json::json!("https://a.test/"),
+                1000,
+            ),
+            RawAction::new(
+                "click",
+                serde_json::json!("#open"),
+                serde_json::json!(""),
+                1500,
+            ),
+        ];
+        let tab = vec![
+            prior[0].clone(),
+            prior[1].clone(),
+            RawAction::new(
+                "_url_",
+                serde_json::json!("https://a.test"),
+                serde_json::json!("https://a.test/popup"),
+                1550,
+            ),
+        ];
+
+        let open = sb
+            .tab_open_row("w2", &tab, &prior)
+            .expect("new tab emits n_tab");
+        assert_eq!(open.kind, "n_tab");
+        assert_eq!(open.time_ms, 1548);
     }
 }

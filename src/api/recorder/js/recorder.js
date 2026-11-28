@@ -488,7 +488,9 @@ window.addEventListener('blur', () => {
         if (el.hasAttribute('src') && el.getAttribute('src').length > 0 &&
             !sbBlankSrc(el.getAttribute('src'))) {
             if (el.src.startsWith('data:')) return;
-            skip_open = true; window.open(el.src, "_blank");
+            skip_open = true;
+            window.__sbRecorderFrameSeq = (window.__sbRecorderFrameSeq || 0) + 1;
+            window.open(el.src, "__sb_recorder_frame_" + d_now + "_" + window.__sbRecorderFrameSeq);
         }
         else {
             // SBRS: a frame with no address (inline, about:blank) shows its
