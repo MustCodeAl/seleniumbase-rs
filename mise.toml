@@ -9,6 +9,11 @@
 # This file is the repository's one task runner (the justfile it replaced is gone). A task that
 # takes arguments says how in the comment above it.
 
+monorepo_root = true
+
+[monorepo]
+config_roots = ["apps/sbrs-desktop"]
+
 [tools]
 # The crate's rust-version; the msrv CI job and the Dockerfile move with it.
 # clippy and rustfmt come from rust-toolchain.toml: a tool option such as

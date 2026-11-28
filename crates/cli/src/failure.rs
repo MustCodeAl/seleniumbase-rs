@@ -225,11 +225,12 @@ fn strip_ansi(text: &str) -> String {
     plain
 }
 
-/// The width of the terminal as `COLUMNS` says it, else 80.
+/// The width of the terminal as `COLUMNS` or [`usage::tty::columns`] says it, else 80.
 fn terminal_width() -> usize {
     std::env::var("COLUMNS")
         .ok()
         .and_then(|columns| columns.trim().parse::<usize>().ok())
+        .or_else(usage::tty::columns)
         .map_or(DEFAULT_WIDTH, |columns| columns.clamp(40, 200))
 }
 
@@ -557,37 +558,9 @@ mod tests {
         found
     }
 
-    /// The words of `line` as a shell reads them: spaces separate, single and double quotes
-    /// group.
+    /// The words of `line` as a shell reads them (`usage_lib::shell_words::split`).
     fn shell_words(line: &str) -> Vec<String> {
-        let mut words = Vec::new();
-        let mut word = String::new();
-        let mut quote: Option<char> = None;
-        let mut started = false;
-        for letter in line.chars() {
-            match quote {
-                Some(open) if letter == open => quote = None,
-                Some(_) => word.push(letter),
-                None if letter == '\'' || letter == '"' => {
-                    quote = Some(letter);
-                    started = true;
-                }
-                None if letter.is_whitespace() => {
-                    if started {
-                        words.push(std::mem::take(&mut word));
-                        started = false;
-                    }
-                }
-                None => {
-                    word.push(letter);
-                    started = true;
-                }
-            }
-        }
-        if started {
-            words.push(word);
-        }
-        words
+        usage_lib::shell_words::split(line).expect("valid shell words in example")
     }
 
     #[test]

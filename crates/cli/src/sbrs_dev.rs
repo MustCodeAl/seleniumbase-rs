@@ -26,18 +26,21 @@ struct DevCli {
 }
 
 #[derive(Debug, usage::Subcommands)]
+#[usage(run)]
 enum DevCommand {
     /// Authoring and scaffolding tools for seleniumbase-rs plugins.
     Plugin(DevPluginArgs),
 }
 
 #[derive(Debug, usage::Args)]
+#[usage(run)]
 struct DevPluginArgs {
     #[usage(subcommand)]
     command: DevPluginCommand,
 }
 
 #[derive(Debug, usage::Subcommands)]
+#[usage(run)]
 enum DevPluginCommand {
     /// Create a new seleniumbase-rs plugin crate (opens the TUI wizard by default).
     #[usage(example = "sbrs-dev plugin new")]
@@ -52,10 +55,7 @@ enum DevPluginCommand {
 }
 
 #[derive(Debug, usage::Args)]
-struct DevPluginNewArgs {
-    /// Name of the new plugin crate; omit to launch the interactive TUI wizard.
-    #[usage(value_hint = usage::ValueHint::Other)]
-    name: Option<String>,
+struct DevPluginCommonArgs {
     /// Template style ("library" or "cli").
     #[usage(long, default = "library", value_hint = usage::ValueHint::Other)]
     template: String,
@@ -83,6 +83,35 @@ struct DevPluginNewArgs {
     /// Target execution environment ("local", "docker", "cloud").
     #[usage(long = "target-env", default = "local", value_hint = usage::ValueHint::Other)]
     target_env: String,
+}
+
+impl DevPluginCommonArgs {
+    fn into_options(
+        self,
+        name: String,
+        out_dir: Option<PathBuf>,
+    ) -> plugin_scaffold::PluginScaffoldOptions {
+        plugin_scaffold::PluginScaffoldOptions {
+            name,
+            template: self.template,
+            backend: self.backend,
+            focus: self.focus,
+            integrations: self.integrations,
+            headless: self.headless,
+            dev_env: self.dev_env,
+            ai_agent: self.ai_agent,
+            ide: self.ide,
+            target_env: self.target_env,
+            out_dir,
+        }
+    }
+}
+
+#[derive(Debug, usage::Args)]
+struct DevPluginNewArgs {
+    /// Name of the new plugin crate; omit to launch the interactive TUI wizard.
+    #[usage(value_hint = usage::ValueHint::Other)]
+    name: Option<String>,
     /// Destination directory for the scaffolded plugin.
     #[usage(long = "out-dir", value_name = "DIR", value_hint = usage::ValueHint::DirPath)]
     out_dir: Option<PathBuf>,
@@ -92,6 +121,8 @@ struct DevPluginNewArgs {
     /// Disable the interactive TUI wizard and require NAME.
     #[usage(long = "no-tui", bool_value)]
     no_tui: bool,
+    #[usage(flatten)]
+    common: DevPluginCommonArgs,
 }
 
 #[derive(Debug, usage::Args)]
@@ -99,33 +130,8 @@ struct DevPluginPreviewArgs {
     /// Name of the plugin crate to preview.
     #[usage(value_hint = usage::ValueHint::Other)]
     name: String,
-    /// Template style ("library" or "cli").
-    #[usage(long, default = "library", value_hint = usage::ValueHint::Other)]
-    template: String,
-    /// Backend foundation ("cdp" or "webdriver").
-    #[usage(long, value_hint = usage::ValueHint::Other)]
-    backend: Option<String>,
-    /// Architectural focus ("general", "cli", or "scraping").
-    #[usage(long, default = "general", value_hint = usage::ValueHint::Other)]
-    focus: String,
-    /// Target integrations ("mcp", "ci", or "mcp,ci").
-    #[usage(long, value_hint = usage::ValueHint::Other)]
-    integrations: Option<String>,
-    /// Enable headless mode by default.
-    #[usage(long, bool_value)]
-    headless: bool,
-    /// Development environment configuration.
-    #[usage(long = "dev-env", default = "cargo", value_hint = usage::ValueHint::Other)]
-    dev_env: String,
-    /// AI agent rule file to generate.
-    #[usage(long = "ai-agent", default = "none", value_hint = usage::ValueHint::Other)]
-    ai_agent: String,
-    /// Primary IDE for instructions.
-    #[usage(long, default = "cursor", value_hint = usage::ValueHint::Other)]
-    ide: String,
-    /// Target execution environment.
-    #[usage(long = "target-env", default = "local", value_hint = usage::ValueHint::Other)]
-    target_env: String,
+    #[usage(flatten)]
+    common: DevPluginCommonArgs,
 }
 
 #[derive(Debug, usage::Args)]
@@ -135,101 +141,81 @@ struct DevPluginCheckArgs {
     path: PathBuf,
 }
 
-fn options_from_new(args: &DevPluginNewArgs) -> plugin_scaffold::PluginScaffoldOptions {
-    plugin_scaffold::PluginScaffoldOptions {
-        name: args.name.clone().unwrap_or_default(),
-        template: args.template.clone(),
-        backend: args.backend.clone(),
-        focus: args.focus.clone(),
-        integrations: args.integrations.clone(),
-        headless: args.headless,
-        dev_env: args.dev_env.clone(),
-        ai_agent: args.ai_agent.clone(),
-        ide: args.ide.clone(),
-        target_env: args.target_env.clone(),
-        out_dir: args.out_dir.clone(),
-    }
-}
+impl usage::Run for DevPluginNewArgs {
+    type Output = Result<u8, Box<dyn std::error::Error>>;
 
-fn run_new(args: &DevPluginNewArgs) -> Result<u8, Box<dyn std::error::Error>> {
-    let want_tui = !args.no_tui && (args.tui || args.name.is_none());
-    let opts = options_from_new(args);
+    fn run(self) -> Self::Output {
+        let want_tui = !self.no_tui && (self.tui || self.name.is_none());
+        let has_name = self.name.is_some();
+        let opts = self
+            .common
+            .into_options(self.name.unwrap_or_default(), self.out_dir);
 
-    if want_tui {
-        #[cfg(feature = "tui")]
-        {
-            match plugin_scaffold_tui::run_plugin_scaffold_tui(opts)? {
-                Some(result) => {
-                    std::io::stdout()
-                        .lock()
-                        .write_all(result.instructions.as_bytes())?;
+        if want_tui {
+            #[cfg(feature = "tui")]
+            {
+                match plugin_scaffold_tui::run_plugin_scaffold_tui(opts)? {
+                    Some(result) => {
+                        std::io::stdout()
+                            .lock()
+                            .write_all(result.instructions.as_bytes())?;
+                    }
+                    None => {
+                        eprintln!("Plugin scaffolding cancelled.");
+                    }
                 }
-                None => {
-                    eprintln!("Plugin scaffolding cancelled.");
-                }
+                return Ok(0);
             }
-            return Ok(0);
+            #[cfg(not(feature = "tui"))]
+            {
+                eprintln!(
+                    "this sbrs-dev was built without the terminal UI; pass `<NAME> --no-tui` or reinstall with `--features tui`"
+                );
+                return Ok(2);
+            }
         }
-        #[cfg(not(feature = "tui"))]
-        {
-            eprintln!(
-                "this sbrs-dev was built without the terminal UI; pass `<NAME> --no-tui` or reinstall with `--features tui`"
-            );
+
+        if !has_name {
+            eprintln!("error: <NAME> is required when --no-tui is set");
             return Ok(2);
         }
-    }
 
-    if args.name.is_none() {
-        eprintln!("error: <NAME> is required when --no-tui is set");
-        return Ok(2);
+        let result = plugin_scaffold::scaffold_plugin(&opts)?;
+        std::io::stdout()
+            .lock()
+            .write_all(result.instructions.as_bytes())?;
+        Ok(0)
     }
-
-    let result = plugin_scaffold::scaffold_plugin(&opts)?;
-    std::io::stdout()
-        .lock()
-        .write_all(result.instructions.as_bytes())?;
-    Ok(0)
 }
 
-fn run_preview(args: &DevPluginPreviewArgs) -> Result<(), Box<dyn std::error::Error>> {
-    let opts = plugin_scaffold::PluginScaffoldOptions {
-        name: args.name.clone(),
-        template: args.template.clone(),
-        backend: args.backend.clone(),
-        focus: args.focus.clone(),
-        integrations: args.integrations.clone(),
-        headless: args.headless,
-        dev_env: args.dev_env.clone(),
-        ai_agent: args.ai_agent.clone(),
-        ide: args.ide.clone(),
-        target_env: args.target_env.clone(),
-        out_dir: None,
-    };
-    let (files, instructions) = plugin_scaffold::render_plugin_files(&opts)?;
-    let mut out = std::io::stdout().lock();
-    for (path, content) in files {
-        writeln!(out, "=== {} ===\n{}", path.display(), content)?;
+impl usage::Run for DevPluginPreviewArgs {
+    type Output = Result<u8, Box<dyn std::error::Error>>;
+
+    fn run(self) -> Self::Output {
+        let opts = self.common.into_options(self.name, None);
+        let (files, instructions) = plugin_scaffold::render_plugin_files(&opts)?;
+        let mut out = std::io::stdout().lock();
+        for (path, content) in files {
+            writeln!(out, "=== {} ===\n{}", path.display(), content)?;
+        }
+        writeln!(out, "{instructions}")?;
+        Ok(0)
     }
-    writeln!(out, "{instructions}")?;
-    Ok(())
+}
+
+impl usage::Run for DevPluginCheckArgs {
+    type Output = Result<u8, Box<dyn std::error::Error>>;
+
+    fn run(self) -> Self::Output {
+        let report = plugin_manager::check_plugin_project(&self.path)?;
+        println!("{report}");
+        Ok(0)
+    }
 }
 
 fn run() -> Result<u8, Box<dyn std::error::Error>> {
-    let cli = DevCli::parse();
-    match cli.command {
-        DevCommand::Plugin(plugin) => match plugin.command {
-            DevPluginCommand::New(args) => run_new(&args),
-            DevPluginCommand::Preview(args) => {
-                run_preview(&args)?;
-                Ok(0)
-            }
-            DevPluginCommand::Check(args) => {
-                let report = plugin_manager::check_plugin_project(&args.path)?;
-                println!("{report}");
-                Ok(0)
-            }
-        },
-    }
+    use usage::Run as _;
+    DevCli::parse().command.run()
 }
 
 fn main() -> ExitCode {
@@ -287,8 +273,8 @@ mod tests {
             panic!("expected plugin new");
         };
         assert_eq!(args.name.as_deref(), Some("sample-plugin"));
-        assert_eq!(args.template, "cli");
-        assert!(args.headless);
+        assert_eq!(args.common.template, "cli");
+        assert!(args.common.headless);
         assert!(args.no_tui);
     }
 

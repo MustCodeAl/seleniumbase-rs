@@ -1,0 +1,43 @@
+# Monorepo mise tasks for SeleniumBase Commander Desktop (https://mise.jdx.dev/tasks/monorepo.html).
+# Invoke from the repo root as `mise //apps/sbrs-desktop:...` or from this directory as `mise run ...`.
+
+[tools]
+rust = "1.100.1"
+# cargo-tauri (`cargo install tauri-cli --locked` or `cargo binstall tauri-cli`)
+
+[tasks.fmt]
+description = "Check Rust formatting for the Tauri Desktop GUI"
+dir = "src-tauri"
+sources = ["Cargo.toml", "Cargo.lock", "src/**/*.rs", "build.rs"]
+outputs = { auto = true }
+run = "cargo fmt --check"
+
+[tasks.lint]
+description = "Run clippy on the Tauri Desktop GUI"
+dir = "src-tauri"
+env = { CARGO_INCREMENTAL = "0" }
+sources = ["Cargo.toml", "Cargo.lock", "src/**/*.rs", "build.rs"]
+outputs = { auto = true }
+run = "cargo clippy --all-targets -- -D warnings"
+
+[tasks.test]
+description = "Run unit tests for discovery and runner"
+dir = "src-tauri"
+env = { CARGO_INCREMENTAL = "0" }
+sources = ["Cargo.toml", "Cargo.lock", "src/**/*.rs", "build.rs"]
+outputs = { auto = true }
+run = "cargo test"
+
+[tasks.check]
+description = "Run formatting, clippy, and unit tests for the Desktop GUI"
+depends = ["fmt", "lint", "test"]
+
+[tasks.dev]
+description = "Launch SeleniumBase Commander Desktop in development mode (via cargo-tauri)"
+run = "cargo tauri dev"
+
+[tasks.build]
+description = "Build SeleniumBase Commander Desktop release bundle (via cargo-tauri)"
+sources = ["src/**/*", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock", "src-tauri/tauri.conf.json", "src-tauri/src/**/*.rs", "src-tauri/build.rs"]
+outputs = { auto = true }
+run = "cargo tauri build"
