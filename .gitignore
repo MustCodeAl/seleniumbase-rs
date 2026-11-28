@@ -1,6 +1,7 @@
 /target
 /target_check
 /target-tui
+/apps/sbrs-desktop/src-tauri/target/
 /.copilot-target
 /book
 .DS_Store

@@ -1,0 +1,12 @@
+{
+  "name": "sbrs-desktop",
+  "private": true,
+  "version": "0.10.0",
+  "description": "SeleniumBase Commander Desktop GUI (Tauri) for running tests, Behave features, Case Plans, and Recorder workflows.",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  }
+}

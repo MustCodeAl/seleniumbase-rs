@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SeleniumBase Commander</title>
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="main.js"></script>
+  </head>
+  <body>
+    <a href="#maincontent" class="skip-link">Skip to main content</a>
+
+    <header class="app-header">
+      <div class="brand-row">
+        <div class="brand-title">
+          <span class="brand-badge" aria-hidden="true">SB</span>
+          <div>
+            <h1>SeleniumBase Commander</h1>
+            <p class="muted" id="project-summary">Loading workspace...</p>
+          </div>
+        </div>
+        <div class="run-pill" id="global-run-status" aria-live="polite">Idle</div>
+      </div>
+
+      <form id="workspace-form" class="workspace-bar" aria-label="Workspace selector">
+        <label for="workspace-path">Project folder</label>
+        <input id="workspace-path" type="text" class="font-mono" spellcheck="false" autocomplete="off" />
+        <button id="reload-workspace" type="submit" class="btn-secondary">Reload</button>
+      </form>
+    </header>
+
+    <div class="tabs-shell">
+      <div class="tablist" focusgroup="tablist nomemory" role="tablist" aria-label="SeleniumBase Commander tools">
+        <button type="button" role="tab" id="tab-commander" aria-selected="true" focusgroupstart data-panel="panel-commander">
+          Commander
+        </button>
+        <button type="button" role="tab" id="tab-behave" aria-selected="false" data-panel="panel-behave">
+          Behave
+        </button>
+        <button type="button" role="tab" id="tab-caseplans" aria-selected="false" data-panel="panel-caseplans">
+          Case Plans
+        </button>
+        <button type="button" role="tab" id="tab-recorder" aria-selected="false" data-panel="panel-recorder">
+          Recorder &amp; Logs
+        </button>
+      </div>
+    </div>
+
+    <main id="maincontent" tabindex="-1">
+      <div id="status-banner" class="banner" role="alert" hidden></div>
+
+      <!-- TAB 1: COMMANDER -->
+      <div id="panel-commander" role="tabpanel" aria-labelledby="tab-commander">
+        <div class="panel-inner commander-grid">
+          <section class="pane targets-pane" aria-labelledby="commander-targets-heading">
+            <div class="pane-head">
+              <h2 id="commander-targets-heading">Tests &amp; Examples</h2>
+              <div class="btn-group">
+                <button id="select-visible-tests" type="button" class="btn-ghost">Select visible</button>
+                <button id="clear-selected-tests" type="button" class="btn-ghost">Clear</button>
+              </div>
+            </div>
+
+            <div class="filter-bar">
+              <label for="test-filter" class="visually-hidden">Filter tests and examples</label>
+              <input id="test-filter" type="search" placeholder="Filter by file or test name (-k)..." />
+              <label for="kind-filter" class="visually-hidden">Filter by target kind</label>
+              <select id="kind-filter">
+                <option value="">All kinds</option>
+                <option value="integration_test">Tests</option>
+                <option value="example">Examples</option>
+                <option value="unit_suite">Library (--lib)</option>
+              </select>
+            </div>
+
+            <ul id="target-list" class="target-list" aria-label="Discovered test targets"></ul>
+            <p id="targets-empty" class="empty-note" hidden>No matching tests or examples found.</p>
+          </section>
+
+          <section class="pane runner-pane" aria-labelledby="commander-run-heading">
+            <div class="pane-head">
+              <h2 id="commander-run-heading">Run Configuration</h2>
+              <div class="btn-group">
+                <button id="run-selected-btn" type="button" class="btn-primary">Run Selected</button>
+                <button id="stop-run-btn" type="button" class="btn-danger" disabled>Stop</button>
+              </div>
+            </div>
+
+            <div class="options-grid">
+              <div class="field">
+                <label for="opt-browser">Browser</label>
+                <select id="opt-browser">
+                  <option value="">Default</option>
+                  <option value="chrome">chrome</option>
+                  <option value="chromium">chromium</option>
+                  <option value="edge">edge</option>
+                  <option value="firefox">firefox</option>
+                  <option value="safari">safari</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="opt-features">Cargo features</label>
+                <input id="opt-features" type="text" class="font-mono" placeholder="e.g. mcp-server,test-util,testing,bdd" />
+              </div>
+              <div class="field">
+                <label for="opt-case-filter">Test filter (-k)</label>
+                <input id="opt-case-filter" type="text" class="font-mono" placeholder="Optional fn name substring" />
+              </div>
+              <div class="field">
+                <label for="opt-extra-env">Extra env (KEY=VAL)</label>
+                <input id="opt-extra-env" type="text" class="font-mono" placeholder="SB_TIME_LIMIT=60" />
+              </div>
+            </div>
+
+            <fieldset class="flags-row">
+              <legend>Execution Flags</legend>
+              <label class="check-chip"><input type="checkbox" id="flag-headless" /> Headless</label>
+              <label class="check-chip"><input type="checkbox" id="flag-demo" /> Demo</label>
+              <label class="check-chip"><input type="checkbox" id="flag-slow" /> Slow</label>
+              <label class="check-chip"><input type="checkbox" id="flag-uc" /> UC Stealth</label>
+              <label class="check-chip"><input type="checkbox" id="flag-reuse" /> Reuse Session</label>
+              <label class="check-chip"><input type="checkbox" id="flag-incognito" /> Incognito</label>
+              <label class="check-chip"><input type="checkbox" id="flag-adblock" /> Ad Block</label>
+              <label class="check-chip"><input type="checkbox" id="flag-ignored" /> Include #[ignore]</label>
+            </fieldset>
+
+            <div class="output-head">
+              <h3>Live Console Output</h3>
+              <button id="clear-console-btn" type="button" class="btn-ghost">Clear</button>
+            </div>
+            <pre id="console-output" class="console-box" aria-live="off"></pre>
+          </section>
+        </div>
+      </div>
+
+      <!-- TAB 2: BEHAVE COMMANDER -->
+      <div id="panel-behave" role="tabpanel" aria-labelledby="tab-behave" hidden="until-found">
+        <div class="panel-inner single-column">
+          <div class="pane">
+            <div class="pane-head">
+              <h2>Behave Feature Scenarios</h2>
+              <div class="btn-group">
+                <button id="open-new-feature-btn" type="button" class="btn-secondary">New Feature</button>
+                <button id="run-behave-btn" type="button" class="btn-primary">Run Checked Scenarios</button>
+              </div>
+            </div>
+
+            <div class="filter-bar">
+              <label for="behave-tag-filter" class="visually-hidden">Filter by Behave tags</label>
+              <input id="behave-tag-filter" type="search" class="font-mono" placeholder="Tag expression (e.g. @smoke,-@slow)" />
+              <label for="behave-features" class="visually-hidden">Cargo features for BDD tests</label>
+              <input id="behave-features" type="text" class="font-mono" value="bdd,testing" />
+            </div>
+
+            <ul id="behave-list" class="feature-list" aria-label="Feature files and scenarios"></ul>
+            <p id="behave-empty" class="empty-note" hidden>No `.feature` files found under `features/`.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB 3: CASE PLANS -->
+      <div id="panel-caseplans" role="tabpanel" aria-labelledby="tab-caseplans" hidden="until-found">
+        <div class="panel-inner split-grid">
+          <section class="pane" aria-labelledby="caseplans-list-heading">
+            <div class="pane-head">
+              <h2 id="caseplans-list-heading">Discovered Test IDs</h2>
+            </div>
+            <ul id="caseplan-list" class="simple-list" aria-label="Case plan test IDs"></ul>
+            <p id="caseplans-empty" class="empty-note" hidden>No integration test IDs discovered.</p>
+          </section>
+
+          <section class="pane" aria-labelledby="caseplans-editor-heading">
+            <div class="pane-head">
+              <div>
+                <h2 id="caseplans-editor-heading">Case Plan Editor</h2>
+                <p id="active-plan-path" class="muted font-mono">Select a test ID on the left</p>
+              </div>
+              <button id="save-caseplan-btn" type="button" class="btn-primary" disabled>Save Plan</button>
+            </div>
+            <label for="caseplan-editor" class="visually-hidden">Case plan markdown content</label>
+            <textarea id="caseplan-editor" class="code-editor font-mono" rows="18" placeholder="Select a test on the left to inspect or edit its case plan..."></textarea>
+          </section>
+        </div>
+      </div>
+
+      <!-- TAB 4: RECORDER & LOGS -->
+      <div id="panel-recorder" role="tabpanel" aria-labelledby="tab-recorder" hidden="until-found">
+        <div class="panel-inner split-grid">
+          <section class="pane" aria-labelledby="recorder-tools-heading">
+            <div class="pane-head">
+              <h2 id="recorder-tools-heading">Recorder &amp; Quick Actions</h2>
+            </div>
+            <form id="mkrec-form" class="stack-form">
+              <div class="field">
+                <label for="mkrec-file">Recorded test file name</label>
+                <input id="mkrec-file" type="text" class="font-mono" placeholder="tests/recorded_flow.rs" required />
+              </div>
+              <div class="check-row">
+                <label class="check-chip"><input type="checkbox" id="mkrec-overwrite" /> Overwrite if exists</label>
+                <label class="check-chip"><input type="checkbox" id="mkrec-behave" /> Gherkin / Behave output</label>
+              </div>
+              <div class="btn-group">
+                <button type="submit" class="btn-primary">Start Recording (`sbrs mkrec`)</button>
+                <button id="launch-recorder-btn" type="button" class="btn-secondary">Open `sbrs recorder`</button>
+                <button id="list-plugins-btn" type="button" class="btn-ghost">Inspect Plugins</button>
+              </div>
+            </form>
+          </section>
+
+          <section class="pane" aria-labelledby="logs-heading">
+            <div class="pane-head">
+              <h2 id="logs-heading">Failure Evidence (`latest_logs/`)</h2>
+            </div>
+            <ul id="logs-list" class="simple-list" aria-label="Failure log folders"></ul>
+            <p id="logs-empty" class="empty-note" hidden>No failure artifacts found in `latest_logs/`.</p>
+            <div id="log-preview" class="log-preview" hidden>
+              <img id="log-screenshot" alt="Failure screenshot from latest_logs" hidden />
+              <pre id="log-info-text" class="console-box small" hidden></pre>
+            </div>
+          </section>
+        </div>
+      </div>
+    </main>
+
+    <!-- Native dialog for New Behave Feature -->
+    <dialog id="new-feature-dialog" aria-labelledby="new-feature-title">
+      <form id="new-feature-form" method="dialog" class="dialog-form">
+        <div class="dialog-head">
+          <h2 id="new-feature-title">Create New Behave Feature</h2>
+        </div>
+        <div class="field">
+          <label for="nf-name">File slug (saved as features/&lt;name&gt;.feature)</label>
+          <input id="nf-name" type="text" class="font-mono" placeholder="checkout_flow" required />
+        </div>
+        <div class="field">
+          <label for="nf-title">Feature title</label>
+          <input id="nf-title" type="text" placeholder="Checkout Flow" required />
+        </div>
+        <div class="field">
+          <label for="nf-scenarios">Scenarios (one per line)</label>
+          <textarea id="nf-scenarios" rows="4" placeholder="Guest user completes checkout&#10;Expired coupon shows error"></textarea>
+        </div>
+        <div class="dialog-actions">
+          <button id="cancel-new-feature" type="button" class="btn-secondary">Cancel</button>
+          <button type="submit" class="btn-primary">Create Feature</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
