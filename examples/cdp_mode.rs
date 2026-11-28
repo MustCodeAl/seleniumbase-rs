@@ -28,10 +28,10 @@ mod local_site;
 
 use std::time::Duration;
 
-use local_site::{ensure, Site, DEMO_PATH};
+use local_site::{DEMO_PATH, Site, ensure};
 use seleniumbase_rs::artifacts::ensure_latest_logs_dir;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, DriverMode, Result};
+use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode, Result, run_browser_test, tokio};
 
 #[tokio::main]
 async fn main() -> Result<()> {

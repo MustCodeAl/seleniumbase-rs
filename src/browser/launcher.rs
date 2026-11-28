@@ -11,17 +11,17 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-use crate::browser::binaries::{locate, DOWNLOADS_DIR};
+use crate::browser::binaries::{DOWNLOADS_DIR, locate};
 use crate::browser::chrome_for_testing::install_chromedriver;
 use crate::browser::config::{Browser, BrowserConfig};
 use crate::browser::downloader::download_chrome_driver_for;
 use crate::browser::driver_access::{
-    killed_by_the_system, make_runnable, spawn_repairing, CodeSignature,
+    CodeSignature, killed_by_the_system, make_runnable, spawn_repairing,
 };
 use crate::browser::driver_install::{
     downloaded_driver, install_geckodriver, install_msedgedriver,
 };
-use crate::browser::driver_version::{binary_major, fit, Fit};
+use crate::browser::driver_version::{Fit, binary_major, fit};
 
 use crate::browser::options::{DriverVersion, LaunchSwitch};
 use crate::common::orphan_guard::OrphanGuard;
@@ -821,7 +821,7 @@ async fn launch_driver_binary(
                 return Err(SeleniumBaseError::browser_launch(
                     binary_str,
                     format!("the driver exited as it started ({status})"),
-                ))
+                ));
             }
         }
     }

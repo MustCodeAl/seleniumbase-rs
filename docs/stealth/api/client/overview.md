@@ -110,7 +110,7 @@ Every field on `StealthScriptOptions` has a matching `const fn` builder setter (
 
 ## Engine extension traits (`client::apply`)
 
-Import these traits from `seleniumbase_rs_stealth` (re-exported at the crate root) or `seleniumbase_rs_stealth::client`:
+Import these traits from `seleniumbase_rs_stealth::client` (or `seleniumbase_rs_stealth::client::apply`):
 
 | Trait | Implemented on | Methods |
 |---|---|---|
@@ -133,20 +133,20 @@ Import these traits from `seleniumbase_rs_stealth` (re-exported at the crate roo
 
 ## Module map
 
-| Module | What it holds |
-|---|---|
-| `client::apply` | `StealthLayer`, `StealthPlan`, `PageScriptTarget`, `LaunchOptionsFingerprintExt`, `BrowserConfigFingerprintExt`, `PageFingerprintExt`, `BaseCaseFingerprintExt`. |
-| `client::script` | 42-surface `StealthScriptBundle` (`new`, `new_with`, `from_profile`, `from_profile_with`, `from_generated`, `from_generated_with`, `script()`) and `StealthScriptOptions`. |
-| `client::providers` | 32 built-in JS `EvasionProvider` passes (`EvasionRegistry`, `default_registry()`, `session_registry(&fp)`, `EvasionConfig`, `EvasionContext`, `SESSION_OMITTED_PROVIDERS`). |
-| `client::evasions` | `bootstrap_script(&fp)`, `session_script(&fp)`, `safe_cdp_overrides(&fp)`, `launch_args(&fp)`, `cdc_scrub()`, `permitted_switch()`. |
-| `client::uc` | Undetected-Chrome launch helpers paired with fingerprint settings. |
-| Layer 0 core re-exports | `client::patcher` (`ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`, `BinaryPatchRule`, `PatchPreset`, `engine_spoofing_args`), `client::dprocess`, `client::reactor`, `client::behavior`, `client::humanize`, `client::cdp`. |
+| Module | What it holds | Deep reference |
+|---|---|---|
+| `client::apply` | `StealthLayer`, `StealthPlan`, `PageScriptTarget`, `LaunchOptionsFingerprintExt`, `BrowserConfigFingerprintExt`, `PageFingerprintExt`, `BaseCaseFingerprintExt`. | [Apply & StealthLayer](/stealth/api/client/apply) |
+| `client::script` | 42-surface `StealthScriptBundle` (`new`, `new_with`, `from_profile`, `from_profile_with`, `from_generated`, `from_generated_with`, `script()`) and `StealthScriptOptions`. | [Scripts & providers](/stealth/api/client/script-providers) |
+| `client::providers` | 32 built-in JS `EvasionProvider` passes (`EvasionRegistry`, `default_registry()`, `session_registry(&fp)`, `EvasionConfig`, `EvasionContext`, `SESSION_OMITTED_PROVIDERS`). | [Scripts & providers](/stealth/api/client/script-providers) |
+| `client::evasions` | `bootstrap_script(&fp)`, `session_script(&fp)`, `safe_cdp_overrides(&fp)`, `launch_args(&fp)`, `cdc_scrub()`, `window_size(&fp)`. | [Evasions, UC & core](/stealth/api/client/evasions-uc) |
+| `client::uc` | Undetected-Chrome launch helpers (`UC_STEALTH_SCRIPT`) paired with fingerprint settings. | [Evasions, UC & core](/stealth/api/client/evasions-uc) |
+| Layer 0 core re-exports | `client::patcher`, `client::dprocess`, `client::reactor`, `client::behavior`, `client::humanize`, `client::cdp`. | [Evasions, UC & core](/stealth/api/client/evasions-uc) |
 
 ## Re-exports at `seleniumbase_rs_stealth::client`
 
 | Re-export | Source module |
 |---|---|
-| `StealthLayer`, `StealthPlan`, `PageScriptTarget`, `LaunchOptionsFingerprintExt`, `BrowserConfigFingerprintExt`, `PageFingerprintExt`, `BaseCaseFingerprintExt` | `client::apply` (also re-exported at crate root except `PageScriptTarget`) |
+| `StealthLayer`, `StealthPlan`, `PageScriptTarget`, `LaunchOptionsFingerprintExt`, `BrowserConfigFingerprintExt`, `PageFingerprintExt`, `BaseCaseFingerprintExt` | `client::apply` |
 | `StealthScriptBundle`, `StealthScriptOptions` | `client::script` |
 | `EvasionProvider`, `EvasionRegistry`, `EvasionConfig`, `EvasionContext`, `default_registry`, `session_registry`, `SESSION_OMITTED_PROVIDERS` | `client::providers` |
 | `ChromeBinaryPatcher`, `ChromedriverPatcher`, `EnginePatch`, `BinaryPatchRule`, `BinaryMarkerReport`, `BinaryFormat`, `MarkerCounts`, `PatchPreset`, `PatchedBrowserBundle`, `engine_spoofing_args`, `find_system_chrome`, `find_system_chrome_with` | `seleniumbase_rs::undetected::patcher` |

@@ -6,9 +6,9 @@
 //! (`tests/examples_parity/cdp.rs`) uses, so they are known to compile.
 
 use super::ast::{Arg, Expr};
-use super::expr::{bind, compare_operand, Rendered};
-use super::table::{by_named, n, omit, s, sd, Fill, ASSERT_TIMEOUT, BY, HTML, K, P, TIMEOUT};
-use super::tr::{quote, Skip, TResult, Tr, Ty, Val};
+use super::expr::{Rendered, bind, compare_operand};
+use super::table::{ASSERT_TIMEOUT, BY, Fill, HTML, K, P, TIMEOUT, by_named, n, omit, s, sd};
+use super::tr::{Skip, TResult, Tr, Ty, Val, quote};
 
 /// A Python method and the pure CDP statement that does the same.
 struct CdpCall {
@@ -86,10 +86,18 @@ const SELECT: &[P] = &[
 
 /// The table.
 static CDP_TABLE: &[CdpCall] = &[
-    unit(&["goto", "open", "visit", "open_url"], &[s("url")], "page.goto({0}).await?"),
+    unit(
+        &["goto", "open", "visit", "open_url"],
+        &[s("url")],
+        "page.goto({0}).await?",
+    ),
     unit(&["go_back"], &[], "page.back().await?"),
     unit(&["go_forward"], &[], "page.forward().await?"),
-    unit(&["refresh", "refresh_page", "reload_page"], &[], "page.reload().await?"),
+    unit(
+        &["refresh", "refresh_page", "reload_page"],
+        &[],
+        "page.reload().await?",
+    ),
     unit(&["maximize_window"], &[], "page.window().maximize().await?"),
     unit(&["click"], ON, "page.locator({0}).click().await?"),
     unit(
@@ -113,8 +121,16 @@ static CDP_TABLE: &[CdpCall] = &[
         "page.locator({0}).hover().await?",
     ),
     unit(&["clear"], ON, "page.locator({0}).clear().await?"),
-    unit(&["submit"], &[s("selector"), BY], "page.locator({0}).submit().await?"),
-    unit(&["scroll_to"], ON, "page.locator({0}).scroll_into_view().await?"),
+    unit(
+        &["submit"],
+        &[s("selector"), BY],
+        "page.locator({0}).submit().await?",
+    ),
+    unit(
+        &["scroll_to"],
+        ON,
+        "page.locator({0}).scroll_into_view().await?",
+    ),
     unit(
         &["highlight", "flash"],
         &[s("selector"), BY, omit("loops"), omit("scroll"), TIMEOUT],
@@ -130,7 +146,12 @@ static CDP_TABLE: &[CdpCall] = &[
         &[s("selector"), s("text"), BY, TIMEOUT],
         "page.human_type({0}, {1}).await?",
     ),
-    value(&["markdown", "get_markdown"], &[], "page.markdown().await?", Ty::String),
+    value(
+        &["markdown", "get_markdown"],
+        &[],
+        "page.markdown().await?",
+        Ty::String,
+    ),
     unit(&["fill_form"], &[s("data")], "page.fill_form({0}).await?"),
     unit(
         &["add_text", "send_keys", "press_keys"],
@@ -166,7 +187,12 @@ static CDP_TABLE: &[CdpCall] = &[
     ),
     importing(
         &["select_option_by_index"],
-        &[s("dropdown_selector"), n("option"), by_named("dropdown_by"), TIMEOUT],
+        &[
+            s("dropdown_selector"),
+            n("option"),
+            by_named("dropdown_by"),
+            TIMEOUT,
+        ],
         "page.locator({0}).select_option(SelectBy::Index({1})).await?",
         &["SelectBy"],
     ),
@@ -240,7 +266,13 @@ static CDP_TABLE: &[CdpCall] = &[
     ),
     unit(
         &["assert_attribute"],
-        &[s("selector"), s("attribute"), s("value"), BY, ASSERT_TIMEOUT],
+        &[
+            s("selector"),
+            s("attribute"),
+            s("value"),
+            BY,
+            ASSERT_TIMEOUT,
+        ],
         "page.locator({0}).expect().to_have_attribute({1}, {2}).await?",
     ),
     unit(
@@ -253,7 +285,11 @@ static CDP_TABLE: &[CdpCall] = &[
         &[s("substring")],
         "page.expect().to_contain_title({0}).await?",
     ),
-    unit(&["assert_url"], &[s("url")], "page.expect().to_have_url({0}).await?"),
+    unit(
+        &["assert_url"],
+        &[s("url")],
+        "page.expect().to_have_url({0}).await?",
+    ),
     unit(
         &["assert_url_contains"],
         &[s("substring")],
@@ -294,10 +330,28 @@ static CDP_TABLE: &[CdpCall] = &[
         "page.locator({0}).is_selected().await?",
         Ty::Bool,
     ),
-    value(&["get_text"], ON, "page.locator({0}).text().await?", Ty::String),
-    unit(&["clear_local_storage"], &[], "page.local_storage().clear().await?"),
-    unit(&["delete_all_cookies"], &[], "page.cookies().clear().await?"),
-    importing(&["scroll_to_top"], &[], "page.scroll(Scroll::Top).await?", &["Scroll"]),
+    value(
+        &["get_text"],
+        ON,
+        "page.locator({0}).text().await?",
+        Ty::String,
+    ),
+    unit(
+        &["clear_local_storage"],
+        &[],
+        "page.local_storage().clear().await?",
+    ),
+    unit(
+        &["delete_all_cookies"],
+        &[],
+        "page.cookies().clear().await?",
+    ),
+    importing(
+        &["scroll_to_top"],
+        &[],
+        "page.scroll(Scroll::Top).await?",
+        &["Scroll"],
+    ),
     importing(
         &["scroll_to_bottom"],
         &[],
@@ -374,7 +428,11 @@ static CDP_TABLE: &[CdpCall] = &[
     ),
     unit(&["gui_click_element"], ON, "page.human_click({0}).await?"),
     unit(
-        &["uc_gui_click_captcha", "uc_gui_handle_captcha", "uc_click_captcha"],
+        &[
+            "uc_gui_click_captcha",
+            "uc_gui_handle_captcha",
+            "uc_click_captcha",
+        ],
         &[],
         "page.solve_captcha().await?",
     ),
@@ -511,14 +569,18 @@ impl Tr<'_> {
             "click_if_visible" => {
                 let selector = self.one_selector(method, args)?;
                 return Ok(Rendered::awaiting(
-                    format!("if page.locator({selector}).is_visible().await.unwrap_or(false) {{ let _ = page.locator({selector}).click().await; }}"),
+                    format!(
+                        "if page.locator({selector}).is_visible().await.unwrap_or(false) {{ let _ = page.locator({selector}).click().await; }}"
+                    ),
                     Ty::Unit,
                 ));
             }
             "remove_elements" | "remove_element" => {
                 let selector = self.one_selector(method, args)?;
                 return Ok(Rendered::awaiting(
-                    format!("page.evaluate(&format!(\"document.querySelectorAll('{{}}').forEach(el => el.remove())\", {selector})).await?"),
+                    format!(
+                        "page.evaluate(&format!(\"document.querySelectorAll('{{}}').forEach(el => el.remove())\", {selector})).await?"
+                    ),
                     Ty::Unit,
                 ));
             }

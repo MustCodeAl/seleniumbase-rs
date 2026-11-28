@@ -22,7 +22,7 @@ use std::panic::Location;
 use std::path::{Path, PathBuf};
 
 use super::PromptKind;
-use crate::common::color::{palette, sanitize, Color, Style};
+use crate::common::color::{Color, Style, palette, sanitize};
 use crate::error::SeleniumBaseError;
 use crate::utils::selectors::is_lookup_selector;
 

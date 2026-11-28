@@ -12,9 +12,9 @@ use serde_json::Value;
 
 use crate::DriverMode;
 
-use super::raw::{text, RawAction};
 use super::RecordedCommand;
-use super::{keep_secrets, RecordedAction, SECRET_PLACEHOLDER};
+use super::raw::{RawAction, text};
+use super::{RecordedAction, SECRET_PLACEHOLDER, keep_secrets};
 
 /// Element `index` of a JSON array, or null.
 fn nth(value: &Value, index: usize) -> &Value {

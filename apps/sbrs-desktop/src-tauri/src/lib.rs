@@ -6,12 +6,12 @@ use std::sync::Arc;
 
 use base64::Engine as _;
 use serde::Serialize;
-use tauri::{command, generate_context, generate_handler, AppHandle, Runtime, State};
+use tauri::{AppHandle, Runtime, State, command, generate_context, generate_handler};
 
 mod discovery;
 mod runner;
 
-use discovery::{safe_workspace_path, WorkspaceSnapshot};
+use discovery::{WorkspaceSnapshot, safe_workspace_path};
 use runner::{RunRequest, RunnerState};
 
 /// Resolves the best default workspace directory on launch.

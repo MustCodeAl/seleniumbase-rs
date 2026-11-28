@@ -70,8 +70,8 @@ use ring::digest;
 use ring::rand::{SecureRandom, SystemRandom};
 use serde::Serialize;
 
-use crate::core::log_helper::{TestId, BASIC_INFO_FILE, PAGE_SOURCE_FILE, SCREENSHOT_FILE};
-use crate::core::report_helper::{write_atomically, TestStatus};
+use crate::core::log_helper::{BASIC_INFO_FILE, PAGE_SOURCE_FILE, SCREENSHOT_FILE, TestId};
+use crate::core::report_helper::{TestStatus, write_atomically};
 use crate::core::test_run::{FinishedTest, RunSink, TestRun};
 use crate::error::SeleniumBaseError;
 
@@ -609,7 +609,7 @@ pub fn attach(run: &TestRun) -> Option<Arc<AllureSink>> {
 mod tests {
     use std::sync::atomic::AtomicU32;
 
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::core::report_helper::{FailureDetails, TestResult};

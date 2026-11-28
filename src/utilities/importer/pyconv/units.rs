@@ -3,7 +3,7 @@
 
 use super::ast::{BinOp, ClassDef, Expr, FuncDef, Stmt, StmtKind};
 use super::stmt::{is_chrome_constructor, is_playwright_launch, is_playwright_new_page};
-use super::tr::{py_repr, Ty};
+use super::tr::{Ty, py_repr};
 
 /// The rows of a parameterized test.
 pub(super) struct Cases {

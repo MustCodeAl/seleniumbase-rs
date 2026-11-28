@@ -978,10 +978,12 @@ mod tests {
     #[test]
     fn a_listing_or_an_example_is_no_run() {
         assert!(plan(&["--co", "--dashboard"]).unwrap().report.is_none());
-        assert!(plan(&["--example", "demo", "--dashboard"])
-            .unwrap()
-            .report
-            .is_none());
+        assert!(
+            plan(&["--example", "demo", "--dashboard"])
+                .unwrap()
+                .report
+                .is_none()
+        );
         assert!(plan(&["--dashboard"]).unwrap().report.is_some());
     }
 

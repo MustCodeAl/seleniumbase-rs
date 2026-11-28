@@ -8,14 +8,18 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-27
+
 ### Added
 
-- **Tauri Desktop GUI (`apps/sbrs-desktop`)**: Added SeleniumBase Commander Desktop built on Tauri 3 (`tauri-runtime-wry`) covering Commander (tests/examples/function discovery, multi-select queued runs, `SB_*` toggles, live streamed logs), Behave feature runner, Case Plans editor, and Recorder/`latest_logs/` viewer.
+- **Tauri Desktop GUI (`apps/sbrs-desktop`)**: Added SeleniumBase Commander Desktop built on Tauri 3 (`tauri-runtime-wry`, updated to `3.0.0-alpha.6`) covering Commander (tests/examples/function discovery, multi-select queued runs, `SB_*` toggles, live streamed logs), Behave feature runner, Case Plans editor, and Recorder/`latest_logs/` viewer.
 - **CLI Plugin Lifecycle & Developer Split (`sbrs plugin` / `sbrs-dev plugin`)**: Added `src/cli/plugin_manager.rs` with `sbrs plugin install` (local path, git URL, `owner/repo`, or catalog slug), `uninstall`, `upgrade`, `search`, `enable`, `disable`, `ls` (`list` alias), and `directory`; moved plugin authoring into the dedicated `sbrs-dev` binary (`sbrs-dev plugin new` opening the interactive Ratatui wizard by default, `preview`, and `check`).
 - **Recorder Color & Debugger TUI (`sb_recorder`, `debug_tui`, `debug_prompt`)**: Colored `SHIFT + ESC` banner and numbered output in `sb_recorder` when `color` is enabled, and added `tui` command inside interactive debug breakpoints (`DebugPrompt`, feature `tui`).
+- **Stealth API Reference Expansion (`docs/stealth/api/{identity,client}/`)**: Added detailed reference documentation for `spoof-policy`, `mimic-randomize`, `generator-bayesian`, `profile-payloads-capture`, `apply`, `script-providers`, and `evasions-uc`, registered in `docs/docs.json` and `docs/SUMMARY.md`.
 
 ### Changed
 
+- **Rust 2024 Formatting Style (`style_edition = "2024"`) & Code Quality Cleanup**: Adopted `style_edition = "2024"` in `rustfmt.toml`, removed unused crate dependencies (`anstream`, `thirtyfour`, `serde_json`), extracted `browser_settings_entries` in `src/mcp/dev/diagnose.rs`, and deduplicated `test_support::{config_for, devtools_commands}` in `src/browser/session/emulation.rs`.
 - **Docs7 Stealth Organization, Modularized Imports & Expanded Snippets**: Merged Avoiding Bot Detection into the Stealth overview (`docs/stealth/introduction.md`), replaced numbered `Layer X:` navigation group names with natural headings, updated stealth docs to use modularized `seleniumbase_rs_stealth::identity` / `identity::fingerprint::{spoof, mimic, policy, settings}` / `client` imports, and added runnable-style examples across `signal-spoofing`, `playwright`, `evasions`, `human-input`, `proxies`, `profiles`, `advanced/overview`, `advanced/session/overview`, and `troubleshooting`.
 
 ## [0.10.0] - 2026-11-26

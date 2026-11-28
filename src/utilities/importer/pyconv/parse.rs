@@ -11,7 +11,7 @@ use std::collections::HashSet;
 use super::ast::{
     Arg, BinOp, ClassDef, Expr, FPart, FuncDef, Handler, MatchCase, Param, Stmt, StmtKind, UnOp,
 };
-use crate::utilities::importer::lexer::{tokenize, Comment, Dialect, LexError, Tok, Token};
+use crate::utilities::importer::lexer::{Comment, Dialect, LexError, Tok, Token, tokenize};
 
 /// The deepest nesting of brackets and blocks the parser follows.
 const MAX_DEPTH: usize = 60;
@@ -118,11 +118,7 @@ impl Parser<'_> {
     /// operator there begins the next statement and cannot continue the
     /// expression before it.
     fn op_tok(&self) -> Option<&Tok> {
-        if self.at_line_end() {
-            None
-        } else {
-            self.tok()
-        }
+        if self.at_line_end() { None } else { self.tok() }
     }
 
     fn is_punct(&self, punct: &str) -> bool {

@@ -9,9 +9,9 @@
 use std::fmt::Write as _;
 use std::sync::OnceLock;
 
-use super::spec::{Arg, Choice, Command, Flag, Spec, SpecError};
 use super::NoBrowser;
-use crate::error::{closest_match, SeleniumBaseError};
+use super::spec::{Arg, Choice, Command, Flag, Spec, SpecError};
+use crate::error::{SeleniumBaseError, closest_match};
 use crate::mcp::support::nonempty;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 
@@ -375,7 +375,7 @@ async fn cli_help(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
 
 #[cfg(test)]
 mod tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::mcp::Settings;

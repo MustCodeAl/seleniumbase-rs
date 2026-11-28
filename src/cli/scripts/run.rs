@@ -466,7 +466,9 @@ mod tests {
             .skips(["slow", "flaky"]);
         assert_eq!(
             args(&run),
-            ["test", "login", "signup", "--", "--skip", "slow", "--skip", "flaky"]
+            [
+                "test", "login", "signup", "--", "--skip", "slow", "--skip", "flaky"
+            ]
         );
     }
 

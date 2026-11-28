@@ -6,7 +6,7 @@
 
 use std::net::{Ipv4Addr, TcpListener};
 
-use serde_json::{json, Map};
+use serde_json::{Map, json};
 
 use super::layers::{Layer, ProxySpec};
 use super::{Proxy, Redacted};

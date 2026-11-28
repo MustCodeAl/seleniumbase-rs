@@ -17,9 +17,9 @@
 
 use std::fmt::Write as _;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
-use super::devtools::{bounded, page_op, tagged, DevSession};
+use super::devtools::{DevSession, bounded, page_op, tagged};
 use super::host::Ctx;
 use super::refs::{RefEntry, RefFuture, RefProbe, RefTable};
 use super::support::nonempty;
@@ -262,7 +262,7 @@ async fn read_page_text<S: DevSession>(ctx: Ctx<S>, args: Args) -> Result<Output
             return Err(ToolError::invalid(
                 "max_chars",
                 format!("must be between {MIN_TEXT_CHARS} and {MAX_TEXT_CHARS}"),
-            ))
+            ));
         }
     };
     let scope = nonempty(&args, "scope")?.map(tagged);

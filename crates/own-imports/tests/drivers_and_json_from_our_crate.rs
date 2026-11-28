@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use seleniumbase_rs::browser::options::CapabilityOverrides;
 use seleniumbase_rs::drivers::{WebDriver, WebDriverError, WebElement};
-use seleniumbase_rs::json::{from_value, json, Value};
+use seleniumbase_rs::json::{Value, from_value, json};
 use seleniumbase_rs::{
     BaseCase, BrowserSession, Cookie, DriverErrorKind, Element, Key, NetworkThrottle, SameSite,
     SelectBy, SeleniumBaseError,

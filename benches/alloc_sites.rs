@@ -14,7 +14,7 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 mod alloc_workloads;
 

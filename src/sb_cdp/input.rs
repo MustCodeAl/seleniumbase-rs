@@ -7,7 +7,7 @@
 
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::page::Page;
 use super::sync::locked;

@@ -935,9 +935,11 @@ mod tests {
         };
         assert_eq!(order(7), order(7));
         assert_ne!(order(7), order(8), "another seed, another order");
-        assert!(order(7)
-            .iter()
-            .all(|server| specs.contains(&server.as_str())));
+        assert!(
+            order(7)
+                .iter()
+                .all(|server| specs.contains(&server.as_str()))
+        );
     }
 
     #[test]
@@ -1182,9 +1184,11 @@ mod tests {
     fn a_rest_of_any_length_neither_panics_nor_ends() {
         let list = three().quarantine(1, Duration::MAX);
         list.report_at(&entry_of(&list, P1), ProxyOutcome::Blocked, at(0));
-        assert!(servers_at(&list, 4, 3_000_000_000)
-            .iter()
-            .all(|server| server != P1));
+        assert!(
+            servers_at(&list, 4, 3_000_000_000)
+                .iter()
+                .all(|server| server != P1)
+        );
     }
 
     #[test]
@@ -1285,9 +1289,11 @@ mod tests {
     #[test]
     fn pick_other_at_with_nothing_else_left_is_none() {
         let alone = list(&[P1]);
-        assert!(alone
-            .pick_other_at(&entry_of(&alone, P1), None, at(0))
-            .is_none());
+        assert!(
+            alone
+                .pick_other_at(&entry_of(&alone, P1), None, at(0))
+                .is_none()
+        );
     }
 
     #[test]

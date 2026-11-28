@@ -38,11 +38,11 @@ mod extras;
 mod output;
 mod state;
 
-pub(crate) use breakpoint::{run_prompt, BreakpointExit, WATCH_TICK};
+pub(crate) use breakpoint::{BreakpointExit, WATCH_TICK, run_prompt};
 pub(crate) use extras::{extra_raw_actions, origin_of, recordable};
 pub use output::{
-    write_recording, RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
-    RECORDINGS_FOLDER,
+    RECORDINGS_FOLDER, RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
+    write_recording,
 };
 pub use state::RecorderEnd;
 pub(crate) use state::RecorderState;
@@ -2003,9 +2003,11 @@ mod tests {
                 .unwrap_err(),
             "click has no target"
         );
-        assert!(recorder
-            .try_record(RecordedCommand::from_parts("type_text", Some("#a"), None))
-            .is_err());
+        assert!(
+            recorder
+                .try_record(RecordedCommand::from_parts("type_text", Some("#a"), None))
+                .is_err()
+        );
 
         assert_eq!(recorder.actions.len(), 1);
         let script = recorder.to_rust_script();
@@ -2108,9 +2110,11 @@ mod tests {
             .save_recording_as_test(&inside, "my-login.flow")
             .unwrap();
         assert_eq!(saved, inside.join("my-login.flow.rs"));
-        assert!(std::fs::read_to_string(saved)
-            .unwrap()
-            .contains("async fn my_login_flow()"));
+        assert!(
+            std::fs::read_to_string(saved)
+                .unwrap()
+                .contains("async fn my_login_flow()")
+        );
     }
 
     // ---- loading what was saved ---------------------------------------------
@@ -2449,7 +2453,7 @@ mod tests {
 
     #[test]
     fn every_gherkin_step_is_a_step_the_outline_reader_reads() {
-        use crate::cli::scripts::gherkin_outline::{parse_feature, Step};
+        use crate::cli::scripts::gherkin_outline::{Step, parse_feature};
         // This checks the shape of what is written; with the feature `bdd` it
         // also checks that each step is a built-in step.
         let feature = gherkin_recorder().to_gherkin("Sign up");
@@ -2508,12 +2512,16 @@ mod tests {
             .save_recording_as_feature(dir.path(), "signup")
             .expect("saved");
         assert_eq!(path, dir.path().join("signup.feature"));
-        assert!(std::fs::read_to_string(&path)
-            .unwrap()
-            .starts_with("Feature: signup"));
-        assert!(gherkin_recorder()
-            .save_recording_as_feature(dir.path(), "../signup")
-            .is_err());
+        assert!(
+            std::fs::read_to_string(&path)
+                .unwrap()
+                .starts_with("Feature: signup")
+        );
+        assert!(
+            gherkin_recorder()
+                .save_recording_as_feature(dir.path(), "../signup")
+                .is_err()
+        );
     }
 
     #[test]
@@ -2524,14 +2532,20 @@ mod tests {
         let script = recorder.to_rust_script();
         assert!(script.contains("    sb.sleep(2.0).await;\n"), "{script}");
         assert!(script.contains("    sb.sleep(0.5).await;\n"), "{script}");
-        assert!(recorder
-            .try_record(RecordedCommand::from_parts("sleep", None, Some("soon")))
-            .is_err());
-        assert!(recorder
-            .try_record(RecordedCommand::from_parts("sleep", None, Some("-1")))
-            .is_err());
-        assert!(recorder
-            .try_record(RecordedCommand::from_parts("sleep", None, None))
-            .is_err());
+        assert!(
+            recorder
+                .try_record(RecordedCommand::from_parts("sleep", None, Some("soon")))
+                .is_err()
+        );
+        assert!(
+            recorder
+                .try_record(RecordedCommand::from_parts("sleep", None, Some("-1")))
+                .is_err()
+        );
+        assert!(
+            recorder
+                .try_record(RecordedCommand::from_parts("sleep", None, None))
+                .is_err()
+        );
     }
 }

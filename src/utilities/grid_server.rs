@@ -35,7 +35,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
 
-use super::selenium_grid::{GridUrl, DEFAULT_HUB_PORT};
+use super::selenium_grid::{DEFAULT_HUB_PORT, GridUrl};
 use crate::error::SeleniumBaseError;
 
 /// The port a Grid node listens on unless told otherwise.
@@ -845,9 +845,11 @@ mod tests {
         fs::write(&jar, b"jar").unwrap();
         let process = GridProcess::new(dir.path(), GridRole::Hub);
 
-        assert!(process
-            .start(&GridLaunch::hub(&jar).port(0), Duration::from_millis(10))
-            .is_err());
+        assert!(
+            process
+                .start(&GridLaunch::hub(&jar).port(0), Duration::from_millis(10))
+                .is_err()
+        );
     }
 
     #[test]

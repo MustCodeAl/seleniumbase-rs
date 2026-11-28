@@ -15,7 +15,7 @@ mod cdp;
 
 use std::fmt;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use thirtyfour::common::keys::Key as WireKey;
 use thirtyfour::components::SelectElement;
 use thirtyfour::prelude::{By, WebDriver, WebElement};
@@ -24,7 +24,7 @@ use crate::browser::session::shown_text;
 use crate::browser::shadow_find;
 use crate::error::{DriverErrorKind, SeleniumBaseError};
 use crate::sb_cdp::{Key, Locator, Rect, SelectBy};
-use crate::utils::selectors::{xpath_root_branch, Selector, CHAIN_SEPARATOR};
+use crate::utils::selectors::{CHAIN_SEPARATOR, Selector, xpath_root_branch};
 
 use self::cdp::CdpElement;
 
@@ -610,11 +610,11 @@ impl DriverElement {
             && let Some(branch) = xpath_root_branch(xpath)
         {
             return Err(SeleniumBaseError::InvalidSelector(format!(
-                        "'{selector}' has a branch that starts at the root of the page, '{branch}', so \
+                "'{selector}' has a branch that starts at the root of the page, '{branch}', so \
                          it matches the whole page from inside an element too: write it from the \
                          element (`.//td`) to search inside this one, or look it up from the page with \
                          `BaseCase::find_element`"
-                    )));
+            )));
         }
 
         if shadow_find::pieces(&by)?.is_some() {
@@ -1360,11 +1360,11 @@ impl Element {
 /// What an element answers, against the mock WebDriver in `webdriver_support`.
 #[cfg(test)]
 mod tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     use thirtyfour::prelude::By;
 
     use super::*;
-    use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply, Seen};
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply, Seen, element};
     use crate::utils::selectors::TextMatching;
 
     use crate::browser::config::BrowserConfig;

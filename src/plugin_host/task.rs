@@ -19,7 +19,7 @@
 use seleniumbase_rs_plugin::{PluginSet, Prompt, Sink};
 use serde_json::Value;
 
-use crate::common::shutdown::{cleanup_within, timeout_from_env, Outcome, Shutdown};
+use crate::common::shutdown::{Outcome, Shutdown, cleanup_within, timeout_from_env};
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::plugin_hooks;
 use crate::sb_cdp::{Browser, LaunchOptions};

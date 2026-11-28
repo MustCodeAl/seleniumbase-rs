@@ -231,9 +231,9 @@ mod tests {
     use std::sync::Arc;
 
     use seleniumbase_rs_plugin::{
-        async_trait, Capability, Category, Configurable, Descriptor, Metadata, Plugin,
+        Capability, Category, Configurable, Descriptor, Metadata, Plugin, async_trait,
     };
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
 

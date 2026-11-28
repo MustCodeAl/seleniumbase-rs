@@ -248,12 +248,12 @@ pub use tracing_util::{
 };
 #[doc(inline)]
 pub use undetected::{
-    patch_chromedriver, BinaryFormat, BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher,
-    ChromedriverPatcher, EnginePatch, MarkerCounts, PatchPreset,
+    BinaryFormat, BinaryMarkerReport, BinaryPatchRule, ChromeBinaryPatcher, ChromedriverPatcher,
+    EnginePatch, MarkerCounts, PatchPreset, patch_chromedriver,
 };
 #[doc(inline)]
 pub use utilities::python_importer::{
-    import_python, ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource,
+    ImportDiagnostic, ImportOptions, ImportResult, ImportSeverity, PythonSource, import_python,
 };
 #[doc(inline)]
 pub use utilities::retry::RetryPolicy;

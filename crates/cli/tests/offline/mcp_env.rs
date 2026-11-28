@@ -13,7 +13,7 @@ use std::net::SocketAddr;
 use reqwest::StatusCode;
 use seleniumbase_rs::config::env_vars::EXTRA_VARIABLES;
 use serde_json::json;
-use support::{run_to_exit, Mcp, Server};
+use support::{Mcp, Server, run_to_exit};
 
 const LISTEN: (&str, &str) = ("SB_MCP_LISTEN", "127.0.0.1:0");
 

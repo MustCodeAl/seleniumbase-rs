@@ -16,7 +16,14 @@ pub(crate) const WINDOW_METRICS_SCRIPT: &str = "[window.screenX, window.screenY,
 /// evenly on both sides, so the page origin is the window origin plus half the
 /// horizontal chrome and all of the vertical chrome.
 pub(crate) fn screen_rect(element: Rect, metrics: [f64; 6]) -> Rect {
-    let [window_x, window_y, chrome_width, chrome_height, scroll_x, scroll_y] = metrics;
+    let [
+        window_x,
+        window_y,
+        chrome_width,
+        chrome_height,
+        scroll_x,
+        scroll_y,
+    ] = metrics;
     Rect {
         x: window_x + chrome_width / 2.0 + element.x - scroll_x,
         y: window_y + chrome_height + element.y - scroll_y,

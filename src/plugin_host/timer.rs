@@ -36,7 +36,7 @@ pub(crate) fn timed(plugins: PluginSet) -> PluginSet {
 mod tests {
     use std::time::Duration;
 
-    use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet, Result};
+    use seleniumbase_rs_plugin::{Plugin, PluginSet, Result, async_trait};
 
     use super::*;
 

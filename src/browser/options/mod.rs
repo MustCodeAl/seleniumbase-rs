@@ -82,9 +82,9 @@ pub use plugins::BrowserPlugins;
 pub use proxy::{PacUrl, ProxyAddress, ProxyBypassList, ProxyScheme};
 pub use proxy_settings::ProxySettings;
 
-pub use remote::{grid_url, GridProtocol};
-pub use session::{GridSettings, SessionSettings, DEFAULT_WEBDRIVER_URL};
-pub use switches::{chrome_preferences, firefox_preferences, nested_preferences, LaunchSwitch};
+pub use remote::{GridProtocol, grid_url};
+pub use session::{DEFAULT_WEBDRIVER_URL, GridSettings, SessionSettings};
+pub use switches::{LaunchSwitch, chrome_preferences, firefox_preferences, nested_preferences};
 pub use virtual_display::VirtualDisplay;
 pub use window::{WindowPosition, WindowSize};
 

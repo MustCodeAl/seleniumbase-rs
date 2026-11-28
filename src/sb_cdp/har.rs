@@ -3,20 +3,20 @@
 
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::path::Path;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::io::{AsyncWrite, AsyncWriteExt, BufWriter};
 use tokio::sync::{mpsc, oneshot};
 use tokio::task::{JoinHandle, JoinSet};
 
+use super::Page;
 use super::client::{CdpEvent, Events};
 use super::sync::locked;
-use super::Page;
 use crate::error::SeleniumBaseError;
 
 /// The most requests one recording keeps.

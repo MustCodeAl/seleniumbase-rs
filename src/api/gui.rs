@@ -358,7 +358,7 @@ impl From<enigo::NewConError> for SeleniumBaseError {
 
 #[cfg(test)]
 mod tests {
-    use super::{drag_between, drag_waypoints, press_chord, Gui, InputDevice, DRAG_STEPS};
+    use super::{DRAG_STEPS, Gui, InputDevice, drag_between, drag_waypoints, press_chord};
     use crate::error::SeleniumBaseError;
     use enigo::{Direction, Key};
     use std::time::Duration;

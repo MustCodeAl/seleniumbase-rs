@@ -13,7 +13,7 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// The key W3C WebDriver gives an element reference.
 const ELEMENT_KEY: &str = "element-6066-11e4-a52e-4f735466cecf";

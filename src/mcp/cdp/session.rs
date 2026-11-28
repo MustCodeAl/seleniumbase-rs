@@ -4,8 +4,8 @@ use serde_json::json;
 
 use super::Cdp;
 use crate::error::SeleniumBaseError;
-use crate::mcp::support::nonempty;
 use crate::mcp::Started;
+use crate::mcp::support::nonempty;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::sb_cdp::{Browser, LaunchOptions};
 
@@ -109,9 +109,9 @@ async fn start_browser(ctx: Ctx<Cdp>, args: Args) -> Result<Output, ToolError> {
     if let Some(path) = ctx.settings().browser_binary() {
         if use_chromium {
             return Err(ToolError::invalid(
-                    "use_chromium",
-                    "the operator set the browser executable (SB_CHROME_BIN), so use_chromium cannot change it",
-                ));
+                "use_chromium",
+                "the operator set the browser executable (SB_CHROME_BIN), so use_chromium cannot change it",
+            ));
         }
         options = options.executable_path(path);
     }

@@ -32,7 +32,7 @@ use tracing_subscriber::fmt::time::FormatTime;
 use tracing_subscriber::fmt::{FmtContext, FormatEvent, FormatFields, FormattedFields};
 use tracing_subscriber::registry::LookupSpan;
 
-use crate::common::color::{palette, sanitize, Style};
+use crate::common::color::{Style, palette, sanitize};
 
 /// How much a log line shows.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

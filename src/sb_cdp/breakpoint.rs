@@ -11,8 +11,8 @@ use serde_json::Value;
 
 use super::Page;
 use crate::common::debug_prompt::{
-    breakpoint_prompt, DebugPrompt, LineInput, PromptKind, PromptOutcome, PromptPage, Scene,
-    SourceSpot,
+    DebugPrompt, LineInput, PromptKind, PromptOutcome, PromptPage, Scene, SourceSpot,
+    breakpoint_prompt,
 };
 use crate::common::test_id::current_test_id;
 use crate::error::SeleniumBaseError;

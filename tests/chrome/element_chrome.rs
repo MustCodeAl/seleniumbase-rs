@@ -19,7 +19,7 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 
 use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{BrowserConfig, Result, run_browser_test};
 
 const PAGE: &str = include_str!("../fixtures/element_find.html");
 
@@ -155,8 +155,8 @@ async fn a_role_or_text_selector_from_an_element_finds_only_what_is_inside_it() 
 #[tokio::test]
 #[ignore = "requires a local Chrome and chromedriver"]
 #[serial_test::serial(chrome)]
-async fn a_union_with_a_branch_from_the_root_is_refused_and_one_from_the_element_works(
-) -> Result<()> {
+async fn a_union_with_a_branch_from_the_root_is_refused_and_one_from_the_element_works()
+-> Result<()> {
     let url = serve();
     run_browser_test(headless(), async |sb| {
         sb.open(&url).await?;

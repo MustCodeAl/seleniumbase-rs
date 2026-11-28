@@ -10,7 +10,7 @@
 use std::fmt::Write as _;
 use std::time::Duration;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::tool::ToolError;
 use crate::error::SeleniumBaseError;
@@ -220,11 +220,7 @@ impl Step {
             None => format!("{name} {{}}"),
         };
         let pick = |first: &'static str, second: &'static str| {
-            if has_tool(first) {
-                first
-            } else {
-                second
-            }
+            if has_tool(first) { first } else { second }
         };
         let (name, text) = match self {
             Self::Diagnose => (
@@ -481,8 +477,11 @@ mod tests {
         )
         .render();
 
-        assert!(text
-            .contains("\npage: https://shop.test/cart (title \"Cart\", ready state complete)\n"));
+        assert!(
+            text.contains(
+                "\npage: https://shop.test/cart (title \"Cart\", ready state complete)\n"
+            )
+        );
         assert!(
             text.contains("\nselector \"#buy\": 2 matching, 0 visible\n"),
             "{text}"

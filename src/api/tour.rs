@@ -292,8 +292,7 @@ pub(crate) struct Resource {
     pub loaded: Option<&'static str>,
 }
 
-const BOOTSTRAP_CSS: &str =
-    "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-tour/0.12.0/css/bootstrap-tour-standalone.min.css";
+const BOOTSTRAP_CSS: &str = "https://cdnjs.cloudflare.com/ajax/libs/bootstrap-tour/0.12.0/css/bootstrap-tour-standalone.min.css";
 const BOOTSTRAP_JS: &str = "https://seleniumbase.github.io/cdn/js/bootstraptour.min.js";
 const DRIVERJS_CSS: &str = "https://cdn.jsdelivr.net/npm/driver.js@0.9.8/dist/driver.min.css";
 const DRIVERJS_JS: &str = "https://cdn.jsdelivr.net/npm/driver.js@0.9.8/dist/driver.min.js";
@@ -1423,8 +1422,10 @@ mod tests {
         });
         let script = plan(&titled).script;
         assert!(script.contains("title: 'Head',"));
-        assert!(script
-            .contains("description: '<font size=\"3\" color=\"#33477B\"><b>Body</b></font>',"));
+        assert!(
+            script
+                .contains("description: '<font size=\"3\" color=\"#33477B\"><b>Body</b></font>',")
+        );
     }
 
     #[test]
@@ -1518,9 +1519,11 @@ mod tests {
                 resources.iter().any(|resource| resource.script),
                 "{theme:?}"
             );
-            assert!(resources
-                .iter()
-                .all(|resource| resource.url.starts_with("https://")));
+            assert!(
+                resources
+                    .iter()
+                    .all(|resource| resource.url.starts_with("https://"))
+            );
         }
     }
 
@@ -1567,7 +1570,9 @@ mod tests {
             "injectJS(\"https://cdn.jsdelivr.net/npm/tether@1.4.7/dist/js/tether.min.js\");"
         ));
         assert!(script.contains("injectJS(\"https://cdnjs.cloudflare.com/ajax/libs/shepherd/1.8.1/js/shepherd.min.js\");"));
-        assert!(script.contains("function loadTour() { if ( typeof Shepherd !== \"undefined\" ) {"));
+        assert!(
+            script.contains("function loadTour() { if ( typeof Shepherd !== \"undefined\" ) {")
+        );
         assert!(script.contains("tour.addStep('default', {"));
         assert!(
             script.ends_with("} else { window.setTimeout(\"loadTour();\",100); } }\nloadTour()\n")
@@ -1579,8 +1584,11 @@ mod tests {
         intro.add_step(TourStep::new("Hi"));
         let colors = IntroJsColors::new(Some("#111111"), None).unwrap();
         let script = intro.export_script("default", "data:,", &colors);
-        assert!(script
-            .contains("injectJS(\"https://cdn.jsdelivr.net/npm/intro.js@5.1.0/intro.min.js\");"));
+        assert!(
+            script.contains(
+                "injectJS(\"https://cdn.jsdelivr.net/npm/intro.js@5.1.0/intro.min.js\");"
+            )
+        );
         assert!(script.contains("background-color: #111111 !important;"));
         assert!(script.contains("typeof introJs !== \"undefined\""));
     }

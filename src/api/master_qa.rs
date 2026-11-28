@@ -43,7 +43,7 @@ mod report;
 #[cfg(test)]
 mod wrapper_tests;
 
-use report::{Counts, Row, Verdict, RESULTS_PAGE, RESULTS_TABLE};
+use report::{Counts, RESULTS_PAGE, RESULTS_TABLE, Row, Verdict};
 
 /// The question `verify_default` asks (Python's
 /// `MASTERQA_DEFAULT_VALIDATION_MESSAGE`).

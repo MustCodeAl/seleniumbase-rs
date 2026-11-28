@@ -6,7 +6,7 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::*;
 use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
@@ -323,9 +323,11 @@ async fn finish_writes_the_table_and_the_page_and_archives_the_run() {
     assert!(report.archive_dir.join(RESULTS_PAGE).is_file());
     assert!(!root.latest().join(RESULTS_TABLE).exists());
     assert!(!root.latest().join("failed_check_2.png").exists());
-    assert!(report
-        .results_page
-        .starts_with(std::path::absolute(root.latest()).unwrap()));
+    assert!(
+        report
+            .results_page
+            .starts_with(std::path::absolute(root.latest()).unwrap())
+    );
     let page = std::fs::read_to_string(&report.results_page).unwrap();
     assert!(page.contains("CHECKS PASSED: <td>1</tr>"), "{page}");
     assert!(page.contains("failed_check_2.png"));
@@ -374,10 +376,12 @@ async fn an_error_in_the_test_adds_an_err_row_and_a_screenshot() {
         err_line.ends_with(r#","-","wait timeout: the page never loaded""#),
         "{err_line}"
     );
-    assert!(report
-        .archive_dir
-        .join("automation_failure_1.png")
-        .is_file());
+    assert!(
+        report
+            .archive_dir
+            .join("automation_failure_1.png")
+            .is_file()
+    );
     drop(root);
 }
 
@@ -435,8 +439,9 @@ async fn an_alert_that_is_not_the_question_is_not_waited_for() {
         }
     });
     let mut sb = case(&driver, false).await;
-    assert!(sb
-        .masterqa_confirm("Is it blue?", Duration::from_secs(5))
-        .await
-        .unwrap());
+    assert!(
+        sb.masterqa_confirm("Is it blue?", Duration::from_secs(5))
+            .await
+            .unwrap()
+    );
 }

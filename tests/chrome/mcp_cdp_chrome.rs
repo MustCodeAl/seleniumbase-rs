@@ -16,7 +16,7 @@ use std::thread;
 
 use seleniumbase_rs::mcp::cdp::{self, Cdp};
 use seleniumbase_rs::mcp::{Host, Output, Settings, ToolError};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 const PAGE: &str = r##"<!doctype html>
 <html><head><title>MCP Fixture</title></head>
@@ -112,9 +112,11 @@ async fn the_devtools_endpoint_leads_to_the_browser_the_server_drives() {
         .expect("/json/version is JSON");
 
     assert_eq!(version["webSocketDebuggerUrl"], endpoint["websocket_url"]);
-    assert!(version["Browser"]
-        .as_str()
-        .is_some_and(|browser| browser.contains("Chrome")));
+    assert!(
+        version["Browser"]
+            .as_str()
+            .is_some_and(|browser| browser.contains("Chrome"))
+    );
     text_of(&host, "close_browser", json!({})).await;
 }
 

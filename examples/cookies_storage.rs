@@ -23,9 +23,9 @@
 
 mod local_site;
 
-use local_site::{ensure, Site, DEMO_PATH};
+use local_site::{DEMO_PATH, Site, ensure};
 use seleniumbase_rs::{
-    run_browser_test, tokio, BaseCase, BrowserConfig, Cookie, CookieExpiry, Result,
+    BaseCase, BrowserConfig, Cookie, CookieExpiry, Result, run_browser_test, tokio,
 };
 
 #[tokio::main]

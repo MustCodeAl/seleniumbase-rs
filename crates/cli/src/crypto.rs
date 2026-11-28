@@ -335,9 +335,11 @@ mod tests {
             "{}",
             printed.out
         );
-        assert!(printed
-            .out
-            .contains("Inside a test, use the following to decrypt it:"));
+        assert!(
+            printed
+                .out
+                .contains("Inside a test, use the following to decrypt it:")
+        );
         let tokens = tokens(&printed);
         assert_eq!(tokens.len(), 1, "{}", printed.out);
         assert_eq!(
@@ -472,9 +474,11 @@ mod tests {
             Some("key-1"),
             true,
         );
-        assert!(printed
-            .err
-            .contains("Enter obfuscated/encrypted string: (CTRL+C to exit):"));
+        assert!(
+            printed
+                .err
+                .contains("Enter obfuscated/encrypted string: (CTRL+C to exit):")
+        );
         assert_eq!(
             printed
                 .out

@@ -9,7 +9,7 @@
 //! an extension is loaded over the protocol, which Chrome allows in an
 //! incognito window.
 
-use crate::browser::options::{switch_args, BrowserSettings, LaunchSwitch};
+use crate::browser::options::{BrowserSettings, LaunchSwitch, switch_args};
 
 use super::LaunchOptions;
 
@@ -97,8 +97,10 @@ mod tests {
             options.enable_features,
             ["WebContentsForceDark", "Other"].map(String::from)
         );
-        assert!(args(LaunchOptions::builder().dark_mode(true))
-            .contains(&"--enable-features=WebContentsForceDark".to_owned()));
+        assert!(
+            args(LaunchOptions::builder().dark_mode(true))
+                .contains(&"--enable-features=WebContentsForceDark".to_owned())
+        );
     }
 
     #[test]
@@ -155,17 +157,21 @@ mod tests {
     #[test]
     fn a_virtual_display_makes_the_browser_headed_unless_told_otherwise() {
         let display = VirtualDisplay::default();
-        assert!(!LaunchOptions::builder()
-            .virtual_display(display)
-            .build()
-            .unwrap()
-            .is_headless());
-        assert!(LaunchOptions::builder()
-            .headless(true)
-            .virtual_display(display)
-            .build()
-            .unwrap()
-            .is_headless());
+        assert!(
+            !LaunchOptions::builder()
+                .virtual_display(display)
+                .build()
+                .unwrap()
+                .is_headless()
+        );
+        assert!(
+            LaunchOptions::builder()
+                .headless(true)
+                .virtual_display(display)
+                .build()
+                .unwrap()
+                .is_headless()
+        );
     }
 
     #[test]

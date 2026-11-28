@@ -19,7 +19,7 @@ use crate::browser::binaries::DOWNLOADS_DIR;
 
 use crate::error::SeleniumBaseError;
 use crate::utilities::grid_server::{GridLaunch, GridProcess, GridRole, RunState, StopOutcome};
-use crate::utilities::selenium_grid::{fetch_status, wait_until_ready, GridUrl};
+use crate::utilities::selenium_grid::{GridUrl, fetch_status, wait_until_ready};
 
 /// The environment variable that names the Selenium Server jar.
 pub const JAR_ENV: &str = "SB_SELENIUM_SERVER_JAR";
@@ -631,8 +631,8 @@ mod tests {
     }
 
     fn jar_server(body: &[u8]) -> (String, std::sync::Arc<std::sync::atomic::AtomicUsize>) {
-        use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
         use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
@@ -792,9 +792,11 @@ mod tests {
     fn the_pinned_release_is_a_selenium_four_version_with_a_sha256() {
         assert!(server_version(SERVER_VERSION).is_ok());
         assert_eq!(SERVER_SHA256.len(), 64);
-        assert!(SERVER_SHA256
-            .bytes()
-            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)));
+        assert!(
+            SERVER_SHA256
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+        );
     }
 
     #[test]

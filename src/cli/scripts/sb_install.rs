@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
 use crate::browser::binaries::{
-    downloaded_executable, locate, Platform, CHROMIUM_DIR, DOWNLOADS_DIR,
+    CHROMIUM_DIR, DOWNLOADS_DIR, Platform, downloaded_executable, locate,
 };
 use crate::browser::chrome_for_testing::{
     install_chrome_for_testing, install_chrome_headless_shell, install_chromedriver,
@@ -20,9 +20,9 @@ use crate::browser::chromium_snapshots::{
 };
 use crate::browser::config::Browser;
 use crate::browser::downloader::download_chrome_driver_for;
-use crate::browser::driver_access::{make_runnable, CodeSignature};
+use crate::browser::driver_access::{CodeSignature, make_runnable};
 use crate::browser::driver_install::{
-    downloaded_driver, install_geckodriver, install_msedgedriver, GECKODRIVER_NAMES,
+    GECKODRIVER_NAMES, downloaded_driver, install_geckodriver, install_msedgedriver,
 };
 use crate::browser::driver_version::binary_major;
 use crate::browser::options::{DriverVersion, ReleaseChannel};
@@ -485,13 +485,13 @@ pub fn copy_to_path_dir(executable: &Path, dir: &Path) -> Result<PathBuf, Seleni
             return Err(SeleniumBaseError::invalid_config(format!(
                 "{} is a symbolic link; it is not replaced",
                 target.display()
-            )))
+            )));
         }
         Ok(found) if !found.is_file() => {
             return Err(SeleniumBaseError::invalid_config(format!(
                 "{} is not a regular file; it is not replaced",
                 target.display()
-            )))
+            )));
         }
         Ok(_) => {}
         Err(error) if error.kind() == io::ErrorKind::NotFound => {}
@@ -655,10 +655,12 @@ mod tests {
 
     #[test]
     fn a_request_asks_only_for_what_its_program_can_do() {
-        assert!(InstallRequest::new(DriverName::Chromium)
-            .revision(1_725_796)
-            .validate()
-            .is_ok());
+        assert!(
+            InstallRequest::new(DriverName::Chromium)
+                .revision(1_725_796)
+                .validate()
+                .is_ok()
+        );
         for name in EVERY_NAME
             .into_iter()
             .filter(|n| *n != DriverName::Chromium)
@@ -670,10 +672,12 @@ mod tests {
                 "{name}: {error}"
             );
         }
-        assert!(InstallRequest::new(DriverName::Chromium)
-            .revision(0)
-            .validate()
-            .is_err());
+        assert!(
+            InstallRequest::new(DriverName::Chromium)
+                .revision(0)
+                .validate()
+                .is_err()
+        );
         for name in EVERY_NAME {
             let result = InstallRequest::new(name).copy_to_path(true).validate();
             assert_eq!(result.is_err(), name.is_browser(), "{name}");
@@ -881,19 +885,23 @@ mod tests {
             .to_string();
         assert!(error.contains("symbolic link"), "{error}");
         assert_eq!(fs::read(&precious).unwrap(), b"keep me");
-        assert!(fs::symlink_metadata(&link)
-            .unwrap()
-            .file_type()
-            .is_symlink());
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
 
         // A link that points nowhere is refused as well, not replaced.
         fs::remove_file(&link).unwrap();
         std::os::unix::fs::symlink(elsewhere.path().join("gone"), &link).unwrap();
         assert!(copy_to_path_dir(&driver, dest.path()).is_err());
-        assert!(fs::symlink_metadata(&link)
-            .unwrap()
-            .file_type()
-            .is_symlink());
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
         assert!(!elsewhere.path().join("gone").exists());
     }
 

@@ -16,9 +16,9 @@ use std::sync::Arc;
 
 use seleniumbase_rs_plugin::{Clock, Configurable, PluginError};
 use seleniumbase_rs_plugins_builtin::imap::{
-    Found, Imap, ImapConfig, Query, DEFAULT_SINCE_SECS, MAX_TIMEOUT_SECS,
+    DEFAULT_SINCE_SECS, Found, Imap, ImapConfig, MAX_TIMEOUT_SECS, Query,
 };
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::config::plugins::PluginSelection;
@@ -156,7 +156,7 @@ fn request(args: &Args) -> Result<Request, ToolError> {
                 return Err(ToolError::invalid(
                     "timeout_secs",
                     "must be at least 1 second",
-                ))
+                ));
             }
         },
     };
@@ -233,8 +233,8 @@ mod tests {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
-    use seleniumbase_rs_plugin::{async_trait, Timer};
-    use seleniumbase_rs_plugins_builtin::imap::{wait_for, MailSource, RawMail};
+    use seleniumbase_rs_plugin::{Timer, async_trait};
+    use seleniumbase_rs_plugins_builtin::imap::{MailSource, RawMail, wait_for};
 
     use super::*;
     use crate::plugin_host::test_variable::with_password_set;

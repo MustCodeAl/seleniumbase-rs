@@ -1,5 +1,5 @@
 use base64::Engine;
-use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
 use ring::rand::{SecureRandom, SystemRandom};
 
 use crate::error::SeleniumBaseError;

@@ -131,9 +131,11 @@ b = { version = "0.1", git = "https://example.test/repo", rev = "abc" }
         let error = one_source(&manifest, &["a", "b"]).unwrap_err();
         assert!(error.contains('b'), "{different}: {error}");
     }
-    assert!(one_source(&same, &["a", "missing"])
-        .unwrap_err()
-        .contains("missing"));
+    assert!(
+        one_source(&same, &["a", "missing"])
+            .unwrap_err()
+            .contains("missing")
+    );
 }
 
 #[test]

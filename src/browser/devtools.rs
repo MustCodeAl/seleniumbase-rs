@@ -2,9 +2,9 @@
 //! driver (its `/goog/cdp/execute` passthrough), named and failing as the pure CDP engine's
 //! [`Page::execute`](crate::sb_cdp::Page::execute) does.
 
-use serde_json::{json, Value};
-use thirtyfour::cdp::Cdp;
+use serde_json::{Value, json};
 use thirtyfour::WebDriver;
+use thirtyfour::cdp::Cdp;
 
 use crate::error::SeleniumBaseError;
 
@@ -194,7 +194,7 @@ pub(crate) fn warn_if_detectable(method: &str) {
 
 #[cfg(test)]
 mod tests {
-    use super::{is_detectable_enable, DEFAULT_DOMAIN_COMMANDS, DETECTABLE_DOMAINS};
+    use super::{DEFAULT_DOMAIN_COMMANDS, DETECTABLE_DOMAINS, is_detectable_enable};
 
     #[test]
     fn the_default_domains_never_include_runtime() {

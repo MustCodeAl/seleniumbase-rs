@@ -15,7 +15,7 @@ use crate::browser::chrome_for_testing::{
 };
 use crate::browser::chromium_snapshots::install_chromium;
 use crate::browser::config::{Browser, BrowserConfig};
-use crate::browser::launcher::{launch_driver_for, DriverProcess};
+use crate::browser::launcher::{DriverProcess, launch_driver_for};
 use crate::browser::options::{BrowserSettings, DriverVersion, LaunchSwitch, ReleaseChannel};
 use crate::browser::virtual_display::{self, BrowserWindow, XvfbProcess};
 use crate::error::SeleniumBaseError;
@@ -170,7 +170,9 @@ pub(super) fn start_virtual_display(
         BrowserWindow::from_headless(config.browser.headless),
         Platform::current(),
     ) {
-        tracing::info!("a virtual display was asked for, but this session is headless or not on Linux; none is started");
+        tracing::info!(
+            "a virtual display was asked for, but this session is headless or not on Linux; none is started"
+        );
         return Ok(None);
     }
     if !config.session.auto_start_driver || !config.is_default_webdriver_url() {
@@ -283,7 +285,7 @@ async fn resolve_browser_binary(config: &mut BrowserConfig) -> Result<(), Seleni
             _ => {
                 return Err(SeleniumBaseError::invalid_config(missing_browser_message(
                     config.browser.kind,
-                )))
+                )));
             }
         },
     };

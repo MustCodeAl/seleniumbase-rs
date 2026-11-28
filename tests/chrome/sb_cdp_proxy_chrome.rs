@@ -17,8 +17,8 @@ use std::net::Ipv4Addr;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine as _;
+use base64::engine::general_purpose::STANDARD;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};

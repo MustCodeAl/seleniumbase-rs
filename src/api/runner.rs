@@ -7,7 +7,7 @@
 //! only after that.
 
 use std::any::Any;
-use std::panic::{resume_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, resume_unwind};
 
 use futures_util::FutureExt;
 

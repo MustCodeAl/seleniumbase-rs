@@ -6,9 +6,9 @@ use std::path::{Path, PathBuf};
 use serde_json::json;
 
 use super::client::{Client, Kind};
-use super::entry::{decide, Decision, Entry, Existing};
+use super::entry::{Decision, Entry, Existing, decide};
 use super::env::Env;
-use super::external::{codex_has_mcp_commands, Cmd};
+use super::external::{Cmd, codex_has_mcp_commands};
 use super::jsonfile::{self, Op};
 use super::report::{ClientReport, EntryReport, Preview, Problem, Status};
 use super::tomlfile;

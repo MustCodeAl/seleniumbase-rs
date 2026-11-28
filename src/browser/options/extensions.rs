@@ -3,8 +3,8 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use serde::{Deserialize, Serialize};
 
 use crate::error::SeleniumBaseError;

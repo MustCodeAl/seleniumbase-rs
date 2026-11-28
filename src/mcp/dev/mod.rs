@@ -36,7 +36,7 @@ mod spec;
 pub use cli::{InstallFuture, Installer};
 pub use no_browser::NoBrowser;
 
-use super::{devtools, Closeable, Host, Settings, ToolDef};
+use super::{Closeable, Host, Settings, ToolDef, devtools};
 
 const SERVER_NAME: &str = "seleniumbase-dev";
 
@@ -195,10 +195,12 @@ mod tests {
         }
         assert!(report["driver_cache"]["path"].is_string());
         assert!(report["driver_cache"]["exists"].is_boolean());
-        assert!(report["build"]["features"]
-            .as_array()
-            .unwrap()
-            .contains(&serde_json::json!("mcp-server")));
+        assert!(
+            report["build"]["features"]
+                .as_array()
+                .unwrap()
+                .contains(&serde_json::json!("mcp-server"))
+        );
         assert!(host.ctx().try_session().await.is_none());
     }
 

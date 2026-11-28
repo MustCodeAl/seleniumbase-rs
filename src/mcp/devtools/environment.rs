@@ -4,12 +4,12 @@
 
 use std::time::Duration;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::SESSION_WAIT;
 use crate::mcp::failure::shorten;
 use crate::mcp::support::json_output;
-use crate::mcp::{Args, Ctx, Output, ToolError, OUTPUT_DIR_VAR};
+use crate::mcp::{Args, Ctx, OUTPUT_DIR_VAR, Output, ToolError};
 
 /// Whether `path` is a folder that can be written to, by its permissions.
 fn is_writable_folder(path: &std::path::Path) -> bool {
@@ -72,7 +72,7 @@ pub(super) async fn diagnose_environment<S: Send + 'static>(
     _args: Args,
 ) -> Result<Output, ToolError> {
     use crate::browser::driver_version::binary_major;
-    use crate::resources::assets::{lookup_chromedriver, DriverLookup};
+    use crate::resources::assets::{DriverLookup, lookup_chromedriver};
 
     let mut problems: Vec<String> = Vec::new();
     let session = match tokio::time::timeout(SESSION_WAIT, ctx.try_session()).await {
@@ -253,7 +253,7 @@ const SECRET_NAMES: [&str; 7] = [
 /// Whether chromedriver and Chrome fit, as `match`, `mismatch` or `unknown`,
 /// and for a mismatch the problem with the command that fixes it.
 fn version_check(driver: Option<u32>, browser: Option<u32>) -> (Value, Option<String>) {
-    use crate::browser::driver_version::{fit, Fit};
+    use crate::browser::driver_version::{Fit, fit};
 
     let (verdict, problem) = match fit(driver, browser) {
         Fit::Matches => ("match", None),
@@ -444,10 +444,12 @@ mod tests {
         let missing = driver_cache(&cache);
         assert_eq!(missing["exists"], false);
         assert_eq!(missing["entries"], json!([]));
-        assert!(missing["path"]
-            .as_str()
-            .unwrap()
-            .ends_with("downloaded_drivers"));
+        assert!(
+            missing["path"]
+                .as_str()
+                .unwrap()
+                .ends_with("downloaded_drivers")
+        );
 
         std::fs::create_dir(&cache).unwrap();
         std::fs::write(cache.join("geckodriver"), "").unwrap();

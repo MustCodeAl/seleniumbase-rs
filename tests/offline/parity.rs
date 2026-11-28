@@ -195,7 +195,7 @@ fn cli_source() -> String {
 
 #[cfg(feature = "mcp-server")]
 fn mcp_tools() -> BTreeMap<&'static str, BTreeSet<String>> {
-    use seleniumbase_rs::mcp::{cdp, driver, sb, Settings};
+    use seleniumbase_rs::mcp::{Settings, cdp, driver, sb};
     let names = |names: Vec<&'static str>| names.into_iter().map(str::to_owned).collect();
     BTreeMap::from([
         (

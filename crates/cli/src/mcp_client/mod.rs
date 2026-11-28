@@ -17,8 +17,8 @@ mod output;
 use std::io::{self, IsTerminal};
 use std::path::Path;
 
-use seleniumbase_rs::mcp::client::{CallOutcome, McpClient, ProgressCallback};
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::mcp::client::{CallOutcome, McpClient, ProgressCallback};
 
 use args::Connect;
 pub use args::{BatchArgs, CallArgs, ListArgs, PromptArgs, ReadArgs, ToolsArgs};
@@ -131,11 +131,7 @@ fn report(outcome: &CallOutcome, raw: bool, dir: Option<&Path>, counter: &mut us
         return written;
     }
     save_images(outcome, dir, counter);
-    if outcome.is_error {
-        FAILED
-    } else {
-        OK
-    }
+    if outcome.is_error { FAILED } else { OK }
 }
 
 fn save_images(outcome: &CallOutcome, dir: Option<&Path>, counter: &mut usize) {

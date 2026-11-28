@@ -13,7 +13,7 @@ use super::sbrs as support;
 use std::process::{Output, Stdio};
 use std::time::{Duration, Instant};
 
-use support::{command_in, stderr, stdout, SBRS};
+use support::{SBRS, command_in, stderr, stdout};
 
 /// A page that clicks `#go` after a second, and from two seconds on presses SHIFT+ESC every
 /// half second (the Recorder arms its listener on each look, so one press could come too soon).

@@ -386,10 +386,12 @@ fn a_run_empties_the_latest_logs_unless_they_are_archived() {
     let output = fixture.run(&["test"]);
     assert!(output.status.success(), "{}", stderr(&output));
     assert!(fixture.path("latest_logs").is_dir());
-    assert!(std::fs::read_dir(fixture.path("latest_logs"))
-        .unwrap()
-        .next()
-        .is_none());
+    assert!(
+        std::fs::read_dir(fixture.path("latest_logs"))
+            .unwrap()
+            .next()
+            .is_none()
+    );
     assert!(!fixture.path("archived_logs").exists());
 }
 
@@ -416,10 +418,12 @@ fn archive_logs_moves_them_to_a_folder_named_by_the_time() {
         "{name}"
     );
     assert!(archives[0].join("old.txt").is_file());
-    assert!(std::fs::read_dir(fixture.path("latest_logs"))
-        .unwrap()
-        .next()
-        .is_none());
+    assert!(
+        std::fs::read_dir(fixture.path("latest_logs"))
+            .unwrap()
+            .next()
+            .is_none()
+    );
 }
 
 #[test]

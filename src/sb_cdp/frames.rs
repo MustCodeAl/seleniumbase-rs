@@ -19,9 +19,9 @@
 
 use std::sync::Arc;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use super::page::{is_navigation_race, Page};
+use super::page::{Page, is_navigation_race};
 use super::types::Point;
 use crate::error::SeleniumBaseError;
 

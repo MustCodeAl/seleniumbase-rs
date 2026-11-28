@@ -10,7 +10,7 @@
 
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::devtools::DevSession;
 use super::support::{cookie_file, json_output, nonempty, write_file};
@@ -306,10 +306,9 @@ pub(super) async fn find_elements_count(
 ) -> Result<Output, ToolError> {
     let selector = args.selector_text("selector")?;
     let mut case = ctx.session().await?;
-    Ok(Output::Json(json!(case
-        .find_elements(selector)
-        .await?
-        .len())))
+    Ok(Output::Json(json!(
+        case.find_elements(selector).await?.len()
+    )))
 }
 
 pub(super) async fn is_element_present(

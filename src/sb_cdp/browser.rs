@@ -6,16 +6,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use tempfile::TempDir;
 use tokio::process::Child;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use super::channel::{CdpInbox, CdpTransport, CHANNEL_SESSION, CHANNEL_TARGET};
+use super::channel::{CHANNEL_SESSION, CHANNEL_TARGET, CdpInbox, CdpTransport};
 use super::client::{Client, Events};
-use super::launch::{launch, LaunchOptions};
-use super::page::{Page, DEFAULT_TIMEOUT};
+use super::launch::{LaunchOptions, launch};
+use super::page::{DEFAULT_TIMEOUT, Page};
 use super::proxy_auth::{Credentials, ProxyAuth};
 use super::sync::locked;
 use super::types::{PageInfo, Permission};
@@ -1136,8 +1136,8 @@ impl Browser {
             // attach to, only the page to prepare.
             if id != CHANNEL_TARGET {
                 return Err(SeleniumBaseError::cdp_driver(format!(
-                        "a browser over a DevTools channel has the one page {CHANNEL_TARGET:?}, not {id:?}"
-                    )));
+                    "a browser over a DevTools channel has the one page {CHANNEL_TARGET:?}, not {id:?}"
+                )));
             }
             CHANNEL_SESSION.into()
         } else {

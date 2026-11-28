@@ -13,11 +13,11 @@ use serde_json::Value;
 
 use super::apply::Scope;
 use super::client::Client;
-use super::entry::{plan, Existing, LaunchSpec, Only, PlanInput};
+use super::entry::{Existing, LaunchSpec, Only, PlanInput, plan};
 use super::env::{Env, Os};
 use super::fsx::backup_path;
 use super::jsonfile;
-use super::{clients, install, uninstall, ClientsRequest, InstallRequest, UninstallRequest};
+use super::{ClientsRequest, InstallRequest, UninstallRequest, clients, install, uninstall};
 
 const EXE: &str = "/opt/sbrs/sbrs-mcp";
 
@@ -989,8 +989,7 @@ fn clients_lists_what_is_registered() {
 
 // -- Codex's config.toml ----------------------------------------------------------------------
 
-const CODEX_CONFIG: &str =
-    "# my codex config\nmodel = \"o3\"   # the model\n\n[projects.\"/work\"]\n\
+const CODEX_CONFIG: &str = "# my codex config\nmodel = \"o3\"   # the model\n\n[projects.\"/work\"]\n\
 trust_level = \"trusted\"\n\n# an unrelated server\n[mcp_servers.other]\ncommand = \"keep-me\"\n\
 args = [\"-x\"]\n";
 

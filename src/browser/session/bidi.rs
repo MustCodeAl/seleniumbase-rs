@@ -2,12 +2,12 @@
 
 use futures_util::StreamExt;
 use serde_json::Value;
+use thirtyfour::bidi::RequestId;
 use thirtyfour::bidi::events::{
     AuthRequired, BeforeRequestSent, FetchError, LogEntryAdded, ResponseCompleted, ResponseStarted,
 };
 use thirtyfour::bidi::modules::network::{InterceptGuard, InterceptPhase};
-use thirtyfour::bidi::RequestId;
-use tokio::sync::mpsc::{channel, Receiver};
+use tokio::sync::mpsc::{Receiver, channel};
 
 use super::BrowserSession;
 use crate::error::SeleniumBaseError;

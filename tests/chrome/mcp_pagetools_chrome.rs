@@ -19,8 +19,8 @@ use std::net::TcpListener;
 use std::thread;
 
 use seleniumbase_rs::mcp::cdp;
-use seleniumbase_rs::mcp::{sb, Host, Output, Settings, ToolError};
-use serde_json::{json, Map, Value};
+use seleniumbase_rs::mcp::{Host, Output, Settings, ToolError, sb};
+use serde_json::{Map, Value, json};
 
 const PAGE: &str = include_str!("../fixtures/mcp/page_snapshot.html");
 

@@ -24,9 +24,9 @@
 
 mod local_site;
 
-use local_site::{ensure, Site, DEMO_PATH};
+use local_site::{DEMO_PATH, Site, ensure};
 use seleniumbase_rs::api::recorder::RecorderSession;
-use seleniumbase_rs::{tokio, BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{BaseCase, BrowserConfig, Result, tokio};
 
 #[tokio::main]
 async fn main() -> Result<()> {

@@ -12,8 +12,8 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use crate::error::SeleniumBaseError;
-use crate::utils::translate::scenario::translate_scenario;
 use crate::utils::translate::Language;
+use crate::utils::translate::scenario::translate_scenario;
 
 /// What `translate` does with the translated scenario.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

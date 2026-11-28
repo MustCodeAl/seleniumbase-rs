@@ -5,12 +5,12 @@ use std::path::PathBuf;
 
 use crate::browser::config::BrowserConfig;
 use crate::browser::options::{
-    chrome_preferences, emulated_phone, switch_args, BrowserSettings, Bundled, LaunchSwitch,
-    LocaleCode, SessionSettings,
+    BrowserSettings, Bundled, LaunchSwitch, LocaleCode, SessionSettings, chrome_preferences,
+    emulated_phone, switch_args,
 };
 use crate::error::SeleniumBaseError;
-use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 use thirtyfour::LoggingPrefsLogLevel;
+use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 
 /// The user agent a phone-emulating session reports when the caller names none:
 /// Chrome on Android in its frozen format (release 10, model `K`), claiming
@@ -512,10 +512,12 @@ mod tests {
             headless: true,
             ..Default::default()
         };
-        assert!(headless
-            .args()
-            .unwrap()
-            .contains(&"--disable-gpu".to_owned()));
+        assert!(
+            headless
+                .args()
+                .unwrap()
+                .contains(&"--disable-gpu".to_owned())
+        );
     }
 
     #[test]
@@ -551,7 +553,7 @@ mod tests {
         CapabilityOverrides, CdpEventCapture, DeviceMetrics, ExtensionArchive, PageLoadStrategy,
         ProxyBypassList, WindowPosition, WindowSize,
     };
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     fn options_for(config: &BrowserConfig) -> StealthOptions {
         StealthOptions::from(config)
@@ -754,17 +756,21 @@ mod tests {
             .mode(DriverMode::Uc)
             .build()
             .expect("a valid config");
-        assert!(chrome_options(&options_for(&uc))
-            .get("mobileEmulation")
-            .is_none());
+        assert!(
+            chrome_options(&options_for(&uc))
+                .get("mobileEmulation")
+                .is_none()
+        );
         let uc_metrics = uc
             .into_builder()
             .device_metrics(DeviceMetrics::new(360, 640, 2.0))
             .build()
             .expect("a valid config");
-        assert!(chrome_options(&options_for(&uc_metrics))
-            .get("mobileEmulation")
-            .is_none());
+        assert!(
+            chrome_options(&options_for(&uc_metrics))
+                .get("mobileEmulation")
+                .is_none()
+        );
 
         // Metrics given alone do not choose a user agent.
         let mut metrics_only = BrowserConfig::default();
@@ -899,29 +905,35 @@ mod tests {
             .enable_sync(true)
             .build()
             .expect("a valid config");
-        assert!(!options_for(&enabled)
-            .args()
-            .unwrap()
-            .contains(&"--disable-sync".to_owned()));
+        assert!(
+            !options_for(&enabled)
+                .args()
+                .unwrap()
+                .contains(&"--disable-sync".to_owned())
+        );
 
         // The undetected-mode arguments carry the switch too.
         let uc = BrowserConfig::builder()
             .mode(DriverMode::Uc)
             .build()
             .expect("a valid config");
-        assert!(options_for(&uc)
-            .args()
-            .unwrap()
-            .contains(&"--disable-sync".to_owned()));
+        assert!(
+            options_for(&uc)
+                .args()
+                .unwrap()
+                .contains(&"--disable-sync".to_owned())
+        );
         let uc_synced = uc
             .into_builder()
             .enable_sync(true)
             .build()
             .expect("a valid config");
-        assert!(!options_for(&uc_synced)
-            .args()
-            .unwrap()
-            .contains(&"--disable-sync".to_owned()));
+        assert!(
+            !options_for(&uc_synced)
+                .args()
+                .unwrap()
+                .contains(&"--disable-sync".to_owned())
+        );
     }
 
     #[test]
@@ -980,11 +992,13 @@ mod tests {
 
         let none = chrome_options(&options_for(&BrowserConfig::default()));
         assert!(none.get("extensions").is_none());
-        assert!(!none["args"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|a| a.as_str().unwrap().contains("DisableLoadExtension")));
+        assert!(
+            !none["args"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|a| a.as_str().unwrap().contains("DisableLoadExtension"))
+        );
     }
 
     #[test]
@@ -1025,28 +1039,34 @@ mod tests {
             .remote_debug(true)
             .build()
             .expect("a valid config");
-        assert!(options_for(&on)
-            .args()
-            .unwrap()
-            .contains(&"--remote-debugging-port=9222".to_owned()));
+        assert!(
+            options_for(&on)
+                .args()
+                .unwrap()
+                .contains(&"--remote-debugging-port=9222".to_owned())
+        );
         let custom = BrowserConfig::builder()
             .remote_debug_port(9333)
             .build()
             .expect("a valid config");
-        assert!(options_for(&custom)
-            .args()
-            .unwrap()
-            .contains(&"--remote-debugging-port=9333".to_owned()));
+        assert!(
+            options_for(&custom)
+                .args()
+                .unwrap()
+                .contains(&"--remote-debugging-port=9333".to_owned())
+        );
         let off = on
             .into_builder()
             .remote_debug(false)
             .build()
             .expect("a valid config");
-        assert!(!options_for(&off)
-            .args()
-            .unwrap()
-            .iter()
-            .any(|a| a.starts_with("--remote-debugging-port")));
+        assert!(
+            !options_for(&off)
+                .args()
+                .unwrap()
+                .iter()
+                .any(|a| a.starts_with("--remote-debugging-port"))
+        );
     }
 
     #[test]
@@ -1065,17 +1085,21 @@ mod tests {
             .cdp_events(CdpEventCapture::UndetectedOnly)
             .build()
             .expect("a valid config");
-        assert!(chrome_caps(&options_for(&uc_only))
-            .get("goog:loggingPrefs")
-            .is_none());
+        assert!(
+            chrome_caps(&options_for(&uc_only))
+                .get("goog:loggingPrefs")
+                .is_none()
+        );
         let uc = uc_only
             .into_builder()
             .mode(DriverMode::Uc)
             .build()
             .expect("a valid config");
-        assert!(chrome_caps(&options_for(&uc))
-            .get("goog:loggingPrefs")
-            .is_some());
+        assert!(
+            chrome_caps(&options_for(&uc))
+                .get("goog:loggingPrefs")
+                .is_some()
+        );
 
         let off = chrome_caps(&options_for(&BrowserConfig::default()));
         assert!(off.get("goog:loggingPrefs").is_none());

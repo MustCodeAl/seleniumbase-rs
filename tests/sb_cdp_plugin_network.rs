@@ -14,14 +14,13 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use seleniumbase_rs::plugin_api::{
-    async_trait, Capability, Category, Metadata, NetRule, NetworkInterest, Plugin, PluginSet,
-    RequestDecision, RequestFilter, RequestView, ResourceKind, ResponseView,
-    Result as PluginResult,
+    Capability, Category, Metadata, NetRule, NetworkInterest, Plugin, PluginSet, RequestDecision,
+    RequestFilter, RequestView, ResourceKind, ResponseView, Result as PluginResult, async_trait,
 };
 use seleniumbase_rs::sb_cdp::{
     Browser, ContextOptions, LaunchOptions, MockCtrl, Page, Proxy, Response, Rule,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 type Log = Arc<Mutex<Vec<String>>>;
 
@@ -550,11 +549,9 @@ async fn a_fulfilment_of_the_program_wins_and_the_plugins_are_not_asked() {
     let log = Log::default();
     let (_browser, page, mock) = launch(gate_that_blocks(&log)).await;
     let interception = page
-        .intercept(vec![Rule::fulfill(Response::json(
-            200,
-            &json!({"plan": "pro"}),
-        ))
-        .url("*/api/account")])
+        .intercept(vec![
+            Rule::fulfill(Response::json(200, &json!({"plan": "pro"}))).url("*/api/account"),
+        ])
         .await
         .unwrap();
 
@@ -638,9 +635,11 @@ async fn the_headers_of_a_program_rule_win_over_those_of_the_plugins() {
         .unwrap();
     let (_browser, page, mock) = launch(plugins).await;
     let _interception = page
-        .intercept(vec![Rule::modify()
-            .set_header("X-Both", "u")
-            .remove_header("X-Gone")])
+        .intercept(vec![
+            Rule::modify()
+                .set_header("X-Both", "u")
+                .remove_header("X-Gone"),
+        ])
         .await
         .unwrap();
 

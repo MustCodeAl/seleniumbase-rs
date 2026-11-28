@@ -510,9 +510,11 @@ fn a_target_in_a_folder_that_is_never_made_is_caught() {
         found.iter().any(|line| line.contains("examples/sample.rs")),
         "{found:?}"
     );
-    assert!(found
-        .iter()
-        .all(|line| line.contains("never makes the folder")));
+    assert!(
+        found
+            .iter()
+            .all(|line| line.contains("never makes the folder"))
+    );
 }
 
 #[test]

@@ -1,6 +1,6 @@
 //! Typing, choosing options and focus.
 
-use super::{selector_prop, timeout_prop, Cdp};
+use super::{Cdp, selector_prop, timeout_prop};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::sb_cdp::{Key, SelectBy};
 

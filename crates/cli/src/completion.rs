@@ -68,9 +68,9 @@ mod tests {
     fn usage_zsh_script_gives_a_complete_word_its_space() {
         let script = Cli::completion_script(Shell::Zsh);
         assert!(
-                script.contains("compadd -l -d display_done -U -Q -S ' ' -a inserts_done"),
-                "usage's zsh script no longer gives a complete word its space: patch it again (the zsh patch is in the history of crates/cli/src/completion.rs) or update this test"
-            );
+            script.contains("compadd -l -d display_done -U -Q -S ' ' -a inserts_done"),
+            "usage's zsh script no longer gives a complete word its space: patch it again (the zsh patch is in the history of crates/cli/src/completion.rs) or update this test"
+        );
     }
 
     #[test]

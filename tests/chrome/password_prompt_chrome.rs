@@ -32,7 +32,7 @@ use std::time::Duration;
 use seleniumbase_rs::api::runner::run_cdp_test;
 use seleniumbase_rs::browser::options::WindowSize;
 use seleniumbase_rs::sb_cdp::LaunchOptions;
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{BrowserConfig, Result, run_browser_test};
 
 /// How long the "data breach" prompt is given to come up, after the login that
 /// triggers it. Chrome asks Google first, which takes a few hundred

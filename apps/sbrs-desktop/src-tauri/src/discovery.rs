@@ -355,11 +355,7 @@ fn parse_fn_name(line: &str) -> Option<String> {
         .chars()
         .take_while(|c| c.is_ascii_alphanumeric() || *c == '_')
         .collect();
-    if name.is_empty() {
-        None
-    } else {
-        Some(name)
-    }
+    if name.is_empty() { None } else { Some(name) }
 }
 
 fn discover_feature_files(

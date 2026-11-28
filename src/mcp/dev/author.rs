@@ -9,7 +9,7 @@ use std::fmt::Write as _;
 use std::path::PathBuf;
 
 use super::NoBrowser;
-use crate::cli::plugin_scaffold::{render_plugin_files, PluginScaffoldOptions};
+use crate::cli::plugin_scaffold::{PluginScaffoldOptions, render_plugin_files};
 use crate::cli::scaffold::{GeneratedFile, ScaffoldError};
 use crate::cli::scripts::sb_mkdir::Suite;
 use crate::cli::scripts::sb_mkfile::TestFile;
@@ -18,7 +18,7 @@ use crate::mcp::devtools::is_test_name;
 use crate::mcp::support::nonempty;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::utilities::python_importer::{
-    import_python, ImportOptions, ImportSeverity, PythonSource,
+    ImportOptions, ImportSeverity, PythonSource, import_python,
 };
 
 /// The most Python source one call converts.
@@ -389,7 +389,7 @@ async fn scaffold_plugin(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, Too
 
 #[cfg(test)]
 mod tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::mcp::Settings;
@@ -520,14 +520,18 @@ mod tests {
             assert!(full.contains(content), "{path}");
         }
         assert!(full.contains("my_first_test.rs"), "{full}");
-        assert!(!basic
-            .as_text()
-            .unwrap()
-            .contains("=== tests/ui/my_first_test.rs"));
-        assert!(basic
-            .as_text()
-            .unwrap()
-            .contains("=== tests/ui/main.rs ==="));
+        assert!(
+            !basic
+                .as_text()
+                .unwrap()
+                .contains("=== tests/ui/my_first_test.rs")
+        );
+        assert!(
+            basic
+                .as_text()
+                .unwrap()
+                .contains("=== tests/ui/main.rs ===")
+        );
     }
 
     #[tokio::test]

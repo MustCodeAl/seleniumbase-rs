@@ -11,8 +11,8 @@ use std::fmt;
 use serde::{Deserialize, Serialize};
 
 use super::{
-    grid_url, CapabilityOverrides, CdpEventCapture, DriverVersion, ExtensionArchive,
-    FirefoxOptions, GridProtocol, PageLoadStrategy,
+    CapabilityOverrides, CdpEventCapture, DriverVersion, ExtensionArchive, FirefoxOptions,
+    GridProtocol, PageLoadStrategy, grid_url,
 };
 use crate::browser::config::DriverMode;
 use crate::browser::options::chromium::without_credentials;

@@ -1,6 +1,6 @@
 //! Scrolling, the browser window and its tabs.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::Cdp;
 use crate::mcp::support::{json_output, nonempty};

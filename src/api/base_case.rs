@@ -11,7 +11,7 @@ use crate::api::jqc::JqcDefaults;
 use crate::api::master_qa::MasterQaSession;
 use crate::api::membership::Contains;
 use crate::api::misc_calls::{
-    scroll_distance, AddCookie, GetSelectOptions, OpenNewTab, Scroll, WaitForElement,
+    AddCookie, GetSelectOptions, OpenNewTab, Scroll, WaitForElement, scroll_distance,
 };
 use crate::api::switching::{
     Alert, FrameRef, FrameSwitch, SwitchToAlert, SwitchToFrame, SwitchToWindow, WindowRef,
@@ -24,10 +24,10 @@ use crate::api::recorder::{
     ActionRecorder, RawAction, RecordedAction, RecordedCommand, RecorderEnd, RecorderSession,
     RecorderState, RecordingFormat, RecordingOptions, RecordingTarget, SavedRecording,
 };
-use crate::api::run_settings::{PauseKind, RunSettings, HEADLESS_MESSAGE_CAP};
+use crate::api::run_settings::{HEADLESS_MESSAGE_CAP, PauseKind, RunSettings};
 use crate::api::tour::Tour;
 use crate::artifacts::{artifact_path, ensure_latest_logs_dir};
-use crate::browser::config::{whole_seconds, BrowserConfig};
+use crate::browser::config::{BrowserConfig, whole_seconds};
 use crate::browser::element::Element;
 use crate::browser::options::NetworkThrottle;
 use crate::browser::session::BrowserSession;
@@ -36,7 +36,7 @@ use crate::cookie::Cookie;
 use crate::error::SeleniumBaseError;
 use crate::js_code::quote;
 use crate::sb_cdp::DevToolsEndpoint;
-use crate::utils::selectors::{css_to_xpath, Selector, SelectorRef};
+use crate::utils::selectors::{Selector, SelectorRef, css_to_xpath};
 use serde_json::Value;
 use std::collections::HashMap;
 use thirtyfour::common::keys::Key;
@@ -1853,11 +1853,11 @@ impl BaseCase {
             "text"
         };
         let message = match shown.seen {
-        Some(text) => format!("expected {what} '{expected}' in element '{css}', got '{text}'"),
-        None => format!(
-            "expected {what} '{expected}' in element '{css}', but no element matched or it was not displayed"
-        ),
-    };
+            Some(text) => format!("expected {what} '{expected}' in element '{css}', got '{text}'"),
+            None => format!(
+                "expected {what} '{expected}' in element '{css}', but no element matched or it was not displayed"
+            ),
+        };
         Err(self
             .text_assertion_failed(message, expected, css, kind == TextMatch::Exact)
             .await)
@@ -4010,7 +4010,7 @@ impl BaseCase {
             _ => {
                 return Err(SeleniumBaseError::InvalidSelector(format!(
                     "unknown key '{key_name}'"
-                )))
+                )));
             }
         };
         if let Some(page) = self.session.pure_cdp_page() {

@@ -2,8 +2,8 @@
 
 use super::ast::{Arg, Expr, Handler, Stmt, StmtKind};
 use super::expr::bind;
-use super::table::{typed, K, TIMEOUT};
-use super::tr::{one_line, py_repr, quote, rust_ident, Skip, Tr, Ty};
+use super::table::{K, TIMEOUT, typed};
+use super::tr::{Skip, Tr, Ty, one_line, py_repr, quote, rust_ident};
 
 /// The first line of a statement's source, for a `TODO`.
 fn first_line(text: &str) -> String {
@@ -492,15 +492,17 @@ impl Tr<'_> {
                     self.emit("}");
                     break;
                 }
-                [Stmt {
-                    kind:
-                        StmtKind::If {
-                            test: next_test,
-                            body: next_body,
-                            orelse: next_orelse,
-                        },
-                    ..
-                }] if !self.may_await(next_test) => {
+                [
+                    Stmt {
+                        kind:
+                            StmtKind::If {
+                                test: next_test,
+                                body: next_body,
+                                orelse: next_orelse,
+                            },
+                        ..
+                    },
+                ] if !self.may_await(next_test) => {
                     test = next_test;
                     body = next_body;
                     orelse = next_orelse;

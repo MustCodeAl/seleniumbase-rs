@@ -3,10 +3,10 @@
 
 use std::path::Path;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::cookie::Cookie;
-use crate::error::{driver_kind, DriverErrorKind, SeleniumBaseError};
+use crate::error::{DriverErrorKind, SeleniumBaseError, driver_kind};
 
 use super::BrowserSession;
 
@@ -17,8 +17,8 @@ impl BrowserSession {
             // The callback is the last argument, as WebDriver passes it: a promise
             // the script resolves.
             let expression = format!(
-                    "new Promise((resolve, reject) => {{ try {{ (function() {{\n{script}\n}}).call(window, resolve); }} catch (error) {{ reject(error); }} }})"
-                );
+                "new Promise((resolve, reject) => {{ try {{ (function() {{\n{script}\n}}).call(window, resolve); }} catch (error) {{ reject(error); }} }})"
+            );
             return Box::pin(self.cdp_evaluate(&page, expression)).await;
         }
         self.webdriver()?

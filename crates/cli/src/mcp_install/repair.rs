@@ -10,9 +10,9 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::apply::{perform, registered, Job, Scope, Task};
+use super::apply::{Job, Scope, Task, perform, registered};
 use super::client::Client;
-use super::entry::{names, Entry, Existing, LaunchSpec, Only};
+use super::entry::{Entry, Existing, LaunchSpec, Only, names};
 use super::env::Env;
 use super::report::ClientReport;
 use super::{check_name, parse_clients};

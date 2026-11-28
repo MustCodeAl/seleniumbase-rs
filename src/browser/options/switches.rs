@@ -3,7 +3,7 @@
 use std::borrow::Borrow;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// A setting that is either on or off for a browser session.
 ///

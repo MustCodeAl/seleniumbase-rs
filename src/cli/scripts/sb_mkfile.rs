@@ -17,7 +17,7 @@ use std::path::PathBuf;
 
 use url::Url;
 
-use crate::cli::scaffold::{rust_fn_name, GeneratedFile, RelativeName, Scaffold, ScaffoldError};
+use crate::cli::scaffold::{GeneratedFile, RelativeName, Scaffold, ScaffoldError, rust_fn_name};
 use crate::utils::translate::Language;
 
 /// The page the example test opens when no URL is given.
@@ -429,11 +429,9 @@ impl TestFile {
                 "sb.assert_title(\"Example Domain\").await?;".to_owned(),
                 format!("sb.assert_text({EXAMPLE_NOTICE:?}, \"p\").await?;"),
             ],
-            (None, true) => vec![
-                format!(
-                    "page.locator(\"p\")\n    .expect()\n    .to_contain_text({EXAMPLE_NOTICE:?})\n    .await?;"
-                ),
-            ],
+            (None, true) => vec![format!(
+                "page.locator(\"p\")\n    .expect()\n    .to_contain_text({EXAMPLE_NOTICE:?})\n    .await?;"
+            )],
             (Some(_), false) => vec![
                 format!("sb.type_text(\"input\", {goodbye:?}).await?;"),
                 "sb.click(\"html body > p\").await?;".to_owned(),
@@ -896,9 +894,10 @@ mod tests {
         assert_eq!(first, PathBuf::from("a.rs"));
         let second = test.create(&Scaffold::new(dir.path()));
         assert!(matches!(second, Err(ScaffoldError::AlreadyExists(_))));
-        assert!(test
-            .create(&Scaffold::new(dir.path()).replacing(true))
-            .is_ok());
+        assert!(
+            test.create(&Scaffold::new(dir.path()).replacing(true))
+                .is_ok()
+        );
     }
 }
 

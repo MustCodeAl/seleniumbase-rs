@@ -3,12 +3,12 @@
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::error::SeleniumBaseError;
+use crate::mcp::Closeable;
 use crate::mcp::devtools::DevSession;
 use crate::mcp::failure::shorten;
-use crate::mcp::Closeable;
 use crate::sb_cdp::{Browser, Page};
 
 /// The most failed requests a network watch keeps; older ones are dropped.

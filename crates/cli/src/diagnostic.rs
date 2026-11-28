@@ -19,8 +19,8 @@ use std::fmt;
 use std::io::IsTerminal;
 
 use miette::{Diagnostic, GraphicalReportHandler, GraphicalTheme};
-use seleniumbase_rs::cli::scripts::rich_helper::{sanitize, use_color, Stream};
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::cli::scripts::rich_helper::{Stream, sanitize, use_color};
 
 /// The width a report wraps at on a terminal that does not say how wide it is.
 const DEFAULT_WIDTH: usize = 80;

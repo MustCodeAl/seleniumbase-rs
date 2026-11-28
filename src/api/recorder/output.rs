@@ -20,7 +20,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, OnceLock};
 
-use super::{check_file_name, rust_identifier, ActionRecorder, RecordedAction, RecorderSession};
+use super::{ActionRecorder, RecordedAction, RecorderSession, check_file_name, rust_identifier};
 use crate::common::color::{banner, palette};
 
 use crate::{DriverMode, SeleniumBaseError};

@@ -36,11 +36,11 @@ use std::path::{Path, PathBuf};
 use reqwest::Client;
 
 use crate::browser::binaries::{
-    downloaded_executable, find_executable, CHROMIUM_DIR, DOWNLOADS_DIR,
+    CHROMIUM_DIR, DOWNLOADS_DIR, downloaded_executable, find_executable,
 };
 use crate::browser::chrome_for_testing::{fetch_bytes, http_client, install_archive};
 use crate::browser::config::Browser;
-use crate::browser::driver_access::{make_runnable, CodeSignature};
+use crate::browser::driver_access::{CodeSignature, make_runnable};
 use crate::browser::driver_version::binary_major;
 use crate::error::SeleniumBaseError;
 
@@ -93,7 +93,7 @@ impl SnapshotPlatform {
                 return Err(SeleniumBaseError::Unsupported(format!(
                     "Chromium snapshots are published for macOS, Linux x64 and Windows, not \
                      {os}-{arch}; `sbrs get cft` fetches Chrome for Testing where it has a build"
-                )))
+                )));
             }
         };
         Ok(Self {
@@ -332,7 +332,7 @@ mod tests {
     use zip::write::SimpleFileOptions;
 
     use super::*;
-    use crate::browser::binaries::{locate_with, Platform};
+    use crate::browser::binaries::{Platform, locate_with};
 
     fn linux() -> SnapshotPlatform {
         SnapshotPlatform::for_system("linux", "x86_64").unwrap()

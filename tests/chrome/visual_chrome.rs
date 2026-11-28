@@ -19,7 +19,7 @@ use std::time::Duration;
 
 use seleniumbase_rs::api::run_settings::RunSettings;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
-use seleniumbase_rs::visual::{VisualBaseline, VisualOutcome, DEFAULT_THRESHOLD};
+use seleniumbase_rs::visual::{DEFAULT_THRESHOLD, VisualBaseline, VisualOutcome};
 use seleniumbase_rs::{BaseCase, BrowserConfig, SeleniumBaseError};
 
 /// A page with a heading, a line of small print and a coloured block.

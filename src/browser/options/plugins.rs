@@ -40,7 +40,7 @@ impl PartialEq for BrowserPlugins {
 
 #[cfg(test)]
 mod tests {
-    use seleniumbase_rs_plugin::{async_trait, Plugin};
+    use seleniumbase_rs_plugin::{Plugin, async_trait};
 
     use super::*;
 

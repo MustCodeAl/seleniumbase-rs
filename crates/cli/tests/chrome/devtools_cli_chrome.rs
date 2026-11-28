@@ -224,9 +224,11 @@ fn the_text_output_names_the_fixed_port_and_sigterm_closes_chrome() {
     );
     assert!(text.contains(&format!("--browserUrl=http://127.0.0.1:{port}")));
     assert!(text.contains(&format!("--cdp-endpoint=http://127.0.0.1:{port}")));
-    assert!(http_get(port, "/json/version")
-        .expect("/json/version answers on the fixed port")
-        .contains("webSocketDebuggerUrl"));
+    assert!(
+        http_get(port, "/json/version")
+            .expect("/json/version answers on the fixed port")
+            .contains("webSocketDebuggerUrl")
+    );
 
     let status = stop(&mut child, "-TERM");
     assert!(

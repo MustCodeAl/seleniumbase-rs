@@ -1442,7 +1442,11 @@
                     "group": "Stealth API: identity",
                     "pages": [
                       "stealth/api/identity/overview",
-                      "stealth/api/identity/fingerprint"
+                      "stealth/api/identity/fingerprint",
+                      "stealth/api/identity/spoof-policy",
+                      "stealth/api/identity/mimic-randomize",
+                      "stealth/api/identity/generator-bayesian",
+                      "stealth/api/identity/profile-payloads-capture"
                     ]
                   }
                 ]
@@ -1456,6 +1460,9 @@
                     "group": "Stealth API: client",
                     "pages": [
                       "stealth/api/client/overview",
+                      "stealth/api/client/apply",
+                      "stealth/api/client/script-providers",
+                      "stealth/api/client/evasions-uc",
                       "stealth/api/client/migration"
                     ]
                   }

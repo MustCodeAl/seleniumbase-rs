@@ -14,7 +14,7 @@ use std::collections::BTreeSet;
 use std::path::Path;
 
 use fake_webdriver::FakeWebDriver;
-use seleniumbase_rs::config::env_vars::{variables, EXTRA_VARIABLES};
+use seleniumbase_rs::config::env_vars::{EXTRA_VARIABLES, variables};
 use seleniumbase_rs::config::test_options::{OptionKind, OptionSpec, TEST_OPTIONS};
 
 const OPEN: [&str; 2] = ["open", "https://example.test/"];

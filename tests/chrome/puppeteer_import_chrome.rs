@@ -15,8 +15,8 @@
 use super::import_fixtures;
 
 use import_fixtures::{
-    cargo, module_name, options, printed, read_fixture, results, scratch_dir, serve, write_crate,
-    PLACEHOLDER,
+    PLACEHOLDER, cargo, module_name, options, printed, read_fixture, results, scratch_dir, serve,
+    write_crate,
 };
 use seleniumbase_rs::utilities::importer::import_puppeteer;
 

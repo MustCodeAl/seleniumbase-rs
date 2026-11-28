@@ -35,8 +35,7 @@ const TOP_PAGE: &str = "<!doctype html><html><head><title>Top</title></head><bod
     </body></html>";
 
 /// The page the second iframe holds.
-const INNER_PAGE: &str =
-    "<!doctype html><html><head><title>Inner</title></head><body><p id=\"inner\">Inner page</p></body></html>";
+const INNER_PAGE: &str = "<!doctype html><html><head><title>Inner</title></head><body><p id=\"inner\">Inner page</p></body></html>";
 
 fn test_config() -> BrowserConfig {
     let mut config = BrowserConfig::default();

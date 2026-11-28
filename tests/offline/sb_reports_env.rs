@@ -10,11 +10,11 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use base64::prelude::*;
+use seleniumbase_rs::Result;
 use seleniumbase_rs::core::report_helper::TestStatus;
 use seleniumbase_rs::core::test_run::TestRun;
 use seleniumbase_rs::sb_cdp::Browser;
 use seleniumbase_rs::testing::SbCdp;
-use seleniumbase_rs::Result;
 use serde_json::json;
 
 /// The folder of the run, made (and put in the variables) the first time.
@@ -97,8 +97,8 @@ async fn a_fixture_test_reports_by_itself_when_the_dashboard_is_on() {
 #[serial_test::serial(env)]
 
 async fn a_scenario_reports_by_itself_when_the_dashboard_is_on() {
-    use seleniumbase_rs::testing::bdd::SbCdpCase;
     use seleniumbase_rs::Settings;
+    use seleniumbase_rs::testing::bdd::SbCdpCase;
 
     let root = root();
     let logs = tempfile::tempdir().unwrap();

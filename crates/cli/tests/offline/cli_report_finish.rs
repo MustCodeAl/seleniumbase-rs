@@ -5,9 +5,9 @@
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output};
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::core::log_helper::TestId;
 use seleniumbase_rs::core::test_run::{ReportSettings, RunKey, TestRun};
-use seleniumbase_rs::SeleniumBaseError;
 use serde_json::Value;
 
 const SBASE: &str = env!("CARGO_BIN_EXE_sbrs");
@@ -185,10 +185,12 @@ fn finish_json_says_what_was_done() {
     assert_eq!(done["summary"]["passed"], 1);
     assert_eq!(done["summary"]["failed"], 1);
     assert_eq!(done["summary"]["unreported"], 1);
-    assert!(done["dashboard"]
-        .as_str()
-        .unwrap()
-        .ends_with("dashboard.html"));
+    assert!(
+        done["dashboard"]
+            .as_str()
+            .unwrap()
+            .ends_with("dashboard.html")
+    );
     assert!(done["junit_xml"].as_str().unwrap().ends_with("x.xml"));
     assert!(done["html"].is_null());
     assert!(done["warnings"].as_array().unwrap().is_empty(), "{done}");

@@ -688,10 +688,12 @@ mod tests {
             AdBlockList::builtin().bounded_url_patterns().unwrap().len(),
             2 * BUILTIN_HOSTS.len()
         );
-        assert!(AdBlockList::new()
-            .bounded_url_patterns()
-            .unwrap()
-            .is_empty());
+        assert!(
+            AdBlockList::new()
+                .bounded_url_patterns()
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

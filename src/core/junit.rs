@@ -29,7 +29,7 @@ use std::io;
 use std::path::Path;
 
 use crate::core::dashboard::is_plain_relative;
-use crate::core::report_helper::{write_atomically, RunSnapshot, TestResult, TestStatus};
+use crate::core::report_helper::{RunSnapshot, TestResult, TestStatus, write_atomically};
 
 /// The name of the `<testsuites>` root, and the suite of a test whose name has
 /// no suite in front of it.
@@ -404,9 +404,10 @@ mod tests {
         assert_eq!(root.attribute("errors"), Some("0"));
         assert_eq!(root.attribute("skipped"), Some("1"));
         assert_eq!(root.attribute("time"), Some("1.750"));
-        assert!(root
-            .attribute("timestamp")
-            .is_some_and(|t| t.starts_with("2026-10-22T15:24:01.000000")));
+        assert!(
+            root.attribute("timestamp")
+                .is_some_and(|t| t.starts_with("2026-10-22T15:24:01.000000"))
+        );
 
         let suites: Vec<_> = root
             .children()
@@ -438,8 +439,11 @@ mod tests {
             .find(|n| n.attribute("name") == Some("test_add"))
             .unwrap();
         assert_eq!(nested.attribute("classname"), Some("cart"));
-        assert!(xml
-            .contains("<testcase classname=\"login.tests\" name=\"test_login\" time=\"0.500\"/>"));
+        assert!(
+            xml.contains(
+                "<testcase classname=\"login.tests\" name=\"test_login\" time=\"0.500\"/>"
+            )
+        );
     }
 
     #[test]

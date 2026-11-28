@@ -11,7 +11,7 @@ use import_fixtures::{
     cargo, module_name, options, printed, read_fixture, scratch_dir, write_crate,
 };
 use seleniumbase_rs::utilities::importer::{
-    import_playwright, ImportSeverity, ScriptImport, ScriptLanguage,
+    ImportSeverity, ScriptImport, ScriptLanguage, import_playwright,
 };
 
 /// Each fixture, its language, and what its deliberate `TODO`s mention.
@@ -80,9 +80,11 @@ fn the_tests_are_named_from_their_titles_and_scripts_from_the_file() {
     let pytest = import("test_shop.py");
     assert_eq!(pytest.tests.len(), 6);
     assert!(pytest.rust.contains("#[ignore = \"kept skipped\"]"));
-    assert!(import("shop.spec.ts")
-        .rust
-        .contains("#[ignore = \"skipped with test.skip in the source\"]"));
+    assert!(
+        import("shop.spec.ts")
+            .rust
+            .contains("#[ignore = \"skipped with test.skip in the source\"]")
+    );
 }
 
 #[test]

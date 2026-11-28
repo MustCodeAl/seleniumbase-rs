@@ -79,7 +79,7 @@ use std::time::{Duration, Instant};
 
 use bytes::Bytes;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use thirtyfour::prelude::{WebDriver, WebDriverResult};
 use thirtyfour::session::http::{Body, HttpClient};
 use tracing::{debug, info, warn};
@@ -1207,9 +1207,9 @@ mod tests_with_a_driver {
     use std::sync::atomic::{AtomicBool, Ordering};
 
     use super::*;
+    use crate::BaseCase;
     use crate::api::base_case::webdriver_support::{MockWebDriver, Reply, Seen};
     use crate::browser::config::Browser;
-    use crate::BaseCase;
 
     fn method_and_path(request: &Seen) -> (&str, &str) {
         (request.method.as_str(), request.path.as_str())
@@ -1376,19 +1376,23 @@ mod tests_with_a_driver {
             driver.requests("/goog/cdp/execute").is_empty(),
             "no cookie is deleted without crumbs"
         );
-        assert!(driver
-            .requests("/cookie")
-            .iter()
-            .all(|r| r.method != "DELETE"));
+        assert!(
+            driver
+                .requests("/cookie")
+                .iter()
+                .all(|r| r.method != "DELETE")
+        );
         // The rest of the cleaning is the same either way.
         assert!(
             !driver.requests("/execute/sync").is_empty(),
             "storage is cleared"
         );
-        assert!(driver
-            .requests("/url")
-            .iter()
-            .any(|r| r.body["url"] == "about:blank"));
+        assert!(
+            driver
+                .requests("/url")
+                .iter()
+                .any(|r| r.body["url"] == "about:blank")
+        );
 
         reset_by_hand(&driver, &config, true).await;
         let cdp = driver.requests("/goog/cdp/execute");
@@ -1438,10 +1442,12 @@ mod tests_with_a_driver {
         BaseCase::new(config).await.unwrap().quit().await.unwrap();
 
         assert_eq!(new_session_requests(&driver), 1);
-        assert!(driver
-            .requests("/cookie")
-            .iter()
-            .any(|r| r.method == "DELETE"));
+        assert!(
+            driver
+                .requests("/cookie")
+                .iter()
+                .any(|r| r.method == "DELETE")
+        );
         assert!(driver.requests("/goog/cdp/execute").is_empty());
     }
 

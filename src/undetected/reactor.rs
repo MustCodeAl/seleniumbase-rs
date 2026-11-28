@@ -3,7 +3,7 @@
 use std::collections::HashMap;
 
 use futures_util::{Sink, SinkExt, Stream, StreamExt};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::task::JoinHandle;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
@@ -232,9 +232,11 @@ mod tests {
         assert_eq!(cmd["method"], "Fetch.continueRequest");
         assert_eq!(cmd["params"]["requestId"], "abc");
         let headers = cmd["params"]["headers"].as_array().unwrap();
-        assert!(headers
-            .iter()
-            .any(|h| h["name"] == "Accept-Language" && h["value"] == "en-US"));
+        assert!(
+            headers
+                .iter()
+                .any(|h| h["name"] == "Accept-Language" && h["value"] == "en-US")
+        );
     }
 
     #[test]

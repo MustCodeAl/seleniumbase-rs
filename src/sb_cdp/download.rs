@@ -197,7 +197,7 @@ async fn follow(
                             return Err(SeleniumBaseError::Download {
                                 url: download.source.clone(),
                                 reason: "the browser cancelled the download".to_owned(),
-                            })
+                            });
                         }
                         _ => {}
                     }

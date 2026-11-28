@@ -13,7 +13,7 @@ mod waits;
 mod windows;
 
 use super::webdriver as w;
-use super::{devtools, Host, Settings, ToolDef};
+use super::{Host, Settings, ToolDef, devtools};
 use crate::api::base_case::BaseCase;
 
 const SERVER_NAME: &str = "seleniumbase-driver";

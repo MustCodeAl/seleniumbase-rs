@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use async_trait::async_trait;
 
-use super::observer::{write_evidence, PageEvidence, TestPlugin};
+use super::observer::{PageEvidence, TestPlugin, write_evidence};
 use crate::error::{Result, SeleniumBaseError};
 
 /// Saves the page's HTML into a directory when a test fails.

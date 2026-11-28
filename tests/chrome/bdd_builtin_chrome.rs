@@ -5,7 +5,7 @@
 #![cfg(feature = "bdd")]
 
 use rstest_bdd_macros::scenario;
-use seleniumbase_rs::testing::bdd::{sb, SbCase};
+use seleniumbase_rs::testing::bdd::{SbCase, sb};
 
 #[scenario(
     path = "tests/features/bdd_builtin_chrome.feature",

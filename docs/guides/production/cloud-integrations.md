@@ -38,7 +38,7 @@ Enable `s3` on `seleniumbase-rs` for AWS/S3-compatible uploads, and add `seleniu
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0", features = ["s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.11.0", features = ["s3"] }
 seleniumbase-rs-plugin-cloud-logging = { git = "https://github.com/MustCodeAl/seleniumbase-rs-plugins", tag = "v0.10.0" }
 ```
 

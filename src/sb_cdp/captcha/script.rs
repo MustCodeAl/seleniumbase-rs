@@ -11,7 +11,7 @@
 //! frame element itself is found and measured). Positions are in viewport
 //! coordinates, which is what mouse events use.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::Captcha;
 
@@ -302,12 +302,16 @@ mod tests {
         }
         assert!(script.contains("interstitial: interstitial()"), "{script}");
         // A frame of the vendor is on pages that are no challenge at all, and may be hidden.
-        assert!(INTERSTITIAL
-            .iter()
-            .all(|marker| !marker.starts_with("iframe")));
-        assert!(INTERSTITIAL
-            .iter()
-            .all(|marker| !marker.contains("cf-chl-widget")));
+        assert!(
+            INTERSTITIAL
+                .iter()
+                .all(|marker| !marker.starts_with("iframe"))
+        );
+        assert!(
+            INTERSTITIAL
+                .iter()
+                .all(|marker| !marker.contains("cf-chl-widget"))
+        );
     }
 
     #[test]

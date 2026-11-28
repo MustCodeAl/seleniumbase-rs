@@ -34,11 +34,11 @@ use std::fmt::{Display, Write as _};
 use std::str::FromStr;
 
 use crate::config::browser_options::flag_cell;
-use crate::config::layers::{no_items, put, Layer, Refused};
-use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
-use crate::config::settings::{named, Settings, SettingsProblem};
-use crate::config::test_options::{read_variables, Variables};
+use crate::config::layers::{Layer, Refused, no_items, put};
+use crate::config::plugins::{PLUGINS_ENV, PluginSelection};
+use crate::config::settings::{Settings, SettingsProblem, named};
 use crate::config::test_options::{OptionKind, OptionSpec, TEST_OPTIONS};
+use crate::config::test_options::{Variables, read_variables};
 use crate::error::SeleniumBaseError;
 use figment::value::{Dict, Map, Value};
 use figment::{Metadata, Profile, Provider};
@@ -337,7 +337,6 @@ pub const EXTRA_VARIABLES: &[EnvVar] = &[
         help: "The folder the Selenium Grid records and logs go to",
         refused: None,
     },
-
 ];
 
 /// One line of the listing: a variable, who reads it, its flag, its default and what it sets.

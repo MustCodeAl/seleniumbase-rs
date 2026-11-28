@@ -13,13 +13,13 @@
 
 #![cfg(feature = "test-util")]
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, Call, MockCtrl, Page};
 use seleniumbase_rs::SeleniumBaseError;
-use serde_json::{json, Value};
+use seleniumbase_rs::sb_cdp::{Browser, Call, MockCtrl, Page};
+use serde_json::{Value, json};
 
 /// The remote object `Runtime.evaluate` returns for the frame element.
 const FRAME_ELEMENT: &str = "frame-element";
@@ -331,9 +331,11 @@ async fn the_handles_of_the_frame_elements_are_let_go_after_use() {
     let described = mock.calls_to("DOM.describeNode").len();
     let released = mock.calls_to("Runtime.releaseObject");
     assert_eq!(released.len(), described, "every handle is released");
-    assert!(released
-        .iter()
-        .all(|call| call.params["objectId"] == json!(FRAME_ELEMENT)));
+    assert!(
+        released
+            .iter()
+            .all(|call| call.params["objectId"] == json!(FRAME_ELEMENT))
+    );
 }
 
 #[test_log::test(tokio::test)]
@@ -392,12 +394,16 @@ async fn a_frame_of_another_process_is_attached_to_and_scripts_go_to_its_session
         .collect();
     assert!(!framed.is_empty());
     assert!(framed.iter().all(|call| call.method == "Runtime.evaluate"));
-    assert!(framed
-        .iter()
-        .all(|call| call.params.get("contextId").is_none()));
-    assert!(framed.iter().any(|call| call.params["expression"]
-        .as_str()
-        .is_some_and(|expression| expression.contains("__sbcdp.center("))));
+    assert!(
+        framed
+            .iter()
+            .all(|call| call.params.get("contextId").is_none())
+    );
+    assert!(framed.iter().any(|call| {
+        call.params["expression"]
+            .as_str()
+            .is_some_and(|expression| expression.contains("__sbcdp.center("))
+    }));
 
     // The mouse is still the tab's.
     assert!(mouse_events(&mock)
@@ -452,12 +458,14 @@ async fn a_frame_that_cannot_be_entered_is_a_frame_without_matches() {
     script_frame(&mock, 1, false);
     mock.reply("DOM.describeNode", json!({ "node": {} }));
 
-    assert!(!page
-        .locator("iframe#f")
-        .locator("#b")
-        .exists()
-        .await
-        .unwrap());
+    assert!(
+        !page
+            .locator("iframe#f")
+            .locator("#b")
+            .exists()
+            .await
+            .unwrap()
+    );
 }
 
 #[test_log::test(tokio::test)]

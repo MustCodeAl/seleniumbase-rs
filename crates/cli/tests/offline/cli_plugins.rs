@@ -1209,19 +1209,22 @@ fn devtools_reads_the_plugins_table_and_sb_plugins_and_the_option_flags() {
 
     let from_file = fake_chrome::FakeChrome::new();
     devtools(&from_file, Some(file), &[], &[]);
-    assert!(from_file
-        .args()
-        .expect("started")
-        .iter()
-        .any(|arg| arg == SHIELD_SWITCH));
+    assert!(
+        from_file
+            .args()
+            .expect("started")
+            .iter()
+            .any(|arg| arg == SHIELD_SWITCH)
+    );
 
     let off = fake_chrome::FakeChrome::new();
     devtools(&off, Some(file), &[("SB_PLUGINS", "")], &[]);
-    assert!(!off
-        .args()
-        .expect("started")
-        .iter()
-        .any(|arg| arg == SHIELD_SWITCH));
+    assert!(
+        !off.args()
+            .expect("started")
+            .iter()
+            .any(|arg| arg == SHIELD_SWITCH)
+    );
 
     let strict = fake_chrome::FakeChrome::new();
     devtools(
@@ -1230,11 +1233,13 @@ fn devtools_reads_the_plugins_table_and_sb_plugins_and_the_option_flags() {
         &[("SB_PLUGINS", "shield")],
         &["--plugin-opt", r#"shield.level="strict""#],
     );
-    assert!(strict
-        .args()
-        .expect("started")
-        .iter()
-        .any(|arg| arg.starts_with("--host-resolver-rules=")));
+    assert!(
+        strict
+            .args()
+            .expect("started")
+            .iter()
+            .any(|arg| arg.starts_with("--host-resolver-rules="))
+    );
 }
 
 #[cfg(unix)]

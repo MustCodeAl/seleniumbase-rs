@@ -1,6 +1,6 @@
 # SeleniumBase Commander Desktop GUI
 
-Desktop test runner and workflow companion for `seleniumbase-rs`, built with Tauri 3 (`tauri-runtime-wry`). It brings the original Python SeleniumBase desktop GUIs (`sbase commander`, `sbase behave-gui`, `sbase caseplans`, and `sbase recorder`) into a single native window.
+Desktop test runner and workflow companion for `seleniumbase-rs`, built with Tauri 3 (`3.0.0-alpha.6`, `tauri-runtime-wry`). It brings the original Python SeleniumBase desktop GUIs (`sbase commander`, `sbase behave-gui`, `sbase caseplans`, and `sbase recorder`) into a single native window.
 
 ## Features
 

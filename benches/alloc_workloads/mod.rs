@@ -10,8 +10,8 @@ use seleniumbase_rs::mcp::dev::{self, NoBrowser};
 use seleniumbase_rs::mcp::{Host, Settings, ToolError};
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Page};
 use seleniumbase_rs::tokio::runtime::Runtime;
-use seleniumbase_rs::utilities::python_importer::{import_python, ImportOptions, PythonSource};
-use serde_json::{json, Map, Value};
+use seleniumbase_rs::utilities::python_importer::{ImportOptions, PythonSource, import_python};
+use serde_json::{Map, Value, json};
 
 /// A runtime on this thread, so the allocations of a call are not spread over workers.
 pub fn runtime() -> Runtime {

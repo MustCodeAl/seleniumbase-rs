@@ -45,11 +45,11 @@ use std::str::FromStr;
 
 use reqwest::Client;
 
-use crate::browser::binaries::{find_executable, DOWNLOADS_DIR};
+use crate::browser::binaries::{DOWNLOADS_DIR, find_executable};
 use crate::browser::chrome_for_testing::{
     downloaded_for_major, fetch_bytes, http_client, install_archive,
 };
-use crate::browser::driver_access::{make_runnable, CodeSignature};
+use crate::browser::driver_access::{CodeSignature, make_runnable};
 use crate::browser::options::DriverVersion;
 use crate::error::SeleniumBaseError;
 

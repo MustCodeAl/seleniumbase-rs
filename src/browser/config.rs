@@ -5,7 +5,7 @@ use crate::api::run_settings::RunSettings;
 #[cfg(feature = "plugins")]
 use crate::browser::options::BrowserPlugins;
 use crate::browser::options::{
-    BrowserSettings, LaunchSwitch, SessionSettings, DEFAULT_WEBDRIVER_URL,
+    BrowserSettings, DEFAULT_WEBDRIVER_URL, LaunchSwitch, SessionSettings,
 };
 use crate::config::test_settings::TestData;
 
@@ -138,7 +138,7 @@ impl std::str::FromStr for Browser {
                     text,
                     "a browser: chrome, chromium, edge, firefox, brave, comet, opera, safari, ie, \
                      cft, chs or remote",
-                ))
+                ));
             }
         })
     }
@@ -249,8 +249,7 @@ pub struct BrowserConfig {
 
 /// What Firefox is told when its proxy has a login: only Chromium browsers can
 /// answer the proxy's challenge.
-pub(crate) const FIREFOX_PROXY_LOGIN: &str =
-    "Chrome or Edge is required when using a proxy server that has authentication! \
+pub(crate) const FIREFOX_PROXY_LOGIN: &str = "Chrome or Edge is required when using a proxy server that has authentication! \
      (If using a proxy server without auth, Chrome, Edge, or Firefox may be used.)";
 
 /// `timeout` in whole seconds, rounded up: the WebDriver client and
@@ -549,7 +548,7 @@ mod tests {
     #[test]
     fn named_plugins_join_the_plugins_of_the_configuration() {
         use crate::config::plugins::PluginSelection;
-        use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
+        use seleniumbase_rs_plugin::{Plugin, PluginSet, async_trait};
 
         struct Mine;
 
@@ -865,9 +864,11 @@ mod tests {
     #[test]
     fn validate_refuses_a_bad_proxy_before_anything_starts() {
         assert!(BrowserConfig::default().validate().is_ok());
-        assert!(built(BrowserConfig::builder().proxy("user:pw@h:8080"))
-            .validate()
-            .is_ok());
+        assert!(
+            built(BrowserConfig::builder().proxy("user:pw@h:8080"))
+                .validate()
+                .is_ok()
+        );
         assert!(
             built(BrowserConfig::builder().proxy_pac_url("user:pw@http://h/p.pac"))
                 .validate()
@@ -905,17 +906,21 @@ mod tests {
             "{error}"
         );
         assert!(!error.contains("pw@"), "{error}");
-        assert!(built(
-            firefox
-                .clone()
-                .into_builder()
-                .proxy_pac_url("user:pw@http://h/p.pac")
-        )
-        .validate()
-        .is_err());
-        assert!(built(firefox.into_builder().proxy("h:8080"))
+        assert!(
+            built(
+                firefox
+                    .clone()
+                    .into_builder()
+                    .proxy_pac_url("user:pw@http://h/p.pac")
+            )
             .validate()
-            .is_ok());
+            .is_err()
+        );
+        assert!(
+            built(firefox.into_builder().proxy("h:8080"))
+                .validate()
+                .is_ok()
+        );
         for browser in [Browser::Chrome, Browser::Edge, Browser::Brave] {
             let config = built(
                 BrowserConfig::builder()
@@ -965,10 +970,12 @@ mod tests {
         assert!(!format!("{config:?}").contains("KEY"));
         let local = built(BrowserConfig::builder().grid(GridProtocol::Http, "localhost", 4444));
         assert!(local.is_default_webdriver_url());
-        assert!(BrowserConfig::builder()
-            .grid(GridProtocol::Http, " ", 4444)
-            .build()
-            .is_err());
+        assert!(
+            BrowserConfig::builder()
+                .grid(GridProtocol::Http, " ", 4444)
+                .build()
+                .is_err()
+        );
     }
 
     #[test]
@@ -1116,13 +1123,14 @@ mod tests {
             .expect("a valid config");
         assert!(!off.browser.has(LaunchSwitch::DarkMode));
         assert!(!off.browser.has(LaunchSwitch::DisableWebSecurity));
-        assert!(off
-            .into_builder()
-            .enable_web_security(false)
-            .build()
-            .expect("a valid config")
-            .browser
-            .has(LaunchSwitch::DisableWebSecurity));
+        assert!(
+            off.into_builder()
+                .enable_web_security(false)
+                .build()
+                .expect("a valid config")
+                .browser
+                .has(LaunchSwitch::DisableWebSecurity)
+        );
     }
 
     #[test]

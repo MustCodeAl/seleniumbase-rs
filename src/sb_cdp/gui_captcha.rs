@@ -422,7 +422,7 @@ impl Page {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::sb_cdp::{Browser, MockCtrl};

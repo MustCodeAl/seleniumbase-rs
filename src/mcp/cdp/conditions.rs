@@ -1,6 +1,6 @@
 //! Waiting for a condition, and asserting one.
 
-use super::{timeout_prop, Cdp, NO_WAIT};
+use super::{Cdp, NO_WAIT, timeout_prop};
 use crate::mcp::support::nonempty;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::sb_cdp::State;

@@ -21,7 +21,7 @@ use std::time::Duration;
 
 use seleniumbase_rs::mcp::cdp::{self, Cdp};
 use seleniumbase_rs::mcp::{Host, Output, Settings, ToolError};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 const PAGE: &str = r##"<!doctype html>
 <html lang="en"><head><title>DevTools Fixture</title></head>
@@ -142,9 +142,11 @@ async fn the_page_tools_understand_a_real_page() {
         .find(|control| control["selector"] == "#email")
         .unwrap_or_else(|| panic!("no #email control in {outline}"));
     assert_eq!(email["name"], "Email", "the label names the input");
-    assert!(controls
-        .iter()
-        .any(|control| control["in_shadow_root_of"].is_string()));
+    assert!(
+        controls
+            .iter()
+            .any(|control| control["in_shadow_root_of"].is_string())
+    );
     assert!(
         !controls.iter().any(|control| control["name"] == "Hidden"),
         "hidden controls are left out unless asked for"

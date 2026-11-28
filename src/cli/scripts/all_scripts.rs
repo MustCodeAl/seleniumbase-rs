@@ -358,9 +358,11 @@ mod tests {
             ]
         );
         assert_eq!(command.get_current_dir(), Some(Path::new("/w/a")));
-        assert!(command
-            .get_envs()
-            .any(|(k, v)| k == "SB_HEADLESS" && v.is_some_and(|v| v == "true")));
+        assert!(
+            command
+                .get_envs()
+                .any(|(k, v)| k == "SB_HEADLESS" && v.is_some_and(|v| v == "true"))
+        );
     }
 
     #[cfg(unix)]

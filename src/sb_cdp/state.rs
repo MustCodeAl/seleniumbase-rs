@@ -6,7 +6,7 @@ use std::path::Path;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::page::Page;
 use crate::browser::options::{DeviceMetrics, NetworkThrottle};

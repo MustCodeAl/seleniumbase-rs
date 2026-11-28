@@ -33,11 +33,11 @@ use std::sync::{Arc, Mutex, MutexGuard};
 
 use std::time::Duration;
 
+use axum::Router;
 use axum::body::Body;
 use axum::extract::{Request, State};
-use axum::http::{header, HeaderMap, HeaderValue, Method, StatusCode};
+use axum::http::{HeaderMap, HeaderValue, Method, StatusCode, header};
 use axum::response::Response;
-use axum::Router;
 use futures_util::future::join_all;
 
 use rmcp::handler::server::ServerHandler;
@@ -55,9 +55,9 @@ use tokio::sync::oneshot;
 use tracing::{debug, info, warn};
 use url::Url;
 
-use super::{cdp, dev, driver, sb, Closeable, Host, Profile, Settings};
+use super::{Closeable, Host, Profile, Settings, cdp, dev, driver, sb};
 use crate::common::shutdown::{
-    cleanup_within, drain_cleanups, spawn_cleanup, timeout_from_env, Shutdown,
+    Shutdown, cleanup_within, drain_cleanups, spawn_cleanup, timeout_from_env,
 };
 use crate::error::SeleniumBaseError;
 
@@ -211,16 +211,16 @@ impl HttpOptions {
         if self.token.is_none() {
             if !is_loopback_ip(self.listen.ip()) {
                 return Err(SeleniumBaseError::invalid_config(format!(
-                        "refusing to listen on {} without a token: set {TOKEN_VAR} or pass --token-file, \
+                    "refusing to listen on {} without a token: set {TOKEN_VAR} or pass --token-file, \
                                  or listen on a loopback address",
-                        self.listen
-                    )));
+                    self.listen
+                )));
             }
             if !self.allow_no_token {
                 return Err(SeleniumBaseError::invalid_config(
-                            "refusing to serve without a bearer token: set SB_MCP_TOKEN or pass --token-file, \
+                    "refusing to serve without a bearer token: set SB_MCP_TOKEN or pass --token-file, \
                              let sbrs-mcp make one, or pass --no-token for a loopback listener you trust",
-                        ));
+                ));
             }
         }
         Ok(())
@@ -234,10 +234,10 @@ impl HttpOptions {
             return None;
         }
         Some(format!(
-                    "listening on {}, so the browser tools are reachable from other machines; \
+            "listening on {}, so the browser tools are reachable from other machines; \
                      this server speaks plain HTTP, so keep the token secret and put TLS in front of it",
-                    self.listen
-                ))
+            self.listen
+        ))
     }
 }
 

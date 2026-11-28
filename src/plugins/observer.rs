@@ -42,7 +42,7 @@ use std::time::{Duration, Instant};
 /// `use seleniumbase_rs::plugins::observer::async_trait;`.
 pub use async_trait::async_trait;
 
-use crate::api::runner::{close_browser, drive, CdpCase};
+use crate::api::runner::{CdpCase, close_browser, drive};
 use crate::error::{Result, SeleniumBaseError};
 use crate::sb_cdp::{Browser, LaunchOptions, Page};
 use crate::{BaseCase, BrowserConfig};

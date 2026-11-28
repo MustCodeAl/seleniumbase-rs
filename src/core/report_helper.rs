@@ -603,9 +603,11 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let missing_parent = dir.path().join("no-such-dir").join("report.json");
 
-        assert!(write_json_report_async(&missing_parent, &mixed())
-            .await
-            .is_err());
+        assert!(
+            write_json_report_async(&missing_parent, &mixed())
+                .await
+                .is_err()
+        );
         assert_eq!(std::fs::read_dir(dir.path()).unwrap().count(), 0);
     }
 }

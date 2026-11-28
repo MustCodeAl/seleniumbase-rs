@@ -7,9 +7,9 @@
 //! hover is a method of the [`Locator`](seleniumbase_rs::sb_cdp::Locator) that
 //! `page.locator(selector)` returns.
 
+use seleniumbase_rs::Result;
 use seleniumbase_rs::api::runner::run_cdp_test;
 use seleniumbase_rs::sb_cdp::SelectBy;
-use seleniumbase_rs::Result;
 
 use super::support::{cdp_options, run_cdp_port};
 

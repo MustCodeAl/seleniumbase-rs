@@ -7,8 +7,8 @@
 //! for a subcommand, so there is no `sbrs-open.1`. Built only for the tests that keep the
 //! committed pages current; the binaries carry the committed text (`sbrs completions man`).
 
-use usage_lib::docs::manpage::ManpageRenderer;
 use usage_lib::Spec;
+use usage_lib::docs::manpage::ManpageRenderer;
 
 /// The manual section of both pages: user commands.
 #[allow(dead_code, reason = "used by binary tests and specs")]

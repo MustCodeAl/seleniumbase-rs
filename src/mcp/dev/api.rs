@@ -13,7 +13,7 @@ mod index_gen;
 use std::sync::OnceLock;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::NoBrowser;
 use crate::error::closest_match;
@@ -229,7 +229,7 @@ async fn find_api(_ctx: Ctx<NoBrowser>, args: Args) -> Result<Output, ToolError>
             return Err(ToolError::invalid(
                 "limit",
                 format!("must be between 1 and {MAX_LIMIT}"),
-            ))
+            ));
         }
     };
     let index = index();
@@ -562,12 +562,16 @@ mod tests {
             "the index has only {} entries; run SB_UPDATE_API_INDEX=1 cargo test api_index",
             embedded.len()
         );
-        assert!(embedded
-            .iter()
-            .any(|e| e.owner == "BaseCase" && e.name == "click"));
-        assert!(embedded
-            .iter()
-            .any(|e| e.owner == "Page" && e.engine == "cdp"));
+        assert!(
+            embedded
+                .iter()
+                .any(|e| e.owner == "BaseCase" && e.name == "click")
+        );
+        assert!(
+            embedded
+                .iter()
+                .any(|e| e.owner == "Page" && e.engine == "cdp")
+        );
     }
 
     fn manifest() -> toml::Table {

@@ -11,7 +11,7 @@ use std::path::Path;
 use seleniumbase_rs::mcp::cdp::{self, Cdp};
 use seleniumbase_rs::mcp::{Host, Output, Settings, ToolError};
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.
 fn value(v: Value) -> Value {
@@ -257,10 +257,12 @@ async fn the_devtools_endpoint_needs_a_running_browser() {
     let answer = json_of(&host, "get_devtools_endpoint", json!({})).await;
 
     assert_eq!(answer["running"], false);
-    assert!(answer["hint"]
-        .as_str()
-        .unwrap_or_default()
-        .contains("start_browser"));
+    assert!(
+        answer["hint"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("start_browser")
+    );
 }
 
 #[test_log::test(tokio::test)]
@@ -273,9 +275,11 @@ async fn the_devtools_endpoint_names_the_browser_and_the_configs_that_attach_to_
     assert_eq!(answer["running"], true);
     let http = answer["http_url"].as_str().expect("an HTTP address");
     assert!(http.starts_with("http://127.0.0.1:"), "{http}");
-    assert!(answer["websocket_url"]
-        .as_str()
-        .is_some_and(|ws| ws.starts_with("ws://")));
+    assert!(
+        answer["websocket_url"]
+            .as_str()
+            .is_some_and(|ws| ws.starts_with("ws://"))
+    );
     let chrome_args =
         &answer["mcp_configs"]["chrome_devtools_mcp"]["mcpServers"]["chrome-devtools"]["args"];
     assert!(
@@ -979,13 +983,14 @@ async fn cookies_are_saved_inside_the_cookie_directory_whatever_the_filename() {
         saved.is_file(),
         "the file must land in the cookie directory"
     );
-    assert!(!dir
-        .path()
-        .join("..")
-        .join("..")
-        .join("etc")
-        .join("passwd.txt")
-        .exists());
+    assert!(
+        !dir.path()
+            .join("..")
+            .join("..")
+            .join("etc")
+            .join("passwd.txt")
+            .exists()
+    );
 }
 
 #[test_log::test(tokio::test)]

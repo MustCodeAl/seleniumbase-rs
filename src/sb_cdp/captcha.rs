@@ -27,7 +27,7 @@ use crate::utilities::retry::RetryPolicy;
 mod engine;
 mod script;
 
-pub(crate) use engine::{solve, Surface};
+pub(crate) use engine::{Surface, solve};
 
 /// How far into a checkbox widget its box sits, in CSS pixels.
 ///
@@ -750,10 +750,10 @@ mod tests {
     #[test]
     fn no_widget_and_nonsense_answers_read_as_none() {
         assert!(Captcha::parse_located(&json!(null)).is_none());
-        assert!(Captcha::parse_located(
-            &json!({ "kind": 99, "x": 0, "y": 0, "width": 1, "height": 1 })
-        )
-        .is_none());
+        assert!(
+            Captcha::parse_located(&json!({ "kind": 99, "x": 0, "y": 0, "width": 1, "height": 1 }))
+                .is_none()
+        );
         assert!(Captcha::parse_located(&json!({ "kind": 0 })).is_none());
     }
 

@@ -36,7 +36,7 @@ pub mod behavior;
 pub mod humanize;
 
 pub use behavior::{Behavior, BehaviorBuilder, Humanizer, KeyAction, Step};
-pub use humanize::{keystroke_delays, Rng};
+pub use humanize::{Rng, keystroke_delays};
 
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
@@ -61,7 +61,7 @@ pub(crate) trait PointerSink {
     ) -> impl Future<Output = Result<(), SeleniumBaseError>> + Send;
     /// Presses the primary button at `at`.
     fn pointer_down(&self, at: Point)
-        -> impl Future<Output = Result<(), SeleniumBaseError>> + Send;
+    -> impl Future<Output = Result<(), SeleniumBaseError>> + Send;
     /// Releases the primary button at `at`.
     fn pointer_up(&self, at: Point) -> impl Future<Output = Result<(), SeleniumBaseError>> + Send;
 }

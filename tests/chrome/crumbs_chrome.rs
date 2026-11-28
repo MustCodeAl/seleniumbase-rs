@@ -19,7 +19,7 @@ use std::net::TcpListener;
 use std::time::Duration;
 
 use seleniumbase_rs::browser::reuse::{reused_sessions, set_crumbs, set_idle_timeout};
-use seleniumbase_rs::{shutdown_reused_sessions, BaseCase, BrowserConfig};
+use seleniumbase_rs::{BaseCase, BrowserConfig, shutdown_reused_sessions};
 use serde_json::Value;
 
 fn config() -> BrowserConfig {

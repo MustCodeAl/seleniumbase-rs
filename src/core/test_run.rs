@@ -53,20 +53,20 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::thread::ThreadId;
 use std::time::{Duration, Instant};
 
-use jiff::{tz::TimeZone, Timestamp, Zoned};
+use jiff::{Timestamp, Zoned, tz::TimeZone};
 use serde::{Deserialize, Serialize};
 
 use crate::artifacts::{self, LATEST_LOGS_DIR};
 use crate::config::settings::Settings;
-use crate::core::dashboard::{write_dashboard, write_html_report, PageOptions};
+use crate::core::dashboard::{PageOptions, write_dashboard, write_html_report};
 use crate::core::junit::write_junit_xml;
 use crate::core::log_helper::{
-    archive_logs_if_set, clear_empty_logs, log_folder_setup, log_page_source, log_screenshot,
-    log_skipped_test_data, log_test_failure_data, FailureInfo, OldFiles, TestId, PAGE_SOURCE_FILE,
-    SCREENSHOT_FILE,
+    FailureInfo, OldFiles, PAGE_SOURCE_FILE, SCREENSHOT_FILE, TestId, archive_logs_if_set,
+    clear_empty_logs, log_folder_setup, log_page_source, log_screenshot, log_skipped_test_data,
+    log_test_failure_data,
 };
 use crate::core::report_helper::{
-    write_atomically, FailureDetails, ReportSummary, RunSnapshot, TestResult, TestStatus,
+    FailureDetails, ReportSummary, RunSnapshot, TestResult, TestStatus, write_atomically,
 };
 use crate::error::{Result, SeleniumBaseError};
 use crate::plugins::observer::PageEvidence;

@@ -14,13 +14,13 @@ use std::error::Error;
 use std::io;
 use std::net::SocketAddr;
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::common::shutdown::Shutdown;
-use tokio::io::{copy_bidirectional, AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt, ReadBuf, copy_bidirectional};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Semaphore;
 use tokio::time::timeout;
@@ -215,7 +215,7 @@ async fn handle(
                 "Gateway Timeout",
                 "the host did not answer in time",
             )
-            .await
+            .await;
         }
         Ok(Err(error)) => {
             tracing::info!(%peer, "{address}: {error}");

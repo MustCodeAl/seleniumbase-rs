@@ -1,12 +1,12 @@
 //! The capabilities a session asks the WebDriver server for, one builder per
 //! browser family.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use thirtyfour::common::capabilities::chromium::ChromiumLikeCapabilities;
 use thirtyfour::prelude::DesiredCapabilities;
 
 use crate::browser::config::{Browser, BrowserConfig};
-use crate::browser::options::{firefox_preferences, BrowserSettings, LaunchSwitch};
+use crate::browser::options::{BrowserSettings, LaunchSwitch, firefox_preferences};
 use crate::error::SeleniumBaseError;
 
 /// The capabilities a session for `config` asks the WebDriver server for: what

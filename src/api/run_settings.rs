@@ -22,7 +22,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::api::html::BeautifulSoup;
 use crate::artifacts::{confined_path, safe_stem};

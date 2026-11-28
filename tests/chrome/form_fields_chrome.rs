@@ -19,7 +19,7 @@ use std::net::{TcpListener, TcpStream};
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{BrowserConfig, Result, run_browser_test};
 
 const PAGE: &str = include_str!("../fixtures/form_fields.html");
 
@@ -197,10 +197,11 @@ async fn get_attribute_gives_what_a_field_holds_now_not_the_value_of_its_markup(
             Some("Goodbye")
         );
         sb.assert_attribute("#prefilled", "value", "typed").await?;
-        assert!(sb
-            .assert_attribute("#prefilled", "value", "")
-            .await
-            .is_err());
+        assert!(
+            sb.assert_attribute("#prefilled", "value", "")
+                .await
+                .is_err()
+        );
 
         // `checked` is in the markup of the second box; once the user clears
         // it the property says no, and so does `get_attribute`.

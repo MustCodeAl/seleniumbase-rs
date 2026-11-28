@@ -360,11 +360,7 @@ fn filterset(expr: &Expr, words: Words, in_and: bool, in_not: bool) -> String {
                 .map(|item| filterset(item, words, true, false))
                 .collect::<Vec<_>>()
                 .join(" and ");
-            if in_not {
-                format!("({text})")
-            } else {
-                text
-            }
+            if in_not { format!("({text})") } else { text }
         }
         Expr::Or(items) => {
             let text = items
@@ -605,10 +601,12 @@ mod tests {
     fn no_option_selects_everything() {
         assert_eq!(translate(None, None, Runner::Cargo), Ok(NameFilter::All));
         assert!(NameFilter::All.is_empty());
-        assert!(!NameFilter::Nextest {
-            filterset: "x".into()
-        }
-        .is_empty());
+        assert!(
+            !NameFilter::Nextest {
+                filterset: "x".into()
+            }
+            .is_empty()
+        );
     }
 
     #[test]

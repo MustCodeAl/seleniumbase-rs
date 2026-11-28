@@ -581,10 +581,12 @@ mod tests {
             DeferredSpec::parse("element=#a").unwrap().describe(),
             "element exists: #a"
         );
-        assert!(DeferredSpec::parse("url=/x")
-            .unwrap()
-            .describe()
-            .contains("url contains"));
+        assert!(
+            DeferredSpec::parse("url=/x")
+                .unwrap()
+                .describe()
+                .contains("url contains")
+        );
     }
 
     #[test]

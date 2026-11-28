@@ -25,12 +25,12 @@ mod local_site;
 
 use std::time::{Duration, Instant};
 
-use local_site::{Site, DEMO_PATH};
+use local_site::{DEMO_PATH, Site};
 use seleniumbase_rs::tokio;
 
 use seleniumbase_rs::{
-    run_browser_test, BaseCase, BrowserConfig, DriverMode, NetworkThrottle, Result,
-    SeleniumBaseError,
+    BaseCase, BrowserConfig, DriverMode, NetworkThrottle, Result, SeleniumBaseError,
+    run_browser_test,
 };
 
 /// Every request waits this long before its response starts to arrive.

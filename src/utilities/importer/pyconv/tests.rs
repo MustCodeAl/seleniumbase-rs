@@ -8,7 +8,7 @@ use crate::ImportSeverity;
 
 use super::ast::{BinOp, Expr, StmtKind};
 use super::parse::parse_module;
-use super::table::{Fill, Flow, Ret, K, TABLE};
+use super::table::{Fill, Flow, K, Ret, TABLE};
 
 // ---------------------------------------------------------------------------
 // The call oracle
@@ -778,7 +778,7 @@ fn every_call_the_goldens_make_on_sb_is_a_basecase_method_taking_those_arguments
 /// generated table leaves out, so the hand-written table maps it.
 #[test]
 fn locator_is_converted_to_find_element() {
-    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    use crate::utilities::python_importer::{ImportOptions, PythonSource, import_python};
     let source = "from seleniumbase import BaseCase\n\n\nclass T(BaseCase):\n    \
                   def test_locator(self):\n        self.open(\"https://example.com\")\n        \
                   self.locator(\"#a\")\n        self.locator(\"p:contains('x')\", timeout=5)\n";
@@ -825,7 +825,7 @@ fn golden_dir() -> PathBuf {
 /// `SB_UPDATE_GOLDENS=1` writes them again.
 #[test]
 fn the_goldens_are_what_the_converter_writes() {
-    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    use crate::utilities::python_importer::{ImportOptions, PythonSource, import_python};
     let mut sources: Vec<PathBuf> = std::fs::read_dir(golden_dir())
         .unwrap()
         .map(|entry| entry.unwrap().path())
@@ -945,7 +945,7 @@ const UPSTREAM_EXAMPLES: &[&str] = &[
 /// folder (`cargo test ... upstream_examples -- --nocapture`).
 #[test]
 fn the_upstream_examples_convert_when_they_are_at_hand() {
-    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    use crate::utilities::python_importer::{ImportOptions, PythonSource, import_python};
     let Some(root) = std::env::var_os("SBRS_UPSTREAM_EXAMPLES") else {
         return;
     };
@@ -1074,7 +1074,7 @@ fn decorators_defs_and_classes_are_read() {
 #[test]
 fn python_pattern_matching_translates_to_idiomatic_rust_match() {
     use crate::utilities::python_importer::{
-        import_python, ImportOptions, ImportSeverity, PythonSource,
+        ImportOptions, ImportSeverity, PythonSource, import_python,
     };
     let source = r#"
 from seleniumbase import BaseCase
@@ -1126,7 +1126,7 @@ class TestMatch(BaseCase):
 
 #[test]
 fn negative_indexing_translates_to_rev_or_last() {
-    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    use crate::utilities::python_importer::{ImportOptions, PythonSource, import_python};
     let source = r#"
 from seleniumbase import BaseCase
 
@@ -1159,7 +1159,7 @@ class TestIndexing(BaseCase):
 
 #[test]
 fn colorama_styling_is_stripped_cleanly() {
-    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    use crate::utilities::python_importer::{ImportOptions, PythonSource, import_python};
     let source = r#"
 from colorama import Fore, Style
 from seleniumbase import BaseCase
@@ -1190,7 +1190,7 @@ class TestColorama(BaseCase):
 
 #[test]
 fn playwright_with_context_manager_unwraps_cleanly() {
-    use crate::utilities::python_importer::{import_python, ImportOptions, PythonSource};
+    use crate::utilities::python_importer::{ImportOptions, PythonSource, import_python};
     let source = r##"
 from playwright.sync_api import sync_playwright
 
@@ -1240,7 +1240,7 @@ def test_playwright():
 #[test]
 fn expanded_method_mappings_convert_correctly() {
     use crate::utilities::python_importer::{
-        import_python, ImportOptions, ImportSeverity, PythonSource,
+        ImportOptions, ImportSeverity, PythonSource, import_python,
     };
     let source = r##"
 from seleniumbase import BaseCase
@@ -1382,7 +1382,7 @@ class TestMethods(BaseCase):
 #[test]
 fn expanded_method_mappings_cdp_mode() {
     use crate::utilities::python_importer::{
-        import_python, ImportOptions, ImportSeverity, PythonSource,
+        ImportOptions, ImportSeverity, PythonSource, import_python,
     };
     let source = r##"
 from seleniumbase import SB

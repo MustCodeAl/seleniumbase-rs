@@ -15,7 +15,7 @@ use serde_json::Value;
 use crate::browser::session::DialogWatch;
 use crate::error::SeleniumBaseError;
 use crate::sb_cdp::{Key, Locator, Rect, SelectBy};
-use crate::utils::selectors::{Selector, CHAIN_SEPARATOR};
+use crate::utils::selectors::{CHAIN_SEPARATOR, Selector};
 
 /// An element of a page the pure CDP engine drives.
 #[derive(Clone)]

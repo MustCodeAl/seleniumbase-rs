@@ -5,7 +5,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::error::SeleniumBaseError;
 

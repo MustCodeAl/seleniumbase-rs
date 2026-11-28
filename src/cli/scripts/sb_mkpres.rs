@@ -15,7 +15,7 @@
 
 use std::path::PathBuf;
 
-use crate::cli::scaffold::{rust_fn_name, GeneratedFile, RelativeName, Scaffold, ScaffoldError};
+use crate::cli::scaffold::{GeneratedFile, RelativeName, Scaffold, ScaffoldError, rust_fn_name};
 use crate::utils::translate::Language;
 
 /// The GIF of the second slide.

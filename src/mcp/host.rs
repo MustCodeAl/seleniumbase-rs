@@ -23,7 +23,7 @@ use rmcp::service::{RequestContext, RoleServer};
 use serde_json::{Map, Value};
 use tokio::sync::{Mutex, OwnedMappedMutexGuard, OwnedMutexGuard};
 
-use super::failure::{concerns_page, focus_selector, FailureReport, PROBE_TIMEOUT};
+use super::failure::{FailureReport, PROBE_TIMEOUT, concerns_page, focus_selector};
 use super::journal::{CallRecord, Journal};
 use super::progress::{Progress, ProgressSink};
 use super::prompts::PromptDef;

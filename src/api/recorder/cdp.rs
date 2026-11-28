@@ -14,7 +14,7 @@
 use std::collections::BTreeSet;
 
 use super::rust_call::{captcha_note, rust_call};
-use super::{line, literal, CommandError, RecordedAction, RecordedCommand};
+use super::{CommandError, RecordedAction, RecordedCommand, line, literal};
 
 /// A recorded action as pure CDP code.
 #[derive(Debug, PartialEq, Eq)]
@@ -340,8 +340,8 @@ pub(super) fn program(actions: &[RecordedAction], entry: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::recorder::command::{ALIASES, CALLABLE_NAMES};
     use crate::api::recorder::ActionRecorder;
+    use crate::api::recorder::command::{ALIASES, CALLABLE_NAMES};
 
     fn action(name: &str, target: Option<&str>, value: Option<&str>) -> RecordedAction {
         RecordedAction::new(RecordedCommand::from_parts(name, target, value))
@@ -684,9 +684,11 @@ mod tests {
                 "{bad}: {reason}"
             );
         }
-        assert!(lines("drag_and_drop_with_offset", Some("#a"), Some("#b"))
-            .unwrap_err()
-            .contains("not the offset"));
+        assert!(
+            lines("drag_and_drop_with_offset", Some("#a"), Some("#b"))
+                .unwrap_err()
+                .contains("not the offset")
+        );
     }
 
     fn sample() -> ActionRecorder {

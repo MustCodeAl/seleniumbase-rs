@@ -16,7 +16,7 @@
 use std::sync::{Arc, Mutex};
 
 use seleniumbase_rs::plugin_api::{
-    async_trait, BrowserHandle, LaunchSettings, Package, PageHandle, Plugin, PluginSet, Result,
+    BrowserHandle, LaunchSettings, Package, PageHandle, Plugin, PluginSet, Result, async_trait,
 };
 use seleniumbase_rs::{BaseCase, BrowserConfig};
 use serde_json::json;

@@ -3,9 +3,9 @@ title: "Browser Profiles"
 sidebarTitle: "Browser profiles"
 ---
 
-`seleniumbase-rs` can import external browser profile payloads in a generic
+`seleniumbase-rs-stealth` can import external browser profile payloads in a generic
 anti-detect JSON format. The format is exposed through the
-`seleniumbase_rs::profile_payloads` module and the Tauri profile-manager example.
+`seleniumbase_rs_stealth::identity::profile_payloads` module and the Tauri profile-manager example.
 
 This is **not** tied to any third-party product. The payload describes a browser
 persona, a set of masking modes, and optional runtime overrides. `seleniumbase-rs`
@@ -36,7 +36,7 @@ flowchart LR
 
 <Visibility for="agents">
 
-Summary for AI exports: a profile payload (`ProfileParams`, from `seleniumbase_rs::profile_payloads`) describes a browser persona with `name`, `browser_type`, `os_type`, `parameters.flags` (a word or literal per key), `parameters.fingerprint` (explicit values), `parameters.storage` and `parameters.proxy`. `params.to_browser_config(url)` builds the `BrowserConfig` and `apply_runtime_overrides(&mut sb)` applies the CDP and window parts. An unknown flag word is logged and read as `natural`.
+Summary for AI exports: a profile payload (`ProfileParams`, from `seleniumbase_rs_stealth::identity::profile_payloads`) describes a browser persona with `name`, `browser_type`, `os_type`, `parameters.flags` (a word or literal per key), `parameters.fingerprint` (explicit values), `parameters.storage` and `parameters.proxy`. `params.to_browser_config(url)` builds the `BrowserConfig` and `apply_runtime_overrides(&mut sb)` applies the CDP and window parts. An unknown flag word is logged and read as `natural`.
 
 </Visibility>
 
@@ -694,10 +694,10 @@ scripts, extensions, or future anti-detect injection features.
 ## Programmatic usage
 
 ```rust
-use seleniumbase_rs::profile_payloads::ProfileParams;
-use seleniumbase_rs::json::json;
+use seleniumbase_rs_stealth::identity::profile_payloads::ProfileParams;
+use seleniumbase_rs_stealth::{json, BaseCase};
 
-let raw = json!({
+let raw = json::json!({
     "name": "custom-profile",
     "browser_type": "chromium",
     "os_type": "windows",
@@ -717,10 +717,10 @@ let raw = json!({
     }
 });
 
-let params: ProfileParams = seleniumbase_rs::json::from_value(raw).unwrap();
+let params: ProfileParams = json::from_value(raw).unwrap();
 let config = params.to_browser_config("http://localhost:4444");
 
-let mut sb = seleniumbase_rs::BaseCase::new(config).await.unwrap();
+let mut sb = BaseCase::new(config).await.unwrap();
 params.apply_runtime_overrides(&mut sb).await.unwrap();
 ```
 

@@ -4,9 +4,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::edit::{apply, line_end, line_ending, line_start, text_end, Edit};
-use super::lexer::{lex, Kind, Lexed};
-use super::model::{module_name, PageObjects};
+use super::edit::{Edit, apply, line_end, line_ending, line_start, text_end};
+use super::lexer::{Kind, Lexed, lex};
+use super::model::{PageObjects, module_name};
 use super::scan::scan;
 use super::{MODULE_LINE, PAGE_OBJECTS_FILE};
 use crate::error::SeleniumBaseError;

@@ -16,8 +16,8 @@ use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 
 const HOME: &str = r##"<!doctype html><html><head><title>Downloads</title></head><body>
 <a id="attach" href="/attachment">Invoice</a>
@@ -47,7 +47,11 @@ fn answer(mut stream: TcpStream) {
             "Content-Type: text/csv\r\nContent-Disposition: attachment; filename=\"export-3.csv\"\r\n",
             "id\n3\n",
         ),
-        _ => ("404 Not Found", "Content-Type: text/plain\r\n", "no such file"),
+        _ => (
+            "404 Not Found",
+            "Content-Type: text/plain\r\n",
+            "no such file",
+        ),
     };
     let response = format!(
         "HTTP/1.1 {status}\r\n{headers}Content-Length: {}\r\nConnection: close\r\n\r\n{body}",

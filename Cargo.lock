@@ -5818,7 +5818,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anstream 0.6.21",
  "async-trait",
@@ -5887,9 +5887,8 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-cli"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
- "anstream 0.6.21",
  "dirs",
  "jiff",
  "miette",
@@ -5902,7 +5901,6 @@ dependencies = [
  "syn 3.0.10",
  "sysinfo",
  "tempfile",
- "thirtyfour",
  "tokio",
  "toml_edit",
  "tracing",
@@ -5914,7 +5912,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-own-imports"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "rstest-bdd",
  "seleniumbase-rs",
@@ -5922,7 +5920,7 @@ dependencies = [
 
 [[package]]
 name = "seleniumbase-rs-playwright"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "rustwright",
  "seleniumbase-rs",

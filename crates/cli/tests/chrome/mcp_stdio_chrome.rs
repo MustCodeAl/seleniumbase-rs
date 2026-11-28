@@ -27,7 +27,7 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::mcp::{UNTRUSTED_META_KEY, UNTRUSTED_NOTICE};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStdin, ChildStdout, Command};
 use tokio::time::timeout;

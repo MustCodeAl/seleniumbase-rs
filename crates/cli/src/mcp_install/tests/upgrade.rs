@@ -7,13 +7,13 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use super::repair::{config, current, launch, program};
-use super::{read, Outcome, Sandbox};
+use super::{Outcome, Sandbox, read};
 use crate::mcp_install::apply::Scope;
 use crate::mcp_install::client::Client;
 use crate::mcp_install::external::Cmd;
 use crate::mcp_install::fsx::backup_path;
 use crate::mcp_install::runner::Runner;
-use crate::mcp_install::upgrade::{detect_method, upgrade, InstallMethod, UpgradeRequest};
+use crate::mcp_install::upgrade::{InstallMethod, UpgradeRequest, detect_method, upgrade};
 
 const RELEASES: &str = "https://github.com/MustCodeAl/seleniumbase-rs/releases";
 

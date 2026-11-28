@@ -442,9 +442,11 @@ fn screenshot_and_save_source_write_where_they_are_told_and_a_blank_session_has_
         &["--url", "about:blank", "save-source", "--path", "src.html"],
     );
     assert!(source.status.success(), "{}", stderr(&source));
-    assert!(std::fs::read_to_string(dir.path().join("src.html"))
-        .unwrap()
-        .contains("<html"));
+    assert!(
+        std::fs::read_to_string(dir.path().join("src.html"))
+            .unwrap()
+            .contains("<html")
+    );
 
     // Each command has a browser of its own, so on its blank page nothing is found, and
     // the error says so with the exit status of a failed check.

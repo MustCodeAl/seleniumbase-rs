@@ -21,7 +21,7 @@ server. It gives you `BaseCase`, the familiar test API, on WebDriver, plus a pur
 Chrome DevTools engine that needs no driver at all.
 
 > [!NOTE]
-> Young and moving fast: version `0.10.0`, installed from GitHub (not on
+> Young and moving fast: version `0.11.0`, installed from GitHub (not on
 > crates.io). See [Project status](#project-status) for what is verified and what
 > is not.
 
@@ -125,13 +125,13 @@ the getting-started guide lists the exceptions and why.
 
 ```toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.11.0" }
 ```
 
 Turn on optional features as you need them (see [Feature flags](#feature-flags)):
 
 ```toml
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0", features = ["mcp-server", "s3"] }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.11.0", features = ["mcp-server", "s3"] }
 ```
 
 > [!IMPORTANT]
@@ -431,7 +431,7 @@ Playwright engine and no `playwright` feature). It uses the
 Chrome that `sb_cdp` launches.
 
 ```bash
-cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0
+cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.11.0
 cargo run -p seleniumbase-rs-playwright --example playwright_mode
 ```
 

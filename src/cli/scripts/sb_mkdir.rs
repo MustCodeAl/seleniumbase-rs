@@ -577,8 +577,10 @@ mod tests {
                 .contains("assert_text(\"This domain is for use in\", \"p\")"),
             "the first test asserts the paragraph"
         );
-        assert!(contents(&files, "example.feature")
-            .contains("Assert text \"This domain is for use in\" in \"p\""),);
+        assert!(
+            contents(&files, "example.feature")
+                .contains("Assert text \"This domain is for use in\" in \"p\""),
+        );
     }
 
     /// The library is not on crates.io, so the README of a generated suite must name the
@@ -622,10 +624,12 @@ mod tests {
     fn an_existing_empty_folder_is_fine() {
         let dir = tempfile::tempdir().unwrap();
         std::fs::create_dir(dir.path().join("ui")).unwrap();
-        assert!(Suite::try_new("ui")
-            .unwrap()
-            .create(&Scaffold::new(dir.path()))
-            .is_ok());
+        assert!(
+            Suite::try_new("ui")
+                .unwrap()
+                .create(&Scaffold::new(dir.path()))
+                .is_ok()
+        );
     }
 
     #[test]
@@ -639,10 +643,11 @@ mod tests {
             .unwrap();
         assert_eq!(written.len(), 8);
         assert!(dir.path().join("ui/features/example.feature").is_file());
-        assert!(dir
-            .path()
-            .join(".github/workflows/sbrs-tests.yml")
-            .is_file());
+        assert!(
+            dir.path()
+                .join(".github/workflows/sbrs-tests.yml")
+                .is_file()
+        );
     }
 }
 

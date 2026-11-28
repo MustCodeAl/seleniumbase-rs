@@ -368,9 +368,11 @@ async fn a_batch_runs_its_calls_in_order() {
         .map(|line| serde_json::from_str(line).expect("a JSON line per call"))
         .collect();
     assert_eq!(lines.len(), 2, "{}", run.stdout);
-    assert!(lines
-        .iter()
-        .all(|line| line["tool"] == "find_api" && line["isError"] == false));
+    assert!(
+        lines
+            .iter()
+            .all(|line| line["tool"] == "find_api" && line["isError"] == false)
+    );
     assert!(lines[0]["text"].as_str().unwrap().contains("click"));
     assert!(lines[1]["text"].as_str().unwrap().contains("hover"));
     assert!(run.stderr.contains("[2/2] find_api"), "{}", run.stderr);

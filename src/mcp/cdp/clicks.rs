@@ -1,6 +1,6 @@
 //! Clicking, hovering and dragging.
 
-use super::{selector_prop, timeout_prop, Cdp, HOVER_PAUSE, NO_WAIT};
+use super::{Cdp, HOVER_PAUSE, NO_WAIT, selector_prop, timeout_prop};
 use crate::mcp::support::nonempty;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 

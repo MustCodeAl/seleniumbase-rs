@@ -1562,7 +1562,7 @@ impl Parser<'_> {
                                 return Err(format!(
                                     "expected a property name but found {}",
                                     self.describe()
-                                ))
+                                ));
                             }
                         };
                         self.bump();

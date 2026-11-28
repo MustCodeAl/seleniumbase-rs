@@ -293,7 +293,7 @@ mod tests {
     use std::collections::BTreeSet;
 
     use seleniumbase_rs::config::env_vars::{
-        flag_variable, is_known, EXTRA_VARIABLES, TABLE_FLAGS,
+        EXTRA_VARIABLES, TABLE_FLAGS, flag_variable, is_known,
     };
 
     /// A flag of the usage spec: the program and command it belongs to, its long spellings,

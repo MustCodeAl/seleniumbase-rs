@@ -11,10 +11,10 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use seleniumbase_rs::api::recorder::{
-    add_parent_frame_switches, process, to_actions, ActionRecorder, RawAction,
-};
 use seleniumbase_rs::DriverMode;
+use seleniumbase_rs::api::recorder::{
+    ActionRecorder, RawAction, add_parent_frame_switches, process, to_actions,
+};
 use serde::Deserialize;
 
 #[derive(Deserialize)]

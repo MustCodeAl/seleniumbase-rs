@@ -234,7 +234,7 @@ impl FromStr for GridUrl {
             other => {
                 return Err(invalid(&format!(
                     "the scheme must be http or https, not {other}"
-                )))
+                )));
             }
         };
         if !url.username().is_empty() || url.password().is_some() {
@@ -671,9 +671,11 @@ mod tests {
     #[tokio::test]
     async fn a_reply_that_is_not_a_grid_status_is_an_error() {
         let port = serve_status(vec![("200 OK", "<html>hello</html>".to_owned())]).await;
-        assert!(fetch_status(&GridUrl::new("127.0.0.1", port))
-            .await
-            .is_err());
+        assert!(
+            fetch_status(&GridUrl::new("127.0.0.1", port))
+                .await
+                .is_err()
+        );
     }
 
     #[tokio::test]

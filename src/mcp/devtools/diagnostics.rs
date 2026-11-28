@@ -1,9 +1,9 @@
 //! What the page reports about itself: console messages, failed requests and
 //! an accessibility audit.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
-use super::{bounded, page_op, DevSession};
+use super::{DevSession, bounded, page_op};
 use crate::error::SeleniumBaseError;
 use crate::mcp::failure::shorten;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};

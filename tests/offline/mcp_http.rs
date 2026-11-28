@@ -13,12 +13,12 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::mcp::{
     Args, Closeable, Ctx, Effect, Host, HttpOptions, HttpOptionsBuilder, HttpServer, Output,
     Profile, Schema, Settings, Started, ToolDef,
 };
-use seleniumbase_rs::SeleniumBaseError;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::oneshot;
 use tokio::task::JoinHandle;
 

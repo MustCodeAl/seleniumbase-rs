@@ -6,8 +6,8 @@
 
 use seleniumbase_rs::cli::scripts::sb_install::{DriverName, InstallRequest, Installed};
 
-use crate::failure::ArgumentError;
 use crate::DriverArg;
+use crate::failure::ArgumentError;
 
 /// The request the arguments of `sbrs install` make.
 ///

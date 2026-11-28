@@ -209,10 +209,12 @@ fn path_never_writes_through_a_symbolic_link() {
         stderr(&output)
     );
     assert_eq!(fs::read(&precious).unwrap(), b"keep me");
-    assert!(fs::symlink_metadata(&link)
-        .unwrap()
-        .file_type()
-        .is_symlink());
+    assert!(
+        fs::symlink_metadata(&link)
+            .unwrap()
+            .file_type()
+            .is_symlink()
+    );
 }
 
 #[test]
@@ -329,9 +331,10 @@ mod network {
         assert!(output.status.success(), "{}", stderr(&output));
         let text = stdout(&output);
         assert!(text.starts_with("chromium r"), "{text}");
-        assert!(dir
-            .path()
-            .join("downloaded_drivers/chromium/REVISION")
-            .is_file());
+        assert!(
+            dir.path()
+                .join("downloaded_drivers/chromium/REVISION")
+                .is_file()
+        );
     }
 }

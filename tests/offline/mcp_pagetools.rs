@@ -13,9 +13,9 @@
 use std::path::Path;
 
 use seleniumbase_rs::mcp::cdp::{self, Cdp};
-use seleniumbase_rs::mcp::{driver, sb, Host, Output, Settings, ToolError};
+use seleniumbase_rs::mcp::{Host, Output, Settings, ToolError, driver, sb};
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.
 fn value(v: Value) -> Value {

@@ -2,7 +2,7 @@
 
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// How the browser's network behaves: cut off, slowed down, or as it is.
 ///

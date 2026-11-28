@@ -24,10 +24,10 @@
 
 mod local_site;
 
-use local_site::{Site, DEMO_PATH};
+use local_site::{DEMO_PATH, Site};
 use seleniumbase_rs::api::recorder::ActionRecorder;
 use seleniumbase_rs::{
-    run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError,
+    BaseCase, BrowserConfig, Result, SeleniumBaseError, run_browser_test, tokio,
 };
 
 #[tokio::main]

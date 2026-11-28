@@ -30,7 +30,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::broadcast;
 
 use super::client::CdpEvent;

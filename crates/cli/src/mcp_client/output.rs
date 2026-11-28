@@ -10,7 +10,7 @@ use seleniumbase_rs::mcp::client::{
     CallOutcome, ClientProgress, PromptOutcome, PromptSummary, ResourceContent, ResourceSummary,
     ToolSummary,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// The first line of a description, for a table.
 fn first_line(text: &str) -> &str {

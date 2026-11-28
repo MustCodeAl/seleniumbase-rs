@@ -8,7 +8,7 @@
 //! [`DevToolsEndpoint`] holds the addresses and writes those configs.
 
 use crate::error::SeleniumBaseError;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Resolves an address to the endpoint behind it, including Tauri's authenticated discovery.
 ///

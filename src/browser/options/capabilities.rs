@@ -356,10 +356,12 @@ capabilities = {
         assert!(error.to_string().contains("missing.json"), "{error}");
         let broken = dir.path().join("broken.json");
         std::fs::write(&broken, "nothing here").unwrap();
-        assert!(CapabilityOverrides::from_file(&broken)
-            .unwrap_err()
-            .to_string()
-            .contains("broken.json"));
+        assert!(
+            CapabilityOverrides::from_file(&broken)
+                .unwrap_err()
+                .to_string()
+                .contains("broken.json")
+        );
     }
 
     #[test]

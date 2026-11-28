@@ -5,8 +5,8 @@
 
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then};
-use seleniumbase_rs::testing::bdd::SbCdpCase;
 use seleniumbase_rs::Settings;
+use seleniumbase_rs::testing::bdd::SbCdpCase;
 
 #[fixture]
 async fn page() -> SbCdpCase {

@@ -36,14 +36,14 @@ use std::fmt;
 use std::path::Path;
 
 use base64::Engine;
-use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, AES_256_GCM};
+use ring::aead::{AES_256_GCM, Aad, LessSafeKey, Nonce, UnboundKey};
 use ring::rand::{SecureRandom, SystemRandom};
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use turso::{Connection, Database};
 
 use super::db;
-use crate::common::encryption::{derive_key, PBKDF2_ITERATIONS, SALT_LEN};
+use crate::common::encryption::{PBKDF2_ITERATIONS, SALT_LEN, derive_key};
 use crate::error::{Result, SeleniumBaseError};
 
 const KIND: &str = "vault";

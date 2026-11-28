@@ -580,19 +580,19 @@ mod tests {
         assert_eq!(scenario.name, "all");
         assert_eq!(scenario.steps.len(), 40);
         let names: Vec<String> = scenario.steps.iter().map(ScenarioStep::action).collect();
-        let written: Vec<String> = serde_json::from_str::<serde_json::Value>(EVERY_STEP).unwrap()
-            ["steps"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .map(|step| step["action"].as_str().unwrap().to_owned())
-            .collect();
+        let written: Vec<String> =
+            serde_json::from_str::<serde_json::Value>(EVERY_STEP).unwrap()["steps"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .map(|step| step["action"].as_str().unwrap().to_owned())
+                .collect();
         assert_eq!(names, written);
     }
 
     #[test]
     fn a_scenario_written_in_any_language_parses_to_the_same_steps() {
-        use crate::utils::translate::{scenario::translate_scenario, Language};
+        use crate::utils::translate::{Language, scenario::translate_scenario};
 
         let english = Scenario::from_json(EVERY_STEP).unwrap();
         for language in Language::ALL {

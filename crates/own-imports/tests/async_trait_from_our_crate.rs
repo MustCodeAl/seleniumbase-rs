@@ -3,8 +3,8 @@
 //! The manifest of this crate does not list `async-trait`: the attribute is re-exported by
 //! `seleniumbase_rs::plugins::observer`, next to the traits it is written for.
 
-use seleniumbase_rs::plugins::observer::{async_trait, PageEvidence};
-use seleniumbase_rs::{tokio, Result};
+use seleniumbase_rs::plugins::observer::{PageEvidence, async_trait};
+use seleniumbase_rs::{Result, tokio};
 
 /// A page that has nothing in it, to implement the trait on.
 struct EmptyPage;

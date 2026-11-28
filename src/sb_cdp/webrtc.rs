@@ -424,9 +424,11 @@ mod tests {
                 .unwrap()
                 .browser_args(std::path::Path::new("/tmp/profile"))
         };
-        assert!(!args(LaunchOptions::builder())
-            .iter()
-            .any(|arg| arg.contains("webrtc")));
+        assert!(
+            !args(LaunchOptions::builder())
+                .iter()
+                .any(|arg| arg.contains("webrtc"))
+        );
         assert!(
             !args(LaunchOptions::builder().shield_webrtc(true))
                 .iter()

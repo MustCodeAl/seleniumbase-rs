@@ -171,10 +171,12 @@ mod tests {
         fs::write(&real, "one").unwrap();
         std::os::unix::fs::symlink(&real, &link).unwrap();
         replace(&link, b"two").unwrap();
-        assert!(fs::symlink_metadata(&link)
-            .unwrap()
-            .file_type()
-            .is_symlink());
+        assert!(
+            fs::symlink_metadata(&link)
+                .unwrap()
+                .file_type()
+                .is_symlink()
+        );
         assert_eq!(fs::read(&real).unwrap(), b"two");
     }
 }

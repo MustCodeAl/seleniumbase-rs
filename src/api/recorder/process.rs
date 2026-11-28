@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 
 use serde_json::Value;
 
-use super::raw::{text, RawAction};
+use super::raw::{RawAction, text};
 
 static NULL: Value = Value::Null;
 

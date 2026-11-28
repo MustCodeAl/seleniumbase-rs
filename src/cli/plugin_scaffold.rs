@@ -711,9 +711,11 @@ mod tests {
         let (files, instructions) = render_plugin_files(&opts).unwrap();
         assert!(files.iter().any(|(p, _)| p.ends_with("Cargo.toml")));
         assert!(files.iter().any(|(p, _)| p.ends_with("src/lib.rs")));
-        assert!(files
-            .iter()
-            .any(|(p, _)| p.ends_with("tests/plugin_test.rs")));
+        assert!(
+            files
+                .iter()
+                .any(|(p, _)| p.ends_with("tests/plugin_test.rs"))
+        );
         assert!(files.iter().any(|(p, _)| p.ends_with("README.md")));
         assert!(instructions.contains("SELENIUMBASE-RS PLUGIN SCAFFOLDED: my-custom-plugin"));
     }

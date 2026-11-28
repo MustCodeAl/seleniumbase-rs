@@ -19,9 +19,9 @@
 
 mod local_site;
 
-use local_site::{ensure, Site, DEMO_PAGE, DEMO_PATH};
+use local_site::{DEMO_PAGE, DEMO_PATH, Site, ensure};
 use seleniumbase_rs::artifacts::ensure_latest_logs_dir;
-use seleniumbase_rs::{run_browser_test, tokio, BaseCase, BrowserConfig, Result};
+use seleniumbase_rs::{BaseCase, BrowserConfig, Result, run_browser_test, tokio};
 
 /// Where the referral helper below leads, and what that page says.
 const LANDING_PATH: &str = "/landing";

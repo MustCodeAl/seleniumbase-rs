@@ -19,8 +19,8 @@
 
 use std::collections::BTreeMap;
 
-use seleniumbase_rs::mcp::{cdp, dev, driver, sb, Host, Settings};
-use serde_json::{json, Value};
+use seleniumbase_rs::mcp::{Host, Settings, cdp, dev, driver, sb};
+use serde_json::{Value, json};
 
 /// `value` with the keys of every object in sorted order.
 ///

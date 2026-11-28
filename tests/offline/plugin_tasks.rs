@@ -10,15 +10,15 @@
 
 use std::sync::{Arc, Mutex};
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::common::shutdown::{Outcome, Shutdown, Signal};
 use seleniumbase_rs::plugin_api::{
-    async_trait, BrowserHandle, Capability, Category, Metadata, NoPrompt, Plugin, PluginError,
-    PluginSet, Result as PluginResult, Sink, Task, TaskContext,
+    BrowserHandle, Capability, Category, Metadata, NoPrompt, Plugin, PluginError, PluginSet,
+    Result as PluginResult, Sink, Task, TaskContext, async_trait,
 };
 use seleniumbase_rs::plugin_host::{run_task_on, run_task_until};
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, MockCtrl};
-use seleniumbase_rs::SeleniumBaseError;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// What the hooks of the plugins in one test saw, in order.
 type Log = Arc<Mutex<Vec<String>>>;

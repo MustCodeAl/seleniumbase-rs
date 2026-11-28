@@ -14,7 +14,7 @@ use std::path::Path;
 use std::time::{Duration, Instant};
 
 use base64::prelude::*;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::browser::session::BrowserSession;
 use crate::error::SeleniumBaseError;
@@ -906,9 +906,11 @@ mod tests {
                 CdpNode::from_object_id("o2", "li")
             ]
         );
-        assert!(parse_found_nodes(&json!({"result": []}), "li")
-            .unwrap()
-            .is_empty());
+        assert!(
+            parse_found_nodes(&json!({"result": []}), "li")
+                .unwrap()
+                .is_empty()
+        );
         assert!(parse_found_nodes(&json!({}), "li").is_err());
     }
 
@@ -1004,12 +1006,12 @@ mod tests {
                         'x' => value.push(hex(&mut chars, 2)?),
                         'u' => value.push(hex(&mut chars, 4)?),
                         '\n' | '\r' | '\u{2028}' | '\u{2029}' => {
-                            return Err("a line continuation inside a string literal".to_owned())
+                            return Err("a line continuation inside a string literal".to_owned());
                         }
                         other => value.push(other),
                     },
                     '\n' | '\r' | '\u{2028}' | '\u{2029}' => {
-                        return Err("a raw line terminator inside a string literal".to_owned())
+                        return Err("a raw line terminator inside a string literal".to_owned());
                     }
                     other => value.push(other),
                 }
@@ -1140,8 +1142,8 @@ mod tests {
 /// browser): which commands it sends and how it reads the answers.
 #[cfg(test)]
 mod driven_tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use serde_json::json;
 

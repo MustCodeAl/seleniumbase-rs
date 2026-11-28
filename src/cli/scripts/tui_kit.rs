@@ -9,14 +9,14 @@
 //! state and performs the effects.
 
 use std::collections::VecDeque;
-use std::io::{self, stdout, Stdout};
+use std::io::{self, Stdout, stdout};
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use crossterm::cursor::Show;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
 use crossterm::execute;
 use crossterm::terminal::{
-    disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen,
+    EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode,
 };
 use ratatui::backend::CrosstermBackend;
 use ratatui::layout::Rect;

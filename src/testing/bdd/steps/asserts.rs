@@ -4,7 +4,7 @@
 //! A wording with its arguments the other way round has a second function,
 //! named `as` the action (see `elements`).
 
-use super::{normalize_text, WAIT_SECONDS};
+use super::{WAIT_SECONDS, normalize_text};
 use crate::error::SeleniumBaseError;
 
 sb_steps! {

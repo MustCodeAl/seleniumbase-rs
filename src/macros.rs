@@ -433,9 +433,7 @@ macro_rules! sb_assert_not_visible {
             Err(error) => Err(error),
         }
     }};
-    ($sb:expr, $selector:expr, $msg:expr) => {{
-        $crate::sb_assert_not_visible!($sb, $selector).expect($msg)
-    }};
+    ($sb:expr, $selector:expr, $msg:expr) => {{ $crate::sb_assert_not_visible!($sb, $selector).expect($msg) }};
 }
 
 /// Runs an async block with an increased implicit wait timeout.
@@ -455,9 +453,9 @@ macro_rules! sb_with_timeout {
 
 #[cfg(test)]
 mod tests {
-    use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply};
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply, element};
     use crate::{SelectorRef, SeleniumBaseError};
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     /// A page whose element `#a` is displayed or not.

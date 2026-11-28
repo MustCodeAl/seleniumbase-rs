@@ -53,8 +53,7 @@ const ATTRIBUTE_PAGE: &str = "data:text/html,<html><body><div id=t data-state=on
     t.setAttribute('data-ready','yes');t.removeAttribute('data-state')},400)</script></body></html>";
 
 /// A page 5000 pixels high.
-const TALL_PAGE: &str =
-    "data:text/html,<html><body style=\"margin:0\"><div style=\"height:5000px\"></div></body></html>";
+const TALL_PAGE: &str = "data:text/html,<html><body style=\"margin:0\"><div style=\"height:5000px\"></div></body></html>";
 
 async fn case(page: &str) -> BaseCase {
     let config = BrowserConfig::builder()

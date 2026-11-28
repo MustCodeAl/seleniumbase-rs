@@ -16,9 +16,9 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::common::debug_prompt::{folder_name, PromptPage};
+use crate::common::debug_prompt::{PromptPage, folder_name};
 use crate::core::log_helper::{
-    log_page_source, log_screenshot, log_test_failure_data, FailureInfo,
+    FailureInfo, log_page_source, log_screenshot, log_test_failure_data,
 };
 use crate::core::report_helper::FailureDetails;
 use crate::error::SeleniumBaseError;
@@ -177,7 +177,7 @@ fn version_in(agent: &str, browser: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use async_trait::async_trait;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::core::log_helper::{BASIC_INFO_FILE, PAGE_SOURCE_FILE, SCREENSHOT_FILE};

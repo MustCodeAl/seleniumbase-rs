@@ -22,7 +22,7 @@
 //!
 //! A browser the library only attaches to keeps its own settings.
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use thirtyfour::Capabilities;
 
 use crate::browser::config::Browser;

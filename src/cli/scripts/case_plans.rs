@@ -564,9 +564,11 @@ mod tests {
     fn a_target_that_is_not_there_has_no_tests() {
         let dir = tempfile::tempdir().unwrap();
 
-        assert!(test_ids(dir.path(), Path::new("nowhere"))
-            .unwrap()
-            .is_empty());
+        assert!(
+            test_ids(dir.path(), Path::new("nowhere"))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     // ------------------------------------------------------------------
@@ -764,15 +766,21 @@ mod tests {
         ])
         .unwrap();
 
-        assert!(summary
-            .markdown
-            .contains("| \u{2B55} | 2 | Case Plans using boilerplate code |"));
-        assert!(summary
-            .markdown
-            .contains("| \u{1F535} | 0 | Case Plans with customized tables |"));
-        assert!(summary
-            .markdown
-            .contains("| \u{1F6A7} | 0 | Case Plans that are missing tables |"));
+        assert!(
+            summary
+                .markdown
+                .contains("| \u{2B55} | 2 | Case Plans using boilerplate code |")
+        );
+        assert!(
+            summary
+                .markdown
+                .contains("| \u{1F535} | 0 | Case Plans with customized tables |")
+        );
+        assert!(
+            summary
+                .markdown
+                .contains("| \u{1F6A7} | 0 | Case Plans that are missing tables |")
+        );
     }
 
     #[test]

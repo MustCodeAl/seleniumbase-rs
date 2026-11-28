@@ -88,8 +88,7 @@ const FOCUS_INPUT: &str = "document.querySelector('.jconfirm-box input.jqc_input
 
 /// How many dialogs are open: `jconfirm.instances.length`, or `-1` when the
 /// page no longer has jquery-confirm (it navigated).
-pub(crate) const OPEN_COUNT_SCRIPT: &str =
-    "return (typeof jconfirm === 'undefined' || !jconfirm.instances) ? -1 : jconfirm.instances.length;";
+pub(crate) const OPEN_COUNT_SCRIPT: &str = "return (typeof jconfirm === 'undefined' || !jconfirm.instances) ? -1 : jconfirm.instances.length;";
 
 /// Reads what the last dialog stored, or `null` when it stored nothing.
 pub(crate) const ANSWER_SCRIPT: &str = "return window.__sbJqcAnswer || null;";

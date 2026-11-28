@@ -137,10 +137,11 @@ fn processes_with_the_key_of_a_run_share_it_and_another_key_starts_a_new_one() {
             ("b::two", TestStatus::Failed)
         ]
     );
-    assert!(root
-        .path()
-        .join("latest_logs/b.two/basic_test_info.txt")
-        .is_file());
+    assert!(
+        root.path()
+            .join("latest_logs/b.two/basic_test_info.txt")
+            .is_file()
+    );
 
     // The next `cargo test` has another key: a new run, and clean logs.
     let third = open(root.path(), "B");
@@ -170,11 +171,13 @@ fn a_new_run_archives_the_logs_of_the_last_one_when_asked() {
         .collect();
     assert_eq!(archives.len(), 1);
     let archive = &archives[0];
-    assert!(archive
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .starts_with("logs_"));
+    assert!(
+        archive
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("logs_")
+    );
     assert!(archive.join("a.one/basic_test_info.txt").is_file());
     assert!(archive.join("run.json").is_file());
     assert!(read(&archive.join("results.jsonl")).contains("a::one"));
@@ -224,9 +227,11 @@ fn many_threads_and_two_handles_write_one_run_without_losing_a_line() {
 
     let results = a.snapshot().unwrap().results;
     assert_eq!(results.len(), 200);
-    assert!(results
-        .iter()
-        .all(|result| result.status == TestStatus::Passed));
+    assert!(
+        results
+            .iter()
+            .all(|result| result.status == TestStatus::Passed)
+    );
     let lines = read(&root.path().join(".sbrs_run/results.jsonl"));
     assert_eq!(lines.lines().count(), 400, "a start and an end for each");
     for line in lines.lines() {
@@ -291,10 +296,12 @@ async fn a_failure_leaves_the_three_files_and_prints_the_fail_page() {
         source.contains("<base href=\"https://example.com/login\">"),
         "{source}"
     );
-    assert!(printed
-        .lock()
-        .unwrap()
-        .contains("=> Fail Page: https://example.com/login"));
+    assert!(
+        printed
+            .lock()
+            .unwrap()
+            .contains("=> Fail Page: https://example.com/login")
+    );
 
     let result = run.snapshot().unwrap().results.remove(0);
     assert_eq!(result.status, TestStatus::Failed);
@@ -349,10 +356,11 @@ async fn a_passing_test_gets_a_screenshot_only_when_asked() {
     let mut recorder = run.start(TestId::named("p::one")).unwrap();
     recorder.on_success(&Page::working()).await;
     recorder.finish(&Ok(())).unwrap();
-    assert!(root
-        .path()
-        .join("latest_logs/p.one/screenshot.png")
-        .is_file());
+    assert!(
+        root.path()
+            .join("latest_logs/p.one/screenshot.png")
+            .is_file()
+    );
 
     let unasked = tempfile::tempdir().unwrap();
     let run = open(unasked.path(), "A");

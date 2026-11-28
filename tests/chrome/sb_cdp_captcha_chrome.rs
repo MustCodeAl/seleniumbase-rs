@@ -26,8 +26,8 @@ use super::captcha_site;
 use std::time::{Duration, Instant};
 
 use captcha_site::Site;
-use seleniumbase_rs::sb_cdp::{Browser, Captcha, Evidence, LaunchOptions, Page, SolveOptions};
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::sb_cdp::{Browser, Captcha, Evidence, LaunchOptions, Page, SolveOptions};
 
 /// How long a test waits for the page to show it cleared.
 const CLEAR_WITHIN: Duration = Duration::from_secs(8);

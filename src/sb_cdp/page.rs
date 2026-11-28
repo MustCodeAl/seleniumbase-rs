@@ -6,7 +6,7 @@ use std::time::{Duration, Instant};
 
 use base64::Engine as _;
 use serde::de::DeserializeOwned;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::browser::Browser;
 use super::client::Events;
@@ -15,7 +15,7 @@ use super::locator::Locator;
 use super::sync::locked;
 use super::types::{PageInfo, ScreenRect, Scroll, State};
 use crate::error::SeleniumBaseError;
-use crate::utilities::retry::{poll_until, RetryPolicy};
+use crate::utilities::retry::{RetryPolicy, poll_until};
 use crate::utils::selectors::Selector;
 use crate::utils::urls::normalize_page_url;
 #[cfg(feature = "plugins")]

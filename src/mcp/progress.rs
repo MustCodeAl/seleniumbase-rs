@@ -9,8 +9,8 @@
 use std::fmt::Display;
 
 use std::pin::Pin;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use rmcp::model::{ProgressNotificationParam, ProgressToken};
 use rmcp::service::{Peer, RoleServer};

@@ -18,10 +18,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::js_code::quote;
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Page};
-use seleniumbase_rs::SeleniumBaseError;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// `path` made absolute the way the crate reports download paths: canonical,
 /// without the `\\?\` prefix Windows' canonical paths have.

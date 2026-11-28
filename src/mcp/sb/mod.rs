@@ -18,7 +18,7 @@ mod storage;
 mod waits;
 mod windows;
 
-use super::{devtools, stealth, Host, Settings, ToolDef};
+use super::{Host, Settings, ToolDef, devtools, stealth};
 use crate::api::base_case::BaseCase;
 
 const SERVER_NAME: &str = "seleniumbase-sb";

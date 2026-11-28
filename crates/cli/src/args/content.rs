@@ -266,16 +266,20 @@ mod tests {
             force: false,
             language: None,
         };
-        assert!(plain
+        assert!(
+            plain
+                .presentation_file()
+                .unwrap()
+                .render()
+                .contains("Hello")
+        );
+        assert!(
+            MkpresArgs {
+                file: "../deck".to_owned(),
+                ..plain
+            }
             .presentation_file()
-            .unwrap()
-            .render()
-            .contains("Hello"));
-        assert!(MkpresArgs {
-            file: "../deck".to_owned(),
-            ..plain
-        }
-        .presentation_file()
-        .is_err());
+            .is_err()
+        );
     }
 }

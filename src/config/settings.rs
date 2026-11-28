@@ -7,7 +7,7 @@ use crate::browser::config::BrowserConfig;
 use crate::browser::options::{BrowserSettings, LaunchSwitch, SessionSettings};
 use crate::config::env_vars::{EnvVars, Read};
 use crate::config::layers::{self, Layer, Refused};
-use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
+use crate::config::plugins::{PLUGINS_ENV, PluginSelection};
 use crate::config::settings_file::SettingsFile;
 
 use crate::config::test_settings::{TestData, TestSettings};
@@ -1045,15 +1045,19 @@ mod tests {
     fn remote_webdriver_timeout_defaults_to_unset() {
         // SeleniumBase's REMOTE_WEBDRIVER_TIMEOUT defaults to None, leaving the
         // client's own timeout in place.
-        assert!(Settings::default()
-            .session
-            .remote_webdriver_timeout_seconds
-            .is_none());
-        assert!(Settings::default()
-            .to_browser_config()
-            .session
-            .remote_webdriver_timeout_seconds
-            .is_none());
+        assert!(
+            Settings::default()
+                .session
+                .remote_webdriver_timeout_seconds
+                .is_none()
+        );
+        assert!(
+            Settings::default()
+                .to_browser_config()
+                .session
+                .remote_webdriver_timeout_seconds
+                .is_none()
+        );
     }
 
     #[test]
@@ -1371,9 +1375,11 @@ mod tests {
     fn a_settings_file_without_a_plugins_table_selects_nothing() {
         let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();
         file.write_all(b"headless = true\n").unwrap();
-        assert!(Settings::load_plugin_table(Some(file.path()))
-            .unwrap()
-            .is_empty());
+        assert!(
+            Settings::load_plugin_table(Some(file.path()))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -1493,10 +1499,12 @@ mod tests {
         );
         assert!(check.problems[0].error.to_string().contains("chrom"));
         assert!(check.problems[1].error.to_string().contains("maybe"));
-        assert!(check.problems[3]
-            .error
-            .to_string()
-            .starts_with("invalid configuration: SB_THREADS:"));
+        assert!(
+            check.problems[3]
+                .error
+                .to_string()
+                .starts_with("invalid configuration: SB_THREADS:")
+        );
         // The good variables and the file are kept.
         assert!(check.settings.browser.mobile);
         assert_eq!(check.settings.browser.lang.as_deref(), Some("de-DE"));
@@ -1530,15 +1538,19 @@ mod tests {
             sources,
             [file.path().display().to_string().as_str(), "SB_THREADS"]
         );
-        assert!(broken.problems[0]
-            .error
-            .to_string()
-            .contains("failed to parse TOML settings"));
+        assert!(
+            broken.problems[0]
+                .error
+                .to_string()
+                .contains("failed to parse TOML settings")
+        );
         assert_eq!(missing.problems.len(), 1);
-        assert!(missing.problems[0]
-            .error
-            .to_string()
-            .contains("failed to read"));
+        assert!(
+            missing.problems[0]
+                .error
+                .to_string()
+                .contains("failed to read")
+        );
     }
 
     #[test]
@@ -1877,14 +1889,18 @@ mod tests {
                 "{value}"
             );
         }
-        assert!(Settings::apply_overrides(Settings::default(), |name| {
-            (name == "SB_ESC_END").then(|| "maybe".to_owned())
-        })
-        .is_err());
+        assert!(
+            Settings::apply_overrides(Settings::default(), |name| {
+                (name == "SB_ESC_END").then(|| "maybe".to_owned())
+            })
+            .is_err()
+        );
 
-        assert!(settings_of("esc_end = true")
-            .browser
-            .has(LaunchSwitch::EscEnd));
+        assert!(
+            settings_of("esc_end = true")
+                .browser
+                .has(LaunchSwitch::EscEnd)
+        );
         let old: Settings =
             serde_json::from_value(serde_json::json!({"browser": {"kind": Browser::Edge}}))
                 .unwrap();
@@ -1984,12 +2000,16 @@ mod tests {
         assert_eq!(from_json.fingerprint, from_toml.fingerprint);
         let round_trip: Settings = toml::from_str(&toml::to_string(&from_toml).unwrap()).unwrap();
         assert_eq!(round_trip, from_toml);
-        assert!(!toml::to_string(&Settings::default())
-            .unwrap()
-            .contains("fingerprint"));
-        assert!(!serde_json::to_string(&Settings::default())
-            .unwrap()
-            .contains("fingerprint"));
+        assert!(
+            !toml::to_string(&Settings::default())
+                .unwrap()
+                .contains("fingerprint")
+        );
+        assert!(
+            !serde_json::to_string(&Settings::default())
+                .unwrap()
+                .contains("fingerprint")
+        );
         assert!(Settings::default().fingerprint.is_empty());
     }
 
@@ -2118,8 +2138,8 @@ mod tests {
     }
 
     #[test]
-    fn the_fingerprint_file_a_command_presents_comes_from_the_flag_then_the_variable_then_the_table(
-    ) {
+    fn the_fingerprint_file_a_command_presents_comes_from_the_flag_then_the_variable_then_the_table()
+     {
         // Not a valid `Settings` file: `headless` is not a boolean. Only the table is read.
         let body = "headless = \"maybe\"\n[fingerprint]\nfile = \"from-table.json\"\n";
         let mut file = tempfile::NamedTempFile::with_suffix(".toml").unwrap();

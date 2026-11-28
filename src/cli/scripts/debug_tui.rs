@@ -6,11 +6,11 @@
 
 use std::io;
 
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
-use ratatui::Frame;
 
 use crate::common::debug_prompt::PromptOutcome;
 
@@ -70,9 +70,9 @@ impl DebugTui {
             url: url.into(),
             page_title: page_title.into(),
             input: String::new(),
-            log: vec![
-                String::from("Commands: c continue | s screenshot | src source | u url | js <expr> | find <css> | q quit"),
-            ],
+            log: vec![String::from(
+                "Commands: c continue | s screenshot | src source | u url | js <expr> | find <css> | q quit",
+            )],
             outcome: None,
         }
     }
@@ -324,8 +324,8 @@ mod tests {
 
     #[test]
     fn render_draws_cleanly() {
-        use ratatui::backend::TestBackend;
         use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
 
         let tui = DebugTui::new(
             "RECORDER BREAKPOINT",

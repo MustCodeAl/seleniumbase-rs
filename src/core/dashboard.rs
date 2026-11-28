@@ -39,8 +39,8 @@ use std::path::{Component, Path, PathBuf};
 use crate::artifacts::LATEST_LOGS_DIR;
 use crate::core::log_helper::{master_time, relative_link};
 use crate::core::report_helper::{
-    html_escape, write_atomically, write_atomically_async, FailureDetails, ReportSummary,
-    RunSnapshot, TestResult, TestStatus,
+    FailureDetails, ReportSummary, RunSnapshot, TestResult, TestStatus, html_escape,
+    write_atomically, write_atomically_async,
 };
 
 /// How often a live dashboard refreshes itself, in seconds. Python uses 12.
@@ -915,8 +915,10 @@ mod tests {
             "{html}"
         );
         assert!(html.contains("<p class=\"run-count\">3 tests ran in 1.00 seconds.</p>"));
-        assert!(html_of(vec![result("a", TestStatus::Passed, 0.0, "ok")])
-            .contains("1 test ran in 0.00 seconds."));
+        assert!(
+            html_of(vec![result("a", TestStatus::Passed, 0.0, "ok")])
+                .contains("1 test ran in 0.00 seconds.")
+        );
     }
 
     #[test]
@@ -984,8 +986,11 @@ mod tests {
         assert!(!html.contains("<script"), "{html}");
         assert!(!html.contains("<b>name"), "{html}");
         assert!(html.contains("&lt;b&gt;name&lt;/b&gt;"));
-        assert!(html
-            .contains("&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt; &amp; &quot;quotes&quot;"));
+        assert!(
+            html.contains(
+                "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt; &amp; &quot;quotes&quot;"
+            )
+        );
     }
 
     #[test]
@@ -1137,20 +1142,28 @@ mod tests {
         let skipped = result("b", TestStatus::Skipped, 0.0, "why");
         let failed = |name: &str| result(name, TestStatus::Failed, 0.1, "bad");
 
-        assert!(dashboard_of(vec![passed.clone()], true)
-            .contains("Test Run Complete: <b>Success!</b> (All tests passed)"));
-        assert!(dashboard_of(vec![passed.clone(), skipped.clone()], true)
-            .contains("<b>Success!</b> (No failing tests)"));
-        assert!(dashboard_of(vec![skipped.clone()], true)
-            .contains("Test Run Complete: All tests were skipped!"));
+        assert!(
+            dashboard_of(vec![passed.clone()], true)
+                .contains("Test Run Complete: <b>Success!</b> (All tests passed)")
+        );
+        assert!(
+            dashboard_of(vec![passed.clone(), skipped.clone()], true)
+                .contains("<b>Success!</b> (No failing tests)")
+        );
+        assert!(
+            dashboard_of(vec![skipped.clone()], true)
+                .contains("Test Run Complete: All tests were skipped!")
+        );
         assert!(
             dashboard_of(vec![passed.clone(), failed("c")], true).contains(
                 "Test Run Complete: <b>1 test failed!</b> --- \
              (<b><a href=\"latest_logs/\">See latest logs for details</a></b>)"
             )
         );
-        assert!(dashboard_of(vec![failed("c"), failed("d")], true)
-            .contains("<b>2 tests failed!</b> --- "));
+        assert!(
+            dashboard_of(vec![failed("c"), failed("d")], true)
+                .contains("<b>2 tests failed!</b> --- ")
+        );
         assert!(dashboard_of(Vec::new(), false).contains("Awaiting results..."));
         assert!(dashboard_of(Vec::new(), true).contains("No tests were run."));
 
@@ -1158,7 +1171,9 @@ mod tests {
             vec![failed("c"), result("u", TestStatus::Unreported, 0.0, "")],
             true,
         );
-        assert!(ended.contains("Test Run ENDED: Some results UNREPORTED due to skipped tearDown()"));
+        assert!(
+            ended.contains("Test Run ENDED: Some results UNREPORTED due to skipped tearDown()")
+        );
         assert!(
             ended.contains("<b>1 test failed!</b>"),
             "failures are not hidden"
@@ -1423,9 +1438,11 @@ mod tests {
             last.contains("<a href=\"latest_logs/a/screenshot.png\">Screenshot</a>"),
             "{last}"
         );
-        assert!(std::fs::read_to_string(&report)
-            .unwrap()
-            .contains("<a href=\"../latest_logs/a/screenshot.png\">Screenshot</a>"));
+        assert!(
+            std::fs::read_to_string(&report)
+                .unwrap()
+                .contains("<a href=\"../latest_logs/a/screenshot.png\">Screenshot</a>")
+        );
     }
 
     #[test]
@@ -1462,9 +1479,11 @@ mod tests {
             std::fs::read_to_string(&html).unwrap(),
             render_html_report(&run, &options)
         );
-        assert!(write_html_report_async(&missing, &run, &options)
-            .await
-            .is_err());
+        assert!(
+            write_html_report_async(&missing, &run, &options)
+                .await
+                .is_err()
+        );
         assert_eq!(
             std::fs::read_dir(dir.path()).unwrap().count(),
             1,

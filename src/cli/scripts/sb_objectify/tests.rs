@@ -437,8 +437,7 @@ fn inject_changes_nothing_when_no_selector_has_a_page_object() {
 
 #[test]
 fn the_module_goes_after_inner_attributes_and_above_the_docs_of_the_first_item() {
-    let source =
-        "//! Login checks.\n#![allow(unused)]\n\n/// Logs in.\n#[test]\nfn login() {\n    \
+    let source = "//! Login checks.\n#![allow(unused)]\n\n/// Logs in.\n#[test]\nfn login() {\n    \
                   sb.click(\"#a\");\n}\n";
     let objects = extract(source);
 
@@ -466,8 +465,7 @@ fn the_module_is_not_declared_twice() {
 
 #[test]
 fn a_call_in_an_inline_module_reaches_the_page_objects_through_super() {
-    let source =
-        "fn t() {\n    sb.click(\"#top\");\n}\n\n#[cfg(test)]\nmod tests {\n    fn t() {\n        \
+    let source = "fn t() {\n    sb.click(\"#top\");\n}\n\n#[cfg(test)]\nmod tests {\n    fn t() {\n        \
                   sb.click(\"#inner\");\n    }\n}\n";
     let objects = extract(source);
 

@@ -48,9 +48,11 @@ mod tests {
         let path = dir.path().join(FILE_NAME);
 
         write_case_plans(&path).unwrap();
-        assert!(std::fs::read_to_string(&path)
-            .unwrap()
-            .contains("## Smoke Tests"));
+        assert!(
+            std::fs::read_to_string(&path)
+                .unwrap()
+                .contains("## Smoke Tests")
+        );
         std::fs::write(&path, "- [x] my own plan\n").unwrap();
         let error = write_case_plans(&path).unwrap_err();
 

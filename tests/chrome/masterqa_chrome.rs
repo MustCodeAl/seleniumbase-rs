@@ -117,14 +117,18 @@ async fn a_yes_and_a_no_are_recorded_and_the_run_is_archived() {
     assert!(png.starts_with(b"\x89PNG"), "not a PNG");
     assert!(report.archive_dir.join("report.html").is_file());
     assert!(report.results_page.is_file());
-    assert!(report
-        .archive_dir
-        .starts_with(root.path().join("archived_reports")));
-    assert!(!root
-        .path()
-        .join("latest_report")
-        .join("results_table.csv")
-        .exists());
+    assert!(
+        report
+            .archive_dir
+            .starts_with(root.path().join("archived_reports"))
+    );
+    assert!(
+        !root
+            .path()
+            .join("latest_report")
+            .join("results_table.csv")
+            .exists()
+    );
 
     sb.quit().await.expect("quit");
     // FIXME: Audit that the environment access only happens in single-threaded code.

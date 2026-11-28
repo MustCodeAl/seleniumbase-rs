@@ -156,10 +156,11 @@ fn the_settings_file_may_use_dashes_and_aliases_for_its_keys() {
 
     assert!(run.output.status.success(), "{}", stderr(&run.output));
     assert!(run.blocks_images());
-    assert!(run
-        .args()
-        .iter()
-        .any(|arg| arg == "--enable-features=WebContentsForceDark"));
+    assert!(
+        run.args()
+            .iter()
+            .any(|arg| arg == "--enable-features=WebContentsForceDark")
+    );
 }
 
 #[test]
@@ -401,11 +402,13 @@ exit 0
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
             .expect("make it executable");
         // The first run of a new script can be slow on macOS: take it now.
-        assert!(Command::new(&script)
-            .arg("--warm")
-            .status()
-            .expect("warm it")
-            .success());
+        assert!(
+            Command::new(&script)
+                .arg("--warm")
+                .status()
+                .expect("warm it")
+                .success()
+        );
         let mut command = Command::new(SBASE);
         command
             .args(args)

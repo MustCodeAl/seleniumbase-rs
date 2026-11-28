@@ -16,14 +16,15 @@ use std::sync::{Arc, Mutex};
 
 use seleniumbase_rs::common::shutdown::{Outcome, Shutdown};
 use seleniumbase_rs::plugin_api::{
-    async_trait, Capability, Category, Metadata, NoPrompt, PageHandle, Plugin, PluginSet,
+    Capability, Category, Metadata, NoPrompt, PageHandle, Plugin, PluginSet,
     Result as PluginResult, Sink, Task, TaskContext, TestInfo, TestOutcome, TestVerdict,
+    async_trait,
 };
 use seleniumbase_rs::plugin_host::run_task_until;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::testing::SbCdp;
 use seleniumbase_rs::{Result, SeleniumBaseError, Settings};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 type Log = Arc<Mutex<Vec<String>>>;
 

@@ -15,8 +15,8 @@
 use std::fs;
 use std::path::Path;
 
-use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RecordedAction, RecordedCommand};
 use seleniumbase_rs::DriverMode;
+use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RecordedAction, RecordedCommand};
 
 fn recording() -> ActionRecorder {
     let mut actions: Vec<RecordedAction> = Vec::new();

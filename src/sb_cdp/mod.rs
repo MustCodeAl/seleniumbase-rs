@@ -110,9 +110,9 @@ mod webrtc;
 pub use crate::cookie::{Cookie, SameSite};
 #[doc(inline)]
 pub use browser::Browser;
-pub(crate) use captcha::{solve as solve_captcha, Surface as CaptchaSurface};
 #[doc(inline)]
 pub use captcha::{Captcha, Evidence, SolveOptions, Solved};
+pub(crate) use captcha::{Surface as CaptchaSurface, solve as solve_captcha};
 #[doc(inline)]
 pub use channel::{CdpInbox, CdpRequest, CdpTransport, TransportError};
 #[doc(inline)]
@@ -120,15 +120,15 @@ pub use client::{CdpEvent, Events};
 #[doc(inline)]
 pub use context::{BrowserContext, ContextOptions, ContextOptionsBuilder, ContextRoute};
 #[doc(inline)]
-pub use endpoint::{DevToolsEndpoint, CHROME_DEVTOOLS_MCP_VERSION, PLAYWRIGHT_MCP_VERSION};
+pub use endpoint::{CHROME_DEVTOOLS_MCP_VERSION, DevToolsEndpoint, PLAYWRIGHT_MCP_VERSION};
 #[doc(inline)]
 pub use expect::{LocatorExpect, PageExpect};
 #[doc(inline)]
 pub use har::{
-    stream_to_jsonl, Har, HarCache, HarCapture, HarContent, HarCookie, HarCreator, HarEntry,
-    HarLog, HarNameValue, HarOptions, HarPage, HarPageTimings, HarPostData, HarRecorder,
+    DEFAULT_MAX_CONTENT_BYTES, Har, HarCache, HarCapture, HarContent, HarCookie, HarCreator,
+    HarEntry, HarLog, HarNameValue, HarOptions, HarPage, HarPageTimings, HarPostData, HarRecorder,
     HarRequest, HarResponse, HarStreamFormat, HarStreamStats, HarStreamWriter, HarTimings,
-    SharedBuffer, DEFAULT_MAX_CONTENT_BYTES, MAX_CONTENT_BYTES,
+    MAX_CONTENT_BYTES, SharedBuffer, stream_to_jsonl,
 };
 pub(crate) use human::PointerSink;
 #[doc(inline)]
@@ -150,9 +150,9 @@ pub use messenger::{
 #[cfg(any(test, feature = "test-util"))]
 #[doc(inline)]
 pub use mock::{Call, MockCtrl};
-pub(crate) use page::without_final_return;
 #[doc(inline)]
 pub use page::Page;
+pub(crate) use page::without_final_return;
 #[doc(inline)]
 pub use pool::{BrowserPool, Lease, PoolOptions, PoolOptionsBuilder, PoolStats};
 #[doc(inline)]

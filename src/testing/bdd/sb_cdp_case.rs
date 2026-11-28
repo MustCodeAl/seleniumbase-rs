@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use super::session::{Launch, Scenario};
-use super::{plan_for, Finalizer, Plan};
+use super::{Finalizer, Plan, plan_for};
 use crate::api::runner::CdpCase;
 use crate::config::settings::Settings;
 use crate::config::test_settings::TestData;

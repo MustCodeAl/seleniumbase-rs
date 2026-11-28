@@ -30,22 +30,22 @@
 
 use std::sync::Arc;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 mod imports {
     //! The plugin API as `src/` imports it.
 
     const _: () = {
         use seleniumbase_rs_plugin::{
-            async_trait, BrowserFamily, BrowserHandle, BrowserId, Capability, CapabilitySet,
-            Category, Clock, Configurable, ContextHandle, ContextId, ContextSettings, Descriptor,
-            Enforcement, Engine, ExtensionWorker, HostInfo, HostKind, LaunchContext,
-            LaunchSettings, LoadedExtension, Metadata, NavDecision, NavOrigin, NavOutcome,
-            Navigation, NetRule, NetworkInterest, NoPrompt, Outcome, Package, PageHandle, PageId,
-            PathScope, Phase, Plugin, PluginError, PluginSet, PluginSpec, ProfileView, Prompt,
-            ProtocolEvent, Registry, RequestDecision, RequestFilter, RequestView, Requirements,
-            ResourceKind, ResponseView, Result, Seals, Sink, Task, TaskContext, TestInfo,
-            TestOutcome, TestVerdict, Timer, WebRtcPolicy,
+            BrowserFamily, BrowserHandle, BrowserId, Capability, CapabilitySet, Category, Clock,
+            Configurable, ContextHandle, ContextId, ContextSettings, Descriptor, Enforcement,
+            Engine, ExtensionWorker, HostInfo, HostKind, LaunchContext, LaunchSettings,
+            LoadedExtension, Metadata, NavDecision, NavOrigin, NavOutcome, Navigation, NetRule,
+            NetworkInterest, NoPrompt, Outcome, Package, PageHandle, PageId, PathScope, Phase,
+            Plugin, PluginError, PluginSet, PluginSpec, ProfileView, Prompt, ProtocolEvent,
+            Registry, RequestDecision, RequestFilter, RequestView, Requirements, ResourceKind,
+            ResponseView, Result, Seals, Sink, Task, TaskContext, TestInfo, TestOutcome,
+            TestVerdict, Timer, WebRtcPolicy, async_trait,
         };
     };
 
@@ -93,14 +93,14 @@ mod imports {
 mod a_plugin_as_the_host_sees_it {
     use std::sync::Arc;
 
-    use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
     use seleniumbase_rs::BrowserConfig;
+    use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
     use seleniumbase_rs_plugin::{
-        async_trait, BrowserFamily, Capability, Category, Configurable, Descriptor, Engine,
-        LaunchContext, Metadata, PageHandle, Plugin, PluginError, PluginSet, Prompt, Registry,
-        Sink, Task, TaskContext,
+        BrowserFamily, Capability, Category, Configurable, Descriptor, Engine, LaunchContext,
+        Metadata, PageHandle, Plugin, PluginError, PluginSet, Prompt, Registry, Sink, Task,
+        TaskContext, async_trait,
     };
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     /// As `src/plugin_host/mod.rs` tests one: a plugin built from `{"mode": "..."}`.
     struct Dummy {
@@ -273,18 +273,18 @@ mod a_plugin_as_the_host_sees_it {
 #[cfg(feature = "plugin-imap")]
 mod the_imap_plugin_as_the_email_tool_uses_it {
     use std::collections::HashSet;
-    use std::future::{ready, Future};
+    use std::future::{Future, ready};
     use std::pin::Pin;
-    use std::sync::atomic::{AtomicU64, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicU64, Ordering};
     use std::time::Duration;
 
-    use seleniumbase_rs_plugin::{async_trait, Clock, Configurable, PluginError, Timer};
+    use seleniumbase_rs_plugin::{Clock, Configurable, PluginError, Timer, async_trait};
     use seleniumbase_rs_plugins_builtin::imap::{
-        wait_for, Found, Imap, ImapConfig, MailSource, Query, RawMail, DEFAULT_SINCE_SECS,
-        MAX_TIMEOUT_SECS,
+        DEFAULT_SINCE_SECS, Found, Imap, ImapConfig, MAX_TIMEOUT_SECS, MailSource, Query, RawMail,
+        wait_for,
     };
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     /// A clock that moves only when something sleeps: a sleep ends at once and adds its length.
     struct Stepped(AtomicU64);

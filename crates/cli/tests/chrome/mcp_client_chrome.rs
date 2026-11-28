@@ -9,7 +9,7 @@ use super::mcp_http_support as support;
 
 use std::process::Stdio;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use support::Server;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;

@@ -15,7 +15,7 @@
 //! Blank lines, `//` comments and inner attributes are read over; anything else is refused, so a
 //! hand-written file is never rewritten into something else.
 
-use super::lexer::{lex, Kind};
+use super::lexer::{Kind, lex};
 use super::scan::literal_value;
 
 /// The module of the selectors found before any page was opened.

@@ -26,7 +26,7 @@
 //! # }
 //! ```
 
-use std::panic::{catch_unwind, AssertUnwindSafe};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::path::Path;
 
 use crate::error::SeleniumBaseError;
@@ -322,7 +322,9 @@ mod tests {
     #[test]
     fn ligatures_are_written_as_the_letters_they_join() {
         assert_eq!(
-            expand_ligatures("Welcome to the \u{FB01}xture, \u{FB02}at \u{FB00} \u{FB03} \u{FB04} \u{FB05}\u{FB06}"),
+            expand_ligatures(
+                "Welcome to the \u{FB01}xture, \u{FB02}at \u{FB00} \u{FB03} \u{FB04} \u{FB05}\u{FB06}"
+            ),
             "Welcome to the fixture, flat ff ffi ffl stst"
         );
         assert_eq!(expand_ligatures("plain ✓ text"), "plain ✓ text");
@@ -367,9 +369,11 @@ mod tests {
         assert!(pages[0].contains("alpha") && pages[2].contains("charlie"));
 
         let whole = reader.text().unwrap();
-        assert!(["alpha", "bravo", "charlie"]
-            .iter()
-            .all(|word| whole.contains(word)));
+        assert!(
+            ["alpha", "bravo", "charlie"]
+                .iter()
+                .all(|word| whole.contains(word))
+        );
     }
 
     #[test]

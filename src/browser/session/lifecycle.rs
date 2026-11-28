@@ -11,9 +11,9 @@ use crate::browser::proxy_auth;
 use crate::browser::virtual_display::XvfbProcess;
 use crate::error::SeleniumBaseError;
 
+use super::BrowserSession;
 use super::emulation::{ad_block_commands, launch_emulation_commands, mobile_commands};
 use super::launch::{connect_debugger, connect_driver};
-use super::BrowserSession;
 
 impl BrowserSession {
     /// Lets go of the driver without ending its session: the browser stays
@@ -353,8 +353,7 @@ mod quit_tests {
         let sessions = mock.requests("/session");
         assert_eq!(sessions.len(), 2);
         assert_eq!(
-            sessions[1].body["capabilities"]["alwaysMatch"]["goog:chromeOptions"]
-                ["debuggerAddress"],
+            sessions[1].body["capabilities"]["alwaysMatch"]["goog:chromeOptions"]["debuggerAddress"],
             "localhost:54321"
         );
 

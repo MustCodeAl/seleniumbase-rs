@@ -35,7 +35,7 @@ mod local_site;
 
 use local_site::Site;
 use seleniumbase_rs::{
-    run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError,
+    BaseCase, BrowserConfig, Result, SeleniumBaseError, run_browser_test, tokio,
 };
 
 const PAGE: &str = r#"<!doctype html>

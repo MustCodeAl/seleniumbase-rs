@@ -8,7 +8,7 @@ use thirtyfour::prelude::WebElement;
 use crate::browser::element::Element;
 use crate::browser::shadow_find;
 use crate::error::SeleniumBaseError;
-use crate::utilities::retry::{poll_until, RetryPolicy};
+use crate::utilities::retry::{RetryPolicy, poll_until};
 use crate::utils::selectors::Selector;
 
 use super::BrowserSession;
@@ -198,10 +198,10 @@ pub(crate) async fn shown_text(element: &WebElement) -> Result<String, SeleniumB
 /// waited for, against the mock WebDriver in `webdriver_support`.
 #[cfg(test)]
 mod wait_tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
-    use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply};
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply, element};
     use crate::browser::config::BrowserConfig;
 
     /// A WebDriver on which no element can be found, but `#present` can be

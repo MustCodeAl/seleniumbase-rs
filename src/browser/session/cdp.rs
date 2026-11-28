@@ -2,7 +2,7 @@
 //! through it, the undetected mode, and the pure CDP page of an external
 //! attachment.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::browser::config::BrowserConfig;
 use crate::browser::devtools::CdpClient;

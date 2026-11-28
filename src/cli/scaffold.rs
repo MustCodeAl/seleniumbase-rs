@@ -160,7 +160,7 @@ impl RelativeName {
                     return Err(ScaffoldError::invalid_name(
                         raw,
                         "'..' would leave the current directory",
-                    ))
+                    ));
                 }
                 other => {
                     check_component(raw, other)?;
@@ -427,7 +427,7 @@ impl Scaffold {
             match fs::symlink_metadata(&target) {
                 Ok(meta) if self.replace && meta.is_file() => {}
                 Ok(meta) if self.replace && !meta.is_file() => {
-                    return Err(ScaffoldError::NotARegularFile(name.as_path().to_path_buf()))
+                    return Err(ScaffoldError::NotARegularFile(name.as_path().to_path_buf()));
                 }
                 Ok(_) => conflicts.push(name.as_path().to_path_buf()),
                 Err(error) if error.kind() == io::ErrorKind::NotFound => {}

@@ -6,13 +6,13 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 
-use crate::core::dashboard::{write_html_report_async, PageOptions};
+use crate::core::dashboard::{PageOptions, write_html_report_async};
 use crate::core::log_helper::TestId;
 use crate::core::test_run::{TestRecorder, TestRun};
 
-use super::observer::{write_evidence, PageEvidence, TestPlugin};
+use super::observer::{PageEvidence, TestPlugin, write_evidence};
 use crate::core::report_helper::{
-    write_json_report_async, FailureDetails, RunSnapshot, TestResult, TestStatus,
+    FailureDetails, RunSnapshot, TestResult, TestStatus, write_json_report_async,
 };
 use crate::error::{Result, SeleniumBaseError};
 

@@ -14,7 +14,7 @@ use std::path::Path;
 use std::process::{Output, Stdio};
 
 use fake_webdriver::FakeWebDriver;
-use support::{command_in, stderr, stdout, SBRS};
+use support::{SBRS, command_in, stderr, stdout};
 
 /// What the page script keeps after a person opened a page, clicked `#go` and typed `hello`
 /// into `#q`. The times are well after the browser starts, so none of the actions is older
@@ -119,9 +119,10 @@ fn mkrec_records_to_the_recordings_folder_and_copies_the_test_to_the_file() {
     // The browser was asked to record, and the start page was opened.
     let sent = driver.requests();
     assert!(sent.iter().any(|seen| seen.path == "/goog/cdp/execute"));
-    assert!(sent
-        .iter()
-        .any(|seen| seen.path == "/url" && seen.method == "POST"));
+    assert!(
+        sent.iter()
+            .any(|seen| seen.path == "/url" && seen.method == "POST")
+    );
 }
 
 #[test]

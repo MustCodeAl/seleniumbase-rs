@@ -1,7 +1,7 @@
 //! Steps about the page as a whole: navigation, windows and drivers, alerts,
 //! cookies and storage, downloads.
 
-use super::{file_name_of, DOWNLOAD_SECONDS};
+use super::{DOWNLOAD_SECONDS, file_name_of};
 
 sb_steps! {
     /// Opens a URL.

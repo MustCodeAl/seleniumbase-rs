@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use jiff::Timestamp;
 use seleniumbase_rs::core::report_helper::TestResult;
 use seleniumbase_rs::storage::{FlakyTest, ResultStore, RunId, RunSummary};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Where results are read from when neither `--db` nor `SB_REPORT_DB` is set.
 const DEFAULT_DB: &str = "reports/results.db";

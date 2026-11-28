@@ -41,11 +41,7 @@ impl From<bool> for CookieExpiry {
     /// Python's `expiry=False` is [`CookieExpiry::Session`] and `expiry=True` is
     /// [`CookieExpiry::Day`].
     fn from(expiry: bool) -> Self {
-        if expiry {
-            Self::Day
-        } else {
-            Self::Session
-        }
+        if expiry { Self::Day } else { Self::Session }
     }
 }
 
@@ -78,11 +74,7 @@ pub(crate) enum Arrow {
 /// it out.
 pub(crate) fn scroll_distance(window_height: f64, percent: f64, up: bool) -> f64 {
     let pixels = window_height * percent / 100.0;
-    if up {
-        -pixels
-    } else {
-        pixels
-    }
+    if up { -pixels } else { pixels }
 }
 
 /// The keyword arguments of `click_with_offset` and `double_click_with_offset`

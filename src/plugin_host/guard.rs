@@ -24,7 +24,7 @@
 //! [`PageHandle::send`]: seleniumbase_rs_plugin::PageHandle::send
 
 use seleniumbase_rs_plugin::PluginError;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// The command that sets a tab's blocklist.
 pub(crate) const SET_BLOCKED_URLS: &str = "Network.setBlockedURLs";

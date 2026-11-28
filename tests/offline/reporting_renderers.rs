@@ -7,15 +7,15 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use jiff::{civil::date, tz::TimeZone};
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::core::dashboard::{
-    pie_chart_svg, render_dashboard, render_html_report, PageOptions, LAST_REPORT_FILE,
+    LAST_REPORT_FILE, PageOptions, pie_chart_svg, render_dashboard, render_html_report,
 };
 #[cfg(unix)]
 use seleniumbase_rs::core::junit::render_junit_xml_for_host;
 use seleniumbase_rs::core::log_helper::TestId;
 use seleniumbase_rs::core::report_helper::{FailureDetails, RunSnapshot, TestResult, TestStatus};
 use seleniumbase_rs::core::test_run::{ReportSettings, RunKey, TestRun};
-use seleniumbase_rs::SeleniumBaseError;
 
 fn golden_path(name: &str) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -303,7 +303,9 @@ fn a_test_that_never_finished_is_unreported_everywhere() {
     run.finalize().unwrap();
 
     let dashboard = read(&root.path().join("dashboard.html"));
-    assert!(dashboard.contains("Test Run ENDED: Some results UNREPORTED due to skipped tearDown()"));
+    assert!(
+        dashboard.contains("Test Run ENDED: Some results UNREPORTED due to skipped tearDown()")
+    );
     assert!(dashboard.contains(">UNREPORTED<"));
     let xml = read(&root.path().join("junit.xml"));
     assert!(xml.contains("<error message=\"the test did not finish\" type=\"unreported\"/>"));

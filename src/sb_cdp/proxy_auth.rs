@@ -20,10 +20,10 @@
 
 use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::sync::locked;
 
@@ -236,9 +236,10 @@ mod tests {
     #[test]
     fn a_website_prompt_on_a_tab_without_credentials_is_left_alone() {
         let auth = ProxyAuth::new(None);
-        assert!(auth
-            .reply("S1", "Fetch.authRequired", &website_challenge())
-            .is_none());
+        assert!(
+            auth.reply("S1", "Fetch.authRequired", &website_challenge())
+                .is_none()
+        );
     }
 
     #[test]
@@ -276,12 +277,14 @@ mod tests {
         let auth = ProxyAuth::new(None);
         auth.register("S1", creds("mine"));
 
-        assert!(auth
-            .reply("S2", "Fetch.authRequired", &challenge())
-            .is_none());
-        assert!(auth
-            .reply("S2", "Fetch.requestPaused", &challenge())
-            .is_none());
+        assert!(
+            auth.reply("S2", "Fetch.authRequired", &challenge())
+                .is_none()
+        );
+        assert!(
+            auth.reply("S2", "Fetch.requestPaused", &challenge())
+                .is_none()
+        );
         assert!(!auth.handles_auth("S2"));
         assert!(auth.handles_auth("S1"));
     }
@@ -299,9 +302,10 @@ mod tests {
         );
 
         auth.set_intercepted("S1", true);
-        assert!(auth
-            .reply("S1", "Fetch.requestPaused", &challenge())
-            .is_none());
+        assert!(
+            auth.reply("S1", "Fetch.requestPaused", &challenge())
+                .is_none()
+        );
         assert!(
             auth.reply("S1", "Fetch.authRequired", &challenge())
                 .is_some(),
@@ -309,9 +313,10 @@ mod tests {
         );
 
         auth.set_intercepted("S1", false);
-        assert!(auth
-            .reply("S1", "Fetch.requestPaused", &challenge())
-            .is_some());
+        assert!(
+            auth.reply("S1", "Fetch.requestPaused", &challenge())
+                .is_some()
+        );
     }
 
     #[test]
@@ -329,9 +334,10 @@ mod tests {
     #[test]
     fn unrelated_events_are_ignored() {
         let auth = ProxyAuth::new(Some(creds("launch")));
-        assert!(auth
-            .reply("S1", "Network.requestWillBeSent", &challenge())
-            .is_none());
+        assert!(
+            auth.reply("S1", "Network.requestWillBeSent", &challenge())
+                .is_none()
+        );
     }
 
     #[test]

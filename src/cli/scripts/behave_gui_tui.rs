@@ -10,14 +10,14 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::Text;
 use ratatui::widgets::{Block, Borders, HighlightSpacing, List, ListItem, ListState, Paragraph};
-use ratatui::Frame;
 
 use super::feature_files::{self, FeatureFile, ScenarioRun, Verdict};
-use super::tui_kit::{clip, follow, Input, Machine};
+use super::tui_kit::{Input, Machine, clip, follow};
 
 /// The screen size assumed until the terminal says otherwise.
 const DEFAULT_SIZE: (u16, u16) = (80, 24);

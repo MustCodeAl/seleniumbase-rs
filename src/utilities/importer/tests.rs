@@ -14,8 +14,9 @@ fn js(body: &str) -> ScriptImport {
 
 /// A pytest-playwright test with `body` inside it.
 fn py(body: &str) -> ScriptImport {
-    let mut source =
-        String::from("import re\nfrom playwright.sync_api import Page, expect\n\n\ndef test_t(page: Page) -> None:\n");
+    let mut source = String::from(
+        "import re\nfrom playwright.sync_api import Page, expect\n\n\ndef test_t(page: Page) -> None:\n",
+    );
     for line in body.lines() {
         source.push_str("    ");
         source.push_str(line);
@@ -219,9 +220,11 @@ fn keyboard_and_mouse() {
         "page.mouse().click(Point::new(10.0, 20.0)).await?;",
     );
     let combination = js("await page.keyboard.press('Control+A');");
-    assert!(combination.diagnostics[0]
-        .message
-        .contains("key combination"));
+    assert!(
+        combination.diagnostics[0]
+            .message
+            .contains("key combination")
+    );
 }
 
 // ----------------------------------------------------------------------
@@ -558,29 +561,81 @@ fn a_value_that_is_never_used_is_named_with_an_underscore() {
 #[test]
 fn locator_expectations() {
     for (js_line, py_line, expected) in [
-        ("toBeVisible()", "to_be_visible()", "page.locator(\"#a\").expect().to_be_visible().await?;"),
-        ("toBeHidden()", "to_be_hidden()", "page.locator(\"#a\").expect().to_be_hidden().await?;"),
-        ("not.toBeVisible()", "not_to_be_visible()", "page.locator(\"#a\").expect().not().to_be_visible().await?;"),
-        ("toHaveText('Hi')", "to_have_text(\"Hi\")", "page.locator(\"#a\").expect().to_have_text(\"Hi\").await?;"),
-        ("toContainText('Hi')", "to_contain_text(\"Hi\")", "page.locator(\"#a\").expect().to_contain_text(\"Hi\").await?;"),
-        ("toHaveText(/Hi/)", "to_have_text(re.compile(\"Hi\"))", "page.locator(\"#a\").expect().to_contain_text(\"Hi\").await?;"),
-        ("toHaveValue('x')", "to_have_value(\"x\")", "support::expect_field_value(&page.locator(\"#a\"), \"x\", false).await?;"),
-        ("not.toHaveValue('x')", "not_to_have_value(\"x\")", "support::expect_field_value(&page.locator(\"#a\"), \"x\", true).await?;"),
+        (
+            "toBeVisible()",
+            "to_be_visible()",
+            "page.locator(\"#a\").expect().to_be_visible().await?;",
+        ),
+        (
+            "toBeHidden()",
+            "to_be_hidden()",
+            "page.locator(\"#a\").expect().to_be_hidden().await?;",
+        ),
+        (
+            "not.toBeVisible()",
+            "not_to_be_visible()",
+            "page.locator(\"#a\").expect().not().to_be_visible().await?;",
+        ),
+        (
+            "toHaveText('Hi')",
+            "to_have_text(\"Hi\")",
+            "page.locator(\"#a\").expect().to_have_text(\"Hi\").await?;",
+        ),
+        (
+            "toContainText('Hi')",
+            "to_contain_text(\"Hi\")",
+            "page.locator(\"#a\").expect().to_contain_text(\"Hi\").await?;",
+        ),
+        (
+            "toHaveText(/Hi/)",
+            "to_have_text(re.compile(\"Hi\"))",
+            "page.locator(\"#a\").expect().to_contain_text(\"Hi\").await?;",
+        ),
+        (
+            "toHaveValue('x')",
+            "to_have_value(\"x\")",
+            "support::expect_field_value(&page.locator(\"#a\"), \"x\", false).await?;",
+        ),
+        (
+            "not.toHaveValue('x')",
+            "not_to_have_value(\"x\")",
+            "support::expect_field_value(&page.locator(\"#a\"), \"x\", true).await?;",
+        ),
         (
             "toHaveAttribute('href', '/about')",
             "to_have_attribute(\"href\", \"/about\")",
             "page.locator(\"#a\").expect().to_have_attribute(\"href\", \"/about\").await?;",
         ),
-        ("toBeChecked()", "to_be_checked()", "page.locator(\"#a\").expect().to_be_checked().await?;"),
+        (
+            "toBeChecked()",
+            "to_be_checked()",
+            "page.locator(\"#a\").expect().to_be_checked().await?;",
+        ),
         (
             "toBeChecked({ checked: false })",
             "to_be_checked(checked=False)",
             "page.locator(\"#a\").expect().not().to_be_checked().await?;",
         ),
-        ("toBeEnabled()", "to_be_enabled()", "support::expect_enabled(&page.locator(\"#a\"), true).await?;"),
-        ("toBeDisabled()", "to_be_disabled()", "support::expect_enabled(&page.locator(\"#a\"), false).await?;"),
-        ("not.toBeEnabled()", "not_to_be_enabled()", "support::expect_enabled(&page.locator(\"#a\"), false).await?;"),
-        ("toHaveCount(3)", "to_have_count(3)", "page.locator(\"#a\").expect().to_have_count(3).await?;"),
+        (
+            "toBeEnabled()",
+            "to_be_enabled()",
+            "support::expect_enabled(&page.locator(\"#a\"), true).await?;",
+        ),
+        (
+            "toBeDisabled()",
+            "to_be_disabled()",
+            "support::expect_enabled(&page.locator(\"#a\"), false).await?;",
+        ),
+        (
+            "not.toBeEnabled()",
+            "not_to_be_enabled()",
+            "support::expect_enabled(&page.locator(\"#a\"), false).await?;",
+        ),
+        (
+            "toHaveCount(3)",
+            "to_have_count(3)",
+            "page.locator(\"#a\").expect().to_have_count(3).await?;",
+        ),
         (
             "toBeVisible({ timeout: 5000 })",
             "to_be_visible(timeout=5000)",
@@ -633,7 +688,9 @@ fn page_expectations() {
 
 #[test]
 fn python_asserts() {
-    let import = py("assert page.title() == \"Shop\"\nassert page.title() != \"Old\"\nassert \"Shop\" == page.title()");
+    let import = py(
+        "assert page.title() == \"Shop\"\nassert page.title() != \"Old\"\nassert \"Shop\" == page.title()",
+    );
     complete(&import);
     has(&import, "assert_eq!(page.title().await?, \"Shop\");");
     has(&import, "assert_ne!(page.title().await?, \"Old\");");
@@ -645,7 +702,9 @@ fn python_asserts() {
 
 #[test]
 fn an_unconverted_statement_is_a_todo_with_its_line() {
-    let import = js("await page.goto('https://x.test/');\nawait page.route('**/api', route => route.abort());\nawait page.reload();");
+    let import = js(
+        "await page.goto('https://x.test/');\nawait page.route('**/api', route => route.abort());\nawait page.reload();",
+    );
     assert!(!import.is_complete());
     has(
         &import,
@@ -702,15 +761,19 @@ fn loops_conditionals_helpers_and_popups_are_todos() {
         syn::parse_file(&import.rust).unwrap_or_else(|e| panic!("{e}\n{}", import.rust));
     }
     let import = py("for x in xs:\n    page.click(x)\npage.reload()");
-    assert!(import.diagnostics[0]
-        .message
-        .contains("a for loop is not converted"));
+    assert!(
+        import.diagnostics[0]
+            .message
+            .contains("a for loop is not converted")
+    );
     has(&import, "page.reload().await?;");
 }
 
 #[test]
 fn comments_are_kept_and_blank_lines_dropped() {
-    let import = js("// open the shop\nawait page.goto('https://x.test/');\n\n/* then reload */\nawait page.reload();");
+    let import = js(
+        "// open the shop\nawait page.goto('https://x.test/');\n\n/* then reload */\nawait page.reload();",
+    );
     has(&import, "// open the shop");
     has(&import, "// then reload");
     let import = py("# open the shop\npage.goto(\"https://x.test/\")");
@@ -797,8 +860,7 @@ fn javascript_codegen_output() {
 
 #[test]
 fn python_codegen_sync_and_async() {
-    let sync =
-        "import re\nfrom playwright.sync_api import Playwright, sync_playwright, expect\n\n\n\
+    let sync = "import re\nfrom playwright.sync_api import Playwright, sync_playwright, expect\n\n\n\
          def run(playwright: Playwright) -> None:\n    \
          browser = playwright.chromium.launch(headless=False)\n    \
          context = browser.new_context()\n    page = context.new_page()\n    \
@@ -917,9 +979,11 @@ fn a_puppeteer_script() {
     ] {
         has(&import, line);
     }
-    assert!(import
-        .rust
-        .contains("// Imported from Puppeteer code by `sbrs import-puppeteer`."));
+    assert!(
+        import
+            .rust
+            .contains("// Imported from Puppeteer code by `sbrs import-puppeteer`.")
+    );
 }
 
 #[test]
@@ -1021,10 +1085,12 @@ fn promise_all_waits_after_the_action_that_navigates() {
 
 #[test]
 fn element_handles_and_the_locator_api() {
-    let import = pptr("const el = await page.$('#go');\nawait el.click();\nawait el.type('x');\n\
+    let import = pptr(
+        "const el = await page.$('#go');\nawait el.click();\nawait el.type('x');\n\
          await el.uploadFile('a.txt');\nconst items = await page.$$('li');\nexpect(items.length).toBe(2);\n\
          await page.locator('#q').fill('x');\nawait page.locator('#q').hover();\nawait page.locator('#q').wait();\n\
-         await page.locator('#q').click();");
+         await page.locator('#q').click();",
+    );
     complete(&import);
     for line in [
         "let el = page.locator(\"#go\");",
@@ -1084,14 +1150,16 @@ fn puppeteer_selectors() {
 
 #[test]
 fn jest_chai_and_node_assertions() {
-    let import = pptr("const heading = await page.$eval('h1', el => el.textContent);\n\
+    let import = pptr(
+        "const heading = await page.$eval('h1', el => el.textContent);\n\
          const shown = await page.$eval('#a', el => el.checked);\n\
          const n = await page.$$eval('li', els => els.length);\n\
          expect(heading).toBe('Shop');\nexpect(heading).toEqual('Shop');\nexpect(heading).toContain('Sh');\n\
          expect(heading).toMatch(/Sh/);\nexpect(heading).not.toBe('Old');\n\
          assert.strictEqual(heading, 'Shop');\nassert.equal(n, 3);\nassert.ok(shown);\nassert(shown);\n\
          expect(heading).to.equal('Shop');\nexpect(heading).to.include('Sh');\nexpect(shown).to.be.true;\n\
-         expect(heading).to.not.equal('Old');\nexpect(n).to.be.above(1);");
+         expect(heading).to.not.equal('Old');\nexpect(n).to.be.above(1);",
+    );
     complete(&import);
     for line in [
         "assert_eq!(heading, \"Shop\");",
@@ -1116,7 +1184,10 @@ fn jest_puppeteer_matchers() {
             "await expect(page).toClick('button', { text: 'Go' });",
             "page.locator(\"button\").locator(Selector::has_text(\"Go\")).click().await?;",
         ),
-        ("await expect(page).toFill('#q', 'x');", "page.locator(\"#q\").fill(\"x\").await?;"),
+        (
+            "await expect(page).toFill('#q', 'x');",
+            "page.locator(\"#q\").fill(\"x\").await?;",
+        ),
         (
             "await expect(page).toMatchTextContent('Shop');",
             "page.locator(\"body\").expect().to_contain_text(\"Shop\").await?;",

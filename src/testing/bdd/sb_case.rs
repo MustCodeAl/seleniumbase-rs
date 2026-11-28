@@ -4,9 +4,9 @@ use std::path::PathBuf;
 
 use super::session::{Launch, Scenario};
 use super::{plan_for, soft_limit, steps};
+use crate::BaseCase;
 use crate::config::settings::Settings;
 use crate::error::{Result, SeleniumBaseError};
-use crate::BaseCase;
 
 /// The browser of a Gherkin scenario run over WebDriver: a [`BaseCase`] that
 /// the steps use, and that is closed when the scenario ends.

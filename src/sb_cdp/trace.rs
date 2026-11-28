@@ -37,7 +37,7 @@ use std::time::{Duration, Instant};
 
 use base64::Engine as _;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::io::AsyncWriteExt;
 
 use super::har::{Har, HarOptions, HarRecorder};
@@ -1333,10 +1333,11 @@ mod tests {
         let removed = mock.calls_to("Page.removeScriptToEvaluateOnNewDocument");
         assert_eq!(removed.len(), 1);
         assert_eq!(removed[0].params["identifier"], "42");
-        assert!(mock
-            .calls_to("Runtime.evaluate")
-            .iter()
-            .any(|call| call.params["expression"] == RELEASE_EXPRESSION));
+        assert!(
+            mock.calls_to("Runtime.evaluate")
+                .iter()
+                .any(|call| call.params["expression"] == RELEASE_EXPRESSION)
+        );
         let shots = mock.calls_to("Page.captureScreenshot").len();
         page.locator("#go").click().await.unwrap();
         assert_eq!(mock.calls_to("Page.captureScreenshot").len(), shots);
@@ -1608,10 +1609,12 @@ mod tests {
         // The hostile text is still there, as data.
         let file = json_file(&dir, "trace.json");
         assert_eq!(file["console"][0]["text"], hostile);
-        assert!(file["actions"][0]["selector"]
-            .as_str()
-            .unwrap()
-            .contains("alert('selector')"));
+        assert!(
+            file["actions"][0]["selector"]
+                .as_str()
+                .unwrap()
+                .contains("alert('selector')")
+        );
     }
 
     #[tokio::test]
@@ -1642,10 +1645,11 @@ mod tests {
             let method = format!("{domain}.enable");
             assert!(mock.calls_to(&method).is_empty(), "{method} was sent");
         }
-        assert!(mock
-            .calls()
-            .iter()
-            .all(|call| !call.method.starts_with("DOM.")));
+        assert!(
+            mock.calls()
+                .iter()
+                .all(|call| !call.method.starts_with("DOM."))
+        );
     }
 
     #[tokio::test]

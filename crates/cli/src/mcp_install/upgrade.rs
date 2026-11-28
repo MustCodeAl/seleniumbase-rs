@@ -11,12 +11,12 @@ use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::apply::{perform, registered, Job, Scope, Task};
+use super::apply::{Job, Scope, Task, perform, registered};
 use super::client::Client;
-use super::entry::{names, plan, Entry, LaunchSpec, Only, PlanInput};
-use super::env::{homebrew_prefix, Env};
+use super::entry::{Entry, LaunchSpec, Only, PlanInput, names, plan};
+use super::env::{Env, homebrew_prefix};
 use super::external::Cmd;
-use super::report::{exit_code, ClientReport, Problem};
+use super::report::{ClientReport, Problem, exit_code};
 use super::{check_name, parse_clients, print_reports};
 
 /// What `upgrade` was asked for.

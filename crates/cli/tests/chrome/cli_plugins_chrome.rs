@@ -18,7 +18,7 @@ use std::path::Path;
 use std::process::Output;
 
 use sbrs::{run, stderr, stdout};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// A page with a JSON-LD product, which the extractor finds without being told where to look.
 const PRODUCT: &str = r#"<!doctype html><html><head><title>Widget Pro</title>

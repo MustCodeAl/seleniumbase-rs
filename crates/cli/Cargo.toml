@@ -59,10 +59,8 @@ usage-rs = { version = "7.4", features = ["completions", "response-files"] }
 usage-dynamic = "7.4"
 
 # `preserve_order`: `sbrs-mcp install` rewrites a client's JSON config and must keep the order
-# of its keys (thirtyfour turns the feature on already).
+# of its keys.
 serde_json = { version = "1.0", features = ["preserve_order"] }
-# The same features as the library, so one build of thirtyfour serves both.
-thirtyfour = { version = "0.38", default-features = false, features = ["reqwest", "cdp", "bidi"] }
 tokio = { version = "1.53", features = ["macros", "rt-multi-thread", "time", "signal", "sync", "process", "net", "io-util", "fs"] }
 # `sbrs install` downloads with `reqwest::get`; the TLS provider is the library's.
 reqwest = { version = "0.13", default-features = false }
@@ -83,7 +81,6 @@ which = "8.0"
 # `sbrs encrypt` and `sbrs decrypt` with no argument on a terminal: reads the text and the
 # passphrase without echo.
 rpassword = "7.5"
-anstream = "0.6"
 
 [features]
 # The prebuilt binaries and `cargo install` carry PDF text extraction, the MCP

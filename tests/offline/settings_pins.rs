@@ -11,15 +11,15 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use seleniumbase_rs::browser::config::BrowserConfig;
-use seleniumbase_rs::browser::options::{grid_url, GridProtocol, WindowSize};
+use seleniumbase_rs::browser::options::{GridProtocol, WindowSize, grid_url};
+use seleniumbase_rs::config::RuntimeConfig;
 use seleniumbase_rs::config::browser_options::settings_key;
 use seleniumbase_rs::config::env_vars::variables;
 use seleniumbase_rs::config::settings::{Settings, SettingsOverrides};
 use seleniumbase_rs::config::test_options::{OptionKind, OptionSpec, TEST_OPTIONS};
-use seleniumbase_rs::config::RuntimeConfig;
 use seleniumbase_rs::core::test_run::ReportSettings;
 use seleniumbase_rs::sb_cdp::LaunchOptions;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// The value at the dotted `path` of the serialized settings. `TestSettings` flattens its
 /// `TestData`, so `test.data.env` is `test.env` in the JSON.
@@ -88,7 +88,7 @@ fn sample(row: &OptionSpec, dir: &Path) -> Sample {
                 text: r#"{"k":1}"#.to_owned(),
                 file: json!({"k": 1}),
                 companions: Vec::new(),
-            }
+            };
         }
         // The size of the virtual display is used when the display is on, so it is given with
         // `SB_XVFB`, as the window sides are given in pairs.
@@ -96,20 +96,20 @@ fn sample(row: &OptionSpec, dir: &Path) -> Sample {
             return Sample {
                 companions: vec![("SB_XVFB", "true".to_owned(), json!(true))],
                 ..text("800,600")
-            }
+            };
         }
 
         "SB_WINDOW_WIDTH" => {
             return Sample {
                 companions: vec![("SB_WINDOW_HEIGHT", "600".to_owned(), json!(600))],
                 ..number(800)
-            }
+            };
         }
         "SB_WINDOW_HEIGHT" => {
             return Sample {
                 companions: vec![("SB_WINDOW_WIDTH", "800".to_owned(), json!(800))],
                 ..number(600)
-            }
+            };
         }
         _ => {}
     }

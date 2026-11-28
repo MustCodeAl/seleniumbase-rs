@@ -13,7 +13,7 @@
 //! (`hover` through the driver's action chain, a JavaScript click, an alert
 //! that was accepted) or that only check something (the `assert_*` calls).
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::raw::text;
 use super::{RawAction, RecordedAction, RecordedCommand};

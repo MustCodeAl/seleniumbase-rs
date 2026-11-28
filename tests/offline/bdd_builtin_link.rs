@@ -7,7 +7,7 @@
 //! other test file names the `steps` module and would link it by itself.
 #![cfg(feature = "bdd")]
 
-use rstest_bdd::{find_step, StepKeyword};
+use rstest_bdd::{StepKeyword, find_step};
 
 #[test]
 fn a_binary_that_only_uses_the_fixture_finds_the_builtin_steps() {

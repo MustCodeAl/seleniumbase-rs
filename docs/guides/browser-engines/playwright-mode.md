@@ -46,8 +46,8 @@ cargo add seleniumbase-rs-playwright --git https://github.com/MustCodeAl/seleniu
 
 ```toml Cargo.toml
 [dependencies]
-seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0" }
-seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.10.0" }
+seleniumbase-rs = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.11.0" }
+seleniumbase-rs-playwright = { git = "https://github.com/MustCodeAl/seleniumbase-rs", tag = "v0.11.0" }
 ```
 
 </CodeGroup>

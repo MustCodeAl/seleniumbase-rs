@@ -1,8 +1,8 @@
 //! Opening a URL and moving through the history.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use super::{navigate_for_client, Cdp};
+use super::{Cdp, navigate_for_client};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 
 pub(super) fn tools() -> Vec<ToolDef<Cdp>> {

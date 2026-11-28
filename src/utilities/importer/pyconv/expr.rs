@@ -5,8 +5,8 @@
 //! sits inside the arguments of another call.
 
 use super::ast::{Arg, BinOp, Expr, FPart, UnOp};
-use super::table::{lookup, Call, Fill, Flow, Ret, K, P};
-use super::tr::{one_line, py_repr, quote, Skip, TResult, Tr, Ty, Val};
+use super::table::{Call, Fill, Flow, K, P, Ret, lookup};
+use super::tr::{Skip, TResult, Tr, Ty, Val, one_line, py_repr, quote};
 
 /// A call written in Rust.
 pub(super) struct Rendered {
@@ -686,7 +686,7 @@ impl Tr<'_> {
             _ => {
                 return Err(Skip::warn(
                     "`in` is translated on a string or a list of strings",
-                ))
+                ));
             }
         };
         if negate {

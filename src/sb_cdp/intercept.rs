@@ -38,11 +38,11 @@ use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use base64::Engine as _;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::task::JoinHandle;
 
-use super::sync::locked;
 use super::Page;
+use super::sync::locked;
 use crate::error::SeleniumBaseError;
 
 /// The most requests an [`Interception`] remembers.
@@ -797,9 +797,11 @@ mod tests {
         assert_eq!(params["requestId"], "R1");
         assert_eq!(params["responseCode"], 201);
         let headers = params["responseHeaders"].as_array().unwrap();
-        assert!(headers
-            .iter()
-            .any(|h| h["name"] == "Content-Type" && h["value"] == "application/json"));
+        assert!(
+            headers
+                .iter()
+                .any(|h| h["name"] == "Content-Type" && h["value"] == "application/json")
+        );
         assert!(headers.iter().any(|h| h["name"] == "X-Mock"));
         let body = base64::engine::general_purpose::STANDARD
             .decode(params["body"].as_str().unwrap())

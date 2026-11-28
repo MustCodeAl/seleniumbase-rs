@@ -37,7 +37,7 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 
 use crate::browser::driver_version::{major_without_running, version_flag_major};
-use crate::resources::assets::{DriverLookup, CHROMEDRIVER_PATH_VAR, DRIVERS_DIR};
+use crate::resources::assets::{CHROMEDRIVER_PATH_VAR, DRIVERS_DIR, DriverLookup};
 
 /// The line `sbrs prompt` prints when no `--format` is given.
 pub const DEFAULT_FORMAT: &str = "{browser} {major} {driver}";

@@ -6,13 +6,13 @@
 
 #![cfg(feature = "test-util")]
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Page, Permission};
 use seleniumbase_rs::utils::selectors::{Selector, TextMatching};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.
 fn value(v: Value) -> Value {

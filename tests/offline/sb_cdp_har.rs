@@ -5,9 +5,9 @@
 #![cfg(feature = "test-util")]
 
 use seleniumbase_rs::sb_cdp::{
-    Browser, Har, HarEntry, HarNameValue, HarOptions, MockCtrl, Page, MAX_CONTENT_BYTES,
+    Browser, Har, HarEntry, HarNameValue, HarOptions, MAX_CONTENT_BYTES, MockCtrl, Page,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// The wall-clock time of the first request: 2023-11-14T22:13:20.500Z.
 const WALL: f64 = 1_700_000_000.5;
@@ -578,20 +578,24 @@ async fn a_body_the_browser_left_out_has_an_unknown_size() {
     let upload = &entry(&har, "https://a.test/upload").request;
     assert_eq!(upload.body_size, -1, "unknown, not empty");
     assert!(upload.post_data.is_none());
-    assert!(upload
-        .comment
-        .as_deref()
-        .unwrap_or_default()
-        .contains("not reported"));
+    assert!(
+        upload
+            .comment
+            .as_deref()
+            .unwrap_or_default()
+            .contains("not reported")
+    );
     let files = &entry(&har, "https://a.test/files").request;
     assert_eq!(files.body_size, -1);
     let post_data = files.post_data.as_ref().unwrap();
     assert_eq!(post_data.text, "a=1");
-    assert!(post_data
-        .comment
-        .as_deref()
-        .unwrap_or_default()
-        .contains("not reported"));
+    assert!(
+        post_data
+            .comment
+            .as_deref()
+            .unwrap_or_default()
+            .contains("not reported")
+    );
     let binary = &entry(&har, "https://a.test/binary").request;
     assert_eq!(binary.body_size, 2, "the bytes, not the text they make");
 }
@@ -663,11 +667,12 @@ async fn bodies_are_kept_when_asked_up_to_the_size_limit() {
     assert!(huge.comment.as_deref().unwrap().contains("1000 bytes"));
     let gone = &entry(&har, "https://a.test/gone").response.content;
     assert!(gone.text.is_none());
-    assert!(gone
-        .comment
-        .as_deref()
-        .unwrap()
-        .contains("No resource with given identifier found"));
+    assert!(
+        gone.comment
+            .as_deref()
+            .unwrap()
+            .contains("No resource with given identifier found")
+    );
 
     let fetched: Vec<_> = mock
         .calls_to("Network.getResponseBody")

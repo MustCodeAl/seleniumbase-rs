@@ -10,14 +10,14 @@
 use std::time::Duration;
 
 use seleniumbase_rs::mcp::cdp::{self, Cdp};
-use seleniumbase_rs::mcp::{dev, driver, sb, PromptDef};
 use seleniumbase_rs::mcp::{
     Args, Ctx, Effect, Host, Output, ProgressSink, ProgressUpdate, Schema, Settings, ToolDef,
     ToolError, UNTRUSTED_META_KEY, UNTRUSTED_NOTICE,
 };
+use seleniumbase_rs::mcp::{PromptDef, dev, driver, sb};
 use seleniumbase_rs::mcp::{ResourceBody, ResourceDef, ResourceError};
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::io::{
     AsyncBufReadExt, AsyncWriteExt, BufReader, DuplexStream, Lines, ReadHalf, WriteHalf,
 };
@@ -548,10 +548,12 @@ async fn an_unknown_resource_and_a_refused_one_are_told_apart() {
         .await;
 
     assert_eq!(missing["error"]["code"], json!(-32002), "{missing}");
-    assert!(missing["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("test://nothing"));
+    assert!(
+        missing["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("test://nothing")
+    );
     assert_eq!(refused["error"]["code"], json!(-32602), "{refused}");
     assert_eq!(refused["error"]["message"], "not today");
 }
@@ -936,15 +938,19 @@ async fn a_missing_argument_and_an_unknown_prompt_are_invalid_params() {
         .await;
 
     assert_eq!(missing["error"]["code"], json!(-32602), "{missing}");
-    assert!(missing["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("goal"));
+    assert!(
+        missing["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("goal")
+    );
     assert_eq!(unknown["error"]["code"], json!(-32602), "{unknown}");
-    assert!(unknown["error"]["message"]
-        .as_str()
-        .unwrap()
-        .contains("write_test"));
+    assert!(
+        unknown["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("write_test")
+    );
 }
 
 #[test]

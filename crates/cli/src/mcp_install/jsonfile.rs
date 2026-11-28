@@ -11,7 +11,7 @@ use std::path::Path;
 
 use serde_json::{Map, Value};
 
-use super::entry::{decide, Decision, Entry, Existing, LaunchSpec};
+use super::entry::{Decision, Entry, Existing, LaunchSpec, decide};
 use super::fsx;
 use super::jsonedit;
 use super::report::{EntryReport, Preview, Problem, Status};
@@ -193,7 +193,7 @@ impl Doc {
                 return Err(LoadError::Io(format!(
                     "cannot read {}: {e}",
                     path.display()
-                )))
+                )));
             }
         };
         let text = String::from_utf8(bytes)

@@ -18,11 +18,11 @@ use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::{SinkExt, StreamExt};
 use serde_json::Value;
 use tokio::net::TcpStream;
-use tokio::sync::{broadcast, oneshot, Mutex};
+use tokio::sync::{Mutex, broadcast, oneshot};
 use tokio::task::JoinHandle;
-use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{connect_async_with_config, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::tungstenite::protocol::WebSocketConfig;
+use tokio_tungstenite::{MaybeTlsStream, WebSocketStream, connect_async_with_config};
 
 use super::sync::locked;
 use crate::error::SeleniumBaseError;
@@ -136,7 +136,7 @@ impl Events {
                     None => {
                         return Err(SeleniumBaseError::browser_disconnected(format!(
                             "connection closed while waiting for {method}"
-                        )))
+                        )));
                     }
                 }
             }

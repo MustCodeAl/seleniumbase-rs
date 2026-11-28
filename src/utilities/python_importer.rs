@@ -354,8 +354,14 @@ fn parse_locator(input: &str) -> Result<Locator, String> {
     let strategy = args[0].trim().rsplit('.').next().unwrap_or_default();
     match strategy {
         "CSS_SELECTOR" => Ok(Locator::Selector(value)),
-        "ID" => Ok(Locator::Selector(format!(r#"[id="{}"]"#, css_escape(&value)))),
-        "NAME" => Ok(Locator::Selector(format!(r#"[name="{}"]"#, css_escape(&value)))),
+        "ID" => Ok(Locator::Selector(format!(
+            r#"[id="{}"]"#,
+            css_escape(&value)
+        ))),
+        "NAME" => Ok(Locator::Selector(format!(
+            r#"[name="{}"]"#,
+            css_escape(&value)
+        ))),
         "CLASS_NAME" if !value.chars().any(char::is_whitespace) => {
             Ok(Locator::Selector(format!(".{}", css_escape(&value))))
         }
@@ -1170,15 +1176,21 @@ class LoginTests(BaseCase):
         let result = import_python(source, &ImportOptions::default());
         assert_eq!(result.detected_source, PythonSource::SeleniumBase);
         assert!(result.is_complete());
-        assert!(result
-            .rust
-            .contains("sb.open(\"https://example.test/login\")"));
-        assert!(result
-            .rust
-            .contains("sb.type_text(\"#username\", \"alice\")"));
-        assert!(result
-            .rust
-            .contains("sb.assert_text(\"Welcome\", \"main\")"));
+        assert!(
+            result
+                .rust
+                .contains("sb.open(\"https://example.test/login\")")
+        );
+        assert!(
+            result
+                .rust
+                .contains("sb.type_text(\"#username\", \"alice\")")
+        );
+        assert!(
+            result
+                .rust
+                .contains("sb.assert_text(\"Welcome\", \"main\")")
+        );
         assert!(result.rust.contains("sb.run(async |sb| {"));
     }
 
@@ -1197,13 +1209,17 @@ driver.quit()
         let result = import_python(source, &ImportOptions::default());
         assert_eq!(result.detected_source, PythonSource::Selenium);
         assert!(result.is_complete());
-        assert!(result
-            .rust
-            .contains(r#"sb.add_text("[id=\"username\"]", "alice")"#));
+        assert!(
+            result
+                .rust
+                .contains(r#"sb.add_text("[id=\"username\"]", "alice")"#)
+        );
         assert!(result.rust.contains("sb.click(\"button\")"));
-        assert!(result
-            .rust
-            .contains("sb.assert_title_contains(\"Dashboard\")"));
+        assert!(
+            result
+                .rust
+                .contains("sb.assert_title_contains(\"Dashboard\")")
+        );
     }
 
     #[test]
@@ -1215,9 +1231,11 @@ driver.find_element(By.XPATH, "//a[text()='Home']").click()
 "#;
         let result = import_python(source, &ImportOptions::default());
         assert!(result.is_complete(), "{:?}", result.diagnostics);
-        assert!(result
-            .rust
-            .contains(r#"sb.click("//div[@class='a']/span[2]")"#));
+        assert!(
+            result
+                .rust
+                .contains(r#"sb.click("//div[@class='a']/span[2]")"#)
+        );
         assert!(result.rust.contains(r#"sb.click("//a[text()='Home']")"#));
     }
 

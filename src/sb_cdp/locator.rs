@@ -7,17 +7,17 @@ use std::time::Duration;
 
 use base64::Engine as _;
 use serde::Serialize;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::expect::LocatorExpect;
-use super::frames::{is_frame_gone, is_frames_request, Scope};
+use super::frames::{Scope, is_frame_gone, is_frames_request};
 use super::input::{Button, Key};
 use super::page::Page;
 use super::trace;
 
 use super::types::{ElementInfo, OffsetFrom, Point, Rect, SelectBy, State};
 use crate::error::SeleniumBaseError;
-use crate::utils::selectors::{xpath_root_branch, Selector};
+use crate::utils::selectors::{Selector, xpath_root_branch};
 
 /// One step of a locator chain: find within the previous step's matches.
 ///

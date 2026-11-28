@@ -35,10 +35,10 @@ use tokio::sync::oneshot;
 
 use crate::common::debug_prompt::PromptPage;
 use crate::error::{Result, SeleniumBaseError};
-use crate::testing::lifecycle::{
-    say_on_stderr, Finalizer, Lifecycle, Plan, TerminalPrompter, TestCase,
-};
 use crate::testing::Deadline;
+use crate::testing::lifecycle::{
+    Finalizer, Lifecycle, Plan, TerminalPrompter, TestCase, say_on_stderr,
+};
 
 /// How to open the case of an attempt. It runs on the scenario's thread.
 pub(crate) type Launch<C> = Box<dyn Fn(u32) -> Pin<Box<dyn Future<Output = Result<C>>>> + Send>;

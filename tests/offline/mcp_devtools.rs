@@ -14,7 +14,7 @@ use std::time::Duration;
 use seleniumbase_rs::mcp::cdp::{self, Cdp};
 use seleniumbase_rs::mcp::{Host, Output, Settings, ToolError};
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.
 fn value(v: Value) -> Value {
@@ -274,10 +274,12 @@ async fn diagnose_selector_points_out_a_contains_selector_and_a_mistyped_prefix(
     )
     .await;
 
-    assert!(contains["verdict"]
-        .as_str()
-        .unwrap()
-        .starts_with("The browser cannot parse this selector"));
+    assert!(
+        contains["verdict"]
+            .as_str()
+            .unwrap()
+            .starts_with("The browser cannot parse this selector")
+    );
     assert!(
         contains["advice"]
             .to_string()
@@ -441,11 +443,13 @@ async fn a_debug_bundle_holds_the_evidence_but_no_secrets() {
 
     let folder = Path::new(saved["folder"].as_str().unwrap());
     assert!(folder.starts_with(dir.path()), "{}", folder.display());
-    assert!(folder
-        .file_name()
-        .unwrap()
-        .to_string_lossy()
-        .starts_with("______cart_bug_"));
+    assert!(
+        folder
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("______cart_bug_")
+    );
     for file in ["screenshot.png", "page.html", "bundle.json"] {
         assert!(folder.join(file).is_file(), "{file} is missing: {saved}");
     }

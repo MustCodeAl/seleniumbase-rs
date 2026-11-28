@@ -16,12 +16,12 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::plugin_api::{
-    async_trait, Capability, Category, ContextHandle, ContextId, Metadata, NavDecision, NavOutcome,
-    Navigation, PageHandle, Plugin, PluginSet, Result as PluginResult,
+    Capability, Category, ContextHandle, ContextId, Metadata, NavDecision, NavOutcome, Navigation,
+    PageHandle, Plugin, PluginSet, Result as PluginResult, async_trait,
 };
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::SeleniumBaseError;
 
 type Log = Arc<Mutex<Vec<String>>>;
 
@@ -212,13 +212,13 @@ fn serve_cookie() -> String {
 #[tokio::test]
 #[ignore = "needs a real Chrome"]
 #[serial_test::serial(chrome)]
-async fn the_browser_plugin_waits_for_a_service_worker_and_keeps_a_session(
-) -> Result<(), SeleniumBaseError> {
+async fn the_browser_plugin_waits_for_a_service_worker_and_keeps_a_session()
+-> Result<(), SeleniumBaseError> {
     use std::os::unix::fs::PermissionsExt;
 
     use seleniumbase_rs::config::plugins::PluginSelection;
     use seleniumbase_rs::plugin_host::build;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     let folder = tempfile::tempdir().expect("a temporary folder");
     let extension = folder.path().join("worker-extension");

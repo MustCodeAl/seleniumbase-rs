@@ -1,8 +1,8 @@
 //! Reading the page: elements, their content and attributes, and quick checks.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use super::{selector_prop, timeout_prop, Cdp, NO_WAIT};
+use super::{Cdp, NO_WAIT, selector_prop, timeout_prop};
 use crate::mcp::support::{is_missing, json_output, nonempty};
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
 use crate::sb_cdp::State;

@@ -16,11 +16,11 @@ use std::path::{Path, PathBuf};
 
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::core::test_run::{
-    FinalizeOutcome, ReportSettings, RunFinish, RunKey, TestRun, DASHBOARD_FILE,
+    DASHBOARD_FILE, FinalizeOutcome, ReportSettings, RunFinish, RunKey, TestRun,
 };
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs::SeleniumBaseError;
 
 /// The variable that names the run the test processes join; `sbrs test` gives it to Cargo.
 pub(crate) const RUN_ID_VARIABLE: &str = "SB_RUN_ID";

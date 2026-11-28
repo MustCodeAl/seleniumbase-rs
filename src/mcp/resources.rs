@@ -22,7 +22,7 @@ use std::pin::Pin;
 use std::time::Duration;
 
 use base64::Engine as _;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::devtools::DevSession;
 use super::host::{Ctx, Settings};
@@ -352,7 +352,7 @@ async fn session<S: DevSession>(ctx: &Ctx<S>) -> Value {
             return json!({
                 "browser": true,
                 "busy": "a tool call is using the browser; read this again when it ends",
-            })
+            });
         }
         Ok(None) => return json!({ "browser": false }),
         Ok(Some(guard)) => guard,

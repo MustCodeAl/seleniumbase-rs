@@ -15,7 +15,7 @@
 
 use std::io::{Read, Write};
 
-use seleniumbase_rs::api::recorder::{ActionRecorder, RawAction, RECORDER_JS};
+use seleniumbase_rs::api::recorder::{ActionRecorder, RECORDER_JS, RawAction};
 use seleniumbase_rs::{BaseCase, BrowserConfig, DriverMode};
 
 const HOME: &str = r##"<!doctype html><title>Home</title>

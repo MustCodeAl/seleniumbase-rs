@@ -434,7 +434,7 @@ impl Client {
             Self::Vscode => env.cwd.join(".vscode").join("mcp.json"),
             Self::Warp => env.cwd.join(".warp").join("mcp.json"),
             Self::ClaudeDesktop | Self::Cline | Self::Codex | Self::RooCode | Self::Zed => {
-                return None
+                return None;
             }
         })
     }

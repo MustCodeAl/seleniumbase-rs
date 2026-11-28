@@ -19,7 +19,7 @@
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use crate::browser::config::{split_extension_dirs, Browser, DriverMode};
+use crate::browser::config::{Browser, DriverMode, split_extension_dirs};
 use crate::browser::options::{
     BrowserSettings, CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion,
     ExtensionArchive, FirefoxOptions, GridProtocol, LocaleCode, PageLoadStrategy, ProxyBypassList,
@@ -27,7 +27,7 @@ use crate::browser::options::{
 };
 use crate::browser::reuse::ReuseClass;
 use crate::config::layers::{Given, Inputs};
-use crate::config::settings::{parse_bool, Settings};
+use crate::config::settings::{Settings, parse_bool};
 use crate::error::SeleniumBaseError;
 
 /// How an option's text is written into a [`Settings`](crate::Settings) field.

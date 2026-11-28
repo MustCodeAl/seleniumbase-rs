@@ -24,6 +24,6 @@
 //! crate.
 
 pub use serde_json::{
-    from_slice, from_str, from_value, json, to_string, to_string_pretty, to_value, Error, Map,
-    Number, Value,
+    Error, Map, Number, Value, from_slice, from_str, from_value, json, to_string, to_string_pretty,
+    to_value,
 };

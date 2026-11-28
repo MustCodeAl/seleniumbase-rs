@@ -456,8 +456,7 @@ mod tests {
 
     #[test]
     fn the_global_flags_section_is_replaced_by_a_line() {
-        let page =
-            "Make a file.\n\nUsage: sbrs mkfile <FILE>\n\nFlags:\n  --url <URL>  A page.\n\n\
+        let page = "Make a file.\n\nUsage: sbrs mkfile <FILE>\n\nFlags:\n  --url <URL>  A page.\n\n\
                         Global flags:\n  --headless  Run headless.\n\n  --uc  Evade.\n\n\
                         Examples:\n    $ sbrs mkfile a.rs\n";
         let text = without_global_flags(page);

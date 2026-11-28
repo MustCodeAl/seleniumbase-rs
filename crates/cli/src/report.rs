@@ -5,9 +5,9 @@
 
 use std::path::PathBuf;
 
-use seleniumbase_rs::core::test_run::{ReportSettings, RunFinish, TestRun};
 use seleniumbase_rs::SeleniumBaseError;
-use serde_json::{json, Value};
+use seleniumbase_rs::core::test_run::{ReportSettings, RunFinish, TestRun};
+use serde_json::{Value, json};
 
 use crate::args::report::{FinishArgs, ReportArgs, ReportCommand};
 use crate::failure::ArgumentError;

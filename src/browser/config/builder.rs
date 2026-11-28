@@ -2,12 +2,12 @@
 
 use std::path::PathBuf;
 
-use super::{split_extension_dirs, whole_seconds, Browser, BrowserConfig, DriverMode};
+use super::{Browser, BrowserConfig, DriverMode, split_extension_dirs, whole_seconds};
 use crate::api::run_settings::RunSettings;
 use crate::browser::options::{
-    grid_url, BrowserSettings, CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion,
+    BrowserSettings, CapabilityOverrides, CdpEventCapture, DeviceMetrics, DriverVersion,
     ExtensionArchive, FirefoxOptions, GridProtocol, LaunchSwitch, PageLoadStrategy,
-    ProxyBypassList, SessionSettings, VirtualDisplay, WindowPosition, WindowSize,
+    ProxyBypassList, SessionSettings, VirtualDisplay, WindowPosition, WindowSize, grid_url,
 };
 use crate::browser::reuse::ReuseClass;
 use crate::config::ad_block_list::AdBlockList;
@@ -1051,11 +1051,13 @@ mod tests {
                 .disable_features(["B", "C"])
                 .extra_arg("--lang=fr"),
         );
-        assert!(config
-            .browser
-            .chromium
-            .args
-            .contains(&"--mute-audio".to_owned()));
+        assert!(
+            config
+                .browser
+                .chromium
+                .args
+                .contains(&"--mute-audio".to_owned())
+        );
         assert_eq!(
             config.browser.chromium.args.last().map(String::as_str),
             Some("--lang=fr")
@@ -1282,7 +1284,7 @@ mod tests {
     #[test]
     fn named_plugins_join_the_plugins_of_the_configuration() {
         use crate::config::plugins::PluginSelection;
-        use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
+        use seleniumbase_rs_plugin::{Plugin, PluginSet, async_trait};
 
         struct Mine;
 

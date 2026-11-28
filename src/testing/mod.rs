@@ -70,7 +70,7 @@ pub use ::rstest::fixture;
 /// rstest's attribute for a test that asks for fixtures (`#[rstest]`), so a test crate
 /// needs no `rstest` line in its manifest: `use seleniumbase_rs::testing::rstest;`.
 pub use ::rstest::rstest;
-pub use fixture::{sb, sb_cdp, Sb, SbCdp};
+pub use fixture::{Sb, SbCdp, sb, sb_cdp};
 pub use lifecycle::{AttemptEnd, Finalizer, Outcome};
 
 pub(crate) use deadline::Deadline;

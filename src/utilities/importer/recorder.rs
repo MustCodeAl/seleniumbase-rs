@@ -6,7 +6,7 @@
 //! is a JavaScript expression), so its strings are decoded the same way and
 //! each step keeps its line number for diagnostics.
 
-use super::emit::{float, rust_str, whole, Helper};
+use super::emit::{Helper, float, rust_str, whole};
 use super::lexer::{Lexed, Tok};
 use super::parser::Expr;
 use super::selector::{self, Step};

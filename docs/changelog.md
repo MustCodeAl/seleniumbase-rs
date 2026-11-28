@@ -5,19 +5,19 @@ title: "Changelog"
 Generated from `CHANGELOG.md` by `tools/docs7_changelog.py`. The versions follow
 Semantic Versioning.
 
-## Latest release: v0.10.0
+## Latest release: v0.11.0
 
 <Columns cols={3}>
 
-<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.10.0">
-  v0.10.0 on GitHub.
+<Card title="Release notes" icon="github" color="#1a85d4" href="https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.11.0">
+  v0.11.0 on GitHub.
 </Card>
 
-<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.10.0.zip">
+<Card title="Source (.zip)" icon="file-zipper" color="#199f43" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.11.0.zip">
   The source of this release as a zip archive.
 </Card>
 
-<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.10.0.tar.gz">
+<Card title="Source (.tar.gz)" icon="box-archive" color="#d47628" href="https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.11.0.tar.gz">
   The source of this release as a tarball.
 </Card>
 
@@ -26,21 +26,30 @@ Semantic Versioning.
 Install the prebuilt binaries (`mise`, `cargo binstall`, or the release archives) or build the command line from the tag:
 
 ```bash Terminal
-cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 seleniumbase-rs-cli
+cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.11.0 seleniumbase-rs-cli
 ```
 
 ## All releases
 
-<Update label="Unreleased" description="Next release" tags={["New"]}>
+<Update label="Unreleased" description="Next release" tags={[]}>
+
+
+</Update>
+
+<Update label="2026-11-27" description="v0.11.0" tags={["New"]}>
+
+**Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.11.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.11.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.11.0.tar.gz)
 
 ### Added
 
-- **Tauri Desktop GUI (`apps/sbrs-desktop`)**: Added SeleniumBase Commander Desktop built on Tauri 3 (`tauri-runtime-wry`) covering Commander (tests/examples/function discovery, multi-select queued runs, `SB_*` toggles, live streamed logs), Behave feature runner, Case Plans editor, and Recorder/`latest_logs/` viewer.
+- **Tauri Desktop GUI (`apps/sbrs-desktop`)**: Added SeleniumBase Commander Desktop built on Tauri 3 (`tauri-runtime-wry`, updated to `3.0.0-alpha.6`) covering Commander (tests/examples/function discovery, multi-select queued runs, `SB_*` toggles, live streamed logs), Behave feature runner, Case Plans editor, and Recorder/`latest_logs/` viewer.
 - **CLI Plugin Lifecycle & Developer Split (`sbrs plugin` / `sbrs-dev plugin`)**: Added `src/cli/plugin_manager.rs` with `sbrs plugin install` (local path, git URL, `owner/repo`, or catalog slug), `uninstall`, `upgrade`, `search`, `enable`, `disable`, `ls` (`list` alias), and `directory`; moved plugin authoring into the dedicated `sbrs-dev` binary (`sbrs-dev plugin new` opening the interactive Ratatui wizard by default, `preview`, and `check`).
 - **Recorder Color & Debugger TUI (`sb_recorder`, `debug_tui`, `debug_prompt`)**: Colored `SHIFT + ESC` banner and numbered output in `sb_recorder` when `color` is enabled, and added `tui` command inside interactive debug breakpoints (`DebugPrompt`, feature `tui`).
+- **Stealth API Reference Expansion (`docs/stealth/api/{identity,client}/`)**: Added detailed reference documentation for `spoof-policy`, `mimic-randomize`, `generator-bayesian`, `profile-payloads-capture`, `apply`, `script-providers`, and `evasions-uc`, registered in `docs/docs.json` and `docs/SUMMARY.md`.
 
 ### Changed
 
+- **Rust 2024 Formatting Style (`style_edition = "2024"`) & Code Quality Cleanup**: Adopted `style_edition = "2024"` in `rustfmt.toml`, removed unused crate dependencies (`anstream`, `thirtyfour`, `serde_json`), extracted `browser_settings_entries` in `src/mcp/dev/diagnose.rs`, and deduplicated `test_support::{config_for, devtools_commands}` in `src/browser/session/emulation.rs`.
 - **Docs7 Stealth Organization, Modularized Imports & Expanded Snippets**: Merged Avoiding Bot Detection into the Stealth overview (`docs/stealth/introduction.md`), replaced numbered `Layer X:` navigation group names with natural headings, updated stealth docs to use modularized `seleniumbase_rs_stealth::identity` / `identity::fingerprint::{spoof, mimic, policy, settings}` / `client` imports, and added runnable-style examples across `signal-spoofing`, `playwright`, `evasions`, `human-input`, `proxies`, `profiles`, `advanced/overview`, `advanced/session/overview`, and `troubleshooting`.
 
 </Update>

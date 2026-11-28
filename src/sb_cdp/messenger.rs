@@ -48,7 +48,7 @@ use std::fmt;
 use std::str::FromStr;
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::page::Page;
 use crate::error::SeleniumBaseError;
@@ -701,15 +701,21 @@ mod tests {
                 location
             );
         }
-        assert!(MessengerLocation::TopLeft
-            .css_classes()
-            .contains("messenger-on-top"));
-        assert!(MessengerLocation::TopLeft
-            .css_classes()
-            .contains("messenger-on-left"));
-        assert!(!MessengerLocation::TopCenter
-            .css_classes()
-            .contains("-on-left"));
+        assert!(
+            MessengerLocation::TopLeft
+                .css_classes()
+                .contains("messenger-on-top")
+        );
+        assert!(
+            MessengerLocation::TopLeft
+                .css_classes()
+                .contains("messenger-on-left")
+        );
+        assert!(
+            !MessengerLocation::TopCenter
+                .css_classes()
+                .contains("-on-left")
+        );
     }
 
     #[test]

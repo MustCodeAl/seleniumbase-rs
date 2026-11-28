@@ -584,7 +584,8 @@ fn help_describes_the_new_arguments() {
         .find(|line| line.trim_start().starts_with("mkfile"))
         .expect("mkfile is listed");
     assert!(mkfile_line.contains("[aliases: new]"), "{mkfile_line}");
-    assert!(top
-        .lines()
-        .any(|line| line.trim_start().starts_with("mkdir")));
+    assert!(
+        top.lines()
+            .any(|line| line.trim_start().starts_with("mkdir"))
+    );
 }

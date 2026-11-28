@@ -363,9 +363,11 @@ mod tests {
             .position(|arg| arg == "--")
             .expect("script lines end at --");
         // Everything before `--` is the fixed script; the text is after it.
-        assert!(command.args[..separator]
-            .iter()
-            .all(|arg| !arg.contains("pwned") && !arg.contains("touch")));
+        assert!(
+            command.args[..separator]
+                .iter()
+                .all(|arg| !arg.contains("pwned") && !arg.contains("touch"))
+        );
         assert_eq!(command.args[separator + 1..], [hostile, "m", "d"]);
     }
 

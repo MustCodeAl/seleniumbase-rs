@@ -56,7 +56,7 @@
 use crate::api::presentation::DEFAULT_NAME;
 use crate::artifacts::bare_file_name;
 use crate::error::SeleniumBaseError;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -853,10 +853,12 @@ mod tests {
         assert!(without.contains("new Chart("));
         // `to_html` takes the choice directly; a saved page always loads it.
         assert!(chart.to_html(ChartLibs::Omit).find(CHART_JS_TAG).is_none());
-        assert!(Chart::new("t", ChartType::Pie)
-            .libs(false)
-            .to_page()
-            .contains(CHART_JS_TAG));
+        assert!(
+            Chart::new("t", ChartType::Pie)
+                .libs(false)
+                .to_page()
+                .contains(CHART_JS_TAG)
+        );
     }
 
     #[test]
@@ -871,7 +873,9 @@ mod tests {
 
         let html = chart.to_page();
         assert!(!html.contains("<script>alert"), "{html}");
-        assert!(html.contains("<title>&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;</title>"));
+        assert!(
+            html.contains("<title>&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;</title>")
+        );
         assert_eq!(
             html.matches("<script").count(),
             2,

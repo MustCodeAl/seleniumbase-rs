@@ -10,7 +10,7 @@ use std::time::Duration;
 use seleniumbase_rs::mcp::cdp;
 use seleniumbase_rs::mcp::client::{ClientProgress, McpClient};
 use seleniumbase_rs::mcp::{Args, Ctx, Effect, Host, Output, Schema, Settings, ToolDef, ToolError};
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// How long a test waits for the server before it calls the server stuck.
 const PATIENCE: Duration = Duration::from_secs(20);
@@ -317,10 +317,12 @@ async fn prompts_are_listed_and_rendered() {
         .iter()
         .find(|p| p.name == "write_test")
         .expect("write_test");
-    assert!(write_test
-        .arguments
-        .iter()
-        .any(|a| a.name == "url" && a.required));
+    assert!(
+        write_test
+            .arguments
+            .iter()
+            .any(|a| a.name == "url" && a.required)
+    );
     assert_eq!(rendered.messages.len(), 1);
     assert_eq!(rendered.messages[0].0, "user");
     assert!(rendered.messages[0].1.contains("buy a mug"), "{rendered:?}");

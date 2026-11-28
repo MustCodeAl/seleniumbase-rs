@@ -6,7 +6,7 @@
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, MockCtrl, Outcome, Page, ResourceType, Response, Rule};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 async fn page() -> (Page, MockCtrl) {
     let (browser, mock) = Browser::new_mocked();
@@ -72,11 +72,9 @@ async fn a_blocked_request_is_failed_as_blocked_by_the_client() {
 async fn a_fulfilled_request_gets_the_made_up_response() {
     let (page, mock) = page().await;
     let _i = page
-        .intercept(vec![Rule::fulfill(Response::json(
-            200,
-            &json!({"plan": "pro"}),
-        ))
-        .url("*/api/account")])
+        .intercept(vec![
+            Rule::fulfill(Response::json(200, &json!({"plan": "pro"}))).url("*/api/account"),
+        ])
         .await
         .unwrap();
 
@@ -93,9 +91,11 @@ async fn a_fulfilled_request_gets_the_made_up_response() {
 async fn a_modified_request_continues_with_its_headers_changed() {
     let (page, mock) = page().await;
     let _i = page
-        .intercept(vec![Rule::modify()
-            .set_header("X-Run", "42")
-            .remove_header("Cookie")])
+        .intercept(vec![
+            Rule::modify()
+                .set_header("X-Run", "42")
+                .remove_header("Cookie"),
+        ])
         .await
         .unwrap();
 

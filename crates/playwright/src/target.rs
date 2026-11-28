@@ -99,10 +99,10 @@ impl private::TargetAttachment for BaseCase {
 
 #[cfg(test)]
 mod tests {
+    use seleniumbase_rs::BrowserConfig;
     use seleniumbase_rs::json::json;
     use seleniumbase_rs::sb_cdp::Browser;
     use seleniumbase_rs::tokio;
-    use seleniumbase_rs::BrowserConfig;
 
     use super::*;
 

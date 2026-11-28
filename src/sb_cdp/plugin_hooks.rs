@@ -24,14 +24,14 @@ use std::sync::{Arc, Mutex as StdMutex};
 
 use futures_util::FutureExt as _;
 use seleniumbase_rs_plugin::{
-    async_trait, BrowserFamily, BrowserHandle, BrowserId, Clock, ContextHandle, ContextId,
-    ContextSettings, Engine, ExtensionWorker, HostInfo, LaunchContext, LaunchSettings,
-    LoadedExtension, NavOrigin, NavOutcome, Navigation, PageHandle, PageId, PluginError, PluginSet,
-    ProfileView, ProtocolEvent, Result as PluginResult,
+    BrowserFamily, BrowserHandle, BrowserId, Clock, ContextHandle, ContextId, ContextSettings,
+    Engine, ExtensionWorker, HostInfo, LaunchContext, LaunchSettings, LoadedExtension, NavOrigin,
+    NavOutcome, Navigation, PageHandle, PageId, PluginError, PluginSet, ProfileView, ProtocolEvent,
+    Result as PluginResult, async_trait,
 };
 use seleniumbase_rs_plugin::{Prompt, Sink, TaskContext};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::browser::Browser;
 use super::client::{CdpEvent, Client};
@@ -837,7 +837,7 @@ impl Page {
 
 #[cfg(test)]
 mod tests {
-    use seleniumbase_rs_plugin::{async_trait, Plugin, Requirements};
+    use seleniumbase_rs_plugin::{Plugin, Requirements, async_trait};
 
     use super::*;
 
@@ -1310,7 +1310,7 @@ mod tests {
 mod navigation_origin_tests {
     use std::sync::Mutex;
 
-    use seleniumbase_rs_plugin::{async_trait, NavDecision, Plugin};
+    use seleniumbase_rs_plugin::{NavDecision, Plugin, async_trait};
 
     use super::*;
 

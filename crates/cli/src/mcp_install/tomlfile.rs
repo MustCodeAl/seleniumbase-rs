@@ -10,9 +10,9 @@ use std::fs;
 use std::io::ErrorKind;
 use std::path::Path;
 
-use toml_edit::{value, Array, DocumentMut, Item, Table};
+use toml_edit::{Array, DocumentMut, Item, Table, value};
 
-use super::entry::{decide, Decision, Entry, Existing, LaunchSpec};
+use super::entry::{Decision, Entry, Existing, LaunchSpec, decide};
 use super::fsx;
 use super::jsonfile::Applied;
 use super::report::{EntryReport, Preview, Problem, Status};
@@ -28,7 +28,7 @@ fn load(path: &Path) -> Result<DocumentMut, Problem> {
             return Err(Problem::Failed(format!(
                 "cannot read {}: {e}",
                 path.display()
-            )))
+            )));
         }
     };
     text.parse::<DocumentMut>().map_err(|e| Problem::Refused {

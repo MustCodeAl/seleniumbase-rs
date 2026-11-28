@@ -64,9 +64,11 @@ async fn a_failing_cdp_test_is_on_the_dashboard_with_the_evidence_of_a_real_page
     let folder = root.path().join("latest_logs").join(&id);
     let png = std::fs::read(folder.join("screenshot.png")).unwrap();
     assert!(png.starts_with(b"\x89PNG"), "a real screenshot");
-    assert!(std::fs::read_to_string(folder.join("page_source.html"))
-        .unwrap()
-        .contains("<h1>Hello</h1>"));
+    assert!(
+        std::fs::read_to_string(folder.join("page_source.html"))
+            .unwrap()
+            .contains("<h1>Hello</h1>")
+    );
     let info = std::fs::read_to_string(folder.join("basic_test_info.txt")).unwrap();
     assert!(info.contains("Last Page: data:text/html"), "{info}");
     assert!(

@@ -7,18 +7,18 @@
 
 use std::path::PathBuf;
 
+use ratatui::Frame;
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap};
-use ratatui::Frame;
 
 use crate::cli::plugin_scaffold::{
-    render_plugin_files, scaffold_plugin, PluginScaffoldError, PluginScaffoldOptions,
-    ScaffoldResult,
+    PluginScaffoldError, PluginScaffoldOptions, ScaffoldResult, render_plugin_files,
+    scaffold_plugin,
 };
 
-use super::tui_kit::{run, Input, Machine};
+use super::tui_kit::{Input, Machine, run};
 
 const TEMPLATES: &[&str] = &["library", "cli"];
 const BACKENDS: &[Option<&str>] = &[None, Some("cdp"), Some("webdriver")];
@@ -550,8 +550,8 @@ mod tests {
 
     #[test]
     fn render_runs_without_panicking_in_test_backend() {
-        use ratatui::backend::TestBackend;
         use ratatui::Terminal;
+        use ratatui::backend::TestBackend;
 
         let wizard = PluginWizard::new(PluginScaffoldOptions::new("demo-plugin"));
         let backend = TestBackend::new(90, 28);

@@ -30,7 +30,7 @@ use serde_json::Value;
 use std::path::Path;
 
 use crate::browser::config::BrowserConfig;
-use crate::config::plugins::{PluginSelection, PLUGINS_ENV};
+use crate::config::plugins::{PLUGINS_ENV, PluginSelection};
 use crate::config::settings::Settings;
 use crate::error::SeleniumBaseError;
 
@@ -977,10 +977,10 @@ impl seleniumbase_rs_plugin::Prompt for TerminalPrompt {
 #[cfg(all(test, feature = "plugins"))]
 mod tests {
     use seleniumbase_rs_plugin::{
-        async_trait, Capability, Category, Configurable, Descriptor, Metadata, PathScope, Phase,
-        Plugin, PluginError, Registry, Requirements,
+        Capability, Category, Configurable, Descriptor, Metadata, PathScope, Phase, Plugin,
+        PluginError, Registry, Requirements, async_trait,
     };
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
 
@@ -1875,9 +1875,11 @@ mod choice_tests {
     fn the_sources_are_told_in_words() {
         assert_eq!(PluginSource::CommandLine.describe(), "--plugin");
         assert_eq!(PluginSource::Environment.describe(), "SB_PLUGINS");
-        assert!(PluginSource::ProjectFile
-            .describe()
-            .contains("current folder"));
+        assert!(
+            PluginSource::ProjectFile
+                .describe()
+                .contains("current folder")
+        );
         assert!(PluginSource::ConfigFile.describe().contains("--config"));
     }
 

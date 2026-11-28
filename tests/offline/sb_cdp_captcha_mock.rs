@@ -9,14 +9,14 @@
 
 #![cfg(feature = "test-util")]
 
-use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::sb_cdp::human::Behavior;
 use seleniumbase_rs::sb_cdp::{Browser, Captcha, Evidence, MockCtrl, Page, Point, SolveOptions};
-use seleniumbase_rs::SeleniumBaseError;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::time::Instant;
 
 /// Wraps a script result the way `Runtime.evaluate` returns it.

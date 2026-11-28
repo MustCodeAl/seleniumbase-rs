@@ -53,10 +53,10 @@
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex as StdMutex};
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::sync::{broadcast, oneshot};
 
-use super::client::{await_reply, dispatch, CdpEvent, Pending, Reply};
+use super::client::{CdpEvent, Pending, Reply, await_reply, dispatch};
 use super::sync::locked;
 use crate::error::SeleniumBaseError;
 

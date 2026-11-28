@@ -95,14 +95,14 @@ use serde_json::Value;
 use tokio::io::AsyncWriteExt;
 
 use crate::artifacts::LATEST_LOGS_DIR;
-use crate::common::color::{palette, sanitize, use_color, Style};
+use crate::common::color::{Style, palette, sanitize, use_color};
 
 use crate::error::SeleniumBaseError;
 
 mod render;
 
-use render::{code_block, where_header};
 pub use render::{Failure, Scene, SceneBuilder, SourceSpot};
+use render::{code_block, where_header};
 
 /// The environment variable that turns `breakpoint()` off: `0`, `false`, `no`
 /// or `off`, as Python's `PYTHONBREAKPOINT=0` does.
@@ -119,12 +119,10 @@ const MAX_NUMBERED_FILES: u32 = 10_000;
 const COMMAND_PROMPT: &str = "(Sb+) ";
 
 /// The command summary every banner ends with.
-const COMMANDS: &str =
-    "Commands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help";
+const COMMANDS: &str = "Commands: c continue | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help";
 
 /// The same after a failure, where `r` runs the test again.
-const POST_MORTEM_COMMANDS: &str =
-    "Commands: c continue | r retry | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help";
+const POST_MORTEM_COMMANDS: &str = "Commands: c continue | r retry | s screenshot | src page source | u url | js <expr> | l list | w where | dt devtools | q quit | h help";
 
 /// What `l` and `w` say when the pause has no place in the test's source.
 const NO_POSITION: &str = "the source position of this pause is not known";
@@ -527,7 +525,7 @@ async fn run_tui_debugger(
     scene: &Scene,
     page: &dyn PromptPage,
 ) -> io::Result<PromptOutcome> {
-    use crate::cli::scripts::debug_tui::{run_debug_tui, DebugEffect, DebugMsg, DebugTui};
+    use crate::cli::scripts::debug_tui::{DebugEffect, DebugMsg, DebugTui, run_debug_tui};
 
     let info = PageInfo::read(page).await;
     let source_lines = parse_scene_lines(&listing(kind, scene, false, false));
@@ -1384,11 +1382,12 @@ mod tests {
         run("c\n", PromptKind::RecorderBreakpoint, &page, logs.path()).await;
 
         assert_eq!(page.calls(), ["screenshot"]);
-        assert!(logs
-            .path()
-            .join("login.valid_login")
-            .join("breakpoint_1.png")
-            .exists());
+        assert!(
+            logs.path()
+                .join("login.valid_login")
+                .join("breakpoint_1.png")
+                .exists()
+        );
     }
 
     #[tokio::test]

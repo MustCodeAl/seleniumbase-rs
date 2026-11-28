@@ -45,14 +45,14 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use base64::Engine;
+use rmcp::ServiceExt;
 use rmcp::handler::client::ClientHandler;
 use rmcp::model::{ClientConfig, ProgressNotificationParam};
 use rmcp::service::{NotificationContext, RoleClient, RunningService, ServiceError};
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransportConfig;
 use rmcp::transport::{IntoTransport, StreamableHttpClientTransport};
-use rmcp::ServiceExt;
 use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use tokio::process::{Child, Command};
 
 use crate::error::SeleniumBaseError;

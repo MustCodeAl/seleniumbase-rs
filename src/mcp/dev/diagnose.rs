@@ -10,15 +10,15 @@
 
 use std::path::{Component, Path, PathBuf};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use super::NoBrowser;
 use crate::browser::options::LaunchSwitch;
 
 use crate::cli::plugin_cmd;
+use crate::config::RuntimeConfig;
 use crate::config::plugins::PluginSelection;
 use crate::config::settings::Settings;
-use crate::config::RuntimeConfig;
 use crate::error::{DriverError, DriverErrorKind, SeleniumBaseError};
 use crate::mcp::devtools::redact_setting;
 use crate::mcp::failure::FailureReport;
@@ -695,17 +695,23 @@ fn problem_json(source: &str, error: &SeleniumBaseError) -> Value {
     })
 }
 
-/// The settings that matter for a launch, with secrets redacted.
-fn settings_summary(settings: &Settings) -> Value {
+/// The browser-level settings entries that matter for a launch, with secrets redacted.
+fn browser_settings_entries(
+    browser: &crate::browser::options::BrowserSettings,
+) -> Vec<(&'static str, Value)> {
     let shown = |name: &str, value: &Option<String>| {
         value.as_deref().map(|value| redact_setting(name, value))
     };
-    let browser = &settings.browser;
-    let session = &settings.session;
-    let config = settings.to_browser_config();
     let path_text = |path: &std::path::Path| path.display().to_string();
-    // Each setting under its path in `Settings`, with the variables that write it.
-    let entries: Vec<(&str, Value)> = vec![
+    let extensions: Vec<String> = browser
+        .extensions
+        .iter()
+        .map(|dir| path_text(dir))
+        .collect();
+    let window_size = browser
+        .window_size
+        .map(|size| format!("{}x{}", size.width, size.height));
+    vec![
         ("browser.kind", json!(browser.kind.to_string())),
         ("browser.headless", json!(browser.headless)),
         (
@@ -724,22 +730,10 @@ fn settings_summary(settings: &Settings) -> Value {
             "browser.user_data_dir",
             json!(browser.user_data_dir.as_deref().map(path_text)),
         ),
-        (
-            "browser.extensions",
-            json!(browser
-                .extensions
-                .iter()
-                .map(|dir| path_text(dir))
-                .collect::<Vec<_>>()),
-        ),
+        ("browser.extensions", json!(extensions)),
         ("browser.lang", json!(browser.lang)),
         ("browser.user_agent", json!(browser.user_agent)),
-        (
-            "browser.window_size",
-            json!(browser
-                .window_size
-                .map(|size| format!("{}x{}", size.width, size.height))),
-        ),
+        ("browser.window_size", json!(window_size)),
         ("browser.ad_block", json!(browser.ad_block)),
         ("browser.mobile", json!(browser.mobile)),
         (
@@ -750,32 +744,37 @@ fn settings_summary(settings: &Settings) -> Value {
             "browser.switches.rec-sb-cdp",
             json!(browser.has(LaunchSwitch::RecSbCdp)),
         ),
+    ]
+}
+
+/// The settings that matter for a launch, with secrets redacted.
+fn settings_summary(settings: &Settings) -> Value {
+    let session = &settings.session;
+    let config = settings.to_browser_config();
+    let webdriver_url = session
+        .webdriver_url
+        .as_deref()
+        .map(|url| redact_setting("SB_WEBDRIVER_URL", url));
+    let default_timeout = settings
+        .run
+        .default_timeout
+        .map(|timeout| timeout.as_secs());
+    let mut entries = browser_settings_entries(&settings.browser);
+    entries.extend([
         (
             "session.mode",
             json!(format!("{:?}", session.driver_mode()).to_lowercase()),
         ),
-        (
-            "session.webdriver_url",
-            json!(session
-                .webdriver_url
-                .as_deref()
-                .map(|url| redact_setting("SB_WEBDRIVER_URL", url))),
-        ),
+        ("session.webdriver_url", json!(webdriver_url)),
         (
             "session.remote_webdriver_timeout_seconds",
             json!(session.remote_webdriver_timeout_seconds),
         ),
         ("session.reuse", json!(session.reuse)),
         ("session.reuse_class", json!(session.reuse_class.is_some())),
-        (
-            "run.default_timeout",
-            json!(settings
-                .run
-                .default_timeout
-                .map(|timeout| timeout.as_secs())),
-        ),
+        ("run.default_timeout", json!(default_timeout)),
         ("test.threads", json!(settings.test.threads)),
-    ];
+    ]);
     let mut summary: serde_json::Map<String, Value> = entries
         .into_iter()
         .map(|(path, value)| {
@@ -988,10 +987,12 @@ mod tests {
             docs[0]["heading"],
             "An element is not found or a wait times out"
         );
-        assert!(docs[0]["text"]
-            .as_str()
-            .unwrap()
-            .contains("Check the selector"));
+        assert!(
+            docs[0]["text"]
+                .as_str()
+                .unwrap()
+                .contains("Check the selector")
+        );
         assert!(!docs[0]["text"].as_str().unwrap().contains("<Step"));
     }
 
@@ -1339,22 +1340,28 @@ mod tests {
             .map(|p| p["source"].as_str().unwrap())
             .collect();
         assert_eq!(sources, ["SB_HEADLESS", "SB_THREADS", "validation"]);
-        assert!(report["problems"][0]["message"]
-            .as_str()
-            .unwrap()
-            .contains("maybe"));
-        assert!(report["problems"][2]["message"]
-            .as_str()
-            .unwrap()
-            .contains("window_width"));
+        assert!(
+            report["problems"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("maybe")
+        );
+        assert!(
+            report["problems"][2]["message"]
+                .as_str()
+                .unwrap()
+                .contains("window_width")
+        );
         assert!(report["problems"][0]["hint"].is_string());
         // A runtime variable that does not parse is a warning: it is ignored.
         let warnings = report["warnings"].as_array().unwrap();
         assert_eq!(warnings.len(), 1);
-        assert!(warnings[0]["message"]
-            .as_str()
-            .unwrap()
-            .contains("SB_SHUTDOWN_TIMEOUT_SECS"));
+        assert!(
+            warnings[0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("SB_SHUTDOWN_TIMEOUT_SECS")
+        );
         assert_eq!(report["settings"]["browser.mobile"]["value"], true);
         assert_eq!(report["settings"]["browser.lang"]["value"], "de-DE");
         assert_eq!(report["runtime"]["shutdown_timeout_seconds"], 30);
@@ -1472,9 +1479,11 @@ mod tests {
         let report = answer.as_json().unwrap();
         assert_eq!(report["ok"], false);
         assert_eq!(report["settings_file"], "no-such-settings-file.toml");
-        assert!(report["problems"][0]["message"]
-            .as_str()
-            .unwrap()
-            .contains("failed to read"));
+        assert!(
+            report["problems"][0]["message"]
+                .as_str()
+                .unwrap()
+                .contains("failed to read")
+        );
     }
 }

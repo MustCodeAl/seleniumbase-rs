@@ -664,9 +664,11 @@ Feature: Log in
             find_feature_files(&dir.path().join("x.feature")).unwrap(),
             [dir.path().join("x.feature")]
         );
-        assert!(find_feature_files(&dir.path().join("nowhere"))
-            .unwrap()
-            .is_empty());
+        assert!(
+            find_feature_files(&dir.path().join("nowhere"))
+                .unwrap()
+                .is_empty()
+        );
     }
 
     #[test]

@@ -20,10 +20,11 @@ use serde_json::Value;
 use super::deadline::Deadline;
 #[cfg(feature = "plugins")]
 use super::lifecycle::TestPlugins;
-use super::lifecycle::{say_on_stderr, Finalizer, Lifecycle, Plan, TerminalPrompter, TestCase};
+use super::lifecycle::{Finalizer, Lifecycle, Plan, TerminalPrompter, TestCase, say_on_stderr};
 use super::report::{self, Reporting};
+use crate::BaseCase;
 use crate::api::recorder::RecordingTarget;
-use crate::api::runner::{close_browser, CdpCase};
+use crate::api::runner::{CdpCase, close_browser};
 use crate::common::debug_prompt::{PromptPage, SourceSpot};
 use crate::config::settings::Settings;
 use crate::config::test_settings::TestData;
@@ -31,7 +32,6 @@ use crate::core::log_helper::TestId;
 use crate::core::test_run::TestRun;
 use crate::error::{Result, SeleniumBaseError};
 use crate::sb_cdp::{Browser, Page};
-use crate::BaseCase;
 
 /// What `Sb` and `SbCdp` share: the settings (or why they could not be read),
 /// the id of the test and what is registered to see it end.

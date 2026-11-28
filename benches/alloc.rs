@@ -26,7 +26,7 @@ fn main() {
 
 /// The pure CDP engine, one command at a time, on the mocked browser.
 mod cdp {
-    use super::{work, Bencher};
+    use super::{Bencher, work};
 
     #[divan::bench]
     fn evaluate(bencher: Bencher) {
@@ -52,7 +52,7 @@ mod cdp {
 
 /// `import_python` on every Python file of `tests/golden/import_python`.
 mod importer {
-    use super::{black_box, work, Bencher};
+    use super::{Bencher, black_box, work};
 
     #[divan::bench]
     fn all_golden_files(bencher: Bencher) {
@@ -63,7 +63,7 @@ mod importer {
 
 /// MCP requests handled in process, as `Host::call` and `tools/list` answer them.
 mod mcp {
-    use super::{json, work, Bencher};
+    use super::{Bencher, json, work};
 
     #[divan::bench]
     fn dev_find_api(bencher: Bencher) {

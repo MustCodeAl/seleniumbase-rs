@@ -19,11 +19,11 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use seleniumbase_rs_plugin::{
-    async_trait, BrowserFamily, BrowserHandle, Engine, HostInfo, HostKind, LaunchContext,
-    LaunchSettings, PageHandle, PluginError, PluginSet, ProfileView, Result as PluginResult,
-    WebRtcPolicy,
+    BrowserFamily, BrowserHandle, Engine, HostInfo, HostKind, LaunchContext, LaunchSettings,
+    PageHandle, PluginError, PluginSet, ProfileView, Result as PluginResult, WebRtcPolicy,
+    async_trait,
 };
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use thirtyfour::WebDriver;
 
 use crate::browser::config::{Browser, BrowserConfig};
@@ -345,8 +345,7 @@ pub(crate) fn apply_settings(
 }
 
 /// What a plugin asked for that only a Chromium browser takes.
-const CHROMIUM_SWITCHES: &str =
-    "take host resolver rules, a WebRTC policy, browser features or QUIC settings at launch, \
+const CHROMIUM_SWITCHES: &str = "take host resolver rules, a WebRTC policy, browser features or QUIC settings at launch, \
      which are Chromium switches";
 
 /// The plugin settings that are Chromium command-line switches.
@@ -825,7 +824,7 @@ fn thrown(details: &Value) -> PluginError {
 mod conversion_tests {
     use std::sync::{Arc, Mutex};
 
-    use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet, Requirements, Result};
+    use seleniumbase_rs_plugin::{Plugin, PluginSet, Requirements, Result, async_trait};
     use serde_json::json;
 
     use super::*;
@@ -1024,15 +1023,16 @@ mod conversion_tests {
         apply_settings(&mut config, BrowserFamily::Chromium, settings).unwrap();
 
         assert_eq!(
-            config.session.capabilities.get("ms:edgeOptions").unwrap()["prefs"]
-                ["intl.accept_languages"],
+            config.session.capabilities.get("ms:edgeOptions").unwrap()["prefs"]["intl.accept_languages"],
             "fr"
         );
-        assert!(config
-            .session
-            .capabilities
-            .get("goog:chromeOptions")
-            .is_none());
+        assert!(
+            config
+                .session
+                .capabilities
+                .get("goog:chromeOptions")
+                .is_none()
+        );
         assert_eq!(
             settings_of(&config, BrowserFamily::Chromium).prefs["intl.accept_languages"],
             "fr",
@@ -1128,10 +1128,12 @@ mod conversion_tests {
 
         let safari = |change| refused(Browser::Safari, BrowserFamily::Safari, change);
         assert!(safari(|s| s.args.push("--x".to_owned())).contains("Safari"));
-        assert!(safari(|s| {
-            s.prefs.insert("a".to_owned(), json!(1));
-        })
-        .contains("Safari"));
+        assert!(
+            safari(|s| {
+                s.prefs.insert("a".to_owned(), json!(1));
+            })
+            .contains("Safari")
+        );
         assert!(safari(|s| s.headless = true).contains("headless"));
     }
 
@@ -1629,16 +1631,16 @@ mod session_tests {
     use std::time::Duration;
 
     use seleniumbase_rs_plugin::{
-        async_trait, BrowserHandle, LaunchSettings, Package, PageHandle, Plugin, PluginError,
-        PluginSet, Requirements, Result,
+        BrowserHandle, LaunchSettings, Package, PageHandle, Plugin, PluginError, PluginSet,
+        Requirements, Result, async_trait,
     };
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
+    use crate::BaseCase;
     use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
     use crate::browser::session::BrowserSession;
     use crate::config::ad_block_list::{AdBlockList, MAX_URL_PATTERNS};
-    use crate::BaseCase;
 
     type Log = Arc<Mutex<Vec<String>>>;
 
@@ -1823,14 +1825,18 @@ mod session_tests {
                 "Runtime.evaluate",
             ]
         );
-        assert!(sent[1].1["source"]
-            .as_str()
-            .unwrap()
-            .contains("window.packaged"));
-        assert!(sent[2].1["expression"]
-            .as_str()
-            .unwrap()
-            .contains("window.packaged"));
+        assert!(
+            sent[1].1["source"]
+                .as_str()
+                .unwrap()
+                .contains("window.packaged")
+        );
+        assert!(
+            sent[2].1["expression"]
+                .as_str()
+                .unwrap()
+                .contains("window.packaged")
+        );
         assert_eq!(sent[4].1["source"], "window.planet = 'Erde';");
         assert_eq!(sent[5].1["expression"], "window.planet = 'Erde';");
         assert_eq!(

@@ -22,11 +22,11 @@ use std::time::Duration;
 use serde_json::{Map, Value};
 
 use super::{
-    bridge, BrowserSource, LaunchOptions, ProfileMode, Proxy, Redacted, DEFAULT_STARTUP_TIMEOUT,
+    BrowserSource, DEFAULT_STARTUP_TIMEOUT, LaunchOptions, ProfileMode, Proxy, Redacted, bridge,
 };
 use crate::browser::options::{
-    chrome_preferences, emulated_phone, DeviceMetrics, LaunchSwitch, PacUrl, ProxyBypassList,
-    VirtualDisplay, WebRtcPolicy, MOBILE_USER_AGENT,
+    DeviceMetrics, LaunchSwitch, MOBILE_USER_AGENT, PacUrl, ProxyBypassList, VirtualDisplay,
+    WebRtcPolicy, chrome_preferences, emulated_phone,
 };
 use crate::error::SeleniumBaseError;
 
@@ -571,17 +571,21 @@ mod tests {
 
     #[test]
     fn chromium_and_a_path_are_refused_together_only_when_the_builder_gives_both() {
-        assert!(LaunchOptions::builder()
-            .use_chromium(true)
-            .executable_path("/opt/chrome")
-            .build()
-            .is_err());
+        assert!(
+            LaunchOptions::builder()
+                .use_chromium(true)
+                .executable_path("/opt/chrome")
+                .build()
+                .is_err()
+        );
         // Chromium of the config and the builder's path are two layers, not a conflict.
-        assert!(LaunchOptions::builder()
-            .executable_path("/opt/chrome")
-            .browser_config(&chromium_config())
-            .build()
-            .is_ok());
+        assert!(
+            LaunchOptions::builder()
+                .executable_path("/opt/chrome")
+                .browser_config(&chromium_config())
+                .build()
+                .is_ok()
+        );
     }
 
     #[test]
@@ -619,16 +623,20 @@ mod tests {
     fn incognito_and_guest_are_refused_whichever_layer_gives_them() {
         let mut config = BrowserConfig::default();
         config.browser.set(LaunchSwitch::Incognito, true);
-        assert!(LaunchOptions::builder()
-            .guest(true)
-            .browser_config(&config)
-            .build()
-            .is_err());
-        assert!(LaunchOptions::builder()
-            .browser_config(&config)
-            .guest(true)
-            .build()
-            .is_err());
+        assert!(
+            LaunchOptions::builder()
+                .guest(true)
+                .browser_config(&config)
+                .build()
+                .is_err()
+        );
+        assert!(
+            LaunchOptions::builder()
+                .browser_config(&config)
+                .guest(true)
+                .build()
+                .is_err()
+        );
         // Unless the builder turns the config's mode off.
         let options = built(
             LaunchOptions::builder()
@@ -682,7 +690,7 @@ mod tests {
     #[cfg(feature = "plugins")]
     #[test]
     fn the_plugins_of_the_builder_replace_the_configs_and_named_ones_come_after() {
-        use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
+        use seleniumbase_rs_plugin::{Plugin, PluginSet, async_trait};
 
         struct Mine;
         struct Theirs;
@@ -799,10 +807,12 @@ mod tests {
             .proxy("ftp://proxy.example:21")
             .build()
             .expect("a valid config");
-        assert!(LaunchOptions::builder()
-            .browser_config(&bad)
-            .build()
-            .is_err());
+        assert!(
+            LaunchOptions::builder()
+                .browser_config(&bad)
+                .build()
+                .is_err()
+        );
         // The builder's proxy replaces the config's, and is read as the engine reads one.
         for builder in [
             LaunchOptions::builder()

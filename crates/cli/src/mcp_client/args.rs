@@ -5,9 +5,9 @@ use std::io::Read;
 use std::path::PathBuf;
 use std::time::Duration;
 
-use seleniumbase_rs::mcp::client::Target;
-use seleniumbase_rs::mcp::Profile;
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::mcp::Profile;
+use seleniumbase_rs::mcp::client::Target;
 use serde_json::{Map, Value};
 
 /// The environment variable that names the server to connect to when no flag does.

@@ -37,7 +37,7 @@ mod units;
 
 use std::collections::{BTreeSet, HashSet};
 
-use tr::{rust_ident, Tr};
+use tr::{Tr, rust_ident};
 use units::{Cases, Unit};
 
 use crate::utilities::python_importer::{ImportDiagnostic, ImportSeverity};

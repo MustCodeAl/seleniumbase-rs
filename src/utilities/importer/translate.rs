@@ -9,11 +9,11 @@
 
 use std::collections::HashMap;
 
-use super::emit::{float, one_line, rust_str, todo_source, var_ident, whole, Helper, Line, Needs};
+use super::emit::{Helper, Line, Needs, float, one_line, rust_str, todo_source, var_ident, whole};
 use super::parser::{Arg, Expr, FnBody, Pattern, Stmt, StmtKind};
 use super::selector::{self, Step};
 use super::{ImportDiagnostic, ImportSeverity};
-use crate::utils::selectors::{css_quoted, SelectorRef};
+use crate::utils::selectors::{SelectorRef, css_quoted};
 
 /// How the generated code names the match `exact` (Playwright's own word for it) asks for.
 fn text_matching(exact: bool) -> &'static str {
@@ -212,7 +212,7 @@ impl<'e> Args<'e> {
                 _ => {
                     return Err(
                         "options that are not an object literal are not converted".to_owned()
-                    )
+                    );
                 }
             }
         }
@@ -373,13 +373,13 @@ pub(super) fn regex_text(pattern: &str, flags: &str) -> TResult<(String, bool)> 
                 _ => {
                     return Err(format!(
                         "the regular expression /{pattern}/ is not plain text"
-                    ))
+                    ));
                 }
             },
             '.' | '*' | '+' | '?' | '(' | ')' | '[' | ']' | '{' | '}' | '|' | '^' | '$' => {
                 return Err(format!(
                     "the regular expression /{pattern}/ is not plain text"
-                ))
+                ));
             }
             c => text.push(c),
         }
@@ -579,7 +579,7 @@ impl<'s> Translator<'s> {
             Ev::Lines(lines) | Ev::Waited(lines, _) => self.lines.extend(lines),
             Ev::Value(code, _) => self.push_code(format!("{code};")),
             Ev::Expect(_) => {
-                return Err("an expect() without a matcher is not converted".to_owned())
+                return Err("an expect() without a matcher is not converted".to_owned());
             }
             Ev::Page
             | Ev::Object(_)
@@ -627,7 +627,7 @@ impl<'s> Translator<'s> {
             }
             Ev::Nothing => Var::Object(Obj::Module),
             Ev::Keyboard | Ev::Mouse | Ev::Expect(_) => {
-                return Err("keeping this in a variable is not converted".to_owned())
+                return Err("keeping this in a variable is not converted".to_owned());
             }
         };
         self.scope.insert(name.to_owned(), var);
@@ -679,7 +679,7 @@ impl<'s> Translator<'s> {
                 ) => {
                     return Err(format!(
                         "`with page.{method}()` (waiting for an event) is not converted"
-                    ))
+                    ));
                 }
                 _ => {}
             }
@@ -801,7 +801,7 @@ impl<'s> Translator<'s> {
             _ => {
                 return Err(format!(
                     "`{name}` is not something the importer knows (a helper, a fixture or a variable it could not read)"
-                ))
+                ));
             }
         };
         Ok(Ev::Object(obj))
@@ -999,10 +999,12 @@ impl<'s> Translator<'s> {
             let body = match &func.body {
                 FnBody::Expr(expr) => Some(expr.as_ref()),
                 FnBody::Block(stmts) => match stmts.as_slice() {
-                    [Stmt {
-                        kind: StmtKind::Expr(expr),
-                        ..
-                    }] => Some(expr),
+                    [
+                        Stmt {
+                            kind: StmtKind::Expr(expr),
+                            ..
+                        },
+                    ] => Some(expr),
                     _ => None,
                 },
             };
@@ -1124,7 +1126,7 @@ impl<'s> Translator<'s> {
                         "i".to_owned()
                     }
                     Some(_) => {
-                        return Err("these regular expression flags are not converted".to_owned())
+                        return Err("these regular expression flags are not converted".to_owned());
                     }
                 };
                 Ok(Ev::Lit(Lit::Regex { pattern, flags }))
@@ -1192,7 +1194,7 @@ impl<'s> Translator<'s> {
                     .unwrap_or_default()
                     .to_owned(),
                 (None, None) => {
-                    return Err("a cookie without a domain or url is not converted".to_owned())
+                    return Err("a cookie without a domain or url is not converted".to_owned());
                 }
             };
             let mut cookie = format!(
@@ -1449,7 +1451,7 @@ impl<'s> Translator<'s> {
                             _ => {
                                 return Err(format!(
                                     "the `{key}` option of `{name}()` is not converted"
-                                ))
+                                ));
                             }
                         }
                     }
@@ -2001,7 +2003,11 @@ impl<'s> Translator<'s> {
         match name {
             "click" | "tap" => {
                 let options = args.options(0)?;
-                check_options(name, &options, &["button", "clickCount", "timeout", "delay", "noWaitAfter"])?;
+                check_options(
+                    name,
+                    &options,
+                    &["button", "clickCount", "timeout", "delay", "noWaitAfter"],
+                )?;
                 let target = self.with_timeout(locator, &options)?;
                 let button = option(&options, "button")
                     .map(|b| self.literal_text(b, "button"))
@@ -2082,7 +2088,7 @@ impl<'s> Translator<'s> {
                 let path = match args.need(0, "the file")? {
                     Expr::Array(items) if items.len() == 1 => &items[0],
                     Expr::Array(_) => {
-                        return Err("several files at once are not converted".to_owned())
+                        return Err("several files at once are not converted".to_owned());
                     }
                     other => other,
                 };
@@ -2135,11 +2141,26 @@ impl<'s> Translator<'s> {
                     Ty::OptStr,
                 ))
             }
-            "isVisible" => Ok(Ev::Value(format!("{locator}.is_visible().await?"), Ty::Bool)),
-            "isHidden" => Ok(Ev::Value(format!("!{locator}.is_visible().await?"), Ty::Bool)),
-            "isChecked" => Ok(Ev::Value(format!("{locator}.is_checked().await?"), Ty::Bool)),
-            "isEnabled" => Ok(Ev::Value(format!("{locator}.is_enabled().await?"), Ty::Bool)),
-            "isDisabled" => Ok(Ev::Value(format!("!{locator}.is_enabled().await?"), Ty::Bool)),
+            "isVisible" => Ok(Ev::Value(
+                format!("{locator}.is_visible().await?"),
+                Ty::Bool,
+            )),
+            "isHidden" => Ok(Ev::Value(
+                format!("!{locator}.is_visible().await?"),
+                Ty::Bool,
+            )),
+            "isChecked" => Ok(Ev::Value(
+                format!("{locator}.is_checked().await?"),
+                Ty::Bool,
+            )),
+            "isEnabled" => Ok(Ev::Value(
+                format!("{locator}.is_enabled().await?"),
+                Ty::Bool,
+            )),
+            "isDisabled" => Ok(Ev::Value(
+                format!("!{locator}.is_enabled().await?"),
+                Ty::Bool,
+            )),
             "count" => Ok(Ev::Value(format!("{locator}.count().await?"), Ty::Count)),
             "evaluate" => {
                 if args.pos.len() > 1 {
@@ -2172,10 +2193,10 @@ impl<'s> Translator<'s> {
                             pos: vec![&items[0]],
                             kw: Vec::new(),
                         },
-                    )
+                    );
                 }
                 Expr::Array(_) => {
-                    return Err("selecting several options is not converted".to_owned())
+                    return Err("selecting several options is not converted".to_owned());
                 }
                 Expr::Object(entries) => match entries.as_slice() {
                     [(key, value)] if matches!(key.as_str(), "value" | "label" | "index") => {
@@ -2228,10 +2249,12 @@ impl<'s> Translator<'s> {
         let body = match &func.body {
             FnBody::Expr(expr) => expr.as_ref(),
             FnBody::Block(stmts) => match stmts.as_slice() {
-                [Stmt {
-                    kind: StmtKind::Return(Some(expr)),
-                    ..
-                }] => expr,
+                [
+                    Stmt {
+                        kind: StmtKind::Return(Some(expr)),
+                        ..
+                    },
+                ] => expr,
                 _ => return Err(unsupported()),
             },
         };
@@ -2853,7 +2876,7 @@ impl<'s> Translator<'s> {
                         (_, false) => {
                             return Err(format!(
                                 "`{name}()` with a partial regular expression is not converted"
-                            ))
+                            ));
                         }
                     },
                     _ => return Err(format!("this `{name}()` value is not converted")),

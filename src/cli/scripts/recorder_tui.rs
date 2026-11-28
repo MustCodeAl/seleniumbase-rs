@@ -22,14 +22,14 @@ use std::io::{self, BufRead, Write};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, ExitStatus, Stdio};
 
+use ratatui::Frame;
 use ratatui::layout::{Alignment, Constraint, Layout, Position, Rect};
 use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Paragraph};
-use ratatui::Frame;
 
-use super::sb_recorder::{validate_file_name, MkrecOptions};
-use super::tui_kit::{self, clip, Input, Machine, TextBuffer};
+use super::sb_recorder::{MkrecOptions, validate_file_name};
+use super::tui_kit::{self, Input, Machine, TextBuffer, clip};
 use crate::common::shutdown::Shutdown;
 use crate::utils::urls::normalize_page_url;
 
@@ -405,7 +405,7 @@ impl RecorderForm {
             _ => {
                 return Err(format!(
                     "Run needs a file in tests/ or in examples/, not \"{file}\"; Replay works for any recording."
-                ))
+                ));
             }
         };
         job.env.push(("SB_BROWSER", self.browser.name()));
@@ -1686,9 +1686,11 @@ mod tests {
         let record = press(&mut app, Input::Ctrl('r'));
         assert!(matches!(record[..], [Effect::Record { .. }]));
         assert_eq!(status(&app).0, Level::Info);
-        assert!(status(&app)
-            .1
-            .starts_with("Recording with: sbrs mkrec tests/login.rs"));
+        assert!(
+            status(&app)
+                .1
+                .starts_with("Recording with: sbrs mkrec tests/login.rs")
+        );
         let run = press(&mut app, Input::Ctrl('t'));
         assert!(matches!(run[..], [Effect::Run { .. }]));
         assert_eq!(
@@ -1697,9 +1699,11 @@ mod tests {
         );
         let replay = press(&mut app, Input::Ctrl('p'));
         assert!(matches!(replay[..], [Effect::Replay { .. }]));
-        assert!(status(&app)
-            .1
-            .starts_with("Replaying with: sbrs replay recordings/login_rec.json"));
+        assert!(
+            status(&app)
+                .1
+                .starts_with("Replaying with: sbrs replay recordings/login_rec.json")
+        );
     }
 
     #[test]

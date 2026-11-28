@@ -194,10 +194,12 @@ async fn a_visit_is_recorded_as_a_har_that_reads_back() {
     );
     assert_eq!(home["_resourceType"], "document");
     assert_eq!(home["response"]["content"]["mimeType"], "text/html");
-    assert!(home["response"]["content"]["text"]
-        .as_str()
-        .unwrap()
-        .contains("<h1>Recorded</h1>"));
+    assert!(
+        home["response"]["content"]["text"]
+            .as_str()
+            .unwrap()
+            .contains("<h1>Recorded</h1>")
+    );
     assert_eq!(home["pageref"], "page_1");
     assert_eq!(home["serverIPAddress"], "127.0.0.1");
     assert!(home["startedDateTime"].as_str().unwrap().ends_with('Z'));

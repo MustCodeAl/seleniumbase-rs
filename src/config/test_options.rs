@@ -36,7 +36,7 @@
 //! ```
 
 use crate::browser::options::{LaunchSwitch, WindowSize};
-use crate::config::layers::{empty_at, flag, no_items, nothing, put, Given, Inputs};
+use crate::config::layers::{Given, Inputs, empty_at, flag, no_items, nothing, put};
 use crate::config::text::{self, OptionValue};
 use figment::value::{Dict, Value};
 use std::path::PathBuf;
@@ -1071,14 +1071,18 @@ mod tests {
         ]);
         let sources: Vec<_> = problems.iter().map(|p| p.source.as_str()).collect();
         assert_eq!(sources, ["SB_PORT", "SB_INTERVAL", "SB_TIME_LIMIT"]);
-        assert!(problems[0]
-            .error
-            .to_string()
-            .starts_with("invalid configuration: SB_PORT: "));
-        assert!(problems[2]
-            .error
-            .to_string()
-            .contains("expected a number of seconds"));
+        assert!(
+            problems[0]
+                .error
+                .to_string()
+                .starts_with("invalid configuration: SB_PORT: ")
+        );
+        assert!(
+            problems[2]
+                .error
+                .to_string()
+                .contains("expected a number of seconds")
+        );
     }
 
     #[test]
@@ -1119,14 +1123,18 @@ mod tests {
         let (settings, problems) = read_all(&[("SB_ENV", "nosuch"), ("SB_VARIABLES", "[1]")]);
         assert_eq!(settings.test.data.env(), "test");
         assert_eq!(problems.len(), 2);
-        assert!(problems[0]
-            .error
-            .to_string()
-            .contains("choose from qa, rc, staging"));
-        assert!(problems[1]
-            .error
-            .to_string()
-            .contains("Expecting a dictionary"));
+        assert!(
+            problems[0]
+                .error
+                .to_string()
+                .contains("choose from qa, rc, staging")
+        );
+        assert!(
+            problems[1]
+                .error
+                .to_string()
+                .contains("Expecting a dictionary")
+        );
     }
 
     #[test]

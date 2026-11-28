@@ -15,8 +15,8 @@ use seleniumbase_rs::json::json;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::tokio;
 use seleniumbase_rs::{BaseCase, BrowserConfig, ElementApi, Fingerprint};
-use seleniumbase_rs_playwright::rustwright::{ActionOptions, GotoOptions};
 use seleniumbase_rs_playwright::PlaywrightSidecar;
+use seleniumbase_rs_playwright::rustwright::{ActionOptions, GotoOptions};
 
 /// Serves a page on a loopback port for every path: its title and heading are the path
 /// (`/second` is the page titled `second`), and it has one input, `#name`.

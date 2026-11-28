@@ -735,7 +735,7 @@ pub(crate) fn write_preferences(
                 return Err(SeleniumBaseError::invalid_config(format!(
                     "{} is not a JSON object, so the preferences were not written into it",
                     file.display()
-                )))
+                )));
             }
         },
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Map::new(),
@@ -911,7 +911,7 @@ mod tests {
     #[cfg(feature = "plugin-shield")]
     #[test]
     fn named_plugins_come_after_the_set_given_to_plugins() {
-        use seleniumbase_rs_plugin::{async_trait, Plugin, PluginSet};
+        use seleniumbase_rs_plugin::{Plugin, PluginSet, async_trait};
 
         struct Mine;
 
@@ -933,16 +933,20 @@ mod tests {
 
     #[test]
     fn incompatible_modes_are_rejected_at_build_time() {
-        assert!(LaunchOptions::builder()
-            .incognito(true)
-            .guest(true)
-            .build()
-            .is_err());
-        assert!(LaunchOptions::builder()
-            .use_chromium(true)
-            .executable_path("/usr/bin/chromium")
-            .build()
-            .is_err());
+        assert!(
+            LaunchOptions::builder()
+                .incognito(true)
+                .guest(true)
+                .build()
+                .is_err()
+        );
+        assert!(
+            LaunchOptions::builder()
+                .use_chromium(true)
+                .executable_path("/usr/bin/chromium")
+                .build()
+                .is_err()
+        );
     }
 
     #[test]
@@ -1003,10 +1007,12 @@ mod tests {
     #[test]
     fn an_unparseable_proxy_is_rejected_at_build_time() {
         assert!(LaunchOptions::builder().proxy("").build().is_err());
-        assert!(LaunchOptions::builder()
-            .proxy("user:pass@")
-            .build()
-            .is_err());
+        assert!(
+            LaunchOptions::builder()
+                .proxy("user:pass@")
+                .build()
+                .is_err()
+        );
     }
 
     #[test]
@@ -1015,16 +1021,20 @@ mod tests {
             LaunchOptions::default().is_headless(),
             cfg!(target_os = "linux")
         );
-        assert!(LaunchOptions::builder()
-            .headless(true)
-            .build()
-            .unwrap()
-            .is_headless());
-        assert!(!LaunchOptions::builder()
-            .headless(false)
-            .build()
-            .unwrap()
-            .is_headless());
+        assert!(
+            LaunchOptions::builder()
+                .headless(true)
+                .build()
+                .unwrap()
+                .is_headless()
+        );
+        assert!(
+            !LaunchOptions::builder()
+                .headless(false)
+                .build()
+                .unwrap()
+                .is_headless()
+        );
     }
 
     #[test]
@@ -1065,12 +1075,15 @@ mod tests {
     #[test]
     fn proxy_credentials_never_reach_the_command_line() {
         let args = args_for(LaunchOptions::builder().proxy("alice:s3cret@proxy.example.com:8080"));
-        assert!(args
-            .iter()
-            .any(|a| a == "--proxy-server=proxy.example.com:8080"));
-        assert!(!args
-            .iter()
-            .any(|a| a.contains("s3cret") || a.contains("alice")));
+        assert!(
+            args.iter()
+                .any(|a| a == "--proxy-server=proxy.example.com:8080")
+        );
+        assert!(
+            !args
+                .iter()
+                .any(|a| a.contains("s3cret") || a.contains("alice"))
+        );
     }
 
     #[test]
@@ -1126,14 +1139,17 @@ mod tests {
     #[test]
     fn an_extension_turns_on_loading_it_over_the_protocol() {
         let plain = args_for(LaunchOptions::builder());
-        assert!(!plain
-            .iter()
-            .any(|a| a == "--enable-unsafe-extension-debugging"));
+        assert!(
+            !plain
+                .iter()
+                .any(|a| a == "--enable-unsafe-extension-debugging")
+        );
 
         let with = args_for(LaunchOptions::builder().extension("/opt/extensions/helper"));
-        assert!(with
-            .iter()
-            .any(|a| a == "--enable-unsafe-extension-debugging"));
+        assert!(
+            with.iter()
+                .any(|a| a == "--enable-unsafe-extension-debugging")
+        );
         assert!(
             !with.iter().any(|a| a.starts_with("--load-extension")),
             "branded Chrome ignores the switch, so the protocol loads it"

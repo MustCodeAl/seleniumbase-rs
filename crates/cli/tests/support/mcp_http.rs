@@ -10,7 +10,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::{Child, Command};
 use tokio::time::timeout;

@@ -19,12 +19,12 @@ use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::sync::{Arc, Mutex};
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::plugin_api::{
-    async_trait, Capability, Category, Metadata, NetRule, NetworkInterest, Plugin, PluginSet,
-    RequestDecision, RequestFilter, RequestView, ResponseView, Result as PluginResult,
+    Capability, Category, Metadata, NetRule, NetworkInterest, Plugin, PluginSet, RequestDecision,
+    RequestFilter, RequestView, ResponseView, Result as PluginResult, async_trait,
 };
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Response, Rule};
-use seleniumbase_rs::SeleniumBaseError;
 use serde_json::json;
 
 type Log = Arc<Mutex<Vec<String>>>;
@@ -178,11 +178,9 @@ async fn the_router_works_against_a_real_chrome() -> Result<(), SeleniumBaseErro
     // An interception of the program on the same tab answers first, and the
     // plugin's header is still added to what it lets through.
     let interception = page
-        .intercept(vec![Rule::fulfill(Response::json(
-            200,
-            &json!({"stub": true}),
-        ))
-        .url("*/stubbed")])
+        .intercept(vec![
+            Rule::fulfill(Response::json(200, &json!({"stub": true}))).url("*/stubbed"),
+        ])
         .await?;
     assert_eq!(
         fetched(&page, &format!("{site}/stubbed")).await?,

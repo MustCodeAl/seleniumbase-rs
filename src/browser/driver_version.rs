@@ -425,9 +425,11 @@ mod tests {
         assert_eq!(version_flag_major(&driver, limit).await.unwrap(), Some(155));
         let silent = stand_in(dir.path(), "silent", "exit 0");
         assert_eq!(version_flag_major(&silent, limit).await.unwrap(), None);
-        assert!(version_flag_major(&dir.path().join("missing"), limit)
-            .await
-            .is_err());
+        assert!(
+            version_flag_major(&dir.path().join("missing"), limit)
+                .await
+                .is_err()
+        );
 
         // A program that hangs is given up on, not waited for.
         let slow = stand_in(

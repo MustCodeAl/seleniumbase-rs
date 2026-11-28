@@ -1,9 +1,9 @@
 //! Writing what a session found to the output directory: a debug bundle and the
 //! session as a Rust test.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use super::{bounded, page_op, DevSession};
+use super::{DevSession, bounded, page_op};
 use crate::error::SeleniumBaseError;
 use crate::mcp::export::{current_session, export};
 use crate::mcp::support::{json_output, nonempty, write_file};

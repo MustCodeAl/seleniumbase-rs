@@ -26,8 +26,8 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 
-use super::sync::locked;
 use super::Cookie;
+use super::sync::locked;
 
 /// A browser's login state at one moment.
 #[derive(Clone, Default, PartialEq)]

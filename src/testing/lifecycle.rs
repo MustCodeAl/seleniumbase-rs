@@ -37,10 +37,10 @@ use async_trait::async_trait;
 use seleniumbase_rs_plugin::{PageHandle, PluginSet, TestInfo, TestOutcome, TestVerdict};
 use tokio::time::Instant;
 
-use super::deadline::{exceeded_message, Deadline};
+use super::deadline::{Deadline, exceeded_message};
 use super::evidence::{self, Subject};
-use crate::api::runner::{drive_with, Ended};
-use crate::artifacts::{logs_root, LATEST_LOGS_DIR};
+use crate::api::runner::{Ended, drive_with};
+use crate::artifacts::{LATEST_LOGS_DIR, logs_root};
 use crate::browser::options::LaunchSwitch;
 
 use crate::common::debug_prompt::{
@@ -281,9 +281,9 @@ impl Prompter for TerminalPrompter {
     ) -> Result<PromptOutcome> {
         let Some(mut prompt) = DebugPrompt::from_terminal() else {
             tracing::warn!(
-                    prompt = kind.label(),
-                    "debug prompt skipped: standard input is not a terminal (run with --test-threads 1 and --nocapture in a terminal to pause)"
-                );
+                prompt = kind.label(),
+                "debug prompt skipped: standard input is not a terminal (run with --test-threads 1 and --nocapture in a terminal to pause)"
+            );
             return Ok(PromptOutcome::Continue);
         };
         prompt.pause_in(kind, test_id, message, page, scene).await
@@ -655,11 +655,11 @@ impl Lifecycle<'_> {
 mod tests {
     use std::collections::HashSet;
     use std::panic::AssertUnwindSafe;
-    use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Mutex;
+    use std::sync::atomic::{AtomicU32, Ordering};
 
     use futures_util::FutureExt;
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
     use crate::config::test_settings::TestSettings;
@@ -1171,10 +1171,12 @@ mod tests {
                 Ok(())
             })
             .await;
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .ends_with("This test has exceeded the time limit of 1 second!"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .ends_with("This test has exceeded the time limit of 1 second!")
+        );
         assert_eq!(started.elapsed(), Duration::from_secs(1));
         assert_eq!(rig.events.all().last().map(String::as_str), Some("close"));
         assert!(
@@ -1224,10 +1226,12 @@ mod tests {
                 Ok(())
             })
             .await;
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .ends_with("This test has exceeded the time limit of 2 seconds!"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .ends_with("This test has exceeded the time limit of 2 seconds!")
+        );
     }
 
     #[tokio::test(start_paused = true)]
@@ -1280,10 +1284,12 @@ mod tests {
                 Ok(())
             })
             .await;
-        assert!(result
-            .unwrap_err()
-            .to_string()
-            .contains("stopped at the debug prompt"));
+        assert!(
+            result
+                .unwrap_err()
+                .to_string()
+                .contains("stopped at the debug prompt")
+        );
         assert!(!rig.events.all().contains(&"body".to_owned()));
         assert_eq!(rig.events.all().last().map(String::as_str), Some("close"));
     }
@@ -1293,10 +1299,11 @@ mod tests {
         let mut rig = Rig::new();
         rig.plan.recorder = true;
         rig.run(async |_: &mut FakeCase| Ok(())).await.unwrap();
-        assert!(rig
-            .events
-            .all()
-            .contains(&"prepare recorder=true".to_owned()));
+        assert!(
+            rig.events
+                .all()
+                .contains(&"prepare recorder=true".to_owned())
+        );
     }
 
     #[tokio::test(start_paused = true)]

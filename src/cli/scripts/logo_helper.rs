@@ -14,7 +14,7 @@
 //! assert_eq!(LOGO.lines().count(), 4);
 //! ```
 
-use super::rich_helper::{format_highlight, use_color, Stream};
+use super::rich_helper::{Stream, format_highlight, use_color};
 
 /// The banner: "SeleniumBaseRust" in ASCII art (figlet's small font), four
 /// lines of at most 78 columns.

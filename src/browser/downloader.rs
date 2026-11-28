@@ -5,17 +5,15 @@ use std::path::{Path, PathBuf};
 use reqwest::Client;
 use zip::ZipArchive;
 
-use crate::browser::download_progress::{archive_name, DownloadProgress};
-use crate::browser::driver_access::{make_runnable, CodeSignature};
+use crate::browser::download_progress::{DownloadProgress, archive_name};
+use crate::browser::driver_access::{CodeSignature, make_runnable};
 use crate::error::SeleniumBaseError;
 
 /// The Chrome for Testing listing of the newest stable build.
-const STABLE_LISTING: &str =
-    "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
+const STABLE_LISTING: &str = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
 
 /// The Chrome for Testing listing of the newest build of every milestone.
-const MILESTONE_LISTING: &str =
-    "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json";
+const MILESTONE_LISTING: &str = "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json";
 
 /// The two listings the chromedriver download reads: the published ones are [`LISTINGS`], and the
 /// tests point them at a mock server.

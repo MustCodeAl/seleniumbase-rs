@@ -571,10 +571,12 @@ mod tests {
         deferred.run_queued(&mut page).await;
         assert_eq!(deferred.pending(), 0);
         assert_eq!(deferred.failures().len(), 2);
-        assert!(deferred
-            .failures()
-            .iter()
-            .all(|failure| failure.url.as_deref() == Some("https://b.test/")));
+        assert!(
+            deferred
+                .failures()
+                .iter()
+                .all(|failure| failure.url.as_deref() == Some("https://b.test/"))
+        );
     }
 
     #[tokio::test]
@@ -684,10 +686,11 @@ mod tests {
         // The presence check holds; the exact-text and non-empty checks fail.
         assert_eq!(deferred.failures().len(), 2, "{:?}", deferred.failures());
         assert!(page.log.iter().any(|line| line.starts_with("exact text")));
-        assert!(page
-            .log
-            .iter()
-            .any(|line| line.starts_with("non-empty text")));
+        assert!(
+            page.log
+                .iter()
+                .any(|line| line.starts_with("non-empty text"))
+        );
     }
 
     #[test]

@@ -13,8 +13,8 @@ use std::sync::{Arc, Mutex};
 use base64::prelude::*;
 use seleniumbase_rs::config::test_settings::TestSettings;
 use seleniumbase_rs::plugin_api::{
-    async_trait, Capability, Category, Metadata, PageHandle, Plugin, PluginError, PluginSet,
-    Result as PluginResult, TestInfo, TestOutcome, TestVerdict,
+    Capability, Category, Metadata, PageHandle, Plugin, PluginError, PluginSet,
+    Result as PluginResult, TestInfo, TestOutcome, TestVerdict, async_trait,
 };
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, MockCtrl};
 use seleniumbase_rs::testing::SbCdp;

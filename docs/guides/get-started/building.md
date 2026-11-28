@@ -120,7 +120,7 @@ workspace layout, the checks, the real-Chrome tests and build problems), see
 
 <Visibility for="agents">
 
-Summary for AI exports: install Rust 1.100 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. Release v0.10.0 carries prebuilt archives for five platforms (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`, `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`), which `cargo binstall` and mise's `github:` backend install directly (see [Install sbrs with mise](#install-sbrs-with-mise)). The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`. With `[tool_alias] sbrs = "github:MustCodeAl/seleniumbase-rs"` in `mise.toml`, `mise ls-remote sbrs` lists the release versions and `mise use -g sbrs@0.10.0` installs `sbrs` and `sbrs-mcp` onto `PATH`; or build from source with `cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.10.0`. mise installs no completions; the archive holds them in `completions/` under `mise where sbrs`, and `sbrs completions <shell>` writes them for any install.
+Summary for AI exports: install Rust 1.100 (rustup), a C compiler and Google Chrome, then clone the repository and run `cargo build --bin sbrs` and `sbrs doctor`. Without a checkout, use `brew install mustcodeal/tap/sbrs` or `cargo install --git https://github.com/MustCodeAl/seleniumbase-rs seleniumbase-rs-cli --locked`. Release v0.11.0 carries prebuilt archives for five platforms (`aarch64-apple-darwin`, `x86_64-apple-darwin`, `aarch64-unknown-linux-gnu`, `x86_64-unknown-linux-gnu`, `x86_64-pc-windows-msvc`), which `cargo binstall` and mise's `github:` backend install directly (see [Install sbrs with mise](#install-sbrs-with-mise)). The library has no default features; the command-line package `seleniumbase-rs-cli` turns on `pdf` and `mcp-server`. With `[tool_alias] sbrs = "github:MustCodeAl/seleniumbase-rs"` in `mise.toml`, `mise ls-remote sbrs` lists the release versions and `mise use -g sbrs@0.11.0` installs `sbrs` and `sbrs-mcp` onto `PATH`; or build from source with `cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.11.0`. mise installs no completions; the archive holds them in `completions/` under `mise where sbrs`, and `sbrs completions <shell>` writes them for any install.
 
 </Visibility>
 
@@ -442,7 +442,7 @@ Then run:
 
 ```bash Terminal
 mise ls-remote sbrs
-mise use -g sbrs@0.10.0
+mise use -g sbrs@0.11.0
 ```
 
 [Install sbrs with mise](#install-sbrs-with-mise) below covers upgrades, completions, and building from a git tag with `cargo:`. The binaries moved from `seleniumbase-rs` to `seleniumbase-rs-cli` after v0.4.0; for a tag up to v0.4.0, add `features = ["mcp-server"]` to the `cargo:` entry to get `sbrs-mcp`.
@@ -490,7 +490,7 @@ Then list and install versions with `sbrs`:
 
 ```bash Terminal
 mise ls-remote sbrs
-mise use -g sbrs@0.10.0
+mise use -g sbrs@0.11.0
 sbrs --version
 sbrs-mcp --version
 ```
@@ -506,7 +506,7 @@ ARM64) or you want custom Cargo features, mise's `cargo:` backend builds
 
 ```bash Terminal
 mise use -g rust@1.100
-mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.10.0'
+mise use -g 'cargo:https://github.com/MustCodeAl/seleniumbase-rs@tag:v0.11.0'
 ```
 
 Add `features = ["tui"]` to the tool's options for the terminal UI. A git source

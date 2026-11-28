@@ -184,7 +184,7 @@ struct Os {
 #[cfg(unix)]
 impl Os {
     fn install() -> Result<Self, SeleniumBaseError> {
-        use tokio::signal::unix::{signal, SignalKind};
+        use tokio::signal::unix::{SignalKind, signal};
         let handler = |kind, name| {
             signal(kind).map_err(|e| {
                 SeleniumBaseError::Unsupported(format!("failed to install {name} handler: {e}"))
@@ -365,8 +365,8 @@ pub async fn drain_cleanups(grace: Duration) -> usize {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     use super::*;
 

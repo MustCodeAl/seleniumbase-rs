@@ -7,8 +7,8 @@ use crate::browser::config::BrowserConfig;
 use crate::browser::plugin_hooks::{self, SessionPlugins};
 use crate::error::SeleniumBaseError;
 
-use super::emulation::fingerprint_blocklist;
 use super::BrowserSession;
+use super::emulation::fingerprint_blocklist;
 
 /// Browser plugins (feature `plugins`, ADR 004); see
 /// [`BrowserConfigBuilder::plugins`](crate::BrowserConfigBuilder::plugins).

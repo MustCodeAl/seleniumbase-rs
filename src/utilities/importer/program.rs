@@ -503,7 +503,10 @@ fn pytest_decorator(decorator: &Expr) -> Result<Option<String>, String> {
         }
         (
             "pytest",
-            ["mark", mark @ ("skipif" | "xfail" | "parametrize" | "usefixtures" | "flaky")],
+            [
+                "mark",
+                mark @ ("skipif" | "xfail" | "parametrize" | "usefixtures" | "flaky"),
+            ],
         ) => Err(format!("the pytest.mark.{mark} decorator is not converted")),
         ("pytest", ["mark", ..]) => Ok(None),
         _ => Err("a decorator that is not converted".to_owned()),

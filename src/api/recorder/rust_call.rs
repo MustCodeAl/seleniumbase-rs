@@ -14,13 +14,13 @@
 //! reason the generators write after `// skipped:`; the replay counts it as
 //! skipped or as a failed step.
 
-use crate::api::base_case::BaseCase;
 use crate::SeleniumBaseError;
+use crate::api::base_case::BaseCase;
 
-use super::command::{CommandError, RecordedCommand, ALIASES, CALLABLE_NAMES};
+use super::command::{ALIASES, CALLABLE_NAMES, CommandError, RecordedCommand};
 use super::{
-    literal, recorded_secret, revealed, text_argument, RecordedAction, ReplayReport, ReplayStep,
-    SECRET_PLACEHOLDER,
+    RecordedAction, ReplayReport, ReplayStep, SECRET_PLACEHOLDER, literal, recorded_secret,
+    revealed, text_argument,
 };
 
 /// The known action closest to a mistyped `name`, if one is a small edit away.
@@ -728,10 +728,10 @@ pub(super) async fn replay(
 
 #[cfg(test)]
 mod tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
-    use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply};
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply, element};
     use crate::api::recorder::RecorderSession;
     use crate::browser::config::BrowserConfig;
 

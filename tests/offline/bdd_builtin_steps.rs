@@ -19,12 +19,12 @@ use std::sync::{Arc, Mutex};
 
 use base64::prelude::*;
 use rstest::fixture;
-use rstest_bdd::{find_step, StepKeyword};
+use rstest_bdd::{StepKeyword, find_step};
 use rstest_bdd_macros::{scenario, then};
-use seleniumbase_rs::testing::bdd::steps::{builtin_steps, link, matching_actions};
-use seleniumbase_rs::testing::bdd::SbCase;
 use seleniumbase_rs::Settings;
-use serde_json::{json, Value};
+use seleniumbase_rs::testing::bdd::SbCase;
+use seleniumbase_rs::testing::bdd::steps::{builtin_steps, link, matching_actions};
+use serde_json::{Value, json};
 
 /// The key W3C WebDriver gives an element reference.
 const ELEMENT_KEY: &str = "element-6066-11e4-a52e-4f735466cecf";
@@ -367,7 +367,7 @@ fn sample(wording: &str) -> String {
             "option" => "text",
             "attribute" => "class",
             other => {
-                return sample(&wording.replace(&format!("{{{other}}}"), &format!("x-{other}")))
+                return sample(&wording.replace(&format!("{{{other}}}"), &format!("x-{other}")));
             }
         });
         rest = &rest[close + 1..];

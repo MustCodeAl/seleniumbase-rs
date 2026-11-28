@@ -27,9 +27,9 @@
 
 mod local_site;
 
-use local_site::{ensure, Site};
+use local_site::{Site, ensure};
 use seleniumbase_rs::{
-    run_browser_test, tokio, BaseCase, BrowserConfig, Result, SeleniumBaseError,
+    BaseCase, BrowserConfig, Result, SeleniumBaseError, run_browser_test, tokio,
 };
 
 /// The base32 form of the ASCII key `12345678901234567890`, the shared secret

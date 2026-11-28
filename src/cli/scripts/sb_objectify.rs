@@ -55,8 +55,8 @@ mod lexer;
 mod model;
 mod scan;
 pub use api::{
-    extract_objects, extract_text, inject_objects, inject_text, objectify, objects_path,
-    revert_objects, revert_text, ExtractReport, Extraction, Rewrite, RewriteReport,
+    ExtractReport, Extraction, Rewrite, RewriteReport, extract_objects, extract_text,
+    inject_objects, inject_text, objectify, objects_path, revert_objects, revert_text,
 };
 
 /// The name of the page objects file, which sits in the folder of the test file.

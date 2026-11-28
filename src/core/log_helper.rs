@@ -451,11 +451,7 @@ impl OldFiles {
     /// settings are read.
     #[must_use]
     pub const fn archive_if(archive: bool) -> Self {
-        if archive {
-            Self::Archive
-        } else {
-            Self::Clear
-        }
+        if archive { Self::Archive } else { Self::Clear }
     }
 }
 
@@ -832,13 +828,17 @@ mod tests {
         let dir = root.path().join("latest_logs").join("a.b");
         let info_path = log_test_failure_data(&dir, &info()).unwrap();
         assert_eq!(info_path, dir.join("basic_test_info.txt"));
-        assert!(fs::read_to_string(&info_path)
-            .unwrap()
-            .starts_with("login_chrome::tests::test_login\r\n"));
+        assert!(
+            fs::read_to_string(&info_path)
+                .unwrap()
+                .starts_with("login_chrome::tests::test_login\r\n")
+        );
         let skip = log_skipped_test_data(&dir, &info(), "no browser here").unwrap();
-        assert!(fs::read_to_string(skip)
-            .unwrap()
-            .ends_with("Skip Reason: no browser here\r\n"));
+        assert!(
+            fs::read_to_string(skip)
+                .unwrap()
+                .ends_with("Skip Reason: no browser here\r\n")
+        );
         let shot = log_screenshot(&dir, b"\x89PNG\r\n\x1a\n").unwrap();
         assert_eq!(fs::read(shot).unwrap(), b"\x89PNG\r\n\x1a\n");
     }
@@ -908,12 +908,14 @@ mod tests {
             .unwrap()
             .unwrap();
         assert!(archived.parent().unwrap().ends_with(ARCHIVED_LOGS_DIR));
-        assert!(archived
-            .file_name()
-            .unwrap()
-            .to_str()
-            .unwrap()
-            .starts_with("logs_"));
+        assert!(
+            archived
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap()
+                .starts_with("logs_")
+        );
         assert!(archived.join("old/screenshot.png").is_file());
         assert_eq!(
             fs::read_dir(root.path().join(LATEST_LOGS_DIR))

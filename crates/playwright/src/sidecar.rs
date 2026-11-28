@@ -15,12 +15,12 @@
 use std::fmt;
 use std::time::Duration;
 
-use rustwright::{chromium, Browser, ConnectOptions, Error as RwError, Page};
+use rustwright::{Browser, ConnectOptions, Error as RwError, Page, chromium};
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::sb_cdp::DevToolsEndpoint;
 use seleniumbase_rs::tokio;
-use seleniumbase_rs::SeleniumBaseError;
 
-use crate::target::{attachment_of, PlaywrightTarget, TabHints};
+use crate::target::{PlaywrightTarget, TabHints, attachment_of};
 
 /// A [`rustwright`] client attached to a running Chromium, on one tab.
 ///

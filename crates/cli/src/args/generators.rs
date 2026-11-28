@@ -271,13 +271,15 @@ mod tests {
         for refused in &refused {
             assert!(refused.check().is_err(), "{refused:?}");
         }
-        assert!(MkfileArgs {
-            rec: true,
-            syntax: Some(SyntaxFlag::Bc),
-            ..args("t")
-        }
-        .check()
-        .is_ok());
+        assert!(
+            MkfileArgs {
+                rec: true,
+                syntax: Some(SyntaxFlag::Bc),
+                ..args("t")
+            }
+            .check()
+            .is_ok()
+        );
     }
 
     #[test]

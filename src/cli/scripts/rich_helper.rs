@@ -40,7 +40,7 @@ use std::io::IsTerminal;
 
 use crate::error::SeleniumBaseError;
 
-use crate::common::color::{palette, Color, Style};
+use crate::common::color::{Color, Style, palette};
 
 /// The `hint:` label of an error report: bold cyan.
 const HINT_LABEL: Style = Style::PLAIN.fg(Color::Cyan).bold();
@@ -395,8 +395,11 @@ mod tests {
 
         let report = format_error_report(&error, true);
 
-        assert!(report
-            .starts_with("\x1b[31;1merror:\x1b[0m assertion failed: title was \u{fffd}[2Jowned"));
+        assert!(
+            report.starts_with(
+                "\x1b[31;1merror:\x1b[0m assertion failed: title was \u{fffd}[2Jowned"
+            )
+        );
         assert!(report.contains("\x1b[36;1mhint:\x1b[0m "), "{report:?}");
         assert_eq!(report.matches('\x1b').count(), 4, "{report:?}");
     }

@@ -358,10 +358,12 @@ mod tests {
         .await;
 
         assert!(report.failures.iter().any(|failure| failure == problem));
-        assert!(report
-            .failures
-            .iter()
-            .any(|failure| failure.contains("network down")));
+        assert!(
+            report
+                .failures
+                .iter()
+                .any(|failure| failure.contains("network down"))
+        );
     }
 
     #[tokio::test]

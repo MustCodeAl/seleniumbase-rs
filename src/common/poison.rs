@@ -32,7 +32,7 @@ pub(crate) fn into_inner<T>(mutex: Mutex<T>) -> T {
 
 #[cfg(test)]
 mod tests {
-    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::panic::{AssertUnwindSafe, catch_unwind};
     use std::sync::Mutex;
 
     use super::{into_inner, locked};

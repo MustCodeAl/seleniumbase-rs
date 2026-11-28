@@ -1,6 +1,6 @@
 [package]
 name = "sbrs-desktop"
-version = "0.10.0"
+version = "0.11.0"
 edition = "2024"
 rust-version = "1.100"
 license = "MIT"
@@ -16,14 +16,13 @@ name = "sbrs_desktop_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
-tauri-build = { version = "=3.0.0-alpha.3", features = [] }
+tauri-build = { version = "=3.0.0-alpha.4", features = [] }
 
 [dependencies]
-tauri = { version = "=3.0.0-alpha.4", features = ["unstable"] }
-tauri-runtime-wry = "=3.0.0-alpha.4"
-tauri-plugin-opener = "=3.0.0-alpha.2"
+tauri = { version = "=3.0.0-alpha.6", features = ["unstable"] }
+tauri-runtime-wry = "=3.0.0-alpha.6"
+tauri-plugin-opener = "=3.0.0-alpha.3"
 serde = { version = "1", features = ["derive"] }
-serde_json = "1"
 thiserror = "2"
 tokio = { version = "1.53", features = ["rt-multi-thread", "process", "io-util", "sync", "fs", "macros"] }
 base64 = "0.22"

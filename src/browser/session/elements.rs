@@ -313,10 +313,10 @@ impl BrowserSession {
 /// WebDriver in `webdriver_support`.
 #[cfg(test)]
 mod tests {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     use super::*;
-    use crate::api::base_case::webdriver_support::{element, MockWebDriver, Reply, Seen};
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply, Seen, element};
     use crate::browser::config::BrowserConfig;
     use crate::utils::selectors::SelectorRef;
 

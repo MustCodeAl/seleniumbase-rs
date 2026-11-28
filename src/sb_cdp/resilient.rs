@@ -4,8 +4,8 @@
 //! in order of priority. The first candidate that successfully resolves is cached
 //! for subsequent actions, and selector drift is logged via `tracing::warn!`.
 
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 use super::{Locator, Page};
 use crate::error::SeleniumBaseError;

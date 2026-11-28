@@ -1,7 +1,7 @@
 //! What a window of a session is told over DevTools after it opens: the ad
 //! hosts it refuses and the phone it pretends to be.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use crate::browser::config::BrowserConfig;
 use crate::browser::devtools::CdpClient;
@@ -288,6 +288,7 @@ pub(super) fn launch_emulation_commands(config: &BrowserConfig) -> Vec<(&'static
 mod ad_block_tests {
     use serde_json::json;
 
+    use super::test_support::{config_for, devtools_commands};
     use super::*;
     use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
     use crate::browser::config::Browser;
@@ -317,35 +318,18 @@ mod ad_block_tests {
         ])
     }
 
-    /// A session on `driver` that starts no driver of its own.
-    fn config_for(driver: &MockWebDriver) -> BrowserConfig {
-        let mut config = BrowserConfig::builder()
-            .webdriver_url(driver.url())
-            .build()
-            .expect("a valid config");
-        config.session.auto_start_driver = false;
-        config
-    }
-
     /// A WebDriver that answers every command, DevTools commands included.
     fn driver() -> MockWebDriver {
         MockWebDriver::start(json!({}), |_| Reply::Value(json!({})))
     }
 
-    /// The bodies of the DevTools commands the driver was sent, oldest first.
-    fn devtools_commands(driver: &MockWebDriver) -> Vec<Value> {
-        driver
-            .requests("/goog/cdp/execute")
-            .into_iter()
-            .map(|request| request.body)
-            .collect()
-    }
-
     #[test]
     fn nothing_is_sent_while_ad_blocking_is_off() {
-        assert!(ad_block_commands(&BrowserConfig::default())
-            .unwrap()
-            .is_empty());
+        assert!(
+            ad_block_commands(&BrowserConfig::default())
+                .unwrap()
+                .is_empty()
+        );
 
         // A list that is set but not asked for blocks nothing.
         let mut config = BrowserConfig::builder()
@@ -637,13 +621,14 @@ mod ad_block_tests {
 }
 
 #[cfg(test)]
-mod mobile_tests {
-    use super::*;
-    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
-    use crate::browser::config::{Browser, DriverMode};
-    use crate::browser::options::{DeviceMetrics, MOBILE_USER_AGENT};
+mod test_support {
+    use serde_json::Value;
 
-    fn config_for(driver: &MockWebDriver) -> BrowserConfig {
+    use super::BrowserConfig;
+    use crate::api::base_case::webdriver_support::MockWebDriver;
+
+    /// A session on `driver` that starts no driver of its own.
+    pub(super) fn config_for(driver: &MockWebDriver) -> BrowserConfig {
         let mut config = BrowserConfig::builder()
             .webdriver_url(driver.url())
             .build()
@@ -651,6 +636,24 @@ mod mobile_tests {
         config.session.auto_start_driver = false;
         config
     }
+
+    /// The bodies of the DevTools commands the driver was sent, oldest first.
+    pub(super) fn devtools_commands(driver: &MockWebDriver) -> Vec<Value> {
+        driver
+            .requests("/goog/cdp/execute")
+            .into_iter()
+            .map(|request| request.body)
+            .collect()
+    }
+}
+
+#[cfg(test)]
+mod mobile_tests {
+    use super::test_support::{config_for, devtools_commands};
+    use super::*;
+    use crate::api::base_case::webdriver_support::{MockWebDriver, Reply};
+    use crate::browser::config::{Browser, DriverMode};
+    use crate::browser::options::{DeviceMetrics, MOBILE_USER_AGENT};
 
     /// A WebDriver that answers every command, opens windows and switches to
     /// them.
@@ -662,14 +665,6 @@ mod mobile_tests {
                 _ => Reply::Value(json!({})),
             }
         })
-    }
-
-    fn devtools_commands(driver: &MockWebDriver) -> Vec<Value> {
-        driver
-            .requests("/goog/cdp/execute")
-            .into_iter()
-            .map(|request| request.body)
-            .collect()
     }
 
     fn names(commands: &[Value]) -> Vec<&str> {
@@ -686,13 +681,15 @@ mod mobile_tests {
             .build()
             .expect("a valid config");
         assert!(mobile_commands(&mobile).is_empty());
-        assert!(mobile_commands(
-            &BrowserConfig::builder()
-                .mode(DriverMode::Uc)
-                .build()
-                .expect("a valid config")
-        )
-        .is_empty());
+        assert!(
+            mobile_commands(
+                &BrowserConfig::builder()
+                    .mode(DriverMode::Uc)
+                    .build()
+                    .expect("a valid config")
+            )
+            .is_empty()
+        );
 
         let uc = mobile
             .clone()

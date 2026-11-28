@@ -9,7 +9,7 @@ use super::mcp_http_support as support;
 
 use reqwest::StatusCode;
 use serde_json::json;
-use support::{run_to_exit, Mcp, Server};
+use support::{Mcp, Server, run_to_exit};
 
 const TOKEN: &str = "an-environment-token-for-the-tests";
 

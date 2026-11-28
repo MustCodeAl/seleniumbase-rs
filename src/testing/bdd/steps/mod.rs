@@ -64,7 +64,7 @@
 use std::path::Path;
 use std::sync::LazyLock;
 
-use rstest_bdd::{extract_placeholders, StepPattern};
+use rstest_bdd::{StepPattern, extract_placeholders};
 
 #[cfg(doc)]
 use super::SbCase;

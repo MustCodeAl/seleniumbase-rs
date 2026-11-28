@@ -2,7 +2,7 @@
 //! options (`parity/api.toml`): an option the manifest lists and the table does
 //! not spell would be a flag `sbrs test` cannot take and a variable no run reads.
 
-use seleniumbase_rs::config::test_options::{find_option, OptionKind, TEST_OPTIONS};
+use seleniumbase_rs::config::test_options::{OptionKind, TEST_OPTIONS, find_option};
 
 /// Rows of the table that have no entry in `options_pytest` or `options_sb`: the pytest and
 /// plugin options (`--pdb`, `--reruns`, `--html`, `--junit-xml`, `--alluredir`), the options only `sbrs` has (`--runner`) and the

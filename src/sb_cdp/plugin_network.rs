@@ -58,7 +58,7 @@ use seleniumbase_rs_plugin::{
     ContextId, NetworkInterest, Outcome as ResponseOutcome, PageId, PluginSet, RequestDecision,
     RequestFilter, RequestView, ResourceKind, ResponseView,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use tokio::task::JoinHandle;
 
 use super::browser::Browser;

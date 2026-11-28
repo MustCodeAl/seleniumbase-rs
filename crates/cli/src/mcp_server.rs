@@ -52,8 +52,8 @@ use std::str::FromStr;
 use seleniumbase_rs::cli::plugin_cmd::PluginChoice;
 
 use seleniumbase_rs::config::env_vars;
-use seleniumbase_rs::mcp::{self, HttpOptions, Profile, DEFAULT_LISTEN, TOKEN_VAR};
-use seleniumbase_rs::{init_tracing_from_runtime, RuntimeConfig, SeleniumBaseError};
+use seleniumbase_rs::mcp::{self, DEFAULT_LISTEN, HttpOptions, Profile, TOKEN_VAR};
+use seleniumbase_rs::{RuntimeConfig, SeleniumBaseError, init_tracing_from_runtime};
 
 // The sources name the parser crate `usage`; the dependency is `usage-rs`, which is the name
 // the derives of usage 7 write their code against (see its entry in `Cargo.toml`).
@@ -484,7 +484,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[cfg(test)]
 mod tests {
-    use seleniumbase_rs::config::env_vars::{flag_variable, EXTRA_VARIABLES};
+    use seleniumbase_rs::config::env_vars::{EXTRA_VARIABLES, flag_variable};
 
     use super::*;
 

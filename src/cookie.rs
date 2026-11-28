@@ -13,7 +13,7 @@ use std::fmt;
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use thirtyfour::cookie::{Cookie as WebDriverCookie, SameSite as WebDriverSameSite};
 
 /// The `SameSite` attribute of a cookie.

@@ -58,18 +58,18 @@ mod stealth;
 
 pub use failure::FailureReport;
 pub use host::{
-    Closeable, Ctx, Host, Session, Settings, SettingsBuilder, Started, OUTPUT_DIR_VAR,
+    Closeable, Ctx, Host, OUTPUT_DIR_VAR, Session, Settings, SettingsBuilder, Started,
     UNTRUSTED_META_KEY, UNTRUSTED_NOTICE,
 };
 pub use http::{
-    generate_token, serve_http, HttpOptions, HttpOptionsBuilder, HttpServer, DEFAULT_IDLE,
-    DEFAULT_LISTEN, DEFAULT_MAX_SESSIONS, DEFAULT_PATH, TOKEN_VAR,
+    DEFAULT_IDLE, DEFAULT_LISTEN, DEFAULT_MAX_SESSIONS, DEFAULT_PATH, HttpOptions,
+    HttpOptionsBuilder, HttpServer, TOKEN_VAR, generate_token, serve_http,
 };
 pub use progress::{Progress, ProgressSink, ProgressUpdate};
 pub use prompts::{PromptArg, PromptDef, Render};
 pub use resources::{
-    ResourceBody, ResourceDef, ResourceError, ResourceFuture, JOURNAL_URI, MAX_OUTPUT_BYTES,
-    OUTPUT_TEMPLATE, PAGE_SNAPSHOT_URI, PAGE_TEXT_URI, SESSION_URI,
+    JOURNAL_URI, MAX_OUTPUT_BYTES, OUTPUT_TEMPLATE, PAGE_SNAPSHOT_URI, PAGE_TEXT_URI, ResourceBody,
+    ResourceDef, ResourceError, ResourceFuture, SESSION_URI,
 };
 pub use schema::{Prop, Schema};
 pub use tool::{Args, Effect, Output, ToolDef, ToolError, ToolFuture};
@@ -78,12 +78,12 @@ use std::time::Duration;
 
 use rmcp::serve_server;
 use rmcp::service::{QuitReason, RoleServer};
-use rmcp::transport::io::stdio;
 use rmcp::transport::IntoTransport;
+use rmcp::transport::io::stdio;
 use tracing::{info, warn};
 
 use crate::common::shutdown::{
-    cleanup_within, drain_cleanups, timeout_from_env, Outcome, Shutdown,
+    Outcome, Shutdown, cleanup_within, drain_cleanups, timeout_from_env,
 };
 use crate::error::SeleniumBaseError;
 
@@ -237,8 +237,8 @@ async fn close_browser<S: Closeable>(host: &Host<S>, grace: Duration) {
 #[cfg(test)]
 mod tests {
     use std::future::pending;
-    use std::sync::atomic::{AtomicBool, Ordering};
     use std::sync::Arc;
+    use std::sync::atomic::{AtomicBool, Ordering};
 
     use tokio::io::{AsyncReadExt, AsyncWriteExt, DuplexStream};
 
@@ -442,9 +442,11 @@ mod tests {
                 .await;
                 let missing: serde_json::Value =
                     serde_json::from_str(&read_line(&mut client).await).unwrap();
-                assert!(missing["error"]["message"]
-                    .as_str()
-                    .is_some_and(|message| message.starts_with("unknown tool: click_element")));
+                assert!(
+                    missing["error"]["message"]
+                        .as_str()
+                        .is_some_and(|message| message.starts_with("unknown tool: click_element"))
+                );
                 drop(client);
             }
         );

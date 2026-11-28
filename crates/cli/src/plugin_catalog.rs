@@ -17,11 +17,11 @@
 
 use std::ffi::OsString;
 
-use usage::complete::{render, CompletionRequest};
+use usage::complete::{CompletionRequest, render};
 use usage_dynamic::{Catalog, Outcome, Spec, SpecArgBuilder, SpecCommandBuilder, SpecFlagBuilder};
 
-use crate::runtime_values;
 use crate::Cli;
+use crate::runtime_values;
 
 /// The command the catalog's commands go under: `sbrs plugin`.
 pub(crate) const PARENT: &str = "plugin";

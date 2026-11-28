@@ -2,7 +2,7 @@
 //! examples with Cargo.
 
 use std::{
-    io::{self, stdout, Stdout},
+    io::{self, Stdout, stdout},
     path::{Path, PathBuf},
     process::{Command, Output},
     time::Duration,
@@ -13,15 +13,15 @@ use crossterm::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEventKind, KeyModifiers,
     },
     execute,
-    terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{
+    Terminal,
     backend::CrosstermBackend,
     layout::{Alignment, Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::Text,
     widgets::{Block, Borders, Clear, List, ListItem, ListState, Paragraph, Wrap},
-    Terminal,
 };
 
 const POPUP_TAIL_LINES: usize = 20;

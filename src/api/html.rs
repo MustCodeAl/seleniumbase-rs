@@ -279,13 +279,17 @@ mod tests {
             "one"
         );
         // Parsed as a document, the snippet is wrapped in html and body.
-        assert!(BeautifulSoup::parse(snippet)
-            .find("body")
-            .unwrap()
-            .is_some());
-        assert!(BeautifulSoup::parse_fragment(snippet)
-            .find("body")
-            .unwrap()
-            .is_none());
+        assert!(
+            BeautifulSoup::parse(snippet)
+                .find("body")
+                .unwrap()
+                .is_some()
+        );
+        assert!(
+            BeautifulSoup::parse_fragment(snippet)
+                .find("body")
+                .unwrap()
+                .is_none()
+        );
     }
 }

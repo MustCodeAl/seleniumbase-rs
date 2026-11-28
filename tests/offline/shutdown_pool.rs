@@ -9,9 +9,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
-use seleniumbase_rs::common::shutdown::{cleanup_within, Outcome, Shutdown, Signal};
-use seleniumbase_rs::sb_cdp::{Browser, BrowserPool, PoolOptions};
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::common::shutdown::{Outcome, Shutdown, Signal, cleanup_within};
+use seleniumbase_rs::sb_cdp::{Browser, BrowserPool, PoolOptions};
 use serde_json::json;
 
 /// Every browser the pool has launched.

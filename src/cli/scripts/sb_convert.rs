@@ -15,7 +15,7 @@ use std::path::{Path, PathBuf};
 use crate::cli::scaffold::rust_fn_name;
 use crate::error::SeleniumBaseError;
 use crate::utilities::python_importer::{
-    import_python, ImportDiagnostic, ImportOptions, PythonSource,
+    ImportDiagnostic, ImportOptions, PythonSource, import_python,
 };
 
 /// What [`convert`] does when the file it writes exists already.

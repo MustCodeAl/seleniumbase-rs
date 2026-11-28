@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 
 use super::host::Ctx;
 use super::schema::Schema;
-use crate::error::{closest_match, SeleniumBaseError};
+use crate::error::{SeleniumBaseError, closest_match};
 use crate::utils::selectors::Selector;
 
 /// The longest wait or pause a single call may ask for, in seconds.
@@ -759,9 +759,11 @@ mod tests {
         assert_eq!(Output::Json(json!("plain")).render(), "plain");
         assert_eq!(Output::Text("t".into()).render(), "t");
         assert_eq!(Output::Json(json!(true)).render(), "true");
-        assert!(Output::Json(json!({ "a": 1 }))
-            .render()
-            .contains("\n  \"a\": 1"));
+        assert!(
+            Output::Json(json!({ "a": 1 }))
+                .render()
+                .contains("\n  \"a\": 1")
+        );
     }
 
     #[test]

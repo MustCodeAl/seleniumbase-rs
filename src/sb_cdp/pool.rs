@@ -46,8 +46,8 @@
 use std::fmt;
 
 use std::pin::Pin;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::{Mutex, Notify, OwnedSemaphorePermit, Semaphore};

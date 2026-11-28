@@ -161,7 +161,7 @@ One unified extension trait per engine covers direct injection, capture, and com
 | `seleniumbase_rs::evasion::options::StealthOptions` | `seleniumbase_rs::browser::options::StealthOptions` |
 | `seleniumbase_rs::{Fingerprint, Spoof, StealthPolicy, OsType}` | `seleniumbase_rs_stealth::identity::{Fingerprint, Spoof, StealthPolicy, OsType}` |
 | `seleniumbase_rs::profile_payloads::ProfileParams` | `seleniumbase_rs_stealth::identity::profile_payloads::ProfileParams` |
-| `seleniumbase_rs::sb_cdp::StealthPlan` | `seleniumbase_rs_stealth::client::StealthPlan` (also re-exported at crate root) |
+| `seleniumbase_rs::sb_cdp::StealthPlan` | `seleniumbase_rs_stealth::client::StealthPlan` |
 | `LaunchOptions::builder().fingerprint(&fp).build()?` | `LaunchOptions::builder().build()?.with_fingerprint(&fp)?` (`LaunchOptionsFingerprintExt`) |
-| `page.apply_fingerprint(&fp)` / `page.capture_fingerprint()` | Import `PageFingerprintExt` from `seleniumbase_rs_stealth` or `seleniumbase_rs_stealth::client` |
+| `page.apply_fingerprint(&fp)` / `page.capture_fingerprint()` | Import `PageFingerprintExt` from `seleniumbase_rs_stealth::client` |
 | `seleniumbase_rs::fingerprint!(windows)` | `seleniumbase_rs_stealth::fingerprint!(windows)` |

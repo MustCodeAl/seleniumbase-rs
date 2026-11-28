@@ -29,8 +29,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use base64::Engine as _;
-use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 use seleniumbase_rs::SeleniumBaseError;
+use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, Page};
 
 const INDEX: &str = include_str!("../fixtures/frames/index.html");
 const FRAME: &str = include_str!("../fixtures/frames/frame.html");
@@ -288,12 +288,14 @@ async fn a_frame_inside_a_frame_of_another_site_is_entered() {
     nested.locator("#field").type_text("deep").await.unwrap();
     assert_eq!(nested.locator("#field").text().await.unwrap(), "deep");
     // The frame between the page and the inner one is untouched.
-    assert!(!page
-        .locator("iframe#nested")
-        .locator("#log")
-        .exists()
-        .await
-        .unwrap());
+    assert!(
+        !page
+            .locator("iframe#nested")
+            .locator("#log")
+            .exists()
+            .await
+            .unwrap()
+    );
     browser.close().await.unwrap();
 }
 

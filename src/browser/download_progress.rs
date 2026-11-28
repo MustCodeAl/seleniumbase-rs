@@ -131,7 +131,7 @@ mod tests {
 
     use indicatif::{ProgressDrawTarget, TermLike};
 
-    use super::{archive_name, DownloadProgress};
+    use super::{DownloadProgress, archive_name};
 
     /// Records whatever a bar would print. A quiet bar must leave it empty.
     #[derive(Debug)]

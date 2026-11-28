@@ -17,7 +17,7 @@
 use crate::error::SeleniumBaseError;
 use rand::RngExt;
 use regex::bytes::Regex;
-use ring::digest::{digest, SHA256};
+use ring::digest::{SHA256, digest};
 use std::collections::hash_map::DefaultHasher;
 use std::fmt;
 use std::fmt::Write as _;
@@ -2106,13 +2106,17 @@ mod advanced_patcher_tests {
         assert!(bundle.executable.exists());
         let comp = bundle.companion.expect("macOS framework companion found");
         assert!(comp.exists());
-        assert!(!BinaryMarkerReport::inspect(&comp)
-            .unwrap()
-            .has_any_markers());
+        assert!(
+            !BinaryMarkerReport::inspect(&comp)
+                .unwrap()
+                .has_any_markers()
+        );
         // Source files remain untouched.
-        assert!(BinaryMarkerReport::inspect(&framework)
-            .unwrap()
-            .has_any_markers());
+        assert!(
+            BinaryMarkerReport::inspect(&framework)
+                .unwrap()
+                .has_any_markers()
+        );
 
         // Windows versioned chrome.dll sibling layout is also discovered.
         let win_dir = dir.path().join("win");

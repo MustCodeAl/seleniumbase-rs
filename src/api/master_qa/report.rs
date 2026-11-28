@@ -422,7 +422,9 @@ mod tests {
             "\n\n*** MasterQA Manual Test Results: ***\nSUCCESS: Everything checks out OKAY!\n"
         );
         let none = Counts::default();
-        assert!(results_text(&none, false).ends_with("WARNING: No manual checks were performed!\n"));
+        assert!(
+            results_text(&none, false).ends_with("WARNING: No manual checks were performed!\n")
+        );
 
         let bad = Counts {
             answered: 2,

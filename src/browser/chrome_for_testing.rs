@@ -22,23 +22,21 @@ use reqwest::Client;
 use serde_json::Value;
 
 use crate::browser::binaries::{
-    downloaded_executable, find_executable, CHROME_FOR_TESTING_DIR, CHROME_HEADLESS_SHELL_DIR,
-    DOWNLOADS_DIR,
+    CHROME_FOR_TESTING_DIR, CHROME_HEADLESS_SHELL_DIR, DOWNLOADS_DIR, downloaded_executable,
+    find_executable,
 };
 use crate::browser::config::Browser;
-use crate::browser::download_progress::{archive_name, DownloadProgress};
+use crate::browser::download_progress::{DownloadProgress, archive_name};
 use crate::browser::downloader::platform_label;
-use crate::browser::driver_access::{make_runnable, CodeSignature};
+use crate::browser::driver_access::{CodeSignature, make_runnable};
 use crate::browser::options::{DriverVersion, ReleaseChannel};
 use crate::error::SeleniumBaseError;
 
 /// The listing of the newest build of every release channel.
-const LAST_KNOWN_GOOD: &str =
-    "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
+const LAST_KNOWN_GOOD: &str = "https://googlechromelabs.github.io/chrome-for-testing/last-known-good-versions-with-downloads.json";
 
 /// The listing of the newest build of every Chrome major version.
-const MILESTONE_LISTING: &str =
-    "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json";
+const MILESTONE_LISTING: &str = "https://googlechromelabs.github.io/chrome-for-testing/latest-versions-per-milestone-with-downloads.json";
 
 /// Where every published build lives, by version and platform.
 const STORAGE_ROOT: &str = "https://storage.googleapis.com/chrome-for-testing-public";
@@ -662,7 +660,7 @@ pub(crate) async fn install_browser_from(
         other => {
             return Err(SeleniumBaseError::Unsupported(format!(
                 "Chrome for Testing does not publish {other}"
-            )))
+            )));
         }
     };
     if *version == DriverVersion::MatchBrowser {

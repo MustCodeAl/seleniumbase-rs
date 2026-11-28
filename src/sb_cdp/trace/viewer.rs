@@ -9,7 +9,7 @@
 //! an empty `sandbox`.
 
 use base64::Engine as _;
-use ring::digest::{digest, SHA256};
+use ring::digest::{SHA256, digest};
 use serde_json::Value;
 
 use crate::error::SeleniumBaseError;

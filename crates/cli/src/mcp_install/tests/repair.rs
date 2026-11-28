@@ -7,12 +7,12 @@ use std::path::{Path, PathBuf};
 
 use serde_json::{Map, Value};
 
-use super::{read, Outcome, Sandbox};
+use super::{Outcome, Sandbox, read};
 use crate::mcp_install::apply::Scope;
 use crate::mcp_install::client::Client;
 use crate::mcp_install::entry::LaunchSpec;
 use crate::mcp_install::fsx::backup_path;
-use crate::mcp_install::repair::{examine, repair, Finding, Issue, RepairRequest};
+use crate::mcp_install::repair::{Finding, Issue, RepairRequest, examine, repair};
 
 /// Makes a file that stands for a program; `executable` sets its mode bits on Unix.
 pub(super) fn program(path: &Path, executable: bool) {

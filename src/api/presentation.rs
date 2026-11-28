@@ -42,7 +42,7 @@
 //! assert_eq!(html.matches("<section").count(), 2);
 //! ```
 
-use crate::api::chart::{html_escape, CHART_JS_TAG};
+use crate::api::chart::{CHART_JS_TAG, html_escape};
 use crate::artifacts::bare_file_name;
 use crate::error::SeleniumBaseError;
 use std::fmt::{self, Write as _};
@@ -844,9 +844,11 @@ mod tests {
             )
             .unwrap();
         assert_eq!(path, folder.join("my_presentation.html"));
-        assert!(fs::read_to_string(&path)
-            .unwrap()
-            .contains("<h1>Saved</h1>"));
+        assert!(
+            fs::read_to_string(&path)
+                .unwrap()
+                .contains("<h1>Saved</h1>")
+        );
     }
 
     #[test]
@@ -903,9 +905,11 @@ mod tests {
                 EndMarker::Add,
             )
             .unwrap();
-        assert!(fs::read_to_string(path)
-            .unwrap()
-            .contains("End_Presentation_Now"));
+        assert!(
+            fs::read_to_string(path)
+                .unwrap()
+                .contains("End_Presentation_Now")
+        );
     }
 
     #[test]
@@ -919,21 +923,25 @@ mod tests {
                 .save_in(dir.path(), &name, SpeakerNotes::Shown, Duration::ZERO)
                 .unwrap();
             assert_eq!(path, dir.path().join(&name));
-            assert!(fs::read_to_string(path)
-                .unwrap()
-                .contains("showNotes: true"));
+            assert!(
+                fs::read_to_string(path)
+                    .unwrap()
+                    .contains("showNotes: true")
+            );
         }
         let hidden = deck().to_html(SpeakerNotes::Hidden, Duration::ZERO, EndMarker::Omit);
         assert!(hidden.contains("showNotes: false"));
         assert!(!hidden.contains("End_Presentation_Now"));
-        assert!(deck()
-            .save_in(
-                dir.path(),
-                Path::new("sub/c.html"),
-                SpeakerNotes::Hidden,
-                Duration::ZERO
-            )
-            .is_err());
+        assert!(
+            deck()
+                .save_in(
+                    dir.path(),
+                    Path::new("sub/c.html"),
+                    SpeakerNotes::Hidden,
+                    Duration::ZERO
+                )
+                .is_err()
+        );
     }
 
     #[test]

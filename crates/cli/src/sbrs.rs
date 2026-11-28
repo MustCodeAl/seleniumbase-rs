@@ -5,17 +5,17 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use seleniumbase_rs::api::recorder::{RecordedAction, RecorderSession};
-use seleniumbase_rs::api::scenario::{run_scenario, write_dashboard, Scenario};
+use seleniumbase_rs::api::scenario::{Scenario, run_scenario, write_dashboard};
 use seleniumbase_rs::artifacts::{artifact_path, ensure_latest_logs_dir};
 use seleniumbase_rs::browser::driver_version::binary_major;
 #[cfg(feature = "pdf")]
 use seleniumbase_rs::cli::commands::looks_like_pdf;
 use seleniumbase_rs::cli::commands::{
-    blank_file_input_page, download_file_name, format_deferred_summary, html_data_url,
-    parse_deferred_spec_json, parse_deferred_specs, DeferredResult, DeferredSpec,
+    DeferredResult, DeferredSpec, blank_file_input_page, download_file_name,
+    format_deferred_summary, html_data_url, parse_deferred_spec_json, parse_deferred_specs,
 };
 use seleniumbase_rs::cli::devtools::{
-    ensure_port_is_free, ready_message, DevtoolsRequest, DEFAULT_DEVTOOLS_PORT,
+    DEFAULT_DEVTOOLS_PORT, DevtoolsRequest, ensure_port_is_free, ready_message,
 };
 use seleniumbase_rs::cli::plugin_cmd::{self, PluginChoice};
 use seleniumbase_rs::cli::prompt;
@@ -23,25 +23,25 @@ use seleniumbase_rs::cli::scaffold::{Scaffold, ScaffoldError};
 use seleniumbase_rs::cli::scripts::*;
 use seleniumbase_rs::common::encryption::{decrypt_with_passphrase, encrypt_with_passphrase};
 use seleniumbase_rs::common::shutdown::{
-    cleanup_within, drain_cleanups, run_until_shutdown, timeout_from_env, Outcome, Shutdown,
+    Outcome, Shutdown, cleanup_within, drain_cleanups, run_until_shutdown, timeout_from_env,
 };
 use seleniumbase_rs::config::plugins::PluginSelection;
 use seleniumbase_rs::config::proxy_list::ProxyList;
 use seleniumbase_rs::config::settings::{
-    Settings, SettingsOverrides, FINGERPRINT_ENV, START_PAGE_ENV,
+    FINGERPRINT_ENV, START_PAGE_ENV, Settings, SettingsOverrides,
 };
 use seleniumbase_rs::resources::assets;
 use seleniumbase_rs::undetected::patcher::find_system_chrome;
-use seleniumbase_rs::utilities::grid_server::{default_state_dir, GridRole};
+use seleniumbase_rs::utilities::grid_server::{GridRole, default_state_dir};
 use seleniumbase_rs::utilities::importer::{
-    import_playwright, import_puppeteer, ScriptImportOptions, ScriptLanguage,
+    ScriptImportOptions, ScriptLanguage, import_playwright, import_puppeteer,
 };
 use seleniumbase_rs::{
-    import_python, init_tracing_from_runtime, BaseCase, Browser, ChromeBinaryPatcher,
-    ChromedriverPatcher, DriverMode, ImportOptions, ImportSeverity, PatchPreset, PythonSource,
-    RuntimeConfig,
+    BaseCase, Browser, ChromeBinaryPatcher, ChromedriverPatcher, DriverMode, ImportOptions,
+    ImportSeverity, PatchPreset, PythonSource, RuntimeConfig, import_python,
+    init_tracing_from_runtime,
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 // The sources name the parser crate `usage`; the dependency is `usage-rs`, which is the name
 // the derives of usage 7 write their code against (see its entry in `Cargo.toml`).
@@ -2522,7 +2522,12 @@ fn check_page_arguments(
         ));
     }
     if command.changes_profile() && user_data_dir.is_none() {
-        return Err(ArgumentError::new(&name, format!("{name} changes the profile, which a fresh browser throws away; add --user-data-dir DIR")));
+        return Err(ArgumentError::new(
+            &name,
+            format!(
+                "{name} changes the profile, which a fresh browser throws away; add --user-data-dir DIR"
+            ),
+        ));
     }
     Ok(())
 }
@@ -5561,9 +5566,11 @@ mod plugin_cli_tests {
         };
         assert_eq!(show.folder, PathBuf::from("traces/run"));
         assert!(show.print);
-        assert!(!parse(&["sbrs", "trace", "show", "traces/run"])
-            .command
-            .launches_browser());
+        assert!(
+            !parse(&["sbrs", "trace", "show", "traces/run"])
+                .command
+                .launches_browser()
+        );
         for argv in [&["sbrs", "trace"][..], &["sbrs", "trace", "show"]] {
             assert!(try_parse(argv).is_err(), "{argv:?} was accepted");
         }

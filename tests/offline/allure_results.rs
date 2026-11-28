@@ -15,7 +15,7 @@ use seleniumbase_rs::core::log_helper::TestId;
 use seleniumbase_rs::core::test_run::{ReportSettings, RunKey, RunSink, TestRun};
 use seleniumbase_rs::plugins::observer::PageEvidence;
 use seleniumbase_rs::{Result, SeleniumBaseError};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 const PNG: &[u8] = b"\x89PNG\r\n\x1a\nfake";
 const NOW: i64 = 1_700_000_000_000;
@@ -138,10 +138,12 @@ async fn a_passing_a_failing_and_a_skipped_test_each_get_a_result() {
     );
     let trace = failed["statusDetails"]["trace"].as_str().unwrap();
     assert!(trace.contains("the title is not Home"), "trace: {trace}");
-    assert!(failed["description"]
-        .as_str()
-        .unwrap()
-        .contains("https://example.com/login"));
+    assert!(
+        failed["description"]
+            .as_str()
+            .unwrap()
+            .contains("https://example.com/login")
+    );
     assert_eq!(
         failed["parameters"],
         json!([

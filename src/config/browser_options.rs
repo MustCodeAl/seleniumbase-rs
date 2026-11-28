@@ -36,7 +36,7 @@ use serde_json::{Map, Value};
 #[cfg(test)]
 use crate::config::settings::Settings;
 use crate::config::test_options::{
-    find_option, written_paths, OptionKind, OptionSpec, TEST_OPTIONS,
+    OptionKind, OptionSpec, TEST_OPTIONS, find_option, written_paths,
 };
 use crate::error::SeleniumBaseError;
 
@@ -549,11 +549,7 @@ fn sets_key(row: &OptionSpec) -> &'static str {
 }
 
 fn variable_cell(row: &OptionSpec) -> &'static str {
-    if row.env.is_empty() {
-        "-"
-    } else {
-        row.env
-    }
+    if row.env.is_empty() { "-" } else { row.env }
 }
 
 /// The options as a text table: the flag, the `SB_*` variable, the key of the settings
@@ -728,12 +724,16 @@ mod tests {
         }
         assert!(keys > 80, "only {keys} rows have a flat key");
         // A shorthand has none, and a setting of the test run has its table only.
-        assert!(find_option("--chrome")
-            .and_then(OptionSpec::flat_key)
-            .is_none());
-        assert!(find_option("--pdb")
-            .and_then(OptionSpec::flat_key)
-            .is_none());
+        assert!(
+            find_option("--chrome")
+                .and_then(OptionSpec::flat_key)
+                .is_none()
+        );
+        assert!(
+            find_option("--pdb")
+                .and_then(OptionSpec::flat_key)
+                .is_none()
+        );
     }
 
     #[test]

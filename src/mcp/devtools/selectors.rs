@@ -1,8 +1,8 @@
 //! Understanding the page and finding selectors that work.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
-use super::{bounded, page_op, selector_prop, tagged, DevSession};
+use super::{DevSession, bounded, page_op, selector_prop, tagged};
 use crate::error::selector_advice;
 use crate::mcp::support::nonempty;
 use crate::mcp::{Args, Ctx, Effect, Output, Prop, Schema, ToolDef, ToolError};
@@ -300,34 +300,42 @@ mod tests {
     #[test]
     fn the_verdict_names_the_first_reason_a_selector_cannot_be_used() {
         let verdict_of = |report: Value| verdict(&report);
-        assert!(verdict_of(
-            json!({ "syntax_error": "'a[' is not a valid selector", "matches": 0 })
-        )
-        .starts_with("The browser cannot parse this selector"));
-        assert!(verdict_of(json!({
-            "matches": 0,
-            "frames": [{ "frame": "iframe#pay", "matches": 1 }],
-        }))
-        .contains("inside the frame \"iframe#pay\""));
-        assert!(verdict_of(json!({
-            "matches": 0, "frames": [], "shadow_roots": [],
-            "near_misses": [{ "kind": "id", "found": "submit-btn", "try": "#submit-btn" }],
-        }))
-        .contains("try \"#submit-btn\""));
-        assert!(verdict_of(json!({
-            "matches": 2, "visible_matches": 0,
-            "elements": [{ "display": "none", "visibility": "visible", "opacity": 1 }],
-        }))
-        .contains("display: none"));
+        assert!(
+            verdict_of(json!({ "syntax_error": "'a[' is not a valid selector", "matches": 0 }))
+                .starts_with("The browser cannot parse this selector")
+        );
+        assert!(
+            verdict_of(json!({
+                "matches": 0,
+                "frames": [{ "frame": "iframe#pay", "matches": 1 }],
+            }))
+            .contains("inside the frame \"iframe#pay\"")
+        );
+        assert!(
+            verdict_of(json!({
+                "matches": 0, "frames": [], "shadow_roots": [],
+                "near_misses": [{ "kind": "id", "found": "submit-btn", "try": "#submit-btn" }],
+            }))
+            .contains("try \"#submit-btn\"")
+        );
+        assert!(
+            verdict_of(json!({
+                "matches": 2, "visible_matches": 0,
+                "elements": [{ "display": "none", "visibility": "visible", "opacity": 1 }],
+            }))
+            .contains("display: none")
+        );
         assert!(verdict_of(json!({
             "matches": 1, "visible_matches": 1,
             "elements": [{ "enabled": true, "covered_by": "div.cookie-banner", "in_viewport": true }],
         }))
         .contains("covered by div.cookie-banner"));
-        assert!(verdict_of(json!({
-            "matches": 1, "visible_matches": 1,
-            "elements": [{ "enabled": true, "in_viewport": true }],
-        }))
-        .starts_with("The selector works"));
+        assert!(
+            verdict_of(json!({
+                "matches": 1, "visible_matches": 1,
+                "elements": [{ "enabled": true, "in_viewport": true }],
+            }))
+            .starts_with("The selector works")
+        );
     }
 }

@@ -4,7 +4,7 @@
 use std::sync::Mutex;
 
 #[cfg(feature = "plugins")]
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::Cdp;
 #[cfg(feature = "plugins")]

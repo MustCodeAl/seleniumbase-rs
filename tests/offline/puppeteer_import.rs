@@ -12,7 +12,7 @@ use import_fixtures::{
     cargo, module_name, options, printed, read_fixture, scratch_dir, write_crate,
 };
 use seleniumbase_rs::utilities::importer::{
-    import_puppeteer, ImportSeverity, ScriptImport, ScriptLanguage,
+    ImportSeverity, ScriptImport, ScriptLanguage, import_puppeteer,
 };
 
 /// Each fixture, its language, and what its deliberate `TODO`s mention.

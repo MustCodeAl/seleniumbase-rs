@@ -10,9 +10,9 @@
 
 use std::time::Duration;
 
-use seleniumbase_rs::sb_cdp::{Browser, Call, MockCtrl, Page, TagSource};
 use seleniumbase_rs::SeleniumBaseError;
-use serde_json::{json, Value};
+use seleniumbase_rs::sb_cdp::{Browser, Call, MockCtrl, Page, TagSource};
+use serde_json::{Value, json};
 
 /// The first tab of a mocked browser.
 async fn page() -> (Page, MockCtrl) {

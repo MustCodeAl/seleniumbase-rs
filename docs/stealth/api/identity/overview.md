@@ -87,15 +87,12 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 
 | Module | What it holds | Deep reference |
 |---|---|---|
-| `identity::fingerprint` | Core v2 `Fingerprint`, `FingerprintBuilder`, `FingerprintError`, `CoherenceReport`, `OsType`, `BrowserType`, `ClientHints`, `BrandVersion`, JSON file I/O, comparison/consistency diagnostics, JSON Schema (`schemas/fingerprint.schema.json`), plus submodules `profile`, `generator`, and `bayesian`. | [Fingerprint API](/stealth/api/identity/fingerprint) |
-| `identity::fingerprint::spoof` | Five-state `Spoof<T>` enum (`Natural`, `Random`, `Value(T)`, `Off`, `Mimic(Specimen)`). | [Fingerprints](/stealth/identity/fingerprints) |
-| `identity::fingerprint::policy` | `StealthPolicy` (`default`, `native_only`, `balanced`, `max`), `CanvasNoise`, `AudioNoise`. | [Policies & levels](/stealth/identity/policies) |
-| `identity::fingerprint::settings` | Typed dimension models: `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `MediaFeatures`, `ColorGamut`, `ColorScheme`, `DynamicRange` (`HdrMode`), `KeyboardLayout`, `PointerType`, `HoverType`, `QuicMode`, `WebRtcPolicy`. | [Fingerprints](/stealth/identity/fingerprints) |
-| `identity::fingerprint::mimic` | Recorded browser and hardware specimens (`Specimen`, `Build`, `Machine`, `Place`, `Rendering`, `Provenance`). | [Signal & hardware spoofing](/stealth/advanced/identity/signal-spoofing) |
-| `identity::fingerprint::randomize` | Deterministic persona synthesis tables (`KNOWN_FULL_VERSIONS`, `PRESET_CHROMIUM_MAJOR`, `edge_hints`, weighted OS/GPU/locale generators). | [Fingerprints](/stealth/identity/fingerprints) |
-| `identity::profile_payloads` | `ProfileParams` external JSON profile loader (`to_fingerprint()`, `to_browser_config(url)`, `browser()`). | [Identities and profiles](/stealth/identity/profiles) |
-| `identity::capture` | `CapturedFingerprint`, `ProbeInfo`, `capture_expression()`, `capture_async_script()`, and `contradictions()` self-consistency analysis. | [Fingerprints](/stealth/identity/fingerprints#consistency) |
-| `identity::js` | Shared JavaScript helper builders used by identity capture and client masking. | [Evasion providers](/stealth/advanced/client/providers) |
+| `identity::fingerprint` | Core v2 `Fingerprint`, `FingerprintBuilder`, `FingerprintError`, `CoherenceReport`, `OsType`, `BrowserType`, `ClientHints`, `BrandVersion`, JSON file I/O, JSON Schema (`schemas/fingerprint.schema.json`). | [Fingerprint API](/stealth/api/identity/fingerprint) |
+| `identity::fingerprint::{spoof, policy, settings}` | Five-state `Spoof<T>` enum, `StealthPolicy` (`default`, `native_only`, `balanced`, `max`), `CanvasNoise`, `AudioNoise`, and typed dimension settings (`ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `MediaFeatures`, `ColorGamut`, `ColorScheme`, `DynamicRange`, `KeyboardLayout`, `QuicMode`, `WebRtcPolicy`). | [Spoof, policy & settings](/stealth/api/identity/spoof-policy) |
+| `identity::fingerprint::{mimic, randomize}` | Recorded browser/hardware specimens (`Specimen`, `Build`, `Machine`, `Place`, `Rendering`, `Provenance`) and deterministic synthesis tables (`KNOWN_FULL_VERSIONS`, `edge_hints`, `chromium_hints`). | [Mimic & randomize](/stealth/api/identity/mimic-randomize) |
+| `identity::fingerprint::{profile, generator, bayesian, compare, consistency}` | `ProfileFingerprint`, `FingerprintGenerator`, `FingerprintOptions`, `BayesianSampler`, `HeaderGenerator`, `FingerprintConverter`, `audit_coherence`, `FingerprintComparison`, and `Contradiction`. | [Generators & Bayesian](/stealth/api/identity/generator-bayesian) |
+| `identity::profile_payloads` & `identity::capture` | `ProfileParams` external JSON profile loader, `CapturedFingerprint`, `ProbeInfo`, `capture_expression()`, `capture_async_script()`, and `contradictions()`. | [Payloads & capture](/stealth/api/identity/profile-payloads-capture) |
+| `identity::js` | Shared JavaScript helper builders (`CAPTURE_JS`) used by identity capture and client masking. | [Evasion providers](/stealth/advanced/client/providers) |
 
 ## Re-exports at `seleniumbase_rs_stealth::identity`
 

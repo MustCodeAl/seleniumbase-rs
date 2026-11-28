@@ -1080,7 +1080,7 @@ impl SeleniumBaseError {
                 "The results or profile database could not be read or \
                  written. Check its path (--db or SB_REPORT_DB), that no other program holds it \
                  open, and the free disk space."
-                .to_owned()
+                    .to_owned()
             }
             Self::Plugin { plugin, .. } => plugin_hint(plugin),
             Self::Context { source, .. } => source
@@ -1146,24 +1146,24 @@ pub(crate) fn selector_advice(selector: &str) -> Option<String> {
                 "css" => {
                     return Some(format!(
                         "Drop the `css=` prefix: a plain selector is read as CSS (`{rest}`)."
-                    ))
+                    ));
                 }
                 "xpath" => {
                     return Some(format!(
                         "Drop the `xpath=` prefix: a selector starting with // is read as XPath \
                          (`{rest}`)."
-                    ))
+                    ));
                 }
                 "id" => {
                     return Some(format!(
                         "`id=` is not a selector strategy here; write `#{rest}` instead."
-                    ))
+                    ));
                 }
                 "name" => {
                     return Some(format!(
                         "`name=` is not a selector strategy here; write `[name=\"{rest}\"]` \
                          instead."
-                    ))
+                    ));
                 }
                 _ => {}
             }
@@ -1173,7 +1173,7 @@ pub(crate) fn selector_advice(selector: &str) -> Option<String> {
             }
         }
     }
-    use crate::utils::selectors::{is_xpath_selector, SelectorRef};
+    use crate::utils::selectors::{SelectorRef, is_xpath_selector};
     // Link text is plain text: brackets and quotes in it mean nothing.
     if !matches!(
         SelectorRef::auto(trimmed),
@@ -1915,24 +1915,30 @@ mod tests {
     #[test]
     fn hints_follow_what_the_backend_said() {
         let hint = |error: SeleniumBaseError| error.hint().unwrap();
-        assert!(hint(SeleniumBaseError::cdp_driver(
-            "Execution context was destroyed"
-        ))
-        .contains("navigated away"));
-        assert!(hint(SeleniumBaseError::cdp_driver(
-            "ReferenceError: x is not defined"
-        ))
-        .contains("script threw"));
+        assert!(
+            hint(SeleniumBaseError::cdp_driver(
+                "Execution context was destroyed"
+            ))
+            .contains("navigated away")
+        );
+        assert!(
+            hint(SeleniumBaseError::cdp_driver(
+                "ReferenceError: x is not defined"
+            ))
+            .contains("script threw")
+        );
         assert!(
             hint(SeleniumBaseError::network("https://a.test", 403, "no")).contains("credentials")
         );
         assert!(
             hint(SeleniumBaseError::network("https://a.test", 503, "no")).contains("Server error")
         );
-        assert!(hint(SeleniumBaseError::Io(std::io::Error::from(
-            std::io::ErrorKind::NotFound
-        )))
-        .contains("does not exist"));
+        assert!(
+            hint(SeleniumBaseError::Io(std::io::Error::from(
+                std::io::ErrorKind::NotFound
+            )))
+            .contains("does not exist")
+        );
     }
 
     #[test]
@@ -2049,9 +2055,11 @@ mod tests {
             }
             other => panic!("{other}"),
         }
-        assert!(std::error::Error::source(&error)
-            .expect("the plugin error")
-            .downcast_ref::<PluginError>()
-            .is_some());
+        assert!(
+            std::error::Error::source(&error)
+                .expect("the plugin error")
+                .downcast_ref::<PluginError>()
+                .is_some()
+        );
     }
 }

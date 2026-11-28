@@ -5,7 +5,7 @@
 //! this crate does not do what the Python call does; `parity/examples.toml`
 //! lists them all.
 
-use seleniumbase_rs::{run_browser_test, Result};
+use seleniumbase_rs::{Result, run_browser_test};
 
 use super::support::{headless, run_port};
 

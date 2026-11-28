@@ -11,12 +11,12 @@
 
 use std::fs;
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::core::report_helper::TestStatus;
 use seleniumbase_rs::core::test_run::{ReportSettings, RunKey, TestRun};
 use seleniumbase_rs::plugins::observer::Plugins;
 use seleniumbase_rs::plugins::reports::RunReporterPlugin;
 use seleniumbase_rs::sb_cdp::{LaunchOptions, Page};
-use seleniumbase_rs::SeleniumBaseError;
 
 const PAGE: &str = "data:text/html,<html><head><title>Shop</title></head><body>hello</body></html>";
 

@@ -23,7 +23,7 @@
 
 use std::path::{Path, PathBuf};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 use thirtyfour::Capabilities;
 
 use crate::browser::config::Browser;

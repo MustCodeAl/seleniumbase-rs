@@ -13,7 +13,7 @@ use rstest::rstest;
 use seleniumbase_rs::config::test_settings::{TestData, TestSettings};
 use seleniumbase_rs::core::test_run::ReportSettings;
 use seleniumbase_rs::sb_cdp::Browser;
-use seleniumbase_rs::testing::{sb_cdp, SbCdp};
+use seleniumbase_rs::testing::{SbCdp, sb_cdp};
 use seleniumbase_rs::{Result, SeleniumBaseError, Settings};
 use serde_json::json;
 

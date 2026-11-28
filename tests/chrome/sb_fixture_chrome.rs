@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use rstest::rstest;
 use seleniumbase_rs::config::test_settings::TestData;
-use seleniumbase_rs::testing::{sb, sb_cdp, Sb, SbCdp};
+use seleniumbase_rs::testing::{Sb, SbCdp, sb, sb_cdp};
 use seleniumbase_rs::{Result, SeleniumBaseError, Settings};
 
 const PAGE: &str = "data:text/html,<title>Fixture</title><h1>Hello</h1>";
@@ -66,9 +66,11 @@ async fn a_failing_cdp_test_leaves_the_three_files_of_the_page_it_ended_on() {
     );
     let png = std::fs::read(folder.join("screenshot.png")).unwrap();
     assert!(png.starts_with(b"\x89PNG"), "a real screenshot");
-    assert!(std::fs::read_to_string(folder.join("page_source.html"))
-        .unwrap()
-        .contains("<h1>Hello</h1>"));
+    assert!(
+        std::fs::read_to_string(folder.join("page_source.html"))
+            .unwrap()
+            .contains("<h1>Hello</h1>")
+    );
     let info = std::fs::read_to_string(folder.join("basic_test_info.txt")).unwrap();
     assert!(info.contains("Last Page: data:text/html"), "{info}");
     assert!(

@@ -1,6 +1,6 @@
 //! Unit tests for human typing timing, Bézier mouse movements, and BaseCase human actions.
 
-use seleniumbase_rs::sb_cdp::human::humanize::{bezier_mouse_path, keystroke_delays, Point};
+use seleniumbase_rs::sb_cdp::human::humanize::{Point, bezier_mouse_path, keystroke_delays};
 
 #[test]
 fn keystroke_delays_within_human_pace_range() {

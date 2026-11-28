@@ -22,7 +22,7 @@ pub(super) use exports::is_test_name;
 
 use std::time::Duration;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 use super::failure::shorten;
 use super::host::ProbeFuture;
@@ -187,7 +187,7 @@ pub(super) fn probe<S: DevSession>(ctx: Ctx<S>, selector: Option<String>) -> Pro
             Err(error) => {
                 return Some(
                     json!({ "unavailable": format!("the page could not be read: {error}") }),
-                )
+                );
             }
         };
         if let Ok(errors) = session.page_errors().await {

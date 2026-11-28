@@ -7,7 +7,7 @@
 use seleniumbase_rs::api::runner::run_cdp_test;
 use seleniumbase_rs::browser::options::WindowSize;
 use seleniumbase_rs::sb_cdp::{LaunchOptions, Page};
-use seleniumbase_rs::{run_browser_test, BaseCase, BrowserConfig, Result, SeleniumBaseError};
+use seleniumbase_rs::{BaseCase, BrowserConfig, Result, SeleniumBaseError, run_browser_test};
 
 /// The WebDriver engine (`BaseCase`), headless.
 pub fn headless() -> BrowserConfig {

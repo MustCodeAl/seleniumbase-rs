@@ -20,7 +20,7 @@ use std::net::{TcpListener, TcpStream};
 use std::time::Duration;
 
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions, State};
-use seleniumbase_rs::{run_browser_test, BrowserConfig, Result};
+use seleniumbase_rs::{BrowserConfig, Result, run_browser_test};
 
 const PAGE: &str = include_str!("../fixtures/shadow_dom.html");
 
@@ -276,15 +276,17 @@ async fn the_shadow_helpers_wait_with_the_timeout_of_the_case() -> Result<()> {
         // And they give up when the timeout is out.
         sb.set_timeout(1).await?;
         let started = std::time::Instant::now();
-        assert!(sb
-            .assert_shadow_text("Never", "app-shell::shadow #status")
-            .await
-            .is_err());
+        assert!(
+            sb.assert_shadow_text("Never", "app-shell::shadow #status")
+                .await
+                .is_err()
+        );
         assert!(started.elapsed() >= Duration::from_millis(900));
-        assert!(sb
-            .assert_shadow_element("app-shell::shadow #nope")
-            .await
-            .is_err());
+        assert!(
+            sb.assert_shadow_element("app-shell::shadow #nope")
+                .await
+                .is_err()
+        );
         Ok(())
     })
     .await

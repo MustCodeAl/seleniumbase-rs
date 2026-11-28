@@ -49,13 +49,13 @@ use std::fs;
 use std::io::{self, IsTerminal, Write};
 use std::path::PathBuf;
 
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::cli::plugin_cmd::check_selection;
 use seleniumbase_rs::config::plugins::PluginSelection;
-use seleniumbase_rs::SeleniumBaseError;
 
 pub use args::{ClientsArgs, InstallArgs, RepairArgs, UninstallArgs, UpgradeArgs};
-pub use repair::{repair, RepairRequest};
-pub use upgrade::{upgrade, UpgradeRequest};
+pub use repair::{RepairRequest, repair};
+pub use upgrade::{UpgradeRequest, upgrade};
 
 /// One of the commands of this module, as `mcp_cmd::Command` hands it over.
 #[derive(Debug)]
@@ -72,11 +72,11 @@ pub enum Action {
     Upgrade(UpgradeArgs),
 }
 
-use apply::{perform, registered, Job, Scope, Task};
+use apply::{Job, Scope, Task, perform, registered};
 use client::Client;
-use entry::{names, plan, Only, PlanInput};
-use env::{absolute, registration_binary, Env};
-use report::{exit_code, ClientReport};
+use entry::{Only, PlanInput, names, plan};
+use env::{Env, absolute, registration_binary};
+use report::{ClientReport, exit_code};
 
 /// What `install` was asked for.
 #[derive(Clone, Debug)]
@@ -607,11 +607,7 @@ pub fn clients(
 }
 
 fn found(exists: bool) -> &'static str {
-    if exists {
-        "found"
-    } else {
-        "not found"
-    }
+    if exists { "found" } else { "not found" }
 }
 
 fn write_client(

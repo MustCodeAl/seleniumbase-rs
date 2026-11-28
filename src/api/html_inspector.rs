@@ -802,14 +802,18 @@ mod tests {
             </main></body></html>
         "#;
         let result = HtmlInspector::inspect(html).unwrap();
-        assert!(result
-            .issues
-            .iter()
-            .any(|issue| issue.rule == "form-control-label"));
-        assert!(result
-            .issues
-            .iter()
-            .any(|issue| issue.rule == "duplicate-id"));
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|issue| issue.rule == "form-control-label")
+        );
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|issue| issue.rule == "duplicate-id")
+        );
     }
 
     #[test]
@@ -834,10 +838,12 @@ mod tests {
             </main></body></html>
         "#;
         let result = HtmlInspector::inspect(html).unwrap();
-        assert!(!result
-            .issues
-            .iter()
-            .any(|issue| issue.rule == "heading-order"));
+        assert!(
+            !result
+                .issues
+                .iter()
+                .any(|issue| issue.rule == "heading-order")
+        );
         assert!(result.issues.iter().any(|issue| issue.rule == "page-h1"));
     }
 
@@ -851,14 +857,18 @@ mod tests {
             </main></body></html>
         "#;
         let result = HtmlInspector::inspect(html).unwrap();
-        assert!(result
-            .issues
-            .iter()
-            .any(|issue| issue.rule == "invalid-aria-reference"));
-        assert!(result
-            .issues
-            .iter()
-            .any(|issue| issue.rule == "nested-interactive"));
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|issue| issue.rule == "invalid-aria-reference")
+        );
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|issue| issue.rule == "nested-interactive")
+        );
     }
 
     #[test]
@@ -872,10 +882,12 @@ mod tests {
         "#;
         let result = HtmlInspector::inspect(html).unwrap();
         assert!(result.issues.iter().any(|issue| issue.rule == "link-text"));
-        assert!(result
-            .issues
-            .iter()
-            .any(|issue| issue.rule == "table-headers"));
+        assert!(
+            result
+                .issues
+                .iter()
+                .any(|issue| issue.rule == "table-headers")
+        );
     }
 
     #[test]
@@ -1100,8 +1112,10 @@ mod tests {
                 .unwrap();
         assert!(found.is_clean(), "{:?}", found.issues);
         // A generic accessible name is still generic.
-        assert!(rules(&page(r#"<a href="/x" aria-label="read more"></a>"#))
-            .contains(&"link-text".to_owned()));
+        assert!(
+            rules(&page(r#"<a href="/x" aria-label="read more"></a>"#))
+                .contains(&"link-text".to_owned())
+        );
     }
 
     #[test]

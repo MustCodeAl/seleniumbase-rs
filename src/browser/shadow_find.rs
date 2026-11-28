@@ -18,14 +18,14 @@
 use std::sync::Arc;
 
 use http::Method;
+use thirtyfour::RequestData;
 use thirtyfour::common::command::FormatRequestData;
 use thirtyfour::common::command::Selector as WireSelector;
 use thirtyfour::common::types::SessionId;
 use thirtyfour::error::WebDriverError;
 use thirtyfour::prelude::{By, WebDriver, WebElement};
-use thirtyfour::RequestData;
 
-use crate::error::{driver_kind, DriverErrorKind, SeleniumBaseError};
+use crate::error::{DriverErrorKind, SeleniumBaseError, driver_kind};
 use crate::utils::selectors::{Selector, SelectorRef};
 use crate::utils::shadow::{is_shadow_selector, shadow_chain};
 
@@ -209,13 +209,17 @@ mod tests {
         assert_eq!(cut.unwrap(), ["app", ".form", "input"]);
 
         assert!(pieces(&By::Css("div > a")).unwrap().is_none());
-        assert!(pieces(&By::XPath("//a/parent::shadow-host"))
-            .unwrap()
-            .is_none());
+        assert!(
+            pieces(&By::XPath("//a/parent::shadow-host"))
+                .unwrap()
+                .is_none()
+        );
         assert!(pieces(&By::LinkText("a ::shadow b")).unwrap().is_none());
-        assert!(pieces(&By::PartialLinkText("a ::shadow b"))
-            .unwrap()
-            .is_none());
+        assert!(
+            pieces(&By::PartialLinkText("a ::shadow b"))
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]

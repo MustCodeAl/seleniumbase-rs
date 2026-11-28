@@ -138,7 +138,9 @@ fn install_offers_the_drivers_and_then_the_versions() {
     assert_eq!(complete("sbrs install gecko"), ["geckodriver"]);
     assert_eq!(
         complete("sbrs install chromedriver "),
-        ["beta", "browser", "canary", "dev", "keep", "latest", "mlatest", "previous", "stable"]
+        [
+            "beta", "browser", "canary", "dev", "keep", "latest", "mlatest", "previous", "stable"
+        ]
     );
     assert_eq!(complete("sbrs install chromedriver sta"), ["stable"]);
 }

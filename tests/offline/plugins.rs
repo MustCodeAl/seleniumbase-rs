@@ -7,11 +7,11 @@ use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use async_trait::async_trait;
+use seleniumbase_rs::SeleniumBaseError;
 use seleniumbase_rs::plugins::observer::{PageEvidence, Plugins, TestPlugin};
 use seleniumbase_rs::plugins::page_source::PageSourceOnFailurePlugin;
 use seleniumbase_rs::plugins::reports::ReportPlugin;
 use seleniumbase_rs::plugins::screen_shots::ScreenshotOnFailurePlugin;
-use seleniumbase_rs::SeleniumBaseError;
 
 /// A page that returns canned evidence, or fails to.
 struct FakePage {
@@ -390,10 +390,12 @@ async fn the_json_report_is_complete_after_every_test() {
     );
     assert!((rows[0]["duration_secs"].as_f64().unwrap() - 1.5).abs() < 1e-9);
     assert_eq!(rows[1]["status"], "failed");
-    assert!(rows[1]["message"]
-        .as_str()
-        .unwrap()
-        .contains("expected 'a'"));
+    assert!(
+        rows[1]["message"]
+            .as_str()
+            .unwrap()
+            .contains("expected 'a'")
+    );
 }
 
 #[tokio::test]

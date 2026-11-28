@@ -14,9 +14,9 @@ use std::sync::{LazyLock, Mutex};
 use base64::prelude::*;
 use rstest::fixture;
 use rstest_bdd_macros::{given, scenario, then, when};
+use seleniumbase_rs::Settings;
 use seleniumbase_rs::sb_cdp::Browser;
 use seleniumbase_rs::testing::bdd::SbCdpCase;
-use seleniumbase_rs::Settings;
 use serde_json::json;
 
 const PNG: &[u8] = b"\x89PNG-from-the-mock";

@@ -18,7 +18,7 @@
 //! It needs no browser and no network. The modern `.side` JSON format is not
 //! supported.
 
-use seleniumbase_rs::utilities::selenium_ide::{parse_ide_file, parse_ide_html, IdeCommand};
+use seleniumbase_rs::utilities::selenium_ide::{IdeCommand, parse_ide_file, parse_ide_html};
 
 /// A test case as Selenium IDE writes it: a title row, entities in the cells,
 /// and a cell that spans two lines.

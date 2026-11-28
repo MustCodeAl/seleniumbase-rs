@@ -32,11 +32,11 @@ use std::path::{Path, PathBuf};
 use figment::value::{Dict, Map, Value};
 use figment::{Metadata, Profile, Provider};
 
-use crate::config::browser_options::{canonical_entries, ArgList, FileEntries};
+use crate::config::browser_options::{ArgList, FileEntries, canonical_entries};
 use crate::config::env_vars::row_of;
-use crate::config::layers::{describe, extract, merge_into, Given, Layer, Refused};
+use crate::config::layers::{Given, Layer, Refused, describe, extract, merge_into};
 use crate::config::settings::{Settings, SettingsProblem};
-use crate::config::test_options::{read_variables, OptionSpec, Variables, TEST_OPTIONS};
+use crate::config::test_options::{OptionSpec, TEST_OPTIONS, Variables, read_variables};
 use crate::config::text::text_of;
 use crate::error::SeleniumBaseError;
 

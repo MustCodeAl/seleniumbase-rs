@@ -2,8 +2,8 @@
 
 use std::collections::{BTreeMap, HashSet};
 
-use super::output::RecordingTarget;
 use super::RawAction;
+use super::output::RecordingTarget;
 
 /// Why [`BaseCase::wait_for_recorder_end`](crate::BaseCase::wait_for_recorder_end)
 /// returned.

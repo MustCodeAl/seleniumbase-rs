@@ -7,7 +7,7 @@
 
 use super::mcp_http_support as support;
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use support::{Mcp, Server};
 
 const PAGE: &str = "data:text/html,<title>Over HTTP</title><h1>hello</h1>";
