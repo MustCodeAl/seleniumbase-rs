@@ -41,7 +41,7 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.11.0 
 ### Fixed
 
 - **`sb_cdp` & `BrowserSession` (`src/sb_cdp/browser.rs`, `src/sb_cdp/gui_captcha.rs`, `src/sb_cdp/intercept.rs`, `src/browser/session/page.rs`)**: Preserved tab opening order in `Browser::list_pages` when `Target.activateTarget` reorders `Target.getTargets`, preserved `navigator.userAgent` instead of sending an empty `userAgent` in `Emulation.setUserAgentOverride` when `.platform()` or `.lang()` is set without `.user_agent()`, fixed stale `crate::evasion` imports to `sb_cdp::human` / `undetected::reactor`, and routed `BrowserSession::cookie` through `cookies()` (`Network.getCookies`) on Chromium to avoid `same_site` mismatches.
-- **Recorder Mode iframe popout tabs (`src/api/recorder/js/recorder.js`, `src/api/base_case_impls/base_case_impl_recorder.rs`)**: Marked internal iframe-inspection popout tabs (`__sb_recorder_frame_*`) so `note_new_tab` does not emit `n_tab` (`switch_to_new_window()`), and ignored inherited `sessionStorage` actions from prior tabs when computing `tab_open_row` timestamps.
+- **Recorder Mode & CLI tests (`src/api/recorder/js/recorder.js`, `src/api/base_case_impls/base_case_impl_recorder.rs`, `crates/cli/tests/offline/`)**: Marked internal iframe-inspection popout tabs (`__sb_recorder_frame_*`) so `note_new_tab` does not emit `n_tab` (`switch_to_new_window()`), ignored inherited `sessionStorage` actions from prior tabs when computing `tab_open_row` timestamps, and retried Linux `ExecutableFileBusy` (`ETXTBSY`) when warming stand-in `cargo` test scripts.
 - **Docs (`src/cli/plugin_manager.rs`)**: Replaced broken private intra-doc link ``[`CATALOG`]`` so `RUSTDOCFLAGS="-D warnings" cargo doc` builds cleanly.
 
 </Update>
