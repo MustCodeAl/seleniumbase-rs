@@ -604,7 +604,7 @@ pub fn uninstall_plugin(store_dir: &Path, raw_name: &str) -> Result<PathBuf, Plu
 ///
 /// # Errors
 ///
-/// Returns [`PluginManagerError::NotInstalled`] if the name is neither installed nor in [`CATALOG`].
+/// Returns [`PluginManagerError::NotInstalled`] if the name is neither installed nor in `CATALOG`.
 pub fn set_plugin_enabled(
     store_dir: &Path,
     raw_name: &str,

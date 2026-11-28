@@ -8,6 +8,17 @@ work, `docs/parity.md` the per-API status).
 
 ## [Unreleased]
 
+### Changed
+
+- **`crates/cli/src/sbrs.rs`**: Extracted `run()` helpers (`load_settings`, `push_common_browser_options`, `prepare_browser_run`, and per-command handlers) for readability and maintainability.
+- **`mise.toml` & Chrome test suite (`crates/cli/tests/chrome/main.rs`, `crates/playwright/tests/playwright_chrome.rs`, `tests/chrome/`)**: Removed stale `azure`/`gcp`/`ocr` feature references and removed `cli_fingerprint_chrome` and deleted `Fingerprint` builder calls; updated `sb_cdp_captcha_chrome::a_zero_interstitial_timeout_leaves_a_script_challenge_at_once` and `recorder_frames_chrome::a_link_that_opens_a_tab_is_a_click_and_then_the_page_it_opened` to match `WaitTimeout` and `switch_to_new_window()` behavior.
+
+### Fixed
+
+- **`sb_cdp` & `BrowserSession` (`src/sb_cdp/browser.rs`, `src/sb_cdp/gui_captcha.rs`, `src/sb_cdp/intercept.rs`, `src/browser/session/page.rs`)**: Preserved tab opening order in `Browser::list_pages` when `Target.activateTarget` reorders `Target.getTargets`, fixed stale `crate::evasion` imports to `sb_cdp::human` / `undetected::reactor`, and routed `BrowserSession::cookie` through `cookies()` (`Network.getCookies`) on Chromium to avoid `same_site` mismatches.
+- **Recorder Mode iframe popout tabs (`src/api/recorder/js/recorder.js`, `src/api/base_case_impls/base_case_impl_recorder.rs`)**: Marked internal iframe-inspection popout tabs (`__sb_recorder_frame_*`) so `note_new_tab` does not emit `n_tab` (`switch_to_new_window()`), and ignored inherited `sessionStorage` actions from prior tabs when computing `tab_open_row` timestamps.
+- **Docs (`src/cli/plugin_manager.rs`)**: Replaced broken private intra-doc link ``[`CATALOG`]`` so `RUSTDOCFLAGS="-D warnings" cargo doc` builds cleanly.
+
 ## [0.11.0] - 2026-11-27
 
 ### Added
