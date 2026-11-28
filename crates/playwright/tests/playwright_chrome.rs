@@ -58,7 +58,7 @@ async fn the_sidecar_is_on_the_tab_of_its_target_and_leaves_the_browser_running(
     let options = LaunchOptions::builder()
         .headless(true)
         .no_sandbox(std::env::var_os("CI").is_some())
-        .platform("Win32")
+        .timezone("Asia/Tokyo")
         .build()
         .expect("launch options");
     let browser = Browser::launch(options).await.expect("Chrome starts");
@@ -106,11 +106,17 @@ async fn the_sidecar_is_on_the_tab_of_its_target_and_leaves_the_browser_running(
         .await
         .expect("rustwright navigates");
     assert_eq!(second.url().await.expect("our URL"), third);
-    let platform = sidecar
-        .run(|pw| pw.evaluate("navigator.platform", None, ActionOptions::default()))
+    let zone = sidecar
+        .run(|pw| {
+            pw.evaluate(
+                "Intl.DateTimeFormat().resolvedOptions().timeZone",
+                None,
+                ActionOptions::default(),
+            )
+        })
         .await
         .expect("script runs");
-    assert_eq!(platform, json!("Win32"));
+    assert_eq!(zone, json!("Asia/Tokyo"));
     let flagged = sidecar
         .run(|pw| {
             pw.evaluate(
