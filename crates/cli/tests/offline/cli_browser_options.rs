@@ -401,14 +401,19 @@ exit 0
         std::fs::write(&script, FAKE_CARGO).expect("write the stand-in");
         std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755))
             .expect("make it executable");
-        // The first run of a new script can be slow on macOS: take it now.
-        assert!(
-            Command::new(&script)
-                .arg("--warm")
-                .status()
-                .expect("warm it")
-                .success()
-        );
+        // Retry on `ETXTBSY` (`ExecutableFileBusy`) when another parallel test
+        // forks between `write` and `close`.
+        let warmed = (0..128)
+            .find_map(|_| match Command::new(&script).arg("--warm").status() {
+                Err(err) if err.kind() == std::io::ErrorKind::ExecutableFileBusy => {
+                    std::thread::yield_now();
+                    None
+                }
+                other => Some(other),
+            })
+            .expect("script stayed busy across 128 yields")
+            .expect("warm it");
+        assert!(warmed.success());
         let mut command = Command::new(SBASE);
         command
             .args(args)
