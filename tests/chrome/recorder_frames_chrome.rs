@@ -391,17 +391,20 @@ async fn a_link_that_opens_a_tab_is_a_click_and_then_the_page_it_opened() {
     let tabs = sb.all_window_handles().await.unwrap().len();
     sb.quit().await.unwrap();
 
-    // Python writes no tab switch: the pages of every tab are one list.
     assert_eq!(tabs, 2);
     let code = written(&folder);
     assert!(
         in_order(
             &code,
-            &["sb.click(\"a#popup-link\")", &format!("{far}/popup\")")]
+            &[
+                "sb.click(\"a#popup-link\")",
+                "sb.switch_to_new_window()",
+                &format!("{far}/popup\")"),
+            ]
         ),
         "{code}"
     );
-    assert!(!code.contains("switch_to_"), "{code}");
+    assert!(!code.contains("switch_to_frame"), "{code}");
     let _ = std::fs::remove_dir_all(&folder);
 }
 

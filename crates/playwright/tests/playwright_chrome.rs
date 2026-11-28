@@ -14,7 +14,7 @@ use std::thread;
 use seleniumbase_rs::json::json;
 use seleniumbase_rs::sb_cdp::{Browser, LaunchOptions};
 use seleniumbase_rs::tokio;
-use seleniumbase_rs::{BaseCase, BrowserConfig, ElementApi, Fingerprint};
+use seleniumbase_rs::{BaseCase, BrowserConfig, ElementApi};
 use seleniumbase_rs_playwright::PlaywrightSidecar;
 use seleniumbase_rs_playwright::rustwright::{ActionOptions, GotoOptions};
 
@@ -57,7 +57,8 @@ async fn the_sidecar_is_on_the_tab_of_its_target_and_leaves_the_browser_running(
     let base = format!("http://127.0.0.1:{}", serve());
     let options = LaunchOptions::builder()
         .headless(true)
-        .fingerprint(&Fingerprint::windows_desktop())
+        .no_sandbox(std::env::var_os("CI").is_some())
+        .platform("Win32")
         .build()
         .expect("launch options");
     let browser = Browser::launch(options).await.expect("Chrome starts");

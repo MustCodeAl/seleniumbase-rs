@@ -12,7 +12,6 @@ mod mcp_http_support;
 mod sbrs;
 
 mod cli_e2e_chrome;
-mod cli_fingerprint_chrome;
 mod cli_mkrec_chrome;
 mod cli_plugins_chrome;
 mod cli_solve_captcha_chrome;

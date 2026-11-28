@@ -362,13 +362,18 @@ async fn a_zero_interstitial_timeout_leaves_a_script_challenge_at_once() {
     let (browser, page) = launch().await;
     open(&page, &site, "/wait").await;
 
-    let options = SolveOptions::new().interstitial_timeout(Duration::ZERO);
-    let result = page
+    let options = SolveOptions::new()
+        .locate_timeout(Duration::from_millis(500))
+        .interstitial_timeout(Duration::ZERO);
+    let err = page
         .solve_captcha_with(&options)
         .await
-        .expect("solve_captcha_with");
+        .expect_err("zero interstitial timeout leaves the 2.5s script challenge as WaitTimeout");
 
-    assert_eq!(result, None);
+    assert!(
+        matches!(err, seleniumbase_rs::SeleniumBaseError::WaitTimeout(_)),
+        "expected WaitTimeout, got {err:?}"
+    );
     assert!(
         !real_page_is_shown(&page).await,
         "the challenge page was not waited out"
