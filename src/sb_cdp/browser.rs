@@ -1357,12 +1357,25 @@ impl Browser {
                 || self.inner.options.user_agent().is_some()
                 || self.inner.options.lang().is_some())
         {
+            // Chromium treats an empty `userAgent` in `Emulation.setUserAgentOverride`
+            // as "disable override", ignoring `platform` and `acceptLanguage`.
+            let ua = match self.inner.options.user_agent() {
+                Some(ua) => ua.to_owned(),
+                None => send(
+                    "Runtime.evaluate",
+                    json!({ "expression": "navigator.userAgent", "returnByValue": true }),
+                )
+                .await
+                .ok()
+                .and_then(|res| {
+                    res.pointer("/result/value")
+                        .and_then(Value::as_str)
+                        .map(ToOwned::to_owned)
+                })
+                .unwrap_or_default(),
+            };
             let mut params = Map::new();
-            if let Some(ua) = self.inner.options.user_agent() {
-                params.insert("userAgent".to_owned(), json!(ua));
-            } else {
-                params.insert("userAgent".to_owned(), json!(""));
-            }
+            params.insert("userAgent".to_owned(), json!(ua));
             if let Some(platform) = self.inner.options.platform() {
                 params.insert("platform".to_owned(), json!(platform));
             }
