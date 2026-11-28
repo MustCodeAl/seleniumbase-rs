@@ -54,6 +54,19 @@ A fingerprint can name a proxy too. It becomes the `--proxy-server` launch
 flag ([Evasions and launch flags](/stealth/client/evasions#launch-flags)); an explicit proxy
 set on `LaunchOptions` or `BrowserConfig` wins over `.with_fingerprint(&fp)`.
 
+```rust,no_run
+use seleniumbase_rs_stealth::client::LaunchOptionsFingerprintExt;
+use seleniumbase_rs_stealth::identity::Fingerprint;
+use seleniumbase_rs_stealth::sb_cdp::LaunchOptions;
+
+let fp = Fingerprint::builder()
+    .timezone("Europe/Berlin")
+    .locale("de-DE")
+    .proxy("socks5://alice:s3cret@de.proxy.example.com:1080")
+    .build()?;
+let options = LaunchOptions::builder().build()?.with_fingerprint(&fp)?;
+```
+
 </Tab>
 
 </Tabs>
@@ -112,6 +125,33 @@ the proxy first, then give the fingerprint the time zone, locale and location
 that go with its address ([Fingerprints](/stealth/identity/fingerprints)). The stealth
 repository's scraper ties the two together; see
 [Egress and the profile](/stealth/session/cdp-session#egress-and-the-profile).
+
+```rust,no_run
+use seleniumbase_rs_stealth::client::LaunchOptionsFingerprintExt;
+use seleniumbase_rs_stealth::identity::fingerprint::policy::StealthPolicy;
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType, QuicMode};
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+
+async fn shielded_geo_browser() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
+    let fp = Fingerprint::randomized(OsType::Macos, 12)
+        .to_builder()
+        .locale("de-DE")
+        .timezone("Europe/Berlin")
+        .proxy("socks5://user:pass@de.proxy.example:1080")
+        .policy(StealthPolicy::balanced().quic(QuicMode::Disabled))
+        .build()?;
+
+    let options = LaunchOptions::builder()
+        .shield_webrtc(true)
+        .build()?
+        .with_fingerprint(&fp)?;
+    let browser = Browser::launch(options).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://example.com").await?;
+    assert!(page.webrtc_report().await?.is_clean());
+    browser.close().await
+}
+```
 
 ## The wire
 

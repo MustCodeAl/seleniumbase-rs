@@ -31,6 +31,20 @@ cargo install --git https://github.com/MustCodeAl/seleniumbase-rs --tag v0.10.0 
 
 ## All releases
 
+<Update label="Unreleased" description="Next release" tags={["New"]}>
+
+### Added
+
+- **Tauri Desktop GUI (`apps/sbrs-desktop`)**: Added SeleniumBase Commander Desktop built on Tauri 3 (`tauri-runtime-wry`) covering Commander (tests/examples/function discovery, multi-select queued runs, `SB_*` toggles, live streamed logs), Behave feature runner, Case Plans editor, and Recorder/`latest_logs/` viewer.
+- **CLI Plugin Lifecycle & Developer Split (`sbrs plugin` / `sbrs-dev plugin`)**: Added `src/cli/plugin_manager.rs` with `sbrs plugin install` (local path, git URL, `owner/repo`, or catalog slug), `uninstall`, `upgrade`, `search`, `enable`, `disable`, `ls` (`list` alias), and `directory`; moved plugin authoring into the dedicated `sbrs-dev` binary (`sbrs-dev plugin new` opening the interactive Ratatui wizard by default, `preview`, and `check`).
+- **Recorder Color & Debugger TUI (`sb_recorder`, `debug_tui`, `debug_prompt`)**: Colored `SHIFT + ESC` banner and numbered output in `sb_recorder` when `color` is enabled, and added `tui` command inside interactive debug breakpoints (`DebugPrompt`, feature `tui`).
+
+### Changed
+
+- **Docs7 Stealth Organization, Modularized Imports & Expanded Snippets**: Merged Avoiding Bot Detection into the Stealth overview (`docs/stealth/introduction.md`), replaced numbered `Layer X:` navigation group names with natural headings, updated stealth docs to use modularized `seleniumbase_rs_stealth::identity` / `identity::fingerprint::{spoof, mimic, policy, settings}` / `client` imports, and added runnable-style examples across `signal-spoofing`, `playwright`, `evasions`, `human-input`, `proxies`, `profiles`, `advanced/overview`, `advanced/session/overview`, and `troubleshooting`.
+
+</Update>
+
 <Update label="2026-11-26" description="v0.10.0" tags={["New", "Breaking"]}>
 
 **Downloads:** [Release notes](https://github.com/MustCodeAl/seleniumbase-rs/releases/tag/v0.10.0) · [Source (.zip)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.10.0.zip) · [Source (.tar.gz)](https://github.com/MustCodeAl/seleniumbase-rs/archive/refs/tags/v0.10.0.tar.gz)

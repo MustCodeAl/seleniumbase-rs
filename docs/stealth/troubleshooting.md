@@ -3,11 +3,34 @@ title: "Troubleshooting stealth"
 sidebarTitle: "Troubleshooting"
 ---
 
-When a site still tells the browser is automated, work through these. UC mode
-has its own list in [Still detected?](/stealth/core/uc-mode#still-detected), and
-the scraping tools have theirs in
-[Limits and troubleshooting](/stealth/advanced/session/limits).
+When a site still flags your browser, capture a live fingerprint report and inspect any cross-surface contradictions before tuning individual flags:
 
+```rust,no_run
+use seleniumbase_rs_stealth::client::{
+    LaunchOptionsFingerprintExt, PageFingerprintExt, StealthLayer,
+};
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+
+#[tokio::main]
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let expected = Fingerprint::randomized(OsType::Macos, 42);
+    let layer = StealthLayer::new(expected.clone());
+    let options = LaunchOptions::builder().headless(true).build()?.with_stealth(&layer)?;
+    let browser = Browser::launch(options).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://example.com").await?;
+
+    let diff = page.compare_fingerprint(&expected).await?;
+    for contradiction in diff.contradictions() {
+        eprintln!("contradiction: {contradiction}");
+    }
+    browser.close().await?;
+    Ok(())
+}
+```
+
+UC mode has its own list in [Still detected?](/stealth/core/uc-mode#still-detected), and the scraping tools have theirs in [Limits and troubleshooting](/stealth/advanced/session/limits).
 
 <AccordionGroup>
 
@@ -87,9 +110,4 @@ the scraping tools have theirs in
 
 ---
 
-This page was brought up to date with the change that makes a setting one `Spoof`
-and moves the behaviour into the `StealthPolicy` by reading `src/evasion/**`,
-`src/sb_cdp/{identity,launch}.rs`, `src/browser/{config,session,playwright}.rs`,
-`src/profile_payloads/**`, `src/mcp/stealth.rs` and `src/macros.rs` again. The code examples were compiled
-against that source as a test of the crate; the tables were checked against the
-`applies` conditions of the providers.
+This page was brought up to date with the change that makes a setting one `Spoof`.

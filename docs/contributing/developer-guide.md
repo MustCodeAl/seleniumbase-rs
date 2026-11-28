@@ -212,6 +212,7 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="src" open>
 <LayoutFile name="sbrs.rs" highlight note="the sbrs command line" />
 <LayoutFile name="mcp_server.rs" highlight note="the sbrs-mcp server" />
+<LayoutFile name="sbrs_dev.rs" highlight note="the sbrs-dev plugin development CLI (`sbrs-dev plugin new|preview|check`)" />
 <LayoutFile name="fig.rs" note="the Fig completion spec" />
 <LayoutFile name="report.rs" note="sbrs report" />
 <LayoutFile name="reference.rs" note="renders docs/ecosystem/cli/reference.md from the usage spec" />
@@ -269,6 +270,9 @@ presentations, and optional stealth/CDP integrations.
 <LayoutDir name="sbrs" note="vfox plugin that installs sbrs and sbrs-mcp release binaries" />
 </LayoutDir>
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
+</LayoutDir>
+<LayoutDir name="apps" note="desktop GUI applications">
+<LayoutDir name="sbrs-desktop" note="SeleniumBase Commander Desktop GUI built with Tauri 3" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
 <LayoutFile name="check-consumers.sh" note="mise run contracts: checks what the repositories that build on this crate use" />
@@ -778,7 +782,8 @@ tests share it. It has no command-line parser.
 <LayoutFile name="devtools.rs" note="Chrome with an open DevTools endpoint" />
 <LayoutFile name="mod.rs" note="the cli module" />
 <LayoutFile name="plugin_cmd.rs" note="sbrs plugin list and info, and the check of plugin names" />
-<LayoutFile name="plugin_scaffold.rs" note="plugin scaffolding generator for `sbrs plugin new`" />
+<LayoutFile name="plugin_manager.rs" note="user plugin lifecycle manager (install, uninstall, upgrade, search, enable, disable, directory)" />
+<LayoutFile name="plugin_scaffold.rs" note="plugin scaffolding generator for `sbrs-dev plugin new`" />
 <LayoutFile name="prompt.rs" note="the shell prompt line" />
 <LayoutFile name="scaffold.rs" note="sbrs mkdir and mkfile" />
 <LayoutDir name="scripts" open note="shared by the binaries, the MCP server and the golden tests">
@@ -787,11 +792,13 @@ tests share it. It has no command-line parser.
 <LayoutFile name="behave_options.rs" note="how Python behave options map to sbrs test" />
 <LayoutFile name="case_plans.rs" note="case plans" />
 <LayoutFile name="caseplans_tui.rs" note="the caseplans terminal app" />
+<LayoutFile name="debug_tui.rs" note="interactive TUI breakpoint debugger" />
 <LayoutFile name="discovery.rs" note="finds tests" />
 <LayoutFile name="feature_files.rs" note="Gherkin feature files" />
 <LayoutFile name="gherkin_outline.rs" note="Gherkin outlines" />
 <LayoutFile name="logo_helper.rs" note="the logo" />
 <LayoutFile name="mod.rs" note="the scripts module" />
+<LayoutFile name="plugin_scaffold_tui.rs" note="interactive TUI wizard for `sbrs-dev plugin new`" />
 <LayoutFile name="recorder_tui.rs" note="the recorder terminal app" />
 <LayoutFile name="rich_helper.rs" note="terminal formatting" />
 <LayoutFile name="run.rs" note="runs a selection of tests" />
@@ -839,6 +846,7 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutDir name="src" open>
 <LayoutFile name="sbrs.rs" highlight note="the sbrs command line" />
 <LayoutFile name="mcp_server.rs" highlight note="the sbrs-mcp server" />
+<LayoutFile name="sbrs_dev.rs" highlight note="the sbrs-dev plugin development CLI (`sbrs-dev plugin new|preview|check`)" />
 <LayoutFile name="fig.rs" note="the Fig completion spec" />
 <LayoutFile name="report.rs" note="sbrs report" />
 <LayoutFile name="reference.rs" note="renders docs/ecosystem/cli/reference.md from the usage spec" />
@@ -896,7 +904,6 @@ owns the dependencies only they use (the `usage` command-line parser).
 <LayoutFile name="man.rs" note="renders the man pages man/man1/*.1 from the usage specs (tests only)" />
 <LayoutFile name="plugin_catalog.rs" note="the plugins with a task as commands of sbrs plugin: a usage-dynamic catalog" />
 <LayoutFile name="plugin_flags.rs" note="the --plugin flag, in a struct of its own so that it can complete the plugin names" />
-<LayoutFile name="plugin_scaffold.rs" note="CLI wiring for `sbrs plugin new`" />
 <LayoutFile name="proxy.rs" note="sbrs proxy" />
 <LayoutFile name="recorder_flags.rs" note="the recorder flags" />
 <LayoutFile name="runtime_values.rs" note="the completion words only the running program knows: plugins, presets" />

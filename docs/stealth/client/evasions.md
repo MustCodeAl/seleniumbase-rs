@@ -29,6 +29,17 @@ list, so a payload cannot hand Chrome a flag such as `--renderer-cmd-prefix`,
 which runs a command. Refused switches are left out with a warning. Add flags
 you trust yourself (`.arg(..)` on the pure CDP launch options).
 
+```rust
+use seleniumbase_rs_stealth::client::evasions;
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
+
+let fp = Fingerprint::randomized(OsType::Windows, 42);
+let args = evasions::launch_args(&fp);
+assert!(args.iter().any(|a| a.starts_with("--user-agent=")));
+assert!(evasions::permitted_switch("lang").is_some());
+assert!(evasions::permitted_switch("renderer-cmd-prefix").is_none());
+```
+
 UC mode adds its own launch arguments and leaves out `enable-automation`; see
 [What is patched automatically](/stealth/core/uc-mode#what-is-patched-automatically)
 and [Extra evasions you can apply](/stealth/core/uc-mode#extra-evasions-you-can-apply).
@@ -45,6 +56,17 @@ either. `evasions::bootstrap_script` is the full set, for a browser that lacks
 assembled from the [evasion providers](/stealth/advanced/client/providers) in
 priority order. WebDriver sessions also run `evasions::cdc_scrub()` on every
 navigation, which removes the `cdc_` markers chromedriver leaves on `window`.
+
+```rust
+use seleniumbase_rs_stealth::client::evasions;
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
+
+let fp = Fingerprint::randomized(OsType::Macos, 42);
+let script = evasions::session_script(&fp);
+let overrides = evasions::safe_cdp_overrides(&fp);
+assert!(!script.is_empty());
+assert!(!overrides.is_empty());
+```
 
 ## Native-level (CDP) spoofing
 
@@ -80,7 +102,7 @@ the property, so the browser reports the value itself instead of a replaced
 JavaScript getter:
 
 ```rust
-use seleniumbase_rs_stealth::Fingerprint;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 
 let fp = Fingerprint::builder()
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 …")
@@ -150,4 +172,25 @@ automation markers:
 * Combining a `Fingerprint`, UC mode, binary patching, and engine args covers the
   most layers this crate offers. None of it guarantees that a given detector
   passes.
+
+```rust,no_run
+use seleniumbase_rs_stealth::client::patcher::{
+    engine_spoofing_args, ChromedriverPatcher, EnginePatch,
+};
+use seleniumbase_rs_stealth::client::BrowserConfigFingerprintExt;
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::{BrowserConfig, DriverMode};
+
+fn build_uc_with_patched_driver(
+    driver_path: &std::path::Path,
+) -> Result<BrowserConfig, seleniumbase_rs_stealth::SeleniumBaseError> {
+    ChromedriverPatcher::new(driver_path).patch(EnginePatch::all())?;
+    let fp = Fingerprint::randomized(OsType::Linux, 7);
+    BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .extra_args(engine_spoofing_args())
+        .build()?
+        .with_fingerprint(&fp)
+}
+```
 

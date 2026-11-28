@@ -26,8 +26,8 @@ about it. The value and the intent are one field, so they cannot disagree.
 setting that has no off state, so a time zone cannot be "off" by accident.
 
 ```rust
+use seleniumbase_rs_stealth::identity::fingerprint::mimic::Machine;
 use seleniumbase_rs_stealth::identity::fingerprint::{CanvasNoise, Fingerprint, Spoof, StealthPolicy};
-use seleniumbase_rs_stealth::identity::mimic::Machine;
 
 let fp = Fingerprint::builder()
     .timezone("Europe/Berlin")
@@ -50,8 +50,8 @@ The fifth state, `Mimic`, replaces generic spoofing with verified records from r
 and browser builds:
 
 ```rust
-use seleniumbase_rs_stealth::identity::mimic::{Build, Machine, Place, Specimen};
-use seleniumbase_rs_stealth::identity::spoof::Spoof;
+use seleniumbase_rs_stealth::identity::fingerprint::mimic::{Build, Machine, Place, Specimen};
+use seleniumbase_rs_stealth::identity::fingerprint::spoof::Spoof;
 
 // Mimic a device model
 let macbook = Machine::named("macbook-13-m1")?;
@@ -85,7 +85,7 @@ through accessors (`fp.timezone()` returns `&Spoof<String>`); to change one,
 start a builder from it:
 
 ```rust
-use seleniumbase_rs_stealth::Fingerprint;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 
 let fp = Fingerprint::windows_desktop();
 let tokyo = fp.to_builder().timezone("Asia/Tokyo").build()?;
@@ -142,7 +142,7 @@ identity for each seed instead. It is the builder with the settings of a persona
 set to `Random`, so you can draw the same way for any setting yourself:
 
 ```rust
-use seleniumbase_rs_stealth::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
 
 let fp = Fingerprint::randomized(OsType::Windows, 42);
 
@@ -218,7 +218,7 @@ Things to know:
 For full control, use the builder:
 
 ```rust
-use seleniumbase_rs_stealth::Fingerprint;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 
 let fp = Fingerprint::builder()
     .user_agent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ...")
@@ -312,8 +312,8 @@ is worse than no spoof, so a capture can be asked whether the browser agrees
 with itself:
 
 ```rust
+use seleniumbase_rs_stealth::client::PageFingerprintExt;
 use seleniumbase_rs_stealth::sb_cdp::Page;
-use seleniumbase_rs_stealth::PageFingerprintExt;
 
 async fn check(page: &Page) -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
     let captured = page.capture_fingerprint().await?;

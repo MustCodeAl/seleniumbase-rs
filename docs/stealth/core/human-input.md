@@ -39,7 +39,53 @@ when the configuration has a fingerprint.
 
 `Behavior::from_config(fingerprint.humanize())` turns a fingerprint's
 `HumanizeConfig` (its minimum and maximum keystroke delay) into the matching
-behaviour.
+behaviour:
+
+<CodeGroup>
+
+```rust,no_run Pure CDP with Fingerprint humanize pacing
+use seleniumbase_rs_stealth::client::{LaunchOptionsFingerprintExt, StealthLayer};
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::sb_cdp::human::behavior::{Behavior, Humanizer};
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+
+async fn fill_with_human_pacing() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
+    let fp = Fingerprint::randomized(OsType::Macos, 42);
+    let mut person = Humanizer::new(Behavior::from_config(fp.humanize())?);
+    let options = LaunchOptions::builder()
+        .build()?
+        .with_stealth(&StealthLayer::new(fp))?;
+
+    let browser = Browser::launch(options).await?;
+    let page = browser.default_page().await?;
+    page.goto("https://example.com").await?;
+    page.human(&mut person).click("#email").await?;
+    page.human(&mut person).type_text("#email", "alice@example.com").await?;
+    browser.close().await
+}
+```
+
+```rust,no_run BaseCase human click and typing
+use seleniumbase_rs_stealth::client::BrowserConfigFingerprintExt;
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
+use seleniumbase_rs_stealth::{BaseCase, BrowserConfig, DriverMode};
+
+async fn uc_human_input() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
+    let fp = Fingerprint::randomized(OsType::Windows, 9);
+    let config = BrowserConfig::builder()
+        .mode(DriverMode::Uc)
+        .build()?
+        .with_fingerprint(&fp)?;
+
+    let mut sb = BaseCase::new(config).await?;
+    sb.open("https://example.com").await?;
+    sb.human_click("#email").await?;
+    sb.human_type("#email", "alice@example.com").await?;
+    sb.quit().await
+}
+```
+
+</CodeGroup>
 
 <Tip>
 

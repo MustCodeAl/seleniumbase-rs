@@ -128,9 +128,9 @@ plugin's URL, with a trailing slash, and turns discovery on. With a direct CDP
 attachment the whole `BaseCase` API runs through the pure CDP engine:
 
 ```rust A test with BaseCase
-use seleniumbase_rs_stealth::{
-    BaseCase, BrowserConfig, BrowserConfigFingerprintExt, Fingerprint, SeleniumBaseError,
-};
+use seleniumbase_rs_stealth::client::BrowserConfigFingerprintExt;
+use seleniumbase_rs_stealth::identity::Fingerprint;
+use seleniumbase_rs_stealth::{BaseCase, BrowserConfig, SeleniumBaseError};
 
 async fn drive_the_app() -> Result<(), SeleniumBaseError> {
     let fingerprint = Fingerprint::windows_desktop()
@@ -158,8 +158,10 @@ For the full `Page` and `Browser` API, attach with `Browser::launch`, which
 launches no process when the options name a `cdp_url`:
 
 ```rust A test with Browser and Page
+use seleniumbase_rs_stealth::client::LaunchOptionsFingerprintExt;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt, SeleniumBaseError};
+use seleniumbase_rs_stealth::SeleniumBaseError;
 
 async fn drive_the_page() -> Result<(), SeleniumBaseError> {
     let options = LaunchOptions::builder()

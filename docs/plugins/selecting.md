@@ -36,7 +36,8 @@ Summary for AI exports: the official plugins (`shield`, `block-resources`, `crx`
 | shield for one `sbrs` command | `sbrs --plugin shield open https://example.com` |
 | The task of a plugin (fetcher, extractor, batcher, crawler, imap) | `sbrs plugin run crawler --input crawl.json` |
 | An option of a plugin on the command line | `--plugin-opt 'shield.level="strict"'` |
-| The plugins and what they may do | `sbrs plugin list`, `sbrs plugin info shield` |
+| The plugins and what they may do | `sbrs plugin ls` (or `list`), `sbrs plugin info shield` |
+| Install/manage user plugins | `sbrs plugin install <PATH_OR_URL>`, `search`, `upgrade`, `uninstall`, `enable`, `disable`, `directory` |
 | shield in a Rust program | `features = ["plugin-shield"]`, then `.plugins_named(["shield"])` |
 | Every official plugin | `features = ["plugins-builtin"]` |
 | A plugin chosen by a file, not code | `[plugins] enable = ["shield"]` in `sbase_config.toml` |

@@ -56,12 +56,7 @@ If you also list `seleniumbase-rs` directly in your manifest (for example to ena
 
 | Module | Contents |
 |---|---|
-| `identity::fingerprint` | Unified fingerprint module: core v2 `Fingerprint`, `FingerprintBuilder`, `FingerprintError`, `CoherenceReport`, `OsType`, `BrowserType`, `SpeechVoice`, `ProxyConfig`, `ClientHints`, `BrandVersion`, JSON file I/O, comparison/consistency diagnostics, JSON Schema (`schemas/fingerprint.schema.json`), plus submodules `profile` (`ProfileFingerprint`), `generator` (`FingerprintGenerator`, `FingerprintOptions`, `GeneratedFingerprint`), and `bayesian` (`BayesianSampler`, `HeaderGenerator`, `FingerprintConverter`, `audit_coherence`, `CoherenceAudit`) |
-| `identity::spoof` | `Spoof<T>` (`Natural`, `Random`, `Value(T)`, `Off`, `Mimic(Specimen)`) |
-| `identity::policy` | `StealthPolicy` (`default()`, `balanced()`, `native_only()`, `max()`), `CanvasNoise`, `AudioNoise`, `QuicMode`, `WebRtcPolicy` |
-| `identity::settings` | `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `MediaFeatures`, `ColorGamut`, `ColorScheme`, `DynamicRange` (`HdrMode`), `KeyboardLayout`, `PointerType`, `HoverType` |
-| `identity::mimic` | Recorded hardware and browser specimens (`Specimen`, `Build`, `Machine`, `Place`, `Rendering`) |
-| `identity::randomize` | Seeded persona synthesis tables behind `Fingerprint::randomized` and `randomized_with_major` |
+| `identity::fingerprint` | Unified fingerprint module: core v2 `Fingerprint`, `FingerprintBuilder`, `FingerprintError`, `CoherenceReport`, `OsType`, `BrowserType`, `SpeechVoice`, `ProxyConfig`, `ClientHints`, `BrandVersion`, JSON file I/O, comparison/consistency diagnostics, JSON Schema (`schemas/fingerprint.schema.json`), plus submodules `spoof` (`Spoof<T>`), `policy` (`StealthPolicy`, `CanvasNoise`, `AudioNoise`), `settings` (`ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `MediaFeatures`, `ColorGamut`, `ColorScheme`, `DynamicRange`, `KeyboardLayout`, `PointerType`, `HoverType`), `mimic` (`Specimen`, `Build`, `Machine`, `Place`, `Rendering`), `randomize` (seeded persona synthesis tables), `profile` (`ProfileFingerprint`), `generator` (`FingerprintGenerator`, `FingerprintOptions`, `GeneratedFingerprint`), and `bayesian` (`BayesianSampler`, `HeaderGenerator`, `FingerprintConverter`, `audit_coherence`, `CoherenceAudit`) |
 | `identity::capture` | `CapturedFingerprint`, `ProbeInfo`, `capture_expression()`, `capture_async_script()` |
 | `identity::profile_payloads` | `ProfileParams` external profile JSON parser (`to_fingerprint()`, `to_browser_config(url)`, `browser()`) |
 
@@ -80,17 +75,16 @@ The crate also exports the `fingerprint!` macro (`fingerprint!(windows)`, `macos
 
 ## Applying stealth (`client::apply`)
 
-You do not need to wire plugins or `PluginSet` manually. Import the module extension traits from the crate root or `seleniumbase_rs_stealth::client` and layer a `Fingerprint` or `StealthLayer` onto `LaunchOptions` (pure CDP), `BrowserConfig` (WebDriver / UC), or an active `Page` / `BaseCase`.
+You do not need to wire plugins or `PluginSet` manually. Import the module extension traits from `seleniumbase_rs_stealth::client` and layer a `Fingerprint` (from `seleniumbase_rs_stealth::identity`) or `StealthLayer` onto `LaunchOptions` (pure CDP), `BrowserConfig` (WebDriver / UC), or an active `Page` / `BaseCase`.
 
 ### Pure CDP (`LaunchOptionsFingerprintExt`)
 
 `with_fingerprint(&fp)` and `with_stealth(&layer)` fill unset launch settings (user agent, language, timezone, geolocation, platform, WebRTC policy) without overwriting explicit caller overrides, and automatically apply launch flags, init scripts, and CDP protocol overrides on every new tab:
 
 ```rust
+use seleniumbase_rs_stealth::client::{LaunchOptionsFingerprintExt, StealthLayer};
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs_stealth::{
-    Fingerprint, LaunchOptionsFingerprintExt, OsType, StealthLayer,
-};
 
 async fn launch_masked() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
     // Option A: zero-config balanced preset for this host OS
@@ -126,9 +120,9 @@ async fn launch_masked() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseErro
 The same `with_fingerprint(&fp)` and `with_stealth(&layer)` methods work on `BrowserConfig`:
 
 ```rust
-use seleniumbase_rs_stealth::{
-    BrowserConfig, BrowserConfigFingerprintExt, DriverMode, OsType, StealthLayer,
-};
+use seleniumbase_rs_stealth::client::{BrowserConfigFingerprintExt, StealthLayer};
+use seleniumbase_rs_stealth::identity::OsType;
+use seleniumbase_rs_stealth::{BaseCase, BrowserConfig, DriverMode};
 
 let layer = StealthLayer::balanced(OsType::Macos, 42);
 let config = BrowserConfig::builder()

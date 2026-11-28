@@ -123,9 +123,8 @@ assert!(!balanced.script().is_empty());
 `StealthLayer` packages a fingerprint, profile, optional `StealthPlan`, and selective `StealthScriptBundle` as a single reusable value. Attach it to pure CDP `LaunchOptions` or WebDriver `BrowserConfig` with `.with_stealth(&layer)`:
 
 ```rust
-use seleniumbase_rs_stealth::client::StealthScriptOptions;
+use seleniumbase_rs_stealth::client::{LaunchOptionsFingerprintExt, StealthLayer, StealthScriptOptions};
 use seleniumbase_rs_stealth::sb_cdp::LaunchOptions;
-use seleniumbase_rs_stealth::{LaunchOptionsFingerprintExt, StealthLayer};
 
 let layer = StealthLayer::from_generated(generated)
     .with_script_options(&StealthScriptOptions::balanced());
@@ -141,9 +140,10 @@ let options = LaunchOptions::builder()
 Both pure CDP `Page` and WebDriver `BaseCase` expose direct methods for applying fingerprints, profiles, generated bundles, compiled scripts, and full `StealthLayer` instances, as well as capturing and comparing live fingerprints:
 
 ```rust
-use seleniumbase_rs_stealth::client::StealthScriptBundle;
+use seleniumbase_rs_stealth::client::{
+    BaseCaseFingerprintExt, PageFingerprintExt, StealthLayer, StealthScriptBundle,
+};
 use seleniumbase_rs_stealth::sb_cdp::Page;
-use seleniumbase_rs_stealth::{BaseCaseFingerprintExt, PageFingerprintExt, StealthLayer};
 
 async fn apply_evasions(
     page: &Page,

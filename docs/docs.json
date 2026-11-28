@@ -320,7 +320,12 @@
     },
     {
       "source": "/stealth/avoid-bot-detection",
-      "destination": "/guides/write-tests/avoid-bot-detection",
+      "destination": "/stealth/introduction",
+      "permanent": true
+    },
+    {
+      "source": "/guides/write-tests/avoid-bot-detection",
+      "destination": "/stealth/introduction",
       "permanent": true
     },
     {
@@ -1056,8 +1061,7 @@
               "guides/write-tests/rust-test-tooling",
               "guides/write-tests/selectors",
               "guides/write-tests/utilities",
-              "guides/write-tests/best-practices",
-              "guides/write-tests/avoid-bot-detection"
+              "guides/write-tests/best-practices"
             ]
           },
           {
@@ -1150,7 +1154,7 @@
             "pages": [
               "stealth/introduction",
               {
-                "group": "Layer 0: Core undetected",
+                "group": "Core Browser & Input",
                 "icon": "mask",
                 "pages": [
                   "stealth/core/uc-mode",
@@ -1159,7 +1163,7 @@
                 ]
               },
               {
-                "group": "Layer 1: identity",
+                "group": "Identity & Fingerprints",
                 "icon": "id-card",
                 "pages": [
                   "stealth/identity/fingerprints",
@@ -1168,21 +1172,21 @@
                 ]
               },
               {
-                "group": "Layer 2: client",
+                "group": "Browser & Evasions",
                 "icon": "sliders",
                 "pages": [
                   "stealth/client/evasions"
                 ]
               },
               {
-                "group": "Layer 3: network",
+                "group": "Proxies & Network",
                 "icon": "network-wired",
                 "pages": [
                   "stealth/network/proxies"
                 ]
               },
               {
-                "group": "Layer 4: session",
+                "group": "Stealth Scraping",
                 "icon": "spider",
                 "pages": [
                   "stealth/session/overview",
@@ -1199,21 +1203,21 @@
             "pages": [
               "stealth/advanced/overview",
               {
-                "group": "Layer 0: Core undetected",
+                "group": "Binary Patching",
                 "icon": "mask",
                 "pages": [
                   "stealth/advanced/core/binary-patching"
                 ]
               },
               {
-                "group": "Layer 1: identity",
+                "group": "Spoofing & Surfaces",
                 "icon": "id-card",
                 "pages": [
                   "stealth/advanced/identity/signal-spoofing"
                 ]
               },
               {
-                "group": "Layer 2: client",
+                "group": "Evasion Providers & Playwright",
                 "icon": "sliders",
                 "pages": [
                   "stealth/advanced/client/providers",
@@ -1221,7 +1225,7 @@
                 ]
               },
               {
-                "group": "Layer 3: network",
+                "group": "Network, TLS & Proxying",
                 "icon": "network-wired",
                 "pages": [
                   "stealth/advanced/network/wire-formats",
@@ -1230,7 +1234,7 @@
                 ]
               },
               {
-                "group": "Layer 4: session",
+                "group": "Sessions & Anti-Bot Defense",
                 "icon": "spider",
                 "pages": [
                   "stealth/advanced/session/http-session",
@@ -1432,7 +1436,7 @@
               {
                 "product": "Stealth API: identity",
                 "icon": "id-card",
-                "description": "Layer 1: Fingerprint, Spoof, StealthPolicy, Specimen, BayesianSampler and capture",
+                "description": "Fingerprint, Spoof, StealthPolicy, Specimen, BayesianSampler and capture",
                 "groups": [
                   {
                     "group": "Stealth API: identity",
@@ -1446,7 +1450,7 @@
               {
                 "product": "Stealth API: client",
                 "icon": "mask",
-                "description": "Layer 2: StealthLayer levels, 42-surface StealthScriptBundle, 32 JS providers and StealthPlan",
+                "description": "StealthLayer levels, 42-surface StealthScriptBundle, 32 JS providers and StealthPlan",
                 "groups": [
                   {
                     "group": "Stealth API: client",
@@ -1460,7 +1464,7 @@
               {
                 "product": "Stealth API: network",
                 "icon": "network-wired",
-                "description": "Layer 3: Pure TLS/H2/H3/header specs, proxy pools, BoringSSL WireFormat, MitmProxy, HTTP/3, and wire-backed sessions",
+                "description": "Pure TLS/H2/H3/header specs, proxy pools, BoringSSL WireFormat, MitmProxy, HTTP/3, and wire-backed sessions",
                 "groups": [
                   {
                     "group": "Overview",
@@ -1501,7 +1505,7 @@
               {
                 "product": "Stealth API: session",
                 "icon": "spider",
-                "description": "Layer 4: CdpSession, challenge mitigation, CookieJar, Ledger, and Identity passport",
+                "description": "CdpSession, challenge mitigation, CookieJar, Ledger, and Identity passport",
                 "groups": [
                   {
                     "group": "Stealth API: session",

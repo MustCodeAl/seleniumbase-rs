@@ -10,7 +10,7 @@ Stealth depth is controlled at two complementary layers in [seleniumbase-rs-stea
 
 ## Layer 2: `StealthLayer` levels
 
-`StealthLayer` (`seleniumbase_rs_stealth::StealthLayer`) bundles a fingerprint, `ProfileFingerprint`, `StealthPlan`, and selective `StealthScriptBundle` into one reusable value:
+`StealthLayer` (`seleniumbase_rs_stealth::client::StealthLayer`) bundles a fingerprint, `ProfileFingerprint`, `StealthPlan`, and selective `StealthScriptBundle` into one reusable value:
 
 | Level | Constructor | Active script surfaces | Summary |
 |---|---|---|---|
@@ -20,9 +20,9 @@ Stealth depth is controlled at two complementary layers in [seleniumbase-rs-stea
 | **Strict** | `StealthLayer::strict(os, seed)` | 42 (all surfaces enabled; `beacon_guard` remains opt-in) | Adds seeded canvas, `OffscreenCanvas`, `toBlob`, Web Audio, `DOMRect`, SVG, and `performance.now()` noise on top of `balanced`. |
 
 ```rust
-use seleniumbase_rs_stealth::client::StealthScriptOptions;
+use seleniumbase_rs_stealth::client::{LaunchOptionsFingerprintExt, StealthLayer, StealthScriptOptions};
+use seleniumbase_rs_stealth::identity::OsType;
 use seleniumbase_rs_stealth::sb_cdp::LaunchOptions;
-use seleniumbase_rs_stealth::{LaunchOptionsFingerprintExt, OsType, StealthLayer};
 
 // Start from a named level and fine-tune any of the 42 surfaces
 let layer = StealthLayer::balanced(OsType::Macos, 42)
@@ -55,7 +55,7 @@ See [Stealth API: client](/stealth/api/client/overview) for the full list of con
 A [fingerprint](/stealth/identity/fingerprints) says what the browser should *claim*. Its `StealthPolicy` says *how* the claims are delivered and which protections run beside them. A policy preset never alters a setting's `Spoof` state, and the two can be configured in any order on `FingerprintBuilder`:
 
 ```rust
-use seleniumbase_rs_stealth::identity::policy::CanvasNoise;
+use seleniumbase_rs_stealth::identity::fingerprint::policy::CanvasNoise;
 use seleniumbase_rs_stealth::identity::{Fingerprint, FingerprintError, StealthPolicy};
 
 let fp = Fingerprint::builder()

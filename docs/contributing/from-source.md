@@ -331,6 +331,7 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="src" open>
 <LayoutFile name="sbrs.rs" highlight note="the sbrs command line" />
 <LayoutFile name="mcp_server.rs" highlight note="the sbrs-mcp server" />
+<LayoutFile name="sbrs_dev.rs" highlight note="the sbrs-dev plugin development CLI (`sbrs-dev plugin new|preview|check`)" />
 <LayoutFile name="fig.rs" note="the Fig completion spec" />
 <LayoutFile name="report.rs" note="sbrs report" />
 <LayoutFile name="reference.rs" note="renders docs/ecosystem/cli/reference.md from the usage spec" />
@@ -388,6 +389,9 @@ both, so a plain `cargo build` or `cargo test` at the root covers both.
 <LayoutDir name="sbrs" note="vfox plugin that installs sbrs and sbrs-mcp release binaries" />
 </LayoutDir>
 <LayoutDir name="tldr" note="draft tldr-pages entries for sbrs, kept to propose upstream" />
+</LayoutDir>
+<LayoutDir name="apps" note="desktop GUI applications">
+<LayoutDir name="sbrs-desktop" note="SeleniumBase Commander Desktop GUI built with Tauri 3" />
 </LayoutDir>
 <LayoutDir name="scripts" note="helper scripts">
 <LayoutFile name="check-consumers.sh" note="mise run contracts: checks what the repositories that build on this crate use" />

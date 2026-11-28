@@ -1,7 +1,7 @@
 ---
 title: "Plugin Scaffolding"
 sidebarTitle: "Scaffold a plugin"
-description: "Generate a ready-to-build plugin crate with sbrs plugin new, the Rust plugin_scaffold API, or the dev MCP server."
+description: "Generate a ready-to-build plugin crate with sbrs-dev plugin new, the Rust plugin_scaffold API, or the dev MCP server."
 ---
 
 {/* layout-tree-component:start */}
@@ -111,13 +111,14 @@ export const LayoutFile = ({ name, note, highlight = false }) => (
 
 {/* layout-tree-component:end */}
 
-`sbrs plugin new` generates a ready-to-build Rust plugin crate with tests, optional CLI entry points, CI or container configurations, and AI coding assistant rules. The same generator is exposed programmatically in `seleniumbase_rs::cli::plugin_scaffold` and as a read-only inspection tool on the `dev` MCP server (`sbrs-mcp --server dev`).
+`sbrs-dev plugin new` generates a ready-to-build Rust plugin crate with tests, optional CLI entry points, CI or container configurations, and AI coding assistant rules. When run with no `<NAME>` (with the `tui` feature enabled), it launches an interactive terminal wizard by default. The same generator is exposed programmatically in `seleniumbase_rs::cli::plugin_scaffold` and as a read-only inspection tool on the `dev` MCP server (`sbrs-mcp --server dev`).
 
 For low-level `Plugin` trait hooks (`before_launch`, `on_browser`, `on_page_created`, `on_close`) in a standalone `seleniumbase-rs-plugin` crate, see [Writing your own plugin](/plugins/writing-your-own).
 
 <Card color="#1a85d4" title="Quick reference" icon="wand-magic-sparkles">
 
-- CLI subcommand: `sbrs plugin new <NAME> [OPTIONS]`
+- Developer CLI subcommand: `sbrs-dev plugin new` (interactive TUI by default) or `sbrs-dev plugin new <NAME> [OPTIONS]`
+- Preview / validate commands: `sbrs-dev plugin preview <NAME>` and `sbrs-dev plugin check [PATH]`
 - Rust module: `seleniumbase_rs::cli::plugin_scaffold`
 - MCP `dev` tool: `scaffold_plugin` (read-only preview)
 - Templates: `library` (default) or `cli` (`src/main.rs` + `[[bin]]`)
@@ -126,13 +127,14 @@ For low-level `Plugin` trait hooks (`before_launch`, `on_browser`, `on_page_crea
 
 </Card>
 
-## CLI command (`sbrs plugin new`)
+## CLI command (`sbrs-dev plugin new`)
 
 ```bash Terminal
-sbrs plugin new <NAME> [OPTIONS]
+sbrs-dev plugin new              # interactive TUI wizard (feature `tui`)
+sbrs-dev plugin new <NAME> [OPTIONS]
 ```
 
-`<NAME>` is trimmed, lowercased, and converted so spaces become hyphens (`"My Plugin"` becomes `my-plugin`). Names that are empty, start with `.` or `-`, or contain `/`, `\`, or `..` are rejected before touching the filesystem. If the destination directory already exists and is non-empty, `sbrs plugin new` exits with an error rather than overwriting existing files.
+`<NAME>` is trimmed, lowercased, and converted so spaces become hyphens (`"My Plugin"` becomes `my-plugin`). Names that are empty, start with `.` or `-`, or contain `/`, `\`, or `..` are rejected before touching the filesystem. If the destination directory already exists and is non-empty, `sbrs-dev plugin new` exits with an error rather than overwriting existing files. Pass `--no-tui` for scripted non-interactive runs or `--tui` to pre-seed the wizard with `<NAME>`.
 
 ### Flags and options
 
@@ -195,10 +197,10 @@ sbrs plugin new session-guard --dev-env github-actions
 sbrs plugin new header-check --dev-env gitlab-ci
 
 # Docker + Compose (Dockerfile + docker-compose.yml with SB_HEADLESS=true)
-sbrs plugin new batch-runner --template cli --dev-env docker --target-env docker
+sbrs-dev plugin new batch-runner --template cli --dev-env docker --target-env docker
 
-# mise (.mise.toml with rust = "1.100.0" and build/test/check tasks)
-sbrs plugin new dom-snapshot --dev-env mise
+# mise (.mise.toml with rust = "1.100.1", sbrs alias, and fmt/lint/build/test/check tasks)
+sbrs-dev plugin new dom-snapshot --dev-env mise
 ```
 
 </Tab>
@@ -209,16 +211,16 @@ Generate agent instruction files enforcing `seleniumbase-rs` Rust API convention
 
 ```bash Terminal
 # Writes AGENTS.md (for Gemini CLI or Antigravity)
-sbrs plugin new auth-helper --ai-agent antigravity --ide zed
+sbrs-dev plugin new auth-helper --ai-agent antigravity --ide zed
 
 # Writes CLAUDE.md
-sbrs plugin new form-filler --ai-agent claude-code
+sbrs-dev plugin new form-filler --ai-agent claude-code
 
 # Writes .cursorrules
-sbrs plugin new cookie-sync --ai-agent cursor --ide cursor
+sbrs-dev plugin new cookie-sync --ai-agent cursor --ide cursor
 
 # Writes COPILOT.md
-sbrs plugin new table-parser --ai-agent codex --ide vscode
+sbrs-dev plugin new table-parser --ai-agent codex --ide vscode
 ```
 
 </Tab>
@@ -258,7 +260,7 @@ sbrs plugin new table-parser --ai-agent codex --ide vscode
 - **`src/main.rs`** (CLI mode only): Initializes `tracing_subscriber`, constructs the plugin controller, launches a `sb_cdp::Browser`, opens a `Page`, runs `plugin.execute(&page).await?`, and closes the browser cleanly.
 - **`tests/plugin_test.rs`**: Async `#[tokio::test]` verifying constructor and `Debug` invariants.
 - **Dev environment files**:
-  - `mise`: `.mise.toml` pinning `rust = "1.100.0"` with `build`, `test`, and `check` tasks.
+  - `mise`: `.mise.toml` pinning `rust = "1.100.1"`, `[tool_alias] sbrs`, `fmt`, `lint`, `build`, `test`, `check`, and `run`/`verify` tasks.
   - `docker`: `Dockerfile` (`rust:1.100-bookworm`) and `docker-compose.yml` (`SB_HEADLESS=true`).
   - `gitlab-ci`: `.gitlab-ci.yml` running `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, and `cargo test`.
   - `github-actions`: `.github/workflows/ci.yml` running the same three checks on `ubuntu-latest` with `1.100.0`.

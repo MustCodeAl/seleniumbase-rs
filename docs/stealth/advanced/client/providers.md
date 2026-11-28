@@ -18,7 +18,7 @@ turns either of those off.
 
 ```rust
 use seleniumbase_rs_stealth::client::{default_registry, EvasionContext};
-use seleniumbase_rs_stealth::Fingerprint;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 
 let fp = Fingerprint::windows_desktop();
 let ctx = EvasionContext::new(&fp);            // seed derived from the fingerprint
@@ -48,7 +48,7 @@ function look native; the example below skips it for brevity.
 
 ```rust
 use seleniumbase_rs_stealth::client::{default_registry, EvasionContext, EvasionProvider};
-use seleniumbase_rs_stealth::Fingerprint;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 
 struct HidePrint;
 impl EvasionProvider for HidePrint {

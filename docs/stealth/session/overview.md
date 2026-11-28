@@ -386,7 +386,7 @@ async fn demo() -> Result<(), seleniumbase_rs_stealth::session::SessionError> {
 `CdpSession`, `SessionError`, `CookieJar`, `Identity`, and `SessionEvent` live under `seleniumbase_rs_stealth::session`. Proxy pool types (`ProxyPool`, `CountryCode`) and wire specs live under `seleniumbase_rs_stealth::network`. With `features = ["network"]`, `MitmProxy` and `WireFormat` unlock under `network`, while `HttpSession` and `HybridSession` unlock under `session`:
 
 ```rust
-use seleniumbase_rs_stealth::identity::policy::CanvasNoise;
+use seleniumbase_rs_stealth::identity::fingerprint::policy::CanvasNoise;
 use seleniumbase_rs_stealth::identity::{Fingerprint, StealthPolicy};
 use seleniumbase_rs_stealth::network::{MitmProxy, WireFormat};
 use seleniumbase_rs_stealth::session::{CdpSession, HttpSession, HybridSession};

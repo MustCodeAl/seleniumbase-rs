@@ -19,12 +19,12 @@ Keep the default `session` feature when you also want `CdpSession`, challenge mi
 <RequestExample>
 
 ```rust Apply StealthLayer levels to pure CDP or WebDriver/UC
-use seleniumbase_rs_stealth::client::StealthScriptOptions;
-use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs_stealth::{
-    BrowserConfig, BrowserConfigFingerprintExt, DriverMode, LaunchOptionsFingerprintExt, OsType,
-    StealthLayer,
+use seleniumbase_rs_stealth::client::{
+    BrowserConfigFingerprintExt, LaunchOptionsFingerprintExt, StealthLayer, StealthScriptOptions,
 };
+use seleniumbase_rs_stealth::identity::OsType;
+use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
+use seleniumbase_rs_stealth::{BrowserConfig, DriverMode};
 
 async fn launch_with_levels() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
     // 1. Default balanced preset for the current host OS

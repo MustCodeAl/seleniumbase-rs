@@ -19,6 +19,18 @@ The `profile_payloads::ProfileParams` type maps to a `Fingerprint` via
 `ProfileParams::to_fingerprint()`. `ProfileParams::to_browser_config(webdriver_url)`
 returns a `BrowserConfig` with that fingerprint attached.
 
+```rust
+use seleniumbase_rs_stealth::identity::profile_payloads::ProfileParams;
+
+fn load_external_profile(raw_json: &str) -> Result<(), Box<dyn std::error::Error>> {
+    let params: ProfileParams = serde_json::from_str(raw_json)?;
+    let fp = params.to_fingerprint();
+    let config = params.to_browser_config("http://127.0.0.1:4444");
+    assert_eq!(config.user_agent.as_deref(), fp.user_agent().value().map(String::as_str));
+    Ok(())
+}
+```
+
 The returned `mode` follows the payload's `automation` field: `playwright` and
 `puppeteer` give `DriverMode::Cdp`; `selenium` (the default when the field is
 absent) and the Firefox browser types give `DriverMode::WebDriver`; anything else
@@ -188,7 +200,16 @@ A `Natural` setting is omitted in JSON output. Each setting field can be:
 
 Loading this file via `Fingerprint::load(path)` or `from_json(text)` validates all
 types, draws any `Random` settings coherently, resolves `Mimic` records, and applies
-the specified `StealthPolicy`.
+the specified `StealthPolicy`:
+
+```rust
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
+
+let original = Fingerprint::randomized(OsType::Macos, 42);
+let json = original.to_json_pretty()?;
+let loaded = Fingerprint::from_json(&json)?;
+assert_eq!(loaded, original);
+```
 
 ## Profile coherence validation
 
@@ -220,7 +241,7 @@ It reports a warning for:
 It does not look at hardware.
 
 ```rust
-use seleniumbase_rs_stealth::Fingerprint;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 
 let report = Fingerprint::windows_desktop().validate();
 assert!(report.is_coherent() && report.warnings.is_empty());

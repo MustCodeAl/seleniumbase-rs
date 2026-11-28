@@ -173,6 +173,7 @@ seleniumbase-rs/               # the workspace root
 │   │   ├── src/
 │   │   │   ├── sbrs.rs        # the sbrs command line
 │   │   │   ├── mcp_server.rs  # the sbrs-mcp server
+│   │   │   ├── sbrs_dev.rs    # the sbrs-dev plugin development CLI (`sbrs-dev plugin new|preview|check`)
 │   │   │   ├── fig.rs         # the Fig completion spec
 │   │   │   ├── report.rs      # sbrs report
 │   │   │   ├── reference.rs   # renders docs/ecosystem/cli/reference.md from the usage spec
@@ -190,6 +191,7 @@ seleniumbase-rs/               # the workspace root
 ├── completions/               # the usage spec of sbrs
 ├── man/                       # the man pages of sbrs and sbrs-mcp, generated from their usage specs
 ├── contrib/                   # files that are not part of the crate
+├── apps/                      # desktop GUI applications
 ├── scripts/                   # helper scripts
 ├── tools/                     # scripts for the docs, the parity manifests, the Linux check and the release archives
 ├── docker/                    # the Linux verification image (Dockerfile.verify, verify-linux.sh) and firefox-check/

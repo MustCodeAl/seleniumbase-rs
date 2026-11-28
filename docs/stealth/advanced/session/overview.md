@@ -10,6 +10,21 @@ challenge detection, and knowing where the layer stops. They are the API of
 the [seleniumbase-rs-stealth](https://github.com/MustCodeAl/seleniumbase-rs-stealth)
 repository.
 
+```rust,no_run
+use seleniumbase_rs_stealth::session::{HybridSession, SessionError};
+
+async fn fetch_with_hybrid() -> Result<(), SessionError> {
+    let mut session = HybridSession::builder()
+        .max_challenge_attempts(4)
+        .build()
+        .await?;
+
+    let response = session.fetch("https://example.com/").await?;
+    println!("status={} body_len={}", response.status, response.body.len());
+    session.close().await
+}
+```
+
 | Page | What it covers |
 |---|---|
 | [HybridSession](/stealth/advanced/session/hybrid-session) | A browser and an `HttpSession` sharing one identity, and moving between them |

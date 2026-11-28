@@ -42,8 +42,9 @@ API.
 ## Start an undetected browser
 
 ```rust,no_run
+use seleniumbase_rs_stealth::client::LaunchOptionsFingerprintExt;
+use seleniumbase_rs_stealth::identity::{Fingerprint, OsType};
 use seleniumbase_rs_stealth::sb_cdp::{Browser, LaunchOptions};
-use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt, OsType};
 
 async fn demo() -> Result<(), seleniumbase_rs_stealth::SeleniumBaseError> {
     let fingerprint = Fingerprint::randomized(OsType::Windows, 42);

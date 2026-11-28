@@ -88,11 +88,11 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 | Module | What it holds | Deep reference |
 |---|---|---|
 | `identity::fingerprint` | Core v2 `Fingerprint`, `FingerprintBuilder`, `FingerprintError`, `CoherenceReport`, `OsType`, `BrowserType`, `ClientHints`, `BrandVersion`, JSON file I/O, comparison/consistency diagnostics, JSON Schema (`schemas/fingerprint.schema.json`), plus submodules `profile`, `generator`, and `bayesian`. | [Fingerprint API](/stealth/api/identity/fingerprint) |
-| `identity::spoof` | Five-state `Spoof<T>` enum (`Natural`, `Random`, `Value(T)`, `Off`, `Mimic(Specimen)`). | [Fingerprints](/stealth/identity/fingerprints) |
-| `identity::policy` | `StealthPolicy` (`default`, `native_only`, `balanced`, `max`), `CanvasNoise`, `AudioNoise`. | [Policies & levels](/stealth/identity/policies) |
-| `identity::settings` | Typed dimension models: `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `MediaFeatures`, `ColorGamut`, `ColorScheme`, `DynamicRange` (`HdrMode`), `KeyboardLayout`, `PointerType`, `HoverType`, `QuicMode`, `WebRtcPolicy`. | [Fingerprints](/stealth/identity/fingerprints) |
-| `identity::mimic` | Recorded browser and hardware specimens (`Specimen`, `Build`, `Machine`, `Place`, `Rendering`, `Provenance`). | [Signal & hardware spoofing](/stealth/advanced/identity/signal-spoofing) |
-| `identity::randomize` | Deterministic persona synthesis tables (`KNOWN_FULL_VERSIONS`, `PRESET_CHROMIUM_MAJOR`, `edge_hints`, weighted OS/GPU/locale generators). | [Fingerprints](/stealth/identity/fingerprints) |
+| `identity::fingerprint::spoof` | Five-state `Spoof<T>` enum (`Natural`, `Random`, `Value(T)`, `Off`, `Mimic(Specimen)`). | [Fingerprints](/stealth/identity/fingerprints) |
+| `identity::fingerprint::policy` | `StealthPolicy` (`default`, `native_only`, `balanced`, `max`), `CanvasNoise`, `AudioNoise`. | [Policies & levels](/stealth/identity/policies) |
+| `identity::fingerprint::settings` | Typed dimension models: `ScreenSize`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDevices`, `MediaFeatures`, `ColorGamut`, `ColorScheme`, `DynamicRange` (`HdrMode`), `KeyboardLayout`, `PointerType`, `HoverType`, `QuicMode`, `WebRtcPolicy`. | [Fingerprints](/stealth/identity/fingerprints) |
+| `identity::fingerprint::mimic` | Recorded browser and hardware specimens (`Specimen`, `Build`, `Machine`, `Place`, `Rendering`, `Provenance`). | [Signal & hardware spoofing](/stealth/advanced/identity/signal-spoofing) |
+| `identity::fingerprint::randomize` | Deterministic persona synthesis tables (`KNOWN_FULL_VERSIONS`, `PRESET_CHROMIUM_MAJOR`, `edge_hints`, weighted OS/GPU/locale generators). | [Fingerprints](/stealth/identity/fingerprints) |
 | `identity::profile_payloads` | `ProfileParams` external JSON profile loader (`to_fingerprint()`, `to_browser_config(url)`, `browser()`). | [Identities and profiles](/stealth/identity/profiles) |
 | `identity::capture` | `CapturedFingerprint`, `ProbeInfo`, `capture_expression()`, `capture_async_script()`, and `contradictions()` self-consistency analysis. | [Fingerprints](/stealth/identity/fingerprints#consistency) |
 | `identity::js` | Shared JavaScript helper builders used by identity capture and client masking. | [Evasion providers](/stealth/advanced/client/providers) |
@@ -106,14 +106,14 @@ seleniumbase-rs-stealth = { git = "https://github.com/MustCodeAl/seleniumbase-rs
 | `FingerprintGenerator`, `FingerprintOptions`, `FingerprintOptionsBuilder`, `GeneratedFingerprint`, `ScreenConstraints`, `ConnectionOverride`, `ConnectionProfile`, `BatteryOverride`, `BatteryProfile`, `AudioDynamicsCompressor` | `identity::fingerprint::generator` |
 | `BayesianSampler`, `SampleConstraints`, `DeviceCategory`, `HeaderGenerator`, `RequestContext`, `FingerprintConverter`, `audit_coherence`, `CoherenceAudit` | `identity::fingerprint::bayesian` |
 | `FingerprintComparison`, `SettingDiff`, `Contradiction`, `Severity` | `identity::fingerprint::{compare, consistency}` |
-| `ScreenSize`, `ScreenOrientation`, `ScreenOrientationType`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDeviceInfo`, `SpeechVoice`, `ColorGamut`, `HdrMode` | `identity::settings` |
-| `StealthPolicy` | `identity::policy` |
-| `Spoof` | `identity::spoof` |
-| `Specimen` | `identity::mimic` |
+| `ScreenSize`, `ScreenOrientation`, `ScreenOrientationType`, `Geolocation`, `WebGl`, `WebRtcAddresses`, `MediaDeviceInfo`, `SpeechVoice`, `ColorGamut`, `HdrMode` | `identity::fingerprint::settings` |
+| `StealthPolicy` | `identity::fingerprint::policy` |
+| `Spoof` | `identity::fingerprint::spoof` |
+| `Specimen` | `identity::fingerprint::mimic` |
 | `ProfileParams` | `identity::profile_payloads` |
 | `CapturedFingerprint`, `ProbeInfo` | `identity::capture` |
 
-`Fingerprint` and `OsType` are also re-exported directly at the crate root (`seleniumbase_rs_stealth::{Fingerprint, OsType}`).
+Import `Fingerprint` and `OsType` from `seleniumbase_rs_stealth::identity::{Fingerprint, OsType}` (or `seleniumbase_rs_stealth::identity::fingerprint::*`), and extension traits/`StealthLayer` from `seleniumbase_rs_stealth::client`.
 
 ## `fingerprint!` macro
 

@@ -584,13 +584,14 @@ A `Fingerprint` is what the browser claims. Each setting is one `Spoof<T>`: leav
 | `sbase_config.toml` (`[fingerprint]` table) | Lowest priority fingerprint source, loaded with `Settings::load()`. |
 | `SB_FINGERPRINT` | Environment variable pointing to a fingerprint JSON file; overrides `[fingerprint]`. |
 | `sbrs --fingerprint FILE` | Global CLI flag overriding both `SB_FINGERPRINT` and `[fingerprint]`. |
-| `LaunchOptionsFingerprintExt::with_fingerprint(&fp)` / `with_stealth(&layer)` | Pure CDP (from `seleniumbase_rs_stealth::client`, re-exported at crate root). Copies unset launch settings (user agent, language, timezone, geolocation, platform, WebRTC policy) without overwriting explicit caller values, and runs CDP overrides and init scripts on every tab before the first navigation. |
+| `LaunchOptionsFingerprintExt::with_fingerprint(&fp)` / `with_stealth(&layer)` | Pure CDP (from `seleniumbase_rs_stealth::client`). Copies unset launch settings (user agent, language, timezone, geolocation, platform, WebRTC policy) without overwriting explicit caller values, and runs CDP overrides and init scripts on every tab before the first navigation. |
 | `BrowserConfigFingerprintExt::with_fingerprint(&fp)` / `with_stealth(&layer)` | WebDriver/UC config extension trait. |
 | `PageFingerprintExt::apply_fingerprint(&fp)` / `BaseCaseFingerprintExt::apply_fingerprint(&fp)` | Applies CDP overrides and init scripts to an already open `sb_cdp::Page` or `BaseCase`. |
 
 ```rust
+use seleniumbase_rs_stealth::client::LaunchOptionsFingerprintExt;
+use seleniumbase_rs_stealth::identity::Fingerprint;
 use seleniumbase_rs_stealth::sb_cdp::LaunchOptions;
-use seleniumbase_rs_stealth::{Fingerprint, LaunchOptionsFingerprintExt};
 
 let fp = Fingerprint::windows_desktop();
 let _cdp = LaunchOptions::builder().build()?.with_fingerprint(&fp)?;
