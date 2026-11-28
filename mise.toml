@@ -244,3 +244,21 @@ exec cargo hack clippy -p seleniumbase-rs --each-feature --exclude-features toki
 [tasks.unused-deps]
 description = "Find dependencies that no code uses"
 run = "cargo shear"
+
+[tasks.desktop-check]
+description = "Format check, clippy, and unit tests for the Tauri Desktop GUI (apps/sbrs-desktop)"
+dir = "apps/sbrs-desktop/src-tauri"
+env = { CARGO_INCREMENTAL = "0" }
+run = [
+  "cargo fmt --check",
+  "cargo clippy --all-targets -- -D warnings",
+  "cargo test",
+]
+
+[tasks."cli:mcp"]
+description = "Serve the sbrs CLI usage spec as an MCP server (`usage mcp`)"
+run = "usage mcp -f completions/sbrs.usage.kdl"
+
+[tasks."cli:diff"]
+description = "Compare the checked-in sbrs usage spec against git HEAD (`usage diff`)"
+run = "usage diff <(git show HEAD:completions/sbrs.usage.kdl) completions/sbrs.usage.kdl"

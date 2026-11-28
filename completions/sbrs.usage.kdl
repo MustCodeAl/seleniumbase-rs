@@ -1,6 +1,7 @@
 name sbrs
 bin sbrs
 version "0.10.0 (seleniumbase-rs)"
+repository "https://github.com/MustCodeAl/seleniumbase-rs"
 about "SeleniumBaseRust CLI"
 long_about "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper."
 logo #"""
@@ -2601,14 +2602,16 @@ List the built-in plugins, or show what one declares.
 Plugins run inside the browsers a command starts. Turn them on by name with the global options --plugin and --plugin-opt, the SB_PLUGINS variable, or the [plugins] table of the settings file; the command line wins over SB_PLUGINS, which wins over the file. `sbrs plugin list` shows the plugins this build has.
 """#
     flag "-h --help" help="Print help" action=help builtin=#true
-    cmd list help="List the built-in plugins of this build, and whether they are on." {
+    cmd list help="List the built-in and installed plugins, and whether they are enabled." {
+        alias ls
         long_help #"""
-List the built-in plugins of this build, and whether they are on.
+List the built-in and installed plugins, and whether they are enabled.
 
-Prints each plugin's name, category and summary, and `yes` under ENABLED when the settings file, SB_PLUGINS or the global --plugin option turns it on. A build without built-in plugins says so; rebuild it with --features plugins-builtin.
+Prints each built-in plugin's name, category and summary, and `yes` under ENABLED when the settings file, SB_PLUGINS or the global --plugin option turns it on, followed by any user plugins installed in the plugin directory.
 """#
         flag "-h --help" help="Print help" action=help builtin=#true
         example "sbrs plugin list"
+        example "sbrs plugin ls"
     }
     cmd info help="Show what one plugin declares and what it may do." {
         long_help #"""
@@ -2639,53 +2642,57 @@ Only plugins that offer a task can be run, and the named plugin is turned on for
         complete name run="sbrs __complete_word__ --candidates name --line={{ words | shell_join | shell_quote }}"
         example "sbrs plugin run crawler --input crawl.json --out found.jsonl"
     }
-    cmd new help="Create a new seleniumbase-rs plugin project scaffold." {
-        long_help #"""
-Create a new seleniumbase-rs plugin project scaffold.
-
-Generates a complete, modular Rust crate configured with templates, backends, CI environments, and tailored AI agent instructions.
-"""#
-        flag --template help="Template style (e.g. \"library\", \"cli\")." default=library {
-            arg <TEMPLATE>
+    cmd install help="Install a plugin from a local directory, git URL, GitHub `owner/repo`, or catalog name." {
+        alias add
+        flag --name help="Override the installed plugin name." {
+            arg <NAME>
         }
-        flag --backend help="Backend foundation (e.g. \"cdp\", \"webdriver\")." {
-            arg <BACKEND>
-        }
-        flag --focus help="Architectural focus (e.g. \"general\", \"cli\", \"scraping\")." default=general {
-            arg <FOCUS>
-        }
-        flag --integrations help="Target integrations (e.g. \"mcp\", \"ci\")." {
-            arg <INTEGRATIONS>
-        }
-        flag --headless help="Enable headless mode by default." bool_value=#true
-        flag --dev-env help="Development environment configuration (e.g. \"cargo\", \"mise\", \"docker\", \"gitlab-ci\", \"github-actions\")." default=cargo {
-            arg <DEV_ENV>
-        }
-        flag --ai-agent help="AI agent rule file to generate (e.g. \"none\", \"cursor\", \"claude-code\", \"gemini\", \"antigravity\", \"codex\")." default=none {
-            arg <AI_AGENT>
-        }
-        flag --ide help="Primary IDE for quick start instructions (e.g. \"cursor\", \"vscode\", \"zed\", \"clion\", \"neovim\", \"helix\")." default=cursor {
-            arg <IDE>
-        }
-        flag --target-env help="Target execution environment (e.g. \"local\", \"docker\", \"cloud\")." default=local {
-            arg <TARGET_ENV>
-        }
-        flag --out-dir help="Destination directory for the scaffolded plugin (defaults to plugin name)." {
-            arg <DIR>
-        }
+        flag --force help="Reinstall even when the plugin already exists in the store." bool_value=#true
         flag "-h --help" help="Print help" action=help builtin=#true
-        arg <NAME> help="The name of the new plugin to create."
+        arg <SOURCE> help="Local directory, git URL, `owner/repo`, or community catalog name."
+        complete source type=path
         complete name type=none
-        complete template type=none
-        complete backend type=none
-        complete focus type=none
-        complete integrations type=none
-        complete dev_env type=none
-        complete ai_agent type=none
-        complete ide type=none
-        complete target_env type=none
-        complete dir type=dir
-        example "sbrs plugin new my-plugin --template library"
+        example "sbrs plugin install ./my-plugin"
+        example "sbrs plugin install owasp"
+    }
+    cmd uninstall help="Uninstall an installed plugin from the user plugin directory." {
+        alias remove
+        alias rm
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <NAME> help="Plugin name."
+        complete name type=none
+        example "sbrs plugin uninstall my-plugin"
+    }
+    cmd upgrade help="Upgrade one installed plugin, or all installed plugins when NAME is omitted." {
+        alias update
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg "[NAME]" help="Specific plugin to upgrade (upgrades all installed plugins when omitted)."
+        complete name type=none
+        example "sbrs plugin upgrade"
+    }
+    cmd search help="Search built-in, community catalog, and installed plugins." {
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg "[QUERY]" help="Search term matching name, category, or summary (lists all when omitted)."
+        complete query type=none
+        example "sbrs plugin search owasp"
+    }
+    cmd enable help="Enable a plugin in the user plugin store." {
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <NAME> help="Plugin name."
+        complete name type=none
+        example "sbrs plugin enable my-plugin"
+    }
+    cmd disable help="Disable a plugin in the user plugin store." {
+        flag "-h --help" help="Print help" action=help builtin=#true
+        arg <NAME> help="Plugin name."
+        complete name type=none
+        example "sbrs plugin disable my-plugin"
+    }
+    cmd directory help="Print (and optionally initialize) the user plugins directory." {
+        alias dir
+        flag --ensure help="Create the plugins directory and registry file if they do not exist." bool_value=#true
+        flag "-h --help" help="Print help" action=help builtin=#true
+        example "sbrs plugin directory"
     }
     example "sbrs plugin list"
 }

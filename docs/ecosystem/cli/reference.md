@@ -99,10 +99,16 @@ sbrs [FLAGS] <SUBCOMMAND>
 | [`sbrs patch-chromedriver`](#sbrs-patch-chromedriver) | Patch a chromedriver binary to reduce detection surface. |
 | [`sbrs pdf-text`](#sbrs-pdf-text) | Print the text extracted from a page or PDF URL. |
 | [`sbrs plugin`](#sbrs-plugin) | List the built-in plugins, or show what one declares. |
+| [`sbrs plugin directory`](#sbrs-plugin-directory) | Print (and optionally initialize) the user plugins directory. |
+| [`sbrs plugin disable`](#sbrs-plugin-disable) | Disable a plugin in the user plugin store. |
+| [`sbrs plugin enable`](#sbrs-plugin-enable) | Enable a plugin in the user plugin store. |
 | [`sbrs plugin info`](#sbrs-plugin-info) | Show what one plugin declares and what it may do. |
-| [`sbrs plugin list`](#sbrs-plugin-list) | List the built-in plugins of this build, and whether they are on. |
-| [`sbrs plugin new`](#sbrs-plugin-new) | Create a new seleniumbase-rs plugin project scaffold. |
+| [`sbrs plugin install`](#sbrs-plugin-install) | Install a plugin from a local directory, git URL, GitHub `owner/repo`, or catalog name. |
+| [`sbrs plugin list`](#sbrs-plugin-list) | List the built-in and installed plugins, and whether they are enabled. |
 | [`sbrs plugin run`](#sbrs-plugin-run) | Run the task of a plugin on a browser it starts, and write its results as JSON lines. |
+| [`sbrs plugin search`](#sbrs-plugin-search) | Search built-in, community catalog, and installed plugins. |
+| [`sbrs plugin uninstall`](#sbrs-plugin-uninstall) | Uninstall an installed plugin from the user plugin directory. |
+| [`sbrs plugin upgrade`](#sbrs-plugin-upgrade) | Upgrade one installed plugin, or all installed plugins when NAME is omitted. |
 | [`sbrs print`](#sbrs-print) | Print a file, with a line number in front of every line if you ask for it. |
 | [`sbrs print-pdf`](#sbrs-print-pdf) | Print a page to PDF and save it to disk. |
 | [`sbrs prompt`](#sbrs-prompt) | Print one short line for a shell prompt: the installed Chrome's major version and whether a matching chromedriver is at hand. |
@@ -3277,6 +3283,68 @@ sbrs plugin <SUBCOMMAND>
 sbrs plugin list
 ```
 
+### sbrs plugin directory
+
+Also: `dir`
+
+Print (and optionally initialize) the user plugins directory.
+
+```bash Usage
+sbrs plugin directory [--ensure]
+```
+
+**Flags**
+
+<ParamField query="--ensure" type="boolean">
+
+Create the plugins directory and registry file if they do not exist.
+
+</ParamField>
+
+```bash Examples
+sbrs plugin directory
+```
+
+### sbrs plugin disable
+
+Disable a plugin in the user plugin store.
+
+```bash Usage
+sbrs plugin disable <NAME>
+```
+
+**Arguments**
+
+<ParamField path="NAME" type="string" required>
+
+Plugin name.
+
+</ParamField>
+
+```bash Examples
+sbrs plugin disable my-plugin
+```
+
+### sbrs plugin enable
+
+Enable a plugin in the user plugin store.
+
+```bash Usage
+sbrs plugin enable <NAME>
+```
+
+**Arguments**
+
+<ParamField path="NAME" type="string" required>
+
+Plugin name.
+
+</ParamField>
+
+```bash Examples
+sbrs plugin enable my-plugin
+```
+
 ### sbrs plugin info
 
 Show what one plugin declares and what it may do.
@@ -3299,102 +3367,58 @@ The plugin's name, as `sbrs plugin list` shows it.
 sbrs plugin info shield
 ```
 
-### sbrs plugin list
+### sbrs plugin install
 
-List the built-in plugins of this build, and whether they are on.
+Also: `add`
 
-Prints each plugin's name, category and summary, and `yes` under ENABLED when the settings file, SB_PLUGINS or the global --plugin option turns it on. A build without built-in plugins says so; rebuild it with --features plugins-builtin.
-
-```bash Usage
-sbrs plugin list
-```
-
-```bash Examples
-sbrs plugin list
-```
-
-### sbrs plugin new
-
-Create a new seleniumbase-rs plugin project scaffold.
-
-Generates a complete, modular Rust crate configured with templates, backends, CI environments, and tailored AI agent instructions.
+Install a plugin from a local directory, git URL, GitHub `owner/repo`, or catalog name.
 
 ```bash Usage
-sbrs plugin new [FLAGS] <NAME>
+sbrs plugin install [--name <NAME>] [--force] <SOURCE>
 ```
 
 **Arguments**
 
-<ParamField path="NAME" type="string" required>
+<ParamField path="SOURCE" type="string" required>
 
-The name of the new plugin to create.
+Local directory, git URL, `owner/repo`, or community catalog name.
 
 </ParamField>
 
 **Flags**
 
-<ParamField query="--template <TEMPLATE>" type="string" default="library">
+<ParamField query="--name <NAME>" type="string">
 
-Template style (e.g. "library", "cli").
-
-</ParamField>
-
-<ParamField query="--backend <BACKEND>" type="string">
-
-Backend foundation (e.g. "cdp", "webdriver").
+Override the installed plugin name.
 
 </ParamField>
 
-<ParamField query="--focus <FOCUS>" type="string" default="general">
+<ParamField query="--force" type="boolean">
 
-Architectural focus (e.g. "general", "cli", "scraping").
-
-</ParamField>
-
-<ParamField query="--integrations <INTEGRATIONS>" type="string">
-
-Target integrations (e.g. "mcp", "ci").
-
-</ParamField>
-
-<ParamField query="--headless" type="boolean">
-
-Enable headless mode by default.
-
-</ParamField>
-
-<ParamField query="--dev-env <DEV_ENV>" type="string" default="cargo">
-
-Development environment configuration (e.g. "cargo", "mise", "docker", "gitlab-ci", "github-actions").
-
-</ParamField>
-
-<ParamField query="--ai-agent <AI_AGENT>" type="string" default="none">
-
-AI agent rule file to generate (e.g. "none", "cursor", "claude-code", "gemini", "antigravity", "codex").
-
-</ParamField>
-
-<ParamField query="--ide <IDE>" type="string" default="cursor">
-
-Primary IDE for quick start instructions (e.g. "cursor", "vscode", "zed", "clion", "neovim", "helix").
-
-</ParamField>
-
-<ParamField query="--target-env <TARGET_ENV>" type="string" default="local">
-
-Target execution environment (e.g. "local", "docker", "cloud").
-
-</ParamField>
-
-<ParamField query="--out-dir <DIR>" type="string">
-
-Destination directory for the scaffolded plugin (defaults to plugin name).
+Reinstall even when the plugin already exists in the store.
 
 </ParamField>
 
 ```bash Examples
-sbrs plugin new my-plugin --template library
+sbrs plugin install ./my-plugin
+sbrs plugin install owasp
+```
+
+### sbrs plugin list
+
+Also: `ls`
+
+List the built-in and installed plugins, and whether they are enabled.
+
+Prints each built-in plugin's name, category and summary, and `yes` under ENABLED when the settings file, SB_PLUGINS or the global --plugin option turns it on, followed by any user plugins installed in the plugin directory.
+
+```bash Usage
+sbrs plugin list
+```
+
+```bash Examples
+sbrs plugin list
+sbrs plugin ls
 ```
 
 ### sbrs plugin run
@@ -3431,6 +3455,70 @@ Write the results to this file, one JSON value per line (default: standard outpu
 
 ```bash Examples
 sbrs plugin run crawler --input crawl.json --out found.jsonl
+```
+
+### sbrs plugin search
+
+Search built-in, community catalog, and installed plugins.
+
+```bash Usage
+sbrs plugin search [QUERY]
+```
+
+**Arguments**
+
+<ParamField path="QUERY" type="string">
+
+Search term matching name, category, or summary (lists all when omitted).
+
+</ParamField>
+
+```bash Examples
+sbrs plugin search owasp
+```
+
+### sbrs plugin uninstall
+
+Also: `remove`, `rm`
+
+Uninstall an installed plugin from the user plugin directory.
+
+```bash Usage
+sbrs plugin uninstall <NAME>
+```
+
+**Arguments**
+
+<ParamField path="NAME" type="string" required>
+
+Plugin name.
+
+</ParamField>
+
+```bash Examples
+sbrs plugin uninstall my-plugin
+```
+
+### sbrs plugin upgrade
+
+Also: `update`
+
+Upgrade one installed plugin, or all installed plugins when NAME is omitted.
+
+```bash Usage
+sbrs plugin upgrade [NAME]
+```
+
+**Arguments**
+
+<ParamField path="NAME" type="string">
+
+Specific plugin to upgrade (upgrades all installed plugins when omitted).
+
+</ParamField>
+
+```bash Examples
+sbrs plugin upgrade
 ```
 
 ## sbrs print

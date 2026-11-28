@@ -65,7 +65,6 @@ mod info;
 
 mod plugin_catalog;
 mod plugin_flags;
-mod plugin_scaffold;
 mod proxy;
 mod recorder_flags;
 
@@ -319,12 +318,14 @@ struct PluginArgs {
 
 #[derive(Debug, usage::Subcommands)]
 enum PluginCommand {
-    /// List the built-in plugins of this build, and whether they are on.
+    /// List the built-in and installed plugins, and whether they are enabled.
     ///
-    /// Prints each plugin's name, category and summary, and `yes` under ENABLED when the
-    /// settings file, SB_PLUGINS or the global --plugin option turns it on. A build without
-    /// built-in plugins says so; rebuild it with --features plugins-builtin.
+    /// Prints each built-in plugin's name, category and summary, and `yes` under ENABLED when the
+    /// settings file, SB_PLUGINS or the global --plugin option turns it on, followed by any user
+    /// plugins installed in the plugin directory.
+    #[usage(alias = "ls")]
     #[usage(example = "sbrs plugin list")]
+    #[usage(example = "sbrs plugin ls")]
     List,
     /// Show what one plugin declares and what it may do.
     ///
@@ -345,12 +346,33 @@ enum PluginCommand {
     /// status 2 and lists the plugins that have a task when the name is not one of them.
     #[usage(example = "sbrs plugin run crawler --input crawl.json --out found.jsonl")]
     Run(PluginRunArgs),
-    /// Create a new seleniumbase-rs plugin project scaffold.
-    ///
-    /// Generates a complete, modular Rust crate configured with templates, backends,
-    /// CI environments, and tailored AI agent instructions.
-    #[usage(example = "sbrs plugin new my-plugin --template library")]
-    New(PluginNewArgs),
+    /// Install a plugin from a local directory, git URL, GitHub `owner/repo`, or catalog name.
+    #[usage(alias = "add")]
+    #[usage(example = "sbrs plugin install ./my-plugin")]
+    #[usage(example = "sbrs plugin install owasp")]
+    Install(PluginInstallArgs),
+    /// Uninstall an installed plugin from the user plugin directory.
+    #[usage(alias = "remove")]
+    #[usage(alias = "rm")]
+    #[usage(example = "sbrs plugin uninstall my-plugin")]
+    Uninstall(PluginNameArg),
+    /// Upgrade one installed plugin, or all installed plugins when NAME is omitted.
+    #[usage(alias = "update")]
+    #[usage(example = "sbrs plugin upgrade")]
+    Upgrade(PluginUpgradeArgs),
+    /// Search built-in, community catalog, and installed plugins.
+    #[usage(example = "sbrs plugin search owasp")]
+    Search(PluginSearchArgs),
+    /// Enable a plugin in the user plugin store.
+    #[usage(example = "sbrs plugin enable my-plugin")]
+    Enable(PluginNameArg),
+    /// Disable a plugin in the user plugin store.
+    #[usage(example = "sbrs plugin disable my-plugin")]
+    Disable(PluginNameArg),
+    /// Print (and optionally initialize) the user plugins directory.
+    #[usage(alias = "dir")]
+    #[usage(example = "sbrs plugin directory")]
+    Directory(PluginDirectoryArgs),
     // The task of a plugin as a command of its own (`sbrs plugin crawler --input crawl.json`):
     // the plugins that have a task depend on the build, so the words are met by the catalog of
     // `plugin_catalog.rs`, which makes them `plugin run`. (Plain comments, not docs.)
@@ -382,43 +404,50 @@ struct PluginRunArgs {
     out: Option<PathBuf>,
 }
 
-// The arguments of `plugin new`. (Plain comments, not docs: a doc comment on this struct would
-// be help text.)
+// The arguments of `plugin install`. (Plain comments, not docs.)
 #[derive(Debug, usage::Args)]
-struct PluginNewArgs {
-    /// The name of the new plugin to create.
+struct PluginInstallArgs {
+    /// Local directory, git URL, `owner/repo`, or community catalog name.
+    #[usage(value_hint = usage::ValueHint::AnyPath)]
+    source: String,
+    /// Override the installed plugin name.
+    #[usage(long, value_hint = usage::ValueHint::Other)]
+    name: Option<String>,
+    /// Reinstall even when the plugin already exists in the store.
+    #[usage(long, bool_value)]
+    force: bool,
+}
+
+// Single plugin name argument for `uninstall`, `enable`, and `disable`. (Plain comments, not docs.)
+#[derive(Debug, usage::Args)]
+struct PluginNameArg {
+    /// Plugin name.
     #[usage(value_hint = usage::ValueHint::Other)]
     name: String,
-    /// Template style (e.g. "library", "cli").
-    #[usage(long, default = "library", value_hint = usage::ValueHint::Other)]
-    template: String,
-    /// Backend foundation (e.g. "cdp", "webdriver").
-    #[usage(long, value_hint = usage::ValueHint::Other)]
-    backend: Option<String>,
-    /// Architectural focus (e.g. "general", "cli", "scraping").
-    #[usage(long, default = "general", value_hint = usage::ValueHint::Other)]
-    focus: String,
-    /// Target integrations (e.g. "mcp", "ci").
-    #[usage(long, value_hint = usage::ValueHint::Other)]
-    integrations: Option<String>,
-    /// Enable headless mode by default.
+}
+
+// The arguments of `plugin upgrade`. (Plain comments, not docs.)
+#[derive(Debug, usage::Args)]
+struct PluginUpgradeArgs {
+    /// Specific plugin to upgrade (upgrades all installed plugins when omitted).
+    #[usage(value_hint = usage::ValueHint::Other)]
+    name: Option<String>,
+}
+
+// The arguments of `plugin search`. (Plain comments, not docs.)
+#[derive(Debug, usage::Args)]
+struct PluginSearchArgs {
+    /// Search term matching name, category, or summary (lists all when omitted).
+    #[usage(value_hint = usage::ValueHint::Other)]
+    query: Option<String>,
+}
+
+// The arguments of `plugin directory`. (Plain comments, not docs.)
+#[derive(Debug, usage::Args)]
+struct PluginDirectoryArgs {
+    /// Create the plugins directory and registry file if they do not exist.
     #[usage(long, bool_value)]
-    headless: bool,
-    /// Development environment configuration (e.g. "cargo", "mise", "docker", "gitlab-ci", "github-actions").
-    #[usage(long = "dev-env", default = "cargo", value_hint = usage::ValueHint::Other)]
-    dev_env: String,
-    /// AI agent rule file to generate (e.g. "none", "cursor", "claude-code", "gemini", "antigravity", "codex").
-    #[usage(long = "ai-agent", default = "none", value_hint = usage::ValueHint::Other)]
-    ai_agent: String,
-    /// Primary IDE for quick start instructions (e.g. "cursor", "vscode", "zed", "clion", "neovim", "helix").
-    #[usage(long, default = "cursor", value_hint = usage::ValueHint::Other)]
-    ide: String,
-    /// Target execution environment (e.g. "local", "docker", "cloud").
-    #[usage(long = "target-env", default = "local", value_hint = usage::ValueHint::Other)]
-    target_env: String,
-    /// Destination directory for the scaffolded plugin (defaults to plugin name).
-    #[usage(long = "out-dir", value_name = "DIR", value_hint = usage::ValueHint::DirPath)]
-    out_dir: Option<PathBuf>,
+    ensure: bool,
 }
 
 // The `trace` command: it holds only its own subcommands. (Plain comments, not docs: a doc
@@ -588,6 +617,7 @@ impl From<BrowserArg> for Browser {
     version = VERSION,
     about = "SeleniumBaseRust CLI",
     long_about = "A Rust port of the Python SeleniumBase testing framework. Provides browser automation, stealth/undetected modes, and a command-line helper.",
+    repository = env!("CARGO_PKG_REPOSITORY"),
     logo = logo_helper::LOGO,
     completion,
     unknown_flags = "error",
@@ -3124,7 +3154,14 @@ fn with_settings_file(mut cli: Cli) -> Cli {
 /// error, on standard error, and exits with status 2. Help, version and completion requests are
 /// answered by `Cli::parse` as before.
 fn parse_command_line() -> Cli {
-    let argv = test_args::python_spellings(std::env::args_os().skip(1).collect());
+    let raw_args = match usage::response::expand(std::env::args_os().skip(1)) {
+        Ok(expanded) => expanded,
+        Err(error) => {
+            eprintln!("error: could not expand response file: {error}");
+            std::process::exit(2);
+        }
+    };
+    let argv = test_args::python_spellings(raw_args);
     let words: Vec<&std::ffi::OsStr> = argv.iter().map(std::ffi::OsString::as_os_str).collect();
     if words
         .first()
@@ -3540,15 +3577,104 @@ fn plugin_choice(args: &Cli) -> Result<PluginChoice, seleniumbase_rs::SeleniumBa
     )
 }
 
-/// `sbrs plugin list` and `sbrs plugin info NAME`. They start no browser and read only the
-/// plugin part of the settings, so a variable that is wrong for a browser does not stop them.
+/// `sbrs plugin` lifecycle & runtime commands (`list`, `info`, `install`, `uninstall`,
+/// `enable`, `disable`, `upgrade`, `search`, `directory`, `run`).
 async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let choice = plugin_choice(args)?;
+    let store_dir = seleniumbase_rs::cli::plugin_manager::resolve_plugins_dir(None);
     let text = match command {
-        PluginCommand::List => plugin_cmd::list(choice.selection()),
+        PluginCommand::List => {
+            let mut out = plugin_cmd::list(choice.selection());
+            if let Ok(Some(extra)) =
+                seleniumbase_rs::cli::plugin_manager::format_installed_section(&store_dir)
+            {
+                out.push_str(&extra);
+            }
+            out
+        }
         PluginCommand::Info(info) => plugin_cmd::info(&info.name, choice.selection())?,
         PluginCommand::Run(run) => return run_plugin_task(run, args).await,
-        PluginCommand::New(new_args) => return run_plugin_new(new_args),
+        PluginCommand::Install(install) => {
+            let outcome = seleniumbase_rs::cli::plugin_manager::install_plugin(
+                &store_dir,
+                &install.source,
+                install.name.as_deref(),
+                install.force,
+            )?;
+            format!("{}\n", outcome.message)
+        }
+        PluginCommand::Uninstall(target) => {
+            let removed =
+                seleniumbase_rs::cli::plugin_manager::uninstall_plugin(&store_dir, &target.name)?;
+            format!("Removed plugin `{}` ({})\n", target.name, removed.display())
+        }
+        PluginCommand::Upgrade(upgrade) => {
+            let outcomes = seleniumbase_rs::cli::plugin_manager::upgrade_plugins(
+                &store_dir,
+                upgrade.name.as_deref(),
+            )?;
+            if outcomes.is_empty() {
+                "No user-installed plugins to upgrade.\n".to_owned()
+            } else {
+                let mut buf = String::new();
+                for o in outcomes {
+                    buf.push_str(&format!(
+                        "{:<20}  v{:<10}  {}\n",
+                        o.name, o.version, o.detail
+                    ));
+                }
+                buf
+            }
+        }
+        PluginCommand::Search(search) => {
+            let hits = seleniumbase_rs::cli::plugin_manager::search_plugins(
+                &store_dir,
+                search.query.as_deref(),
+            )?;
+            if hits.is_empty() {
+                "No matching plugins found.\n".to_owned()
+            } else {
+                let mut buf = String::from(
+                    "NAME                  SOURCE                  INSTALLED  SUMMARY\n",
+                );
+                for h in hits {
+                    let inst = if h.installed { "yes" } else { "no" };
+                    buf.push_str(&format!(
+                        "{:<20}  {:<22}  {:<9}  {}\n",
+                        h.name, h.source_label, inst, h.summary
+                    ));
+                }
+                buf
+            }
+        }
+        PluginCommand::Enable(target) => {
+            let msg = seleniumbase_rs::cli::plugin_manager::set_plugin_enabled(
+                &store_dir,
+                &target.name,
+                true,
+            )?;
+            format!("{msg}\n")
+        }
+        PluginCommand::Disable(target) => {
+            let msg = seleniumbase_rs::cli::plugin_manager::set_plugin_enabled(
+                &store_dir,
+                &target.name,
+                false,
+            )?;
+            format!("{msg}\n")
+        }
+        PluginCommand::Directory(dir) => {
+            let info =
+                seleniumbase_rs::cli::plugin_manager::directory_info(&store_dir, dir.ensure)?;
+            format!(
+                "Plugins directory: {}\nInstalled folder:  {}\nRegistry file:     {}\nExists:            {}\nInstalled plugins: {}\n",
+                info.root.display(),
+                info.installed_dir.display(),
+                info.registry_path.display(),
+                if info.exists { "yes" } else { "no" },
+                info.installed_count
+            )
+        }
         // `parse_command_line` has turned these words into `plugin run` or refused them.
         PluginCommand::External(words) => {
             let name = words
@@ -3562,27 +3688,6 @@ async fn run_plugin(command: &PluginCommand, args: &Cli) -> Result<(), Box<dyn s
         }
     };
     std::io::stdout().lock().write_all(text.as_bytes())?;
-    Ok(())
-}
-
-fn run_plugin_new(args: &PluginNewArgs) -> Result<(), Box<dyn std::error::Error>> {
-    let opts = plugin_scaffold::PluginScaffoldOptions {
-        name: args.name.clone(),
-        template: args.template.clone(),
-        backend: args.backend.clone(),
-        focus: args.focus.clone(),
-        integrations: args.integrations.clone(),
-        headless: args.headless,
-        dev_env: args.dev_env.clone(),
-        ai_agent: args.ai_agent.clone(),
-        ide: args.ide.clone(),
-        target_env: args.target_env.clone(),
-        out_dir: args.out_dir.clone(),
-    };
-    let result = plugin_scaffold::scaffold_plugin(&opts)?;
-    std::io::stdout()
-        .lock()
-        .write_all(result.instructions.as_bytes())?;
     Ok(())
 }
 
@@ -5366,31 +5471,28 @@ mod plugin_cli_tests {
     }
 
     #[test]
-    fn the_plugin_command_supports_new() {
-        let cli = parse(&[
-            "sbrs",
-            "plugin",
-            "new",
-            "sample-plugin",
-            "--template",
-            "library",
-            "--dev-env",
-            "mise",
-            "--ai-agent",
-            "cursor",
-            "--headless",
-        ]);
+    fn the_plugin_command_supports_lifecycle_subcommands() {
+        let install = parse(&["sbrs", "plugin", "install", "./local-plug", "--force"]);
         let Commands::Plugin(PluginArgs {
-            command: PluginCommand::New(new_args),
-        }) = cli.command
+            command: PluginCommand::Install(args),
+        }) = install.command
         else {
-            panic!("not plugin new");
+            panic!("not plugin install");
         };
-        assert_eq!(new_args.name, "sample-plugin");
-        assert_eq!(new_args.template, "library");
-        assert_eq!(new_args.dev_env, "mise");
-        assert_eq!(new_args.ai_agent, "cursor");
-        assert!(new_args.headless);
+        assert_eq!(args.source, "./local-plug");
+        assert!(args.force);
+
+        for sub in [
+            &["sbrs", "plugin", "ls"][..],
+            &["sbrs", "plugin", "search", "owasp"],
+            &["sbrs", "plugin", "upgrade"],
+            &["sbrs", "plugin", "enable", "shield"],
+            &["sbrs", "plugin", "disable", "shield"],
+            &["sbrs", "plugin", "uninstall", "demo"],
+            &["sbrs", "plugin", "directory"],
+        ] {
+            assert!(try_parse(sub).is_ok(), "{sub:?} failed");
+        }
     }
 
     #[test]

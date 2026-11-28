@@ -450,20 +450,61 @@ cargo clippy --all-targets -- -D warnings
     )
 }
 
-fn generate_mise_toml(_opts: &PluginScaffoldOptions) -> String {
-    r#"[tools]
-rust = "1.100.0"
+fn generate_mise_toml(opts: &PluginScaffoldOptions) -> String {
+    let extra_task = if opts.focus == "cli" {
+        r#"
+[tasks.run]
+description = "Run the scaffolded CLI tool"
+depends = ["build"]
+run = "cargo run --"
+"#
+    } else if opts.headless {
+        r#"
+[tasks.verify]
+description = "Check headless browser readiness via sbrs"
+run = "sbrs doctor"
+env = { SB_HEADLESS = "true" }
+"#
+    } else {
+        r#"
+[tasks.verify]
+description = "Check browser readiness via sbrs"
+run = "sbrs doctor"
+"#
+    };
+
+    format!(
+        r#"[tools]
+rust = "1.100.1"
+
+[tool_alias]
+sbrs = "github:MustCodeAl/seleniumbase-rs"
+
+[tasks.fmt]
+description = "Check Rust formatting"
+run = "cargo fmt --all -- --check"
+
+[tasks.lint]
+description = "Run clippy with warnings treated as errors"
+sources = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs"]
+run = "cargo clippy --all-targets -- -D warnings"
 
 [tasks.build]
+description = "Compile the plugin crate"
+sources = ["Cargo.toml", "src/**/*.rs"]
 run = "cargo build"
 
 [tasks.test]
+description = "Run plugin unit and integration tests"
+depends = ["build"]
+sources = ["Cargo.toml", "src/**/*.rs", "tests/**/*.rs"]
 run = "cargo test"
 
 [tasks.check]
-run = "cargo clippy --all-targets -- -D warnings"
-"#
-    .to_string()
+description = "Run formatting, clippy lints, and tests"
+depends = ["fmt", "lint", "test"]
+{extra_task}"#
+    )
 }
 
 fn generate_dockerfile(_opts: &PluginScaffoldOptions) -> String {
@@ -683,6 +724,27 @@ mod tests {
         opts.focus = "cli".to_string();
         let (files, _) = render_plugin_files(&opts).unwrap();
         assert!(files.iter().any(|(p, _)| p.ends_with("src/main.rs")));
+    }
+
+    #[test]
+    fn render_mise_dev_env_includes_tasks_and_alias() {
+        let mut opts = PluginScaffoldOptions::new("mise-plugin");
+        opts.dev_env = "mise".to_string();
+        opts.headless = true;
+        let (files, instructions) = render_plugin_files(&opts).unwrap();
+        let (_, content) = files
+            .iter()
+            .find(|(p, _)| p.ends_with(".mise.toml"))
+            .expect(".mise.toml generated");
+        assert!(content.contains("rust = \"1.100.1\""));
+        assert!(content.contains("[tool_alias]"));
+        assert!(content.contains("[tasks.fmt]"));
+        assert!(content.contains("[tasks.lint]"));
+        assert!(content.contains("[tasks.test]"));
+        assert!(content.contains("[tasks.check]"));
+        assert!(content.contains("[tasks.verify]"));
+        assert!(content.contains("SB_HEADLESS = \"true\""));
+        assert!(instructions.contains("mise install"));
     }
 
     #[test]

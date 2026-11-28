@@ -420,7 +420,10 @@ mod tests {
             overview.contains("\n- encrypt (alias obfuscate): "),
             "{overview}"
         );
-        assert!(overview.contains("\n- plugin list: "), "{overview}");
+        assert!(
+            overview.contains("\n- plugin list (alias ls): "),
+            "{overview}"
+        );
         let spec = spec().unwrap();
         assert!(
             overview.contains(&format!("Commands ({});", spec.commands().len())),

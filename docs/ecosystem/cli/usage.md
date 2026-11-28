@@ -1304,6 +1304,22 @@ is a terminal. Piped, redirected and captured output stays plain text.
 The same rules style the `Debug` text of `SeleniumBaseError` (the message, the
 `hint:` label and the hint) when a program ends with `fn main() -> Result<..>`.
 
+## Response files and `usage` spec tooling
+
+Pass large option lists through a response file prefixed with `@` (handled via `usage-rs` `response-files`):
+
+```bash
+sbrs @ci-flags.args test --headless
+```
+
+Nested `@include.args` references resolve relative to the file containing them; prefix with `@@` to pass a literal `@` argument.
+
+`completions/sbrs.usage.kdl` (and `sbrs __usage_spec__`) exposes the full static CLI spec for [`usage`](https://usage.jdx.dev) tooling:
+
+- **`usage mcp -f completions/sbrs.usage.kdl`** (`mise run cli:mcp`): serves every `sbrs` command, flag, and exit behavior to MCP agents.
+- **`usage diff`**: compares two specs to detect breaking CLI flag or argument changes across revisions.
+- **`usage g ts` / `usage g py`**: generates typed TypeScript or Python wrapper SDKs from the exported KDL spec.
+
 
 ## Troubleshooting
 

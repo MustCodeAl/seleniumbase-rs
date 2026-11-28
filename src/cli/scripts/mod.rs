@@ -21,7 +21,11 @@ pub mod discovery;
 pub mod feature_files;
 pub(crate) mod gherkin_outline;
 
+#[cfg(feature = "tui")]
+pub mod debug_tui;
 pub mod logo_helper;
+#[cfg(feature = "tui")]
+pub mod plugin_scaffold_tui;
 #[cfg(feature = "tui")]
 pub mod recorder_tui;
 pub mod rich_helper;

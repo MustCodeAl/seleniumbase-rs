@@ -3742,8 +3742,8 @@ const completionSpec: Fig.Spec = {
       description: "List the built-in plugins, or show what one declares.",
       subcommands: [
         {
-          name: "list",
-          description: "List the built-in plugins of this build, and whether they are on.",
+          name: ["list", "ls"],
+          description: "List the built-in and installed plugins, and whether they are enabled.",
           options: [
             {
               name: ["-h", "--help"],
@@ -3800,76 +3800,19 @@ const completionSpec: Fig.Spec = {
           ],
         },
         {
-          name: "new",
-          description: "Create a new seleniumbase-rs plugin project scaffold.",
+          name: ["install", "add"],
+          description: "Install a plugin from a local directory, git URL, GitHub `owner/repo`, or catalog name.",
           options: [
             {
-              name: "--template",
-              description: "Template style (e.g. \"library\", \"cli\").",
+              name: "--name",
+              description: "Override the installed plugin name.",
               args: {
-                name: "template",
+                name: "name",
               },
             },
             {
-              name: "--backend",
-              description: "Backend foundation (e.g. \"cdp\", \"webdriver\").",
-              args: {
-                name: "backend",
-              },
-            },
-            {
-              name: "--focus",
-              description: "Architectural focus (e.g. \"general\", \"cli\", \"scraping\").",
-              args: {
-                name: "focus",
-              },
-            },
-            {
-              name: "--integrations",
-              description: "Target integrations (e.g. \"mcp\", \"ci\").",
-              args: {
-                name: "integrations",
-              },
-            },
-            {
-              name: "--headless",
-              description: "Enable headless mode by default.",
-            },
-            {
-              name: "--dev-env",
-              description: "Development environment configuration (e.g. \"cargo\", \"mise\", \"docker\", \"gitlab-ci\", \"github-actions\").",
-              args: {
-                name: "dev_env",
-              },
-            },
-            {
-              name: "--ai-agent",
-              description: "AI agent rule file to generate (e.g. \"none\", \"cursor\", \"claude-code\", \"gemini\", \"antigravity\", \"codex\").",
-              args: {
-                name: "ai_agent",
-              },
-            },
-            {
-              name: "--ide",
-              description: "Primary IDE for quick start instructions (e.g. \"cursor\", \"vscode\", \"zed\", \"clion\", \"neovim\", \"helix\").",
-              args: {
-                name: "ide",
-              },
-            },
-            {
-              name: "--target-env",
-              description: "Target execution environment (e.g. \"local\", \"docker\", \"cloud\").",
-              args: {
-                name: "target_env",
-              },
-            },
-            {
-              name: "--out-dir",
-              description: "Destination directory for the scaffolded plugin (defaults to plugin name).",
-              args: {
-                name: "dir",
-                template: "folders",
-              },
+              name: "--force",
+              description: "Reinstall even when the plugin already exists in the store.",
             },
             {
               name: ["-h", "--help"],
@@ -3878,8 +3821,105 @@ const completionSpec: Fig.Spec = {
           ],
           args: [
             {
+              name: "source",
+              description: "Local directory, git URL, `owner/repo`, or community catalog name.",
+              template: "filepaths",
+            },
+          ],
+        },
+        {
+          name: ["uninstall", "remove", "rm"],
+          description: "Uninstall an installed plugin from the user plugin directory.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
               name: "name",
-              description: "The name of the new plugin to create.",
+              description: "Plugin name.",
+            },
+          ],
+        },
+        {
+          name: ["upgrade", "update"],
+          description: "Upgrade one installed plugin, or all installed plugins when NAME is omitted.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "name",
+              description: "Specific plugin to upgrade (upgrades all installed plugins when omitted).",
+              isOptional: true,
+            },
+          ],
+        },
+        {
+          name: "search",
+          description: "Search built-in, community catalog, and installed plugins.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "query",
+              description: "Search term matching name, category, or summary (lists all when omitted).",
+              isOptional: true,
+            },
+          ],
+        },
+        {
+          name: "enable",
+          description: "Enable a plugin in the user plugin store.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "name",
+              description: "Plugin name.",
+            },
+          ],
+        },
+        {
+          name: "disable",
+          description: "Disable a plugin in the user plugin store.",
+          options: [
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+          args: [
+            {
+              name: "name",
+              description: "Plugin name.",
+            },
+          ],
+        },
+        {
+          name: ["directory", "dir"],
+          description: "Print (and optionally initialize) the user plugins directory.",
+          options: [
+            {
+              name: "--ensure",
+              description: "Create the plugins directory and registry file if they do not exist.",
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
             },
           ],
         },

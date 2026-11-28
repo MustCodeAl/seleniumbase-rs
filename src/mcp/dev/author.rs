@@ -107,7 +107,7 @@ fn scaffold_plugin_tool() -> ToolDef<NoBrowser> {
     ToolDef::new(
         "scaffold_plugin",
         "Scaffold Plugin",
-        "Show the files `sbrs plugin new` would create to scaffold a new seleniumbase-rs \
+        "Show the files `sbrs-dev plugin new` would create to scaffold a new seleniumbase-rs \
          plugin crate, as text with each file's path and content, plus quick-start \
          instructions. Writes nothing: create the files yourself.",
         Effect::Inspect,

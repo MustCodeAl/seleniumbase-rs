@@ -163,7 +163,7 @@ expression: text
         "readOnlyHint": true,
         "title": "Scaffold Plugin"
       },
-      "description": "Show the files `sbrs plugin new` would create to scaffold a new seleniumbase-rs plugin crate, as text with each file's path and content, plus quick-start instructions. Writes nothing: create the files yourself.",
+      "description": "Show the files `sbrs-dev plugin new` would create to scaffold a new seleniumbase-rs plugin crate, as text with each file's path and content, plus quick-start instructions. Writes nothing: create the files yourself.",
       "inputSchema": {
         "additionalProperties": false,
         "properties": {

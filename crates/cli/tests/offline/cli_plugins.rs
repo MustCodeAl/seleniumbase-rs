@@ -1452,3 +1452,62 @@ fn the_global_options_of_a_plugin_task_go_before_plugin() {
     assert_ne!(output.status.code(), Some(0), "{text}");
     assert!(text.contains("failed to read settings"), "{text}");
 }
+
+#[test]
+fn plugin_lifecycle_installs_upgrades_disables_enables_searches_and_uninstalls_local_plugin() {
+    let dir = tempfile::tempdir().expect("temp dir");
+    let store = tempfile::tempdir().expect("store dir");
+    let local_src = dir.path().join("my-local-plugin");
+    std::fs::create_dir_all(local_src.join("src")).unwrap();
+    std::fs::write(
+        local_src.join("Cargo.toml"),
+        "[package]\nname = \"my-local-plugin\"\nversion = \"0.1.0\"\ndescription = \"Local test plugin\"\n",
+    )
+    .unwrap();
+    std::fs::write(
+        local_src.join("src/lib.rs"),
+        "pub fn ready() -> bool { true }\n",
+    )
+    .unwrap();
+
+    let store_env = store.path().to_str().unwrap();
+    let env = [("SB_PLUGINS_DIR", store_env)];
+
+    let dir_out = run(dir.path(), &env, &["plugin", "directory"]);
+    assert!(dir_out.status.success(), "{}", stderr(&dir_out));
+    assert!(stdout(&dir_out).contains(store_env));
+
+    let inst_out = run(
+        dir.path(),
+        &env,
+        &["plugin", "install", local_src.to_str().unwrap()],
+    );
+    assert!(inst_out.status.success(), "{}", stderr(&inst_out));
+    assert!(stdout(&inst_out).contains("my-local-plugin"));
+
+    let ls_out = run(dir.path(), &env, &["plugin", "ls"]);
+    assert!(ls_out.status.success(), "{}", stderr(&ls_out));
+    assert!(stdout(&ls_out).contains("Installed plugins"));
+    assert!(stdout(&ls_out).contains("my-local-plugin"));
+
+    let search_out = run(dir.path(), &env, &["plugin", "search", "my-local"]);
+    assert!(search_out.status.success(), "{}", stderr(&search_out));
+    assert!(stdout(&search_out).contains("my-local-plugin"));
+
+    let dis_out = run(dir.path(), &env, &["plugin", "disable", "my-local-plugin"]);
+    assert!(dis_out.status.success(), "{}", stderr(&dis_out));
+
+    let en_out = run(dir.path(), &env, &["plugin", "enable", "my-local-plugin"]);
+    assert!(en_out.status.success(), "{}", stderr(&en_out));
+
+    let up_out = run(dir.path(), &env, &["plugin", "upgrade", "my-local-plugin"]);
+    assert!(up_out.status.success(), "{}", stderr(&up_out));
+
+    let rm_out = run(
+        dir.path(),
+        &env,
+        &["plugin", "uninstall", "my-local-plugin"],
+    );
+    assert!(rm_out.status.success(), "{}", stderr(&rm_out));
+    assert!(stdout(&rm_out).contains("Removed plugin `my-local-plugin`"));
+}

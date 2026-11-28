@@ -96,7 +96,7 @@ fn the_command_line_crate_builds_both_binaries_from_the_library() {
         .and_then(toml::Value::as_str);
 
     assert_eq!(name, Some("seleniumbase-rs-cli"));
-    assert_eq!(bin_names(&cli), ["sbrs", "sbrs-mcp"]);
+    assert_eq!(bin_names(&cli), ["sbrs", "sbrs-mcp", "sbrs-dev"]);
     let dependencies = table_names(&cli, "dependencies");
     for needed in ["seleniumbase-rs", "usage-rs"] {
         assert!(

@@ -31,7 +31,8 @@ RUN mkdir -p src crates/cli/src crates/own-imports/src crates/playwright/src ben
           benches/cdp_latency.rs benches/cpu.rs benches/alloc.rs benches/alloc_sites.rs \
           examples/dialog.rs examples/dialogs.rs examples/gui_automation.rs examples/pdf_example.rs && \
     echo 'fn main() {}' > crates/cli/src/sbrs.rs && \
-    echo 'fn main() {}' > crates/cli/src/mcp_server.rs
+    echo 'fn main() {}' > crates/cli/src/mcp_server.rs && \
+    echo 'fn main() {}' > crates/cli/src/sbrs_dev.rs
 
 # Build the sbrs binary to download and compile all dependencies.
 RUN cargo build --release --locked --package seleniumbase-rs-cli --no-default-features --bin sbrs && rm -rf src crates/cli/src
