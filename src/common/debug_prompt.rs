@@ -481,6 +481,18 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
                     let report = devtools_report(page, color).await;
                     self.say(&report)?;
                 }
+                #[cfg(feature = "tui")]
+                Command::Tui => match run_tui_debugger(kind, test_id, message, scene, page).await {
+                    Ok(PromptOutcome::Continue) => break PromptOutcome::Continue,
+                    Ok(PromptOutcome::Quit) => break PromptOutcome::Quit,
+                    Ok(PromptOutcome::Retry) if kind == PromptKind::PostMortem => {
+                        break PromptOutcome::Retry;
+                    }
+                    Ok(PromptOutcome::Retry) => {
+                        self.say("retry is only possible after a failed test (--pdb)\n")?;
+                    }
+                    Err(err) => self.say(&format!("failed to open TUI debugger: {err}\n"))?,
+                },
                 Command::Help => self.say(&help(kind, color))?,
                 Command::Empty => {}
                 Command::Unknown(word) => {
@@ -505,6 +517,90 @@ impl<I: LineInput, W: Write + Send> DebugPrompt<I, W> {
         self.output.write_all(text.as_bytes())?;
         self.output.flush()
     }
+}
+
+#[cfg(feature = "tui")]
+async fn run_tui_debugger(
+    kind: PromptKind,
+    test_id: &str,
+    message: &str,
+    scene: &Scene,
+    page: &dyn PromptPage,
+) -> io::Result<PromptOutcome> {
+    use crate::cli::scripts::debug_tui::{run_debug_tui, DebugEffect, DebugMsg, DebugTui};
+
+    let info = PageInfo::read(page).await;
+    let source_lines = parse_scene_lines(&listing(kind, scene, false, false));
+    let mut tui = DebugTui::new(
+        kind.label(),
+        test_id,
+        message,
+        source_lines,
+        info.url.clone().unwrap_or_default(),
+        info.title.clone().unwrap_or_default(),
+    );
+
+    let (eff_tx, mut eff_rx) = tokio::sync::mpsc::unbounded_channel::<(
+        DebugEffect,
+        std::sync::mpsc::Sender<Option<DebugMsg>>,
+    )>();
+
+    let handle = std::thread::spawn(move || {
+        run_debug_tui(&mut tui, |effect| {
+            let (reply_tx, reply_rx) = std::sync::mpsc::channel();
+            if eff_tx.send((effect, reply_tx)).is_err() {
+                return None;
+            }
+            reply_rx.recv().ok().flatten()
+        })
+    });
+
+    while let Some((effect, reply_tx)) = eff_rx.recv().await {
+        let msg = match effect {
+            DebugEffect::RefreshPage => {
+                let refreshed = PageInfo::read(page).await;
+                Some(DebugMsg::PageSummary {
+                    url: refreshed.url.unwrap_or_default(),
+                    title: refreshed.title.unwrap_or_default(),
+                })
+            }
+            DebugEffect::RunCommand(cmd) => {
+                let text = match parse(&cmd) {
+                    Command::Url => PageInfo::read(page).await.line(false),
+                    Command::Js(expr) => evaluate(page, expr, true).await,
+                    Command::Print(expr) => evaluate(page, expr, false).await,
+                    Command::Find(sel) => evaluate(page, &find_script(sel), true).await,
+                    Command::Text(sel) => evaluate(page, &text_script(sel, false), false).await,
+                    Command::Html(sel) => evaluate(page, &text_script(sel, true), false).await,
+                    Command::Devtools => devtools_report(page, false).await,
+                    Command::List => listing(kind, scene, false, false),
+                    Command::Help => help(kind, false),
+                    _ => format!("command handled in TUI or unsupported here: {cmd}"),
+                };
+                Some(DebugMsg::Output(sanitize(&text)))
+            }
+        };
+        let _ = reply_tx.send(msg);
+    }
+
+    handle
+        .join()
+        .map_err(|_| io::Error::other("debugger TUI thread panicked"))?
+}
+
+#[cfg(feature = "tui")]
+fn parse_scene_lines(raw: &str) -> Vec<(usize, String, bool)> {
+    raw.lines()
+        .filter_map(|line| {
+            let trimmed = line.trim_start();
+            let num_end = trimmed.find(|c: char| !c.is_ascii_digit())?;
+            let num: usize = trimmed[..num_end].parse().ok()?;
+            let rest = &trimmed[num_end..];
+            let active = rest.contains("->");
+            let content = rest.trim_start_matches([' ', '-', '>']).to_owned();
+            Some((num, content, active))
+        })
+        .collect()
 }
 
 /// What a line typed at the prompt asks for.
@@ -532,6 +628,8 @@ enum Command<'a> {
     LongList,
     Where,
     Devtools,
+    #[cfg(feature = "tui")]
+    Tui,
     Help,
     Empty,
     Unknown(&'a str),
@@ -562,6 +660,8 @@ fn parse(line: &str) -> Command<'_> {
         "ll" | "longlist" => Command::LongList,
         "w" | "where" => Command::Where,
         "dt" | "devtools" => Command::Devtools,
+        #[cfg(feature = "tui")]
+        "tui" => Command::Tui,
         "h" | "help" | "?" => Command::Help,
         _ => Command::Unknown(word),
     }
@@ -768,7 +868,7 @@ fn help(kind: PromptKind, color: bool) -> String {
         text.push_str("  r, retry      run the test again with a new browser\n");
     }
     text.push_str(
-        "  s, screenshot save the viewport as breakpoint_<n>.png\n  src, source   save the page's HTML as page_source_<n>.html\n  u, url        show the page's address and title\n  js <expr>     evaluate a JavaScript expression and show its value\n  pp <expr>     the same as js\n  p <expr>      the same, on one line\n  find <css>    count the elements that match and describe the first (f)\n  text [css]    the visible text of an element or the page (t)\n  html [css]    the HTML of an element or the page\n  l, list       list the code around the pause again\n  ll, longlist  list more of it\n  w, where      show where in the test the pause is\n  dt, devtools  show the address of Chrome's DevTools for this tab\n  q, quit       stop the test\n",
+        "  s, screenshot save the viewport as breakpoint_<n>.png\n  src, source   save the page's HTML as page_source_<n>.html\n  u, url        show the page's address and title\n  js <expr>     evaluate a JavaScript expression and show its value\n  pp <expr>     the same as js\n  p <expr>      the same, on one line\n  find <css>    count the elements that match and describe the first (f)\n  text [css]    the visible text of an element or the page (t)\n  html [css]    the HTML of an element or the page\n  l, list       list the code around the pause again\n  ll, longlist  list more of it\n  w, where      show where in the test the pause is\n  dt, devtools  show the address of Chrome's DevTools for this tab\n  tui           open the interactive terminal debugger UI (when built with feature tui)\n  q, quit       stop the test\n",
     );
     text
 }
@@ -1878,5 +1978,17 @@ mod tests {
 
         assert_eq!(a.unwrap(), PromptOutcome::Continue);
         assert_eq!(b.unwrap(), PromptOutcome::Continue);
+    }
+
+    #[cfg(feature = "tui")]
+    #[test]
+    fn tui_command_and_scene_lines_parse_cleanly() {
+        assert_eq!(parse("tui"), Command::Tui);
+        let parsed =
+            parse_scene_lines("   9  sb.open(url).await?;\n  10 -> sb.click(\"#go\").await?;");
+        assert_eq!(parsed.len(), 2);
+        assert!(!parsed[0].2);
+        assert!(parsed[1].2);
+        assert_eq!(parsed[1].0, 10);
     }
 }

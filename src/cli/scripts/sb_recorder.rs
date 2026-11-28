@@ -228,7 +228,7 @@ async fn wait_for_the_end(
     out: &mut dyn Write,
 ) -> Result<(), SeleniumBaseError> {
     if options.esc_end {
-        writeln!(out, "\n\n{SHIFT_ESC_MESSAGE}")?;
+        writeln!(out, "\n\n{}", shift_esc_banner(options.color))?;
         out.flush()?;
         sb.wait_for_recorder_end(options.limit).await?;
         return Ok(());
@@ -333,7 +333,7 @@ pub async fn run_mkrec(
     let copied_to = copy_recording(&saved.code, &options.file)?;
     writeln!(out, "\n{}\n", copied_banner(&options.file, options.color))?;
     if let Some(feature) = &saved.feature {
-        print_numbered(out, feature)?;
+        print_numbered(out, feature, options.color)?;
         writeln!(out, "\n{}\n", behave_banner(feature, options.color))?;
     }
     out.flush()?;
@@ -405,12 +405,22 @@ fn copy_recording(code: &Path, file: &str) -> Result<PathBuf, SeleniumBaseError>
     Ok(target)
 }
 
+/// `>>> Use [SHIFT + ESC] in the browser to end recording!`, coloured when `color` is set.
+#[must_use]
+fn shift_esc_banner(color: bool) -> String {
+    let mark = palette::BANNER_MARK.paint(">>>", color);
+    let body =
+        palette::BANNER_LABEL.paint(" Use [SHIFT + ESC] in the browser to end recording!", color);
+    format!("{mark}{body}")
+}
+
 /// The file with a line number before each line, as `sbase print FILE -n` shows it.
-fn print_numbered(out: &mut dyn Write, path: &Path) -> Result<(), SeleniumBaseError> {
+fn print_numbered(out: &mut dyn Write, path: &Path, color: bool) -> Result<(), SeleniumBaseError> {
     let text = std::fs::read_to_string(path)?;
     writeln!(out)?;
     for (number, line) in text.lines().enumerate() {
-        writeln!(out, "{:>4}  {line}", number + 1)?;
+        let num = palette::BANNER_LABEL.paint(format!("{:>4}", number + 1), color);
+        writeln!(out, "{num}  {line}")?;
     }
     Ok(())
 }
@@ -552,7 +562,7 @@ mod tests {
         .unwrap();
         let mut out = Vec::new();
 
-        print_numbered(&mut out, &feature).unwrap();
+        print_numbered(&mut out, &feature, false).unwrap();
 
         let shown = String::from_utf8(out).unwrap();
         assert!(shown.contains("   1  Feature: RecorderTest\n"), "{shown}");
@@ -560,5 +570,15 @@ mod tests {
             shown.contains("   2    Scenario: test_recording\n"),
             "{shown}"
         );
+
+        let mut colored = Vec::new();
+        print_numbered(&mut colored, &feature, true).unwrap();
+        let colored_shown = String::from_utf8(colored).unwrap();
+        assert!(
+            colored_shown.contains("\x1b[36;1m   1\x1b[0m  Feature: RecorderTest\n"),
+            "{colored_shown}"
+        );
+        assert!(shift_esc_banner(false).contains(SHIFT_ESC_MESSAGE));
+        assert!(shift_esc_banner(true).contains("\x1b[33;1m>>>\x1b[0m"));
     }
 }
