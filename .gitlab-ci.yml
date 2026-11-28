@@ -65,7 +65,7 @@ workflow:
     # The lead pushes a lane or batch branch here to gate it before main fast-forwards to it.
     - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/'
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
 
 # GitLab's security scanners. The `Jobs/` templates hold jobs and variables only (no `workflow:`
 # and no `stages:`), so they do not change the pipelines the workflow rules create, and their
@@ -120,7 +120,7 @@ variables:
   - if: $CI_PIPELINE_SOURCE == "merge_request_event"
   - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
   - if: '$CI_COMMIT_BRANCH =~ /^(lane|batch)\//'
-  - if: $CI_PIPELINE_SOURCE == "web"
+  - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
     when: manual
     allow_failure: true
 
@@ -273,7 +273,7 @@ docs:
         - "tools/mdx-check/**/*"
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       changes: *docs_paths
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
       when: manual
       allow_failure: true
   before_script:
@@ -432,7 +432,7 @@ release:binaries:
     policy: pull
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/'
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
       when: manual
       allow_failure: true
   timeout: 2h
@@ -493,7 +493,7 @@ release:github:
       artifacts: true
   rules:
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+/ && $GH_PAT'
-    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_PIPELINE_SOURCE == "web" || $CI_PIPELINE_SOURCE == "api"
       when: manual
       allow_failure: true
   before_script:
