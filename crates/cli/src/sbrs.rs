@@ -37,8 +37,8 @@ use seleniumbase_rs::utilities::importer::{
     ScriptImportOptions, ScriptLanguage, import_playwright, import_puppeteer,
 };
 use seleniumbase_rs::{
-    BaseCase, Browser, ChromeBinaryPatcher, ChromedriverPatcher, DriverMode, ImportOptions,
-    ImportSeverity, PatchPreset, PythonSource, RuntimeConfig, import_python,
+    BaseCase, Browser, BrowserConfig, ChromeBinaryPatcher, ChromedriverPatcher, DriverMode,
+    ImportOptions, ImportSeverity, PatchPreset, PythonSource, RuntimeConfig, import_python,
     init_tracing_from_runtime,
 };
 use serde_json::{Value, json};
@@ -3715,6 +3715,51 @@ fn give_switch(
 /// `sbrs plugin run NAME`: launches a browser with the plugins the command line names and the
 /// plugin `NAME`, runs the task of `NAME` on it, and closes it. The results go to `--out` (or
 /// standard output) as JSON lines; the summary of the task goes to standard error.
+fn load_settings(config_path: Option<&str>) -> Result<Settings, Box<dyn std::error::Error>> {
+    Ok(match config_path {
+        Some(path) => Settings::load_from(path)?,
+        None => Settings::load()?,
+    })
+}
+
+fn push_common_browser_options(
+    options: &mut Vec<(&'static str, String)>,
+    args: &Cli,
+    proxy: Option<String>,
+    start_page: Option<String>,
+) {
+    give(
+        options,
+        "SB_BROWSER",
+        args.browser.map(|browser| browser.name().to_owned()),
+    );
+    give_switch(
+        options,
+        "SB_HEADLESS",
+        args.headless
+            .then_some(true)
+            .or_else(|| args.headed.then_some(false)),
+    );
+    give(
+        options,
+        "SB_USER_AGENT",
+        args.user_agent.clone().or_else(|| args.agent.clone()),
+    );
+    give(options, "SB_LOCALE", args.locale.clone());
+    give_switch(options, "SB_AD_BLOCK", args.ad_block.then_some(true));
+    give(options, "SB_PROXY", proxy);
+    give(options, "SB_USER_DATA_DIR", args.user_data_dir.clone());
+    give(options, "SB_EXTENSION_DIR", args.extension_dir.clone());
+    give(
+        options,
+        FINGERPRINT_ENV,
+        args.fingerprint
+            .as_ref()
+            .map(|file| file.display().to_string()),
+    );
+    give(options, START_PAGE_ENV, start_page);
+}
+
 #[cfg(feature = "plugins")]
 async fn run_plugin_task(
     run: &PluginRunArgs,
@@ -3729,49 +3774,11 @@ async fn run_plugin_task(
     }
     let choice = PluginChoice::load(args.config.as_deref(), &names, &args.plugin_opt)?;
 
-    let mut settings = match args.config.as_deref() {
-        Some(path) => Settings::load_from(path)?,
-        None => Settings::load()?,
-    };
+    let mut settings = load_settings(args.config.as_deref())?;
     let mut options: Vec<(&'static str, String)> = Vec::new();
-    give(
-        &mut options,
-        "SB_BROWSER",
-        args.browser.map(|browser| browser.name().to_owned()),
-    );
-    give_switch(
-        &mut options,
-        "SB_HEADLESS",
-        args.headless
-            .then_some(true)
-            .or_else(|| args.headed.then_some(false)),
-    );
-    give(
-        &mut options,
-        "SB_USER_AGENT",
-        args.user_agent.clone().or_else(|| args.agent.clone()),
-    );
-    give(&mut options, "SB_LOCALE", args.locale.clone());
-    give_switch(&mut options, "SB_AD_BLOCK", args.ad_block.then_some(true));
-    give(
-        &mut options,
-        "SB_PROXY",
-        resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?,
-    );
-    give(&mut options, "SB_USER_DATA_DIR", args.user_data_dir.clone());
-    give(&mut options, "SB_EXTENSION_DIR", args.extension_dir.clone());
-    give(
-        &mut options,
-        FINGERPRINT_ENV,
-        args.fingerprint
-            .as_ref()
-            .map(|file| file.display().to_string()),
-    );
-    give(
-        &mut options,
-        START_PAGE_ENV,
-        args.start_page.as_deref().map(start_page_url).transpose()?,
-    );
+    let proxy = resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?;
+    let start_page = args.start_page.as_deref().map(start_page_url).transpose()?;
+    push_common_browser_options(&mut options, args, proxy, start_page);
     SettingsOverrides { options }.try_apply(&mut settings)?;
     settings.check_fingerprint()?;
     settings.plugins = choice.selection().clone();
@@ -3815,7 +3822,52 @@ async fn run_plugin_task(
     Ok(())
 }
 
-async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
+fn run_import_python(
+    file: &str,
+    output: Option<&str>,
+    source: ImportSourceArg,
+    test_name: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let python = std::fs::read_to_string(file).map_err(|error| {
+        std::io::Error::new(error.kind(), format!("failed to read {file}: {error}"))
+    })?;
+    let default_name = std::path::Path::new(file)
+        .file_stem()
+        .and_then(|name| name.to_str())
+        .unwrap_or("imported_python_test");
+    let result = import_python(
+        &python,
+        &ImportOptions {
+            source: match source {
+                ImportSourceArg::Auto => PythonSource::Auto,
+                ImportSourceArg::SeleniumBase => PythonSource::SeleniumBase,
+                ImportSourceArg::Selenium => PythonSource::Selenium,
+            },
+            test_name: test_name.unwrap_or(default_name).to_owned(),
+        },
+    );
+    if let Some(path) = output {
+        std::fs::write(path, &result.rust)?;
+    } else {
+        print!("{}", result.rust);
+    }
+    for diagnostic in &result.diagnostics {
+        eprintln!(
+            "{:?} at line {}: {}",
+            diagnostic.severity, diagnostic.line, diagnostic.message
+        );
+    }
+    if result
+        .diagnostics
+        .iter()
+        .any(|diagnostic| diagnostic.severity == ImportSeverity::Error)
+    {
+        return Err("Python import completed with errors; review generated TODOs.".into());
+    }
+    Ok(())
+}
+
+async fn try_run_offline_command(args: &Cli) -> Result<bool, Box<dyn std::error::Error>> {
     match &args.command {
         Commands::Completions { shell } => {
             let completion = match (shell, shell.shell()) {
@@ -3825,7 +3877,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 (_, None) => fig::spec(Cli::spec()),
             };
             std::io::stdout().write_all(completion.as_bytes())?;
-            return Ok(());
         }
         Commands::ImportPython {
             file,
@@ -3833,43 +3884,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             source,
             test_name,
         } => {
-            let python = std::fs::read_to_string(file).map_err(|error| {
-                std::io::Error::new(error.kind(), format!("failed to read {file}: {error}"))
-            })?;
-            let default_name = std::path::Path::new(file)
-                .file_stem()
-                .and_then(|name| name.to_str())
-                .unwrap_or("imported_python_test");
-            let result = import_python(
-                &python,
-                &ImportOptions {
-                    source: match source {
-                        ImportSourceArg::Auto => PythonSource::Auto,
-                        ImportSourceArg::SeleniumBase => PythonSource::SeleniumBase,
-                        ImportSourceArg::Selenium => PythonSource::Selenium,
-                    },
-                    test_name: test_name.as_deref().unwrap_or(default_name).to_owned(),
-                },
-            );
-            if let Some(path) = output {
-                std::fs::write(path, &result.rust)?;
-            } else {
-                print!("{}", result.rust);
-            }
-            for diagnostic in &result.diagnostics {
-                eprintln!(
-                    "{:?} at line {}: {}",
-                    diagnostic.severity, diagnostic.line, diagnostic.message
-                );
-            }
-            if result
-                .diagnostics
-                .iter()
-                .any(|diagnostic| diagnostic.severity == ImportSeverity::Error)
-            {
-                return Err("Python import completed with errors; review generated TODOs.".into());
-            }
-            return Ok(());
+            run_import_python(file, output.as_deref(), *source, test_name.as_deref())?;
         }
         Commands::ImportPlaywright {
             file,
@@ -3877,13 +3892,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             language,
             test_name,
         } => {
-            return import_script(
+            import_script(
                 ScriptTool::Playwright,
                 file,
                 output.as_deref(),
                 language.map(ScriptLanguage::from),
                 test_name.as_deref(),
-            );
+            )?;
         }
         Commands::ImportPuppeteer {
             file,
@@ -3891,22 +3906,19 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             language,
             test_name,
         } => {
-            return import_script(
+            import_script(
                 ScriptTool::Puppeteer,
                 file,
                 output.as_deref(),
                 language.map(ScriptLanguage::from),
                 test_name.as_deref(),
-            );
+            )?;
         }
-        Commands::Mkdir(mkdir) => {
-            report_created(
-                mkdir
-                    .suite()
-                    .and_then(|suite| suite.create(&here(mkdir.force))),
-            );
-            return Ok(());
-        }
+        Commands::Mkdir(mkdir) => report_created(
+            mkdir
+                .suite()
+                .and_then(|suite| suite.create(&here(mkdir.force))),
+        ),
         Commands::Mkfile(mkfile) => {
             mkfile.check()?;
             report_created(
@@ -3915,100 +3927,80 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     .and_then(|test| test.create(&here(mkfile.force)))
                     .map(|path| vec![path]),
             );
-            return Ok(());
         }
-        Commands::Mkpres(mkpres) => {
-            report_created(
-                mkpres
-                    .presentation_file()
-                    .and_then(|deck| deck.create(&here(mkpres.force)))
-                    .map(|path| vec![path]),
-            );
-            return Ok(());
-        }
-        Commands::Mkchart(mkchart) => {
-            report_created(
-                mkchart
-                    .chart_file()
-                    .and_then(|chart| chart.create(&here(mkchart.force)))
-                    .map(|path| vec![path]),
-            );
-            return Ok(());
-        }
-        Commands::Translate(translate) => return translate.run(),
-        Commands::Print(print) => return print.run(),
-        Commands::Convert(convert) => return convert.run(),
-        Commands::ExtractObjects(objects) => return objects.run(),
-        Commands::InjectObjects(objects) => return objects.inject(),
-        Commands::Objectify(objects) => return objects.objectify(),
-        Commands::RevertObjects(objects) => return objects.run(),
-
-        Commands::GridHub(grid) => return run_grid(GridRole::Hub, grid).await,
-        Commands::GridNode(grid) => return run_grid(GridRole::Node, grid).await,
-        Commands::Proxy(proxy) => return proxy::run(proxy).await,
-        Commands::Download(download) => return run_download(&download.command).await,
-        Commands::Report(report) => return report::run(report).await,
-
+        Commands::Mkpres(mkpres) => report_created(
+            mkpres
+                .presentation_file()
+                .and_then(|deck| deck.create(&here(mkpres.force)))
+                .map(|path| vec![path]),
+        ),
+        Commands::Mkchart(mkchart) => report_created(
+            mkchart
+                .chart_file()
+                .and_then(|chart| chart.create(&here(mkchart.force)))
+                .map(|path| vec![path]),
+        ),
+        Commands::Translate(translate) => translate.run()?,
+        Commands::Print(print) => print.run()?,
+        Commands::Convert(convert) => convert.run()?,
+        Commands::ExtractObjects(objects) => objects.run()?,
+        Commands::InjectObjects(objects) => objects.inject()?,
+        Commands::Objectify(objects) => objects.objectify()?,
+        Commands::RevertObjects(objects) => objects.run()?,
+        Commands::GridHub(grid) => run_grid(GridRole::Hub, grid).await?,
+        Commands::GridNode(grid) => run_grid(GridRole::Node, grid).await?,
+        Commands::Proxy(proxy) => proxy::run(proxy).await?,
+        Commands::Download(download) => run_download(&download.command).await?,
+        Commands::Report(report) => report::run(report).await?,
         Commands::Encrypt { text: None } if crypto::prompts() => {
-            return crypto::interactive(crypto::Kind::Encrypt).await;
+            crypto::interactive(crypto::Kind::Encrypt).await?;
         }
         Commands::Decrypt { token: None } if crypto::prompts() => {
-            return crypto::interactive(crypto::Kind::Decrypt).await;
+            crypto::interactive(crypto::Kind::Decrypt).await?;
         }
-
-        Commands::Devtools { .. } => return run_devtools(&args).await,
+        Commands::Devtools { .. } => run_devtools(args).await?,
         #[cfg(feature = "tui")]
-        Commands::Recorder => return run_recorder_app(&args),
+        Commands::Recorder => run_recorder_app(args)?,
         #[cfg(not(feature = "tui"))]
         Commands::Recorder => no_terminal_ui(),
-        Commands::Options(options) => {
-            print!("{}", browser_flags::options_listing(options));
-            return Ok(());
-        }
-
-        Commands::BehaveOptions => {
-            print!("{}", behave_options::render());
-            return Ok(());
-        }
-        Commands::Methods => {
-            print!("{}", info::methods_listing());
-            return Ok(());
-        }
-
-        Commands::Prompt(options) => return run_prompt(options).await,
-        Commands::Plugin(plugin) => return run_plugin(&plugin.command, &args).await,
+        Commands::Options(options) => print!("{}", browser_flags::options_listing(options)),
+        Commands::BehaveOptions => print!("{}", behave_options::render()),
+        Commands::Methods => print!("{}", info::methods_listing()),
+        Commands::Prompt(options) => run_prompt(options).await?,
+        Commands::Plugin(plugin) => run_plugin(&plugin.command, args).await?,
         Commands::Trace(TraceArgs {
             command: TraceCommand::Show(show),
         }) => match trace::show(&show.folder, show.print) {
-            0 => return Ok(()),
+            0 => {}
             status => std::process::exit(status),
         },
-        _ => {}
+        _ => return Ok(false),
     }
+    Ok(true)
+}
 
+struct PreparedRun {
+    config: BrowserConfig,
+    settings: Settings,
+    overrides: SettingsOverrides,
+    after: PageEnd,
+    selection: PluginSelection,
+    start_page_set: bool,
+    forward_plugins: bool,
+}
+
+fn prepare_browser_run(args: &Cli) -> Result<PreparedRun, Box<dyn std::error::Error>> {
     if args.cdp && args.uc {
         return Err("Choose either --cdp or --uc, not both.".into());
     }
 
-    // Start from the config file (the one `--config` names, else the global
-    // one) with the `SB_*` variables on top, as `Settings::load` does for the
-    // tests `sbrs test` runs, then apply only what the command line asked for
-    // explicitly. An option left alone keeps the environment's value or, failing
-    // that, the file's, and one that was passed beats both.
-    let mut settings = match args.config.as_deref() {
-        Some(path) => Settings::load_from(path)?,
-        None => Settings::load()?,
-    };
+    let mut settings = load_settings(args.config.as_deref())?;
     let proxy = resolve_proxy(args.proxy.as_deref(), args.proxy_list.as_deref())?;
-    // The page the command line names, with `https://` or `file://` where it was left out.
     let start_page_flag = args.start_page.as_deref().map(start_page_url).transpose()?;
-    // The flags of the option table that the root does not declare by hand, as the variables
-    // of their rows. They are read as the environment is, after the typed flags.
     let mut browser_options = args
         .browser_flags
         .options()
         .map_err(|message| ArgumentError::new(&command_name(&args.command), message))?;
-    // `--rec` and the other Recorder Mode flags are variables of their rows too.
     browser_options.extend(args.recorder.options());
     let gives = |variable: &str| browser_options.iter().any(|(name, _)| *name == variable);
     if args.browser.is_some() && gives("SB_BROWSER") {
@@ -4027,18 +4019,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
 
     let mut options: Vec<(&'static str, String)> = Vec::new();
-    give(
-        &mut options,
-        "SB_BROWSER",
-        args.browser.map(|browser| browser.name().to_owned()),
-    );
-    give_switch(
-        &mut options,
-        "SB_HEADLESS",
-        args.headless
-            .then_some(true)
-            .or_else(|| args.headed.then_some(false)),
-    );
+    push_common_browser_options(&mut options, args, proxy, start_page_flag.clone());
     give(
         &mut options,
         "SB_MODE",
@@ -4046,17 +4027,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             .then(|| "cdp".to_owned())
             .or_else(|| args.uc.then(|| "uc".to_owned())),
     );
-    give(
-        &mut options,
-        "SB_USER_AGENT",
-        args.user_agent.or(args.agent),
-    );
-    give(&mut options, "SB_LOCALE", args.locale);
-    give_switch(&mut options, "SB_AD_BLOCK", args.ad_block.then_some(true));
-    give(&mut options, "SB_PROXY", proxy);
-    give(&mut options, "SB_PROXY_PAC_URL", args.proxy_pac_url);
-    give(&mut options, "SB_USER_DATA_DIR", args.user_data_dir);
-    give(&mut options, "SB_EXTENSION_DIR", args.extension_dir);
+    give(&mut options, "SB_PROXY_PAC_URL", args.proxy_pac_url.clone());
     give_switch(
         &mut options,
         "SB_REUSE_SESSION",
@@ -4074,20 +4045,10 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         "SB_REC_SB_CDP",
         args.rec_sb_cdp.then_some(true),
     );
-    give(
-        &mut options,
-        FINGERPRINT_ENV,
-        args.fingerprint.map(|file| file.display().to_string()),
-    );
-    give(&mut options, START_PAGE_ENV, start_page_flag.clone());
     options.extend(browser_options);
     let overrides = SettingsOverrides { options };
     overrides.try_apply(&mut settings)?;
-    // A fingerprint file named on the command line is checked here, like the variable's and
-    // the file's: a wrong path is an error, not a browser without the fingerprint.
     settings.check_fingerprint()?;
-    // What only the command and the options together show to be a mistake is refused here,
-    // before any browser starts.
     check_page_arguments(
         &args.command,
         start_page_flag.is_some(),
@@ -4099,11 +4060,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             .and_then(std::path::Path::to_str),
     )?;
 
-    // `SB_WEBDRIVER_URL` and `SB_CHROME_BIN` are settings too, so
-    // `to_browser_config` has them; `--webdriver` goes on top.
     let mut config = settings.to_browser_config();
-    // A command that speaks the DevTools Protocol gets a session that has a
-    // DevTools connection when no mode was asked for, on a Chromium browser.
     let default_mode = if (args.command.needs_devtools() || settings.fingerprint.file.is_some())
         && config.browser.kind.is_chromium_based()
     {
@@ -4111,16 +4068,12 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     } else {
         DriverMode::WebDriver
     };
-    // A mode that was asked for (by `--mode`, `--cdp`, `--uc`, `SB_MODE` or the settings file),
-    // WebDriver included, beats the command's default, which applies when none was asked for.
     let mode = settings.session.mode.unwrap_or(default_mode);
-    if let Some(url) = args.webdriver {
-        config.session.webdriver_url = Some(url);
+    if let Some(url) = args.webdriver.as_deref() {
+        config.session.webdriver_url = Some(url.to_owned());
     }
     config.session.mode = Some(mode);
     config.session.auto_start_driver = true;
-    // `BaseCase::new` opens the start page before the command acts. A command with a URL of
-    // its own opens only that one.
     config.browser.url = if args.command.opens_own_url() {
         None
     } else {
@@ -4132,16 +4085,11 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             .transpose()?
     };
     let start_page_set = config.browser.url.is_some();
-    // What a page command does just before its browser quits.
     let after = PageEnd {
         now_at: args.command.acts_on_page(),
         screenshot: args.save_screenshot || settings.report.save_screenshot,
     };
 
-    // The plugins: what the settings file and `SB_PLUGINS` turn on, with `--plugin` and
-    // `--plugin-opt` on top. Only a command that starts a browser, and `test`, which passes
-    // the names on, looks at them; the others ignore the options. A browser is not started
-    // with a mistake in them.
     let launches = args.command.launches_browser();
     let is_test = matches!(args.command, Commands::Test(_));
     let choice = if launches || is_test {
@@ -4168,19 +4116,318 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
     let selection = choice.map_or_else(PluginSelection::new, PluginChoice::into_selection);
 
-    match args.command {
+    Ok(PreparedRun {
+        config,
+        settings,
+        overrides,
+        after,
+        selection,
+        start_page_set,
+        forward_plugins,
+    })
+}
+
+fn run_patch_chromedriver_cmd(
+    path: &str,
+    inspect: bool,
+    restore: bool,
+    preset: Option<PatchPresetArg>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if inspect && restore {
+        return Err(seleniumbase_rs::SeleniumBaseError::patcher(
+            path,
+            "cannot pass both --inspect and --restore",
+        )
+        .into());
+    }
+    let patcher = ChromedriverPatcher::new(path);
+    if inspect {
+        let report = patcher.inspect()?;
+        println!("{report}");
+        if report.needs_patch() {
+            println!("Status: core automation markers found (run without --inspect to patch)");
+        } else if report.has_any_markers() {
+            println!("Status: extended markers present (use `--preset aggressive` to scrub all)");
+        } else {
+            println!("Status: clean (no known automation markers found)");
+        }
+    } else if restore {
+        patcher.restore()?;
+        println!("Restored chromedriver binary from backup at: {path}");
+    } else {
+        let chosen: PatchPreset = preset.map_or(PatchPreset::All, Into::into);
+        patcher.patch(chosen.to_patch())?;
+        println!("Successfully patched chromedriver binary at: {path} (preset: {chosen})");
+    }
+    Ok(())
+}
+
+fn run_patch_chrome_cmd(
+    path: &str,
+    cache_dir: Option<String>,
+    inspect: bool,
+    preset: Option<PatchPresetArg>,
+    with_companions: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if inspect {
+        let patcher = ChromeBinaryPatcher::new(path);
+        let reports = if with_companions {
+            patcher.inspect_bundle()?
+        } else {
+            vec![patcher.inspect()?]
+        };
+        for report in reports {
+            println!("{report}");
+        }
+        return Ok(());
+    }
+    let cache = patch_cache_dir(
+        cache_dir,
+        seleniumbase_rs::config::env_vars::text("SB_PATCH_CACHE_DIR"),
+    );
+    let patcher = ChromeBinaryPatcher::new(path).cache_dir(cache);
+    let chosen: PatchPreset = preset.map_or(PatchPreset::ChromeBinary, Into::into);
+    if with_companions {
+        let bundle = patcher.patch_bundle(chosen.to_patch())?;
+        println!(
+            "Patched Chrome binary available at: {} (preset: {chosen})",
+            bundle.executable.display()
+        );
+        if let Some(companion) = bundle.companion {
+            println!(
+                "Patched companion library available at: {}",
+                companion.display()
+            );
+        } else {
+            println!("No companion framework/DLL found alongside {path}");
+        }
+    } else {
+        let patched = patcher.patch(chosen.to_patch())?;
+        println!(
+            "Patched Chrome binary available at: {} (preset: {chosen})",
+            patched.display()
+        );
+    }
+    Ok(())
+}
+
+async fn run_mkrec_cmd(
+    config: BrowserConfig,
+    file: String,
+    overwrite: bool,
+    behave: bool,
+    esc_end: bool,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut options = sb_recorder::MkrecOptions::new(file);
+    options.overwrite = overwrite;
+    options.esc_end = esc_end;
+    options.behave = behave;
+    options.color = seleniumbase_rs::common::color::use_color(&std::io::stdout());
+    let stderr_color = seleniumbase_rs::common::color::use_color(&std::io::stderr());
+
+    if let Err(message) = options.check() {
+        eprintln!(
+            "{}",
+            sb_recorder::error_banner(&message.to_string(), stderr_color)
+        );
+        std::process::exit(1);
+    }
+    let outcome = sb_recorder::run_mkrec(config, &options, &mut std::io::stdout()).await?;
+    if outcome.copied_to.is_none() {
+        eprintln!(
+            "{}",
+            sb_recorder::error_banner(
+                &format!("nothing was recorded, so {} was not written", options.file),
+                stderr_color,
+            )
+        );
+        std::process::exit(1);
+    }
+    if outcome.interrupted {
+        std::process::exit(0);
+    }
+    Ok(())
+}
+
+async fn run_scenario_cmd(
+    config: BrowserConfig,
+    after: PageEnd,
+    file: String,
+    dashboard: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let scenario_json = std::fs::read_to_string(&file)?;
+    let scenario: Scenario = serde_json::from_str(&scenario_json)?;
+    let mut sb = BaseCase::new(config).await?;
+    let summary = run_scenario(&mut sb, &scenario).await?;
+
+    if let Some(dashboard_path) = dashboard.as_deref() {
+        write_dashboard(&summary, dashboard_path)?;
+        println!("Dashboard written: {dashboard_path}");
+    } else {
+        let logs_dir = ensure_latest_logs_dir()?;
+        let dashboard_path = artifact_path(&logs_dir, "dashboard", "html");
+        write_dashboard(&summary, &dashboard_path)?;
+        println!("Dashboard written: {}", dashboard_path.display());
+    }
+
+    println!(
+        "Scenario '{}' steps: total={}, passed={}, failed={}",
+        summary.scenario_name, summary.total_steps, summary.passed_steps, summary.failed_steps
+    );
+    if !summary.errors.is_empty() {
+        println!("Errors:");
+        for error in &summary.errors {
+            println!("- {error}");
+        }
+    }
+
+    let (json_file, rust_file) = sb.save_recording_to_logs()?;
+    println!("Recording json: {}", json_file.display());
+    println!("Recording script: {}", rust_file.display());
+    after.finish(&mut sb).await?;
+    if summary.failed_steps > 0 {
+        return Err(format!(
+            "scenario '{}' failed: {} of {} steps failed",
+            summary.scenario_name, summary.failed_steps, summary.total_steps
+        )
+        .into());
+    }
+    Ok(())
+}
+
+async fn run_download_file_cmd(
+    config: BrowserConfig,
+    after: PageEnd,
+    url: String,
+    output: Option<String>,
+    timeout: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let dest = match output.as_deref() {
+        Some(path) => PathBuf::from(path),
+        None => std::env::current_dir()?.join(download_file_name(&url)),
+    };
+    let browser_name = dest
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or("download")
+        .to_string();
+
+    let mut sb = BaseCase::new(config).await?;
+    let downloaded = match sb
+        .download_file_in_browser(&url, &browser_name, timeout)
+        .await
+    {
+        Ok(path) => {
+            if path != dest {
+                if let Some(parent) = dest.parent()
+                    && !parent.as_os_str().is_empty()
+                {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::copy(&path, &dest)?;
+            }
+            true
+        }
+        Err(err) => {
+            eprintln!("Browser download unavailable ({err}); falling back to HTTP.");
+            false
+        }
+    };
+    after.finish(&mut sb).await?;
+    if !downloaded {
+        http_download(&url, &dest).await?;
+    }
+    let size = std::fs::metadata(&dest).map(|meta| meta.len()).unwrap_or(0);
+    println!("Saved {} ({size} bytes)", dest.display());
+    Ok(())
+}
+
+async fn run_deferred_cmd(
+    config: BrowserConfig,
+    after: PageEnd,
+    asserts: Vec<String>,
+    spec: Option<String>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut specs = parse_deferred_specs(&asserts)?;
+    if let Some(path) = spec.as_deref() {
+        let raw = std::fs::read_to_string(path)?;
+        specs.extend(parse_deferred_spec_json(&raw)?);
+    }
+    if specs.is_empty() {
+        return Err("no assertions provided: pass --assert or --spec".into());
+    }
+
+    let mut sb = BaseCase::new(config).await?;
+    let mut results = Vec::with_capacity(specs.len());
+    for entry in &specs {
+        let outcome = match entry {
+            DeferredSpec::Element(selector) => sb.assert_element(selector).await,
+            DeferredSpec::Text(selector, expected) => sb.assert_text(expected, selector).await,
+            DeferredSpec::Title(expected) => sb.assert_title_contains(expected).await,
+            DeferredSpec::Url(expected) => sb.assert_url_contains(expected).await,
+        };
+        results.push(DeferredResult {
+            description: entry.describe(),
+            error: outcome.err().map(|err| err.to_string()),
+        });
+    }
+    after.finish(&mut sb).await?;
+
+    print!("{}", format_deferred_summary(&results));
+    if results.iter().any(|result| !result.passed()) {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+async fn run_replay_cmd(
+    config: BrowserConfig,
+    after: PageEnd,
+    file: String,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let actions: Vec<RecordedAction> = RecorderSession::load(Path::new(&file))?;
+    if actions.is_empty() {
+        return Err(format!("no actions found in '{file}'").into());
+    }
+    let mut sb = BaseCase::new(config).await?;
+    let report = RecorderSession::replay(&mut sb, &actions).await?;
+    after.finish(&mut sb).await?;
+
+    for step in &report.steps {
+        match &step.error {
+            Some(err) => println!("FAIL  {} -> {err}", step.description),
+            None => println!("ok    {}", step.description),
+        }
+    }
+    println!(
+        "Replayed {} step(s): {} passed, {} failed, {} skipped",
+        report.steps.len(),
+        report.passed(),
+        report.failed(),
+        report.skipped
+    );
+    if !report.skipped_names.is_empty() {
+        println!("Skipped: {}", report.skipped_names.join(", "));
+    }
+    if !report.is_success() {
+        std::process::exit(1);
+    }
+    Ok(())
+}
+
+async fn run_page_action(
+    command: Commands,
+    sb: &mut BaseCase,
+) -> Result<(), Box<dyn std::error::Error>> {
+    match command {
         Commands::Open { url } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.open(&url).await?;
-            let title = sb.title().await?;
-            println!("Title: {title}");
-            after.finish(&mut sb).await?;
+            println!("Title: {}", sb.title().await?);
         }
         Commands::Smoke {
             url,
             title_contains,
         } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.open(&url).await?;
             if let Some(expected) = title_contains.as_deref() {
                 sb.assert_title_contains(expected).await?;
@@ -4188,10 +4435,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("Loaded: {}", sb.title().await?);
             }
-            after.finish(&mut sb).await?;
         }
         Commands::Cdp { cmd, params } => {
-            let mut sb = BaseCase::new(config).await?;
             let result = if let Some(raw_params) = params.as_deref() {
                 let parsed: Value = serde_json::from_str(raw_params)?;
                 sb.execute_cdp_with_params(&cmd, parsed).await?
@@ -4199,18 +4444,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 sb.execute_cdp(&cmd).await?
             };
             println!("{result}");
-            after.finish(&mut sb).await?;
         }
         Commands::CacheClear => {
-            let mut sb = BaseCase::new(config).await?;
             sb.clear_browser_cache().await?;
             println!("CDP cache clear command sent.");
-            after.finish(&mut sb).await?;
         }
         Commands::Screenshot { path } => {
-            let mut sb = BaseCase::new(config).await?;
             if let Some(target_path) = path.as_deref() {
-                // The path the user named on the command line, not one in the logs folder.
                 let png = sb.screenshot_as_png().await?;
                 write_creating_parent(Path::new(target_path), &png)?;
                 println!("Saved screenshot: {target_path}");
@@ -4218,10 +4458,8 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let out = sb.save_screenshot_to_logs().await?;
                 println!("Saved screenshot: {}", out.display());
             }
-            after.finish(&mut sb).await?;
         }
         Commands::SaveSource { path } => {
-            let mut sb = BaseCase::new(config).await?;
             if let Some(target_path) = path.as_deref() {
                 let source = sb.page_source().await?;
                 write_creating_parent(Path::new(target_path), source.as_bytes())?;
@@ -4230,37 +4468,27 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                 let out = sb.save_page_source_to_logs().await?;
                 println!("Saved page source: {}", out.display());
             }
-            after.finish(&mut sb).await?;
         }
         Commands::AssertElement { css } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.assert_element(&css).await?;
             println!("Assertion passed: element exists for selector '{css}'");
-            after.finish(&mut sb).await?;
         }
         Commands::WaitForText { css, text, timeout } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.wait_for_text(&text, &css, timeout).await?;
             println!("Text found for selector '{css}': {text}");
-            after.finish(&mut sb).await?;
         }
         Commands::Hover { css } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.hover(&css).await?;
             println!("Hovered over element '{css}'");
-            after.finish(&mut sb).await?;
         }
         Commands::HoverAndClick {
             hover_css,
             click_css,
         } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.hover_and_click(&hover_css, &click_css).await?;
             println!("Hovered '{hover_css}' and clicked '{click_css}'");
-            after.finish(&mut sb).await?;
         }
         Commands::SelectOption { css, text, value } => {
-            let mut sb = BaseCase::new(config).await?;
             if let Some(t) = text {
                 sb.select_option_by_text(&css, &t).await?;
                 println!("Selected option by text '{t}' on '{css}'");
@@ -4270,216 +4498,230 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 println!("Must provide either --text or --value for SelectOption");
             }
-            after.finish(&mut sb).await?;
         }
         Commands::DragAndDrop {
             source_css,
             target_css,
         } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.drag_and_drop(&source_css, &target_css).await?;
             println!("Dragged '{source_css}' and dropped on '{target_css}'");
-            after.finish(&mut sb).await?;
         }
         Commands::CdpClickElement { css } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.cdp_click(&css).await?;
             println!("CDP clicked element '{css}'");
-            after.finish(&mut sb).await?;
         }
         Commands::CdpTypeText { text } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.cdp_insert_text(&text).await?;
             println!("CDP typed text '{text}'");
-            after.finish(&mut sb).await?;
         }
-
-        Commands::GetText { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            let text = sb.text(&css).await?;
-            println!("Text for '{}': {}", css, text);
-            after.finish(&mut sb).await?;
-        }
-        Commands::GetAttribute { css, attribute } => {
-            let mut sb = BaseCase::new(config).await?;
-            let val = sb.attribute(&css, &attribute).await?;
-            if let Some(v) = val {
-                println!("Attribute '{}' for '{}': {}", attribute, css, v);
-            } else {
-                println!("Attribute '{}' not found for '{}'", attribute, css);
-            }
-            after.finish(&mut sb).await?;
-        }
-        Commands::GetProperty { css, property } => {
-            let mut sb = BaseCase::new(config).await?;
-            let val = sb.property(&css, &property).await?;
-            if let Some(v) = val {
-                println!("Property '{}' for '{}': {}", property, css, v);
-            } else {
-                println!("Property '{}' not found for '{}'", property, css);
-            }
-            after.finish(&mut sb).await?;
-        }
-
-        Commands::GetTitle => {
-            let mut sb = BaseCase::new(config).await?;
-            let title = sb.title().await?;
-            println!("Title: {}", title);
-            after.finish(&mut sb).await?;
-        }
-        Commands::GetCurrentUrl => {
-            let mut sb = BaseCase::new(config).await?;
-            let url = sb.current_url().await?;
-            println!("Current URL: {}", url);
-            after.finish(&mut sb).await?;
-        }
-
+        Commands::GetText { css } => println!("Text for '{}': {}", css, sb.text(&css).await?),
+        Commands::GetAttribute { css, attribute } => match sb.attribute(&css, &attribute).await? {
+            Some(v) => println!("Attribute '{}' for '{}': {}", attribute, css, v),
+            None => println!("Attribute '{}' not found for '{}'", attribute, css),
+        },
+        Commands::GetProperty { css, property } => match sb.property(&css, &property).await? {
+            Some(v) => println!("Property '{}' for '{}': {}", property, css, v),
+            None => println!("Property '{}' not found for '{}'", property, css),
+        },
+        Commands::GetTitle => println!("Title: {}", sb.title().await?),
+        Commands::GetCurrentUrl => println!("Current URL: {}", sb.current_url().await?),
         Commands::ClearCookies => {
-            let mut sb = BaseCase::new(config).await?;
             sb.clear_browser_cookies().await?;
             println!("Cookies cleared");
-            after.finish(&mut sb).await?;
         }
-
         Commands::AcceptAlert => {
-            let mut sb = BaseCase::new(config).await?;
             sb.accept_alert().await?;
             println!("Accepted alert");
-            after.finish(&mut sb).await?;
         }
         Commands::DismissAlert => {
-            let mut sb = BaseCase::new(config).await?;
             sb.dismiss_alert().await?;
             println!("Dismissed alert");
-            after.finish(&mut sb).await?;
         }
-        Commands::GetAlertText => {
-            let mut sb = BaseCase::new(config).await?;
-            let text = sb.alert_text().await?;
-            println!("Alert text: {}", text);
-            after.finish(&mut sb).await?;
-        }
+        Commands::GetAlertText => println!("Alert text: {}", sb.alert_text().await?),
         Commands::TypeAlertText { text } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.type_alert_text(&text).await?;
             println!("Typed alert text: {}", text);
-            after.finish(&mut sb).await?;
         }
         Commands::ClearLocalStorage => {
-            let mut sb = BaseCase::new(config).await?;
             sb.clear_local_storage().await?;
             println!("Cleared local storage");
-            after.finish(&mut sb).await?;
         }
         Commands::GetLocalStorageItem { key } => {
-            let mut sb = BaseCase::new(config).await?;
             let val = sb.local_storage_item(&key).await?;
             println!("Local storage item '{}': {}", key, val);
-            after.finish(&mut sb).await?;
         }
         Commands::SetLocalStorageItem { key, value } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.set_local_storage_item(&key, &value).await?;
             println!("Set local storage item '{}' to '{}'", key, value);
-            after.finish(&mut sb).await?;
         }
         Commands::RemoveLocalStorageItem { key } => {
-            let mut sb = BaseCase::new(config).await?;
             sb.remove_local_storage_item(&key).await?;
             println!("Removed local storage item '{}'", key);
-            after.finish(&mut sb).await?;
         }
-
         Commands::GetCookies => {
-            let mut sb = BaseCase::new(config).await?;
             let cookies = sb.cookies().await?;
             println!("Cookies: {}", serde_json::to_string(&cookies)?);
-            after.finish(&mut sb).await?;
         }
+        Commands::AssertTextVisible { css, text } => {
+            sb.assert_text_visible(&text, &css).await?;
+            println!("Text '{}' is visible in '{}'", text, css);
+        }
+        Commands::AssertTextNotVisible { css, text } => {
+            sb.assert_text_not_visible(&text, &css).await?;
+            println!("Text '{}' is not visible in '{}'", text, css);
+        }
+        Commands::AssertAttribute {
+            css,
+            attribute,
+            value,
+        } => {
+            sb.assert_attribute(&css, &attribute, &value).await?;
+            println!("Attribute '{}' of '{}' is '{}'", attribute, css, value);
+        }
+        Commands::AssertTitle { text } => {
+            sb.assert_title(&text).await?;
+            println!("Title is '{}'", text);
+        }
+        Commands::WaitForReadyStateComplete => {
+            sb.wait_for_ready_state_complete().await?;
+            println!("Ready state complete");
+        }
+        Commands::GetWindowPosition => {
+            let (x, y) = sb.window_position().await?;
+            println!("Window position: x={}, y={}", x, y);
+        }
+        Commands::IsElementVisible { css } => {
+            let visible = sb.is_element_visible(&css).await?;
+            println!("Element '{}' is visible: {}", css, visible);
+        }
+        Commands::IsTextVisible { css, text } => {
+            let visible = sb.is_text_visible(&text, &css).await?;
+            println!("Text '{}' in '{}' is visible: {}", text, css, visible);
+        }
+        Commands::WaitForElementNotVisible { css, timeout } => {
+            sb.wait_for_element_not_visible(&css, timeout).await?;
+            println!("Element '{}' is not visible", css);
+        }
+        Commands::SaveCookies { file } => {
+            sb.save_cookies_to_path(Path::new(&file)).await?;
+            println!("Saved cookies to '{}'", file);
+        }
+        Commands::LoadCookies { file } => {
+            sb.load_cookies_from_path(Path::new(&file), seleniumbase_rs::CookieExpiry::Saved)
+                .await?;
+            println!("Loaded cookies from '{}'", file);
+        }
+        Commands::HighlightClick { css } => {
+            sb.highlight_click(&css).await?;
+            println!("Highlighted and clicked '{}'", css);
+        }
+        Commands::IsChecked { css } => {
+            let checked = sb.is_checked(&css).await?;
+            println!("Element '{}' is checked: {}", css, checked);
+        }
+        Commands::CheckIfUnchecked { css } => {
+            sb.check_if_unchecked(&css).await?;
+            println!("Checked '{}'", css);
+        }
+        Commands::UncheckIfChecked { css } => {
+            sb.uncheck_if_checked(&css).await?;
+            println!("Unchecked '{}'", css);
+        }
+        Commands::WaitForElementPresent { css, timeout } => {
+            sb.wait_for_element_present(&css, timeout).await?;
+            println!("Element '{}' is present", css);
+        }
+        Commands::AddText { css, text } => {
+            sb.add_text(&css, &text).await?;
+            println!("Added text to '{}'", css);
+        }
+        Commands::SendKeys { css, text } => {
+            sb.send_keys(&css, &text).await?;
+            println!("Sent keys to '{}'", css);
+        }
+        Commands::GetValue { css } => println!("Value of '{}': {}", css, sb.value(&css).await?),
+        Commands::ClickVisibleElements { css } => {
+            sb.click_visible_elements(&css).await?;
+            println!("Clicked visible elements matching '{}'", css);
+        }
+        Commands::WaitForAndAcceptAlert { timeout } => {
+            sb.wait_for_and_accept_alert(timeout).await?;
+            println!("Waited for and accepted alert");
+        }
+        Commands::WaitForAndDismissAlert { timeout } => {
+            sb.wait_for_and_dismiss_alert(timeout).await?;
+            println!("Waited for and dismissed alert");
+        }
+        Commands::IsLinkTextVisible { text } => {
+            let visible = sb.is_link_text_visible(&text).await?;
+            println!("Link text '{}' is visible: {}", text, visible);
+        }
+        Commands::IsPartialLinkTextVisible { text } => {
+            let visible = sb.is_partial_link_text_visible(&text).await?;
+            println!("Partial link text '{}' is visible: {}", text, visible);
+        }
+        Commands::AssertLinkText { text } => {
+            sb.assert_link_text(&text).await?;
+            println!("Link text '{}' asserted", text);
+        }
+        Commands::ClickPartialLinkText { text } => {
+            sb.click_partial_link_text(&text).await?;
+            println!("Clicked partial link text '{}'", text);
+        }
+        Commands::HumanType { css, text } => {
+            sb.human_type(&css, &text).await?;
+            println!("Human typed into '{}'", css);
+        }
+        Commands::HumanClick { css } => {
+            sb.human_click(&css).await?;
+            println!("Human clicked '{}'", css);
+        }
+        Commands::SmoothScrollTo { css } => {
+            sb.smooth_scroll_to(&css).await?;
+            println!("Smooth scrolled to '{}'", css);
+        }
+        Commands::UcClick { css } => {
+            sb.uc_click(&css).await?;
+            println!("UC clicked '{}'", css);
+        }
+        Commands::UcType { css, text } => {
+            sb.uc_type(&css, &text).await?;
+            println!("UC typed into '{}'", css);
+        }
+        _ => unreachable!("non-page commands handled before run_page_action"),
+    }
+    Ok(())
+}
+
+async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
+    if try_run_offline_command(&args).await? {
+        return Ok(());
+    }
+    let prepared = prepare_browser_run(&args)?;
+    let PreparedRun {
+        config,
+        settings,
+        overrides,
+        after,
+        selection,
+        start_page_set,
+        forward_plugins,
+    } = prepared;
+
+    match args.command {
         Commands::PatchChromedriver {
             path,
             inspect,
             restore,
             preset,
-        } => {
-            if inspect && restore {
-                return Err(seleniumbase_rs::SeleniumBaseError::patcher(
-                    &path,
-                    "cannot pass both --inspect and --restore",
-                )
-                .into());
-            }
-            let patcher = ChromedriverPatcher::new(&path);
-            if inspect {
-                let report = patcher.inspect()?;
-                println!("{report}");
-                if report.needs_patch() {
-                    println!(
-                        "Status: core automation markers found (run without --inspect to patch)"
-                    );
-                } else if report.has_any_markers() {
-                    println!(
-                        "Status: extended markers present (use `--preset aggressive` to scrub all)"
-                    );
-                } else {
-                    println!("Status: clean (no known automation markers found)");
-                }
-            } else if restore {
-                patcher.restore()?;
-                println!("Restored chromedriver binary from backup at: {path}");
-            } else {
-                let chosen: PatchPreset = preset.map_or(PatchPreset::All, Into::into);
-                patcher.patch(chosen.to_patch())?;
-                println!("Successfully patched chromedriver binary at: {path} (preset: {chosen})");
-            }
-        }
+        } => run_patch_chromedriver_cmd(&path, inspect, restore, preset)?,
         Commands::PatchChrome {
             path,
             cache_dir,
             inspect,
             preset,
             with_companions,
-        } => {
-            if inspect {
-                let patcher = ChromeBinaryPatcher::new(&path);
-                let reports = if with_companions {
-                    patcher.inspect_bundle()?
-                } else {
-                    vec![patcher.inspect()?]
-                };
-                for report in reports {
-                    println!("{report}");
-                }
-            } else {
-                let cache = patch_cache_dir(
-                    cache_dir,
-                    seleniumbase_rs::config::env_vars::text("SB_PATCH_CACHE_DIR"),
-                );
-                let patcher = ChromeBinaryPatcher::new(&path).cache_dir(cache);
-                let chosen: PatchPreset = preset.map_or(PatchPreset::ChromeBinary, Into::into);
-                if with_companions {
-                    let bundle = patcher.patch_bundle(chosen.to_patch())?;
-                    println!(
-                        "Patched Chrome binary available at: {} (preset: {chosen})",
-                        bundle.executable.display()
-                    );
-                    if let Some(companion) = bundle.companion {
-                        println!(
-                            "Patched companion library available at: {}",
-                            companion.display()
-                        );
-                    } else {
-                        println!("No companion framework/DLL found alongside {path}");
-                    }
-                } else {
-                    let patched = patcher.patch(chosen.to_patch())?;
-                    println!(
-                        "Patched Chrome binary available at: {} (preset: {chosen})",
-                        patched.display()
-                    );
-                }
-            }
-        }
+        } => run_patch_chrome_cmd(&path, cache_dir, inspect, preset, with_companions)?,
         Commands::Version => println!("sbrs {VERSION}"),
         Commands::Encrypt { text } => {
             let passphrase = encryption_passphrase()?;
@@ -4492,203 +4734,7 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             let plain = decrypt_with_passphrase(&token, &passphrase).map_err(wrong_passphrase)?;
             println!("{plain}");
         }
-        Commands::Doctor(options) => {
-            run_doctor(&options).await?;
-        }
-        Commands::AssertTextVisible { css, text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.assert_text_visible(&text, &css).await?;
-            println!("Text '{}' is visible in '{}'", text, css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::AssertTextNotVisible { css, text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.assert_text_not_visible(&text, &css).await?;
-            println!("Text '{}' is not visible in '{}'", text, css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::AssertAttribute {
-            css,
-            attribute,
-            value,
-        } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.assert_attribute(&css, &attribute, &value).await?;
-            println!("Attribute '{}' of '{}' is '{}'", attribute, css, value);
-            after.finish(&mut sb).await?;
-        }
-        Commands::AssertTitle { text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.assert_title(&text).await?;
-            println!("Title is '{}'", text);
-            after.finish(&mut sb).await?;
-        }
-        Commands::WaitForReadyStateComplete => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_ready_state_complete().await?;
-            println!("Ready state complete");
-            after.finish(&mut sb).await?;
-        }
-        Commands::GetWindowPosition => {
-            let mut sb = BaseCase::new(config).await?;
-            let (x, y) = sb.window_position().await?;
-            println!("Window position: x={}, y={}", x, y);
-            after.finish(&mut sb).await?;
-        }
-        Commands::IsElementVisible { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            let visible = sb.is_element_visible(&css).await?;
-            println!("Element '{}' is visible: {}", css, visible);
-            after.finish(&mut sb).await?;
-        }
-        Commands::IsTextVisible { css, text } => {
-            let mut sb = BaseCase::new(config).await?;
-            let visible = sb.is_text_visible(&text, &css).await?;
-            println!("Text '{}' in '{}' is visible: {}", text, css, visible);
-            after.finish(&mut sb).await?;
-        }
-        Commands::WaitForElementNotVisible { css, timeout } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_element_not_visible(&css, timeout).await?;
-            println!("Element '{}' is not visible", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::SaveCookies { file } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.save_cookies_to_path(std::path::Path::new(&file)).await?;
-            println!("Saved cookies to '{}'", file);
-            after.finish(&mut sb).await?;
-        }
-        Commands::LoadCookies { file } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.load_cookies_from_path(
-                std::path::Path::new(&file),
-                seleniumbase_rs::CookieExpiry::Saved,
-            )
-            .await?;
-            println!("Loaded cookies from '{}'", file);
-            after.finish(&mut sb).await?;
-        }
-        Commands::HighlightClick { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.highlight_click(&css).await?;
-            println!("Highlighted and clicked '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::IsChecked { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            let checked = sb.is_checked(&css).await?;
-            println!("Element '{}' is checked: {}", css, checked);
-            after.finish(&mut sb).await?;
-        }
-        Commands::CheckIfUnchecked { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.check_if_unchecked(&css).await?;
-            println!("Checked '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::UncheckIfChecked { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.uncheck_if_checked(&css).await?;
-            println!("Unchecked '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::WaitForElementPresent { css, timeout } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_element_present(&css, timeout).await?;
-            println!("Element '{}' is present", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::AddText { css, text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.add_text(&css, &text).await?;
-            println!("Added text to '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::SendKeys { css, text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.send_keys(&css, &text).await?;
-            println!("Sent keys to '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::GetValue { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            let value = sb.value(&css).await?;
-            println!("Value of '{}': {}", css, value);
-            after.finish(&mut sb).await?;
-        }
-        Commands::ClickVisibleElements { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.click_visible_elements(&css).await?;
-            println!("Clicked visible elements matching '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::WaitForAndAcceptAlert { timeout } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_and_accept_alert(timeout).await?;
-            println!("Waited for and accepted alert");
-            after.finish(&mut sb).await?;
-        }
-        Commands::WaitForAndDismissAlert { timeout } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.wait_for_and_dismiss_alert(timeout).await?;
-            println!("Waited for and dismissed alert");
-            after.finish(&mut sb).await?;
-        }
-        Commands::IsLinkTextVisible { text } => {
-            let mut sb = BaseCase::new(config).await?;
-            let visible = sb.is_link_text_visible(&text).await?;
-            println!("Link text '{}' is visible: {}", text, visible);
-            after.finish(&mut sb).await?;
-        }
-        Commands::IsPartialLinkTextVisible { text } => {
-            let mut sb = BaseCase::new(config).await?;
-            let visible = sb.is_partial_link_text_visible(&text).await?;
-            println!("Partial link text '{}' is visible: {}", text, visible);
-            after.finish(&mut sb).await?;
-        }
-        Commands::AssertLinkText { text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.assert_link_text(&text).await?;
-            println!("Link text '{}' asserted", text);
-            after.finish(&mut sb).await?;
-        }
-        Commands::ClickPartialLinkText { text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.click_partial_link_text(&text).await?;
-            println!("Clicked partial link text '{}'", text);
-            after.finish(&mut sb).await?;
-        }
-        Commands::HumanType { css, text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.human_type(&css, &text).await?;
-            println!("Human typed into '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::HumanClick { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.human_click(&css).await?;
-            println!("Human clicked '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::SmoothScrollTo { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.smooth_scroll_to(&css).await?;
-            println!("Smooth scrolled to '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::UcClick { css } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.uc_click(&css).await?;
-            println!("UC clicked '{}'", css);
-            after.finish(&mut sb).await?;
-        }
-        Commands::UcType { css, text } => {
-            let mut sb = BaseCase::new(config).await?;
-            sb.uc_type(&css, &text).await?;
-            println!("UC typed into '{}'", css);
-            after.finish(&mut sb).await?;
-        }
+        Commands::Doctor(options) => run_doctor(&options).await?,
         Commands::SolveCaptcha {
             expect_text,
             expect_cookie,
@@ -4705,7 +4751,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             after.finish(&mut sb).await?;
             outcome?;
         }
-
         Commands::Install {
             driver,
             version,
@@ -4717,7 +4762,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             println!("{}", args_install::report(request.name, &installed));
         }
         Commands::Test(test) => {
-            // What the options before the command asked for, then the flags after it, which win.
             let mut forwarded: Vec<(String, String)> = overrides
                 .env()
                 .into_iter()
@@ -4729,7 +4773,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
                     config.session.webdriver_url(),
                 ));
             }
-            // The variable replaces the names the file enables, so it carries all of them.
             if forward_plugins {
                 forwarded.push(("SB_PLUGINS".to_owned(), selection.to_list()));
             }
@@ -4738,28 +4781,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             if code != 0 {
                 std::process::exit(code);
             }
-        }
-        Commands::Mkdir(_)
-        | Commands::Mkfile(_)
-        | Commands::Mkpres(_)
-        | Commands::Mkchart(_)
-        | Commands::Translate(_)
-        | Commands::Print(_)
-        | Commands::Convert(_)
-        | Commands::ExtractObjects(_)
-        | Commands::InjectObjects(_)
-        | Commands::RevertObjects(_)
-        | Commands::GridHub(_)
-        | Commands::GridNode(_)
-        | Commands::Proxy(_)
-        | Commands::Download(_)
-        | Commands::Report(_)
-        | Commands::BehaveOptions
-        | Commands::Methods
-        | Commands::Options(_)
-        | Commands::Devtools { .. }
-        | Commands::Recorder => {
-            unreachable!("these commands return before browser configuration")
         }
         #[cfg(feature = "tui")]
         Commands::Commander { path, filter } => {
@@ -4771,9 +4792,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         #[cfg(not(feature = "tui"))]
         Commands::Commander { .. } => no_terminal_ui(),
-        // The file-writing commands below hand their error to `main`, which
-        // prints `error: ...` and exits with the status of its kind (6 for a
-        // local file), instead of printing it here and exiting with 0.
         Commands::Caseplans { starter: true, .. } => {
             let path =
                 sb_caseplans::run_caseplans().map_err(|e| context("generate case plans", e))?;
@@ -4804,133 +4822,19 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         #[cfg(not(feature = "tui"))]
         Commands::BehaveGui { .. } => no_terminal_ui(),
-        Commands::Objectify(_) => {
-            unreachable!("objectify returns before browser configuration")
-        }
         Commands::Mkrec {
             file,
             overwrite,
             behave,
-        } => {
-            let mut options = sb_recorder::MkrecOptions::new(file);
-            options.overwrite = overwrite;
-            options.esc_end = args.esc_end;
-            options.behave = behave;
-            // Python colours these banners (`c0` to `c5`) except on Linux; here they are
-            // coloured on a terminal that allows it, and plain in a pipe or with NO_COLOR.
-            options.color = seleniumbase_rs::common::color::use_color(&std::io::stdout());
-            let stderr_color = seleniumbase_rs::common::color::use_color(&std::io::stderr());
-
-            // Refuse a bad name before a browser starts.
-            if let Err(message) = options.check() {
-                eprintln!(
-                    "{}",
-                    sb_recorder::error_banner(&message.to_string(), stderr_color)
-                );
-                std::process::exit(1);
-            }
-            let outcome = sb_recorder::run_mkrec(config, &options, &mut std::io::stdout()).await?;
-            if outcome.copied_to.is_none() {
-                eprintln!(
-                    "{}",
-                    sb_recorder::error_banner(
-                        &format!("nothing was recorded, so {} was not written", options.file),
-                        stderr_color,
-                    )
-                );
-                std::process::exit(1);
-            }
-            // A Ctrl-C leaves the prompt's read of standard input waiting; the recording is
-            // saved and the browser is closed, so do not wait for a line.
-            if outcome.interrupted {
-                std::process::exit(0);
-            }
-        }
+        } => run_mkrec_cmd(config, file, overwrite, behave, args.esc_end).await?,
         Commands::RunScenario { file, dashboard } => {
-            let scenario_json = std::fs::read_to_string(&file)?;
-            let scenario: Scenario = serde_json::from_str(&scenario_json)?;
-            let mut sb = BaseCase::new(config).await?;
-            let summary = run_scenario(&mut sb, &scenario).await?;
-
-            if let Some(dashboard_path) = dashboard.as_deref() {
-                write_dashboard(&summary, dashboard_path)?;
-                println!("Dashboard written: {dashboard_path}");
-            } else {
-                let logs_dir = ensure_latest_logs_dir()?;
-                let dashboard_path = artifact_path(&logs_dir, "dashboard", "html");
-                write_dashboard(&summary, &dashboard_path)?;
-                println!("Dashboard written: {}", dashboard_path.display());
-            }
-
-            println!(
-                "Scenario '{}' steps: total={}, passed={}, failed={}",
-                summary.scenario_name,
-                summary.total_steps,
-                summary.passed_steps,
-                summary.failed_steps
-            );
-            if !summary.errors.is_empty() {
-                println!("Errors:");
-                for error in &summary.errors {
-                    println!("- {error}");
-                }
-            }
-
-            let (json_file, rust_file) = sb.save_recording_to_logs()?;
-            println!("Recording json: {}", json_file.display());
-            println!("Recording script: {}", rust_file.display());
-            after.finish(&mut sb).await?;
-            if summary.failed_steps > 0 {
-                return Err(format!(
-                    "scenario '{}' failed: {} of {} steps failed",
-                    summary.scenario_name, summary.failed_steps, summary.total_steps
-                )
-                .into());
-            }
+            run_scenario_cmd(config, after, file, dashboard).await?
         }
         Commands::DownloadFile {
             url,
             output,
             timeout,
-        } => {
-            let dest = match output.as_deref() {
-                Some(path) => PathBuf::from(path),
-                None => std::env::current_dir()?.join(download_file_name(&url)),
-            };
-            let browser_name = dest
-                .file_name()
-                .and_then(|name| name.to_str())
-                .unwrap_or("download")
-                .to_string();
-
-            let mut sb = BaseCase::new(config).await?;
-            let downloaded = match sb
-                .download_file_in_browser(&url, &browser_name, timeout)
-                .await
-            {
-                Ok(path) => {
-                    if path != dest {
-                        if let Some(parent) = dest.parent()
-                            && !parent.as_os_str().is_empty()
-                        {
-                            std::fs::create_dir_all(parent)?;
-                        }
-                        std::fs::copy(&path, &dest)?;
-                    }
-                    true
-                }
-                Err(err) => {
-                    eprintln!("Browser download unavailable ({err}); falling back to HTTP.");
-                    false
-                }
-            };
-            after.finish(&mut sb).await?;
-            if !downloaded {
-                http_download(&url, &dest).await?;
-            }
-            let size = std::fs::metadata(&dest).map(|meta| meta.len()).unwrap_or(0);
-            println!("Saved {} ({size} bytes)", dest.display());
-        }
+        } => run_download_file_cmd(config, after, url, output, timeout).await?,
         Commands::PrintPdf { url, output } => {
             let mut sb = BaseCase::new(config).await?;
             sb.open(&navigable_url(&url)?).await?;
@@ -4973,8 +4877,6 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
         }
         Commands::ChooseFile { selector, file } => {
             let mut sb = BaseCase::new(config).await?;
-            // The start page (the global --url) is the page that has the file input;
-            // without one, a blank page that has it.
             if !start_page_set {
                 sb.open(&html_data_url(&blank_file_input_page(&selector)))
                     .await?;
@@ -4994,76 +4896,13 @@ async fn run(args: Cli) -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Commands::Deferred { asserts, spec } => {
-            let mut specs = parse_deferred_specs(&asserts)?;
-            if let Some(path) = spec.as_deref() {
-                let raw = std::fs::read_to_string(path)?;
-                specs.extend(parse_deferred_spec_json(&raw)?);
-            }
-            if specs.is_empty() {
-                return Err("no assertions provided: pass --assert or --spec".into());
-            }
-
-            // The start page, if there is one, is open already.
-            let mut sb = BaseCase::new(config).await?;
-            let mut results = Vec::with_capacity(specs.len());
-            for entry in &specs {
-                let outcome = match entry {
-                    DeferredSpec::Element(selector) => sb.assert_element(selector).await,
-                    DeferredSpec::Text(selector, expected) => {
-                        sb.assert_text(expected, selector).await
-                    }
-                    DeferredSpec::Title(expected) => sb.assert_title_contains(expected).await,
-                    DeferredSpec::Url(expected) => sb.assert_url_contains(expected).await,
-                };
-                results.push(DeferredResult {
-                    description: entry.describe(),
-                    error: outcome.err().map(|err| err.to_string()),
-                });
-            }
-            after.finish(&mut sb).await?;
-
-            print!("{}", format_deferred_summary(&results));
-            if results.iter().any(|result| !result.passed()) {
-                std::process::exit(1);
-            }
+            run_deferred_cmd(config, after, asserts, spec).await?
         }
-        Commands::Replay { file } => {
-            let actions: Vec<RecordedAction> = RecorderSession::load(Path::new(&file))?;
-            if actions.is_empty() {
-                return Err(format!("no actions found in '{file}'").into());
-            }
+        Commands::Replay { file } => run_replay_cmd(config, after, file).await?,
+        other => {
             let mut sb = BaseCase::new(config).await?;
-            let report = RecorderSession::replay(&mut sb, &actions).await?;
+            run_page_action(other, &mut sb).await?;
             after.finish(&mut sb).await?;
-
-            for step in &report.steps {
-                match &step.error {
-                    Some(err) => println!("FAIL  {} -> {err}", step.description),
-                    None => println!("ok    {}", step.description),
-                }
-            }
-            println!(
-                "Replayed {} step(s): {} passed, {} failed, {} skipped",
-                report.steps.len(),
-                report.passed(),
-                report.failed(),
-                report.skipped
-            );
-            if !report.skipped_names.is_empty() {
-                println!("Skipped: {}", report.skipped_names.join(", "));
-            }
-            if !report.is_success() {
-                std::process::exit(1);
-            }
-        }
-        Commands::Completions { .. }
-        | Commands::ImportPython { .. }
-        | Commands::ImportPlaywright { .. }
-        | Commands::ImportPuppeteer { .. }
-        | Commands::Plugin(_)
-        | Commands::Prompt(_)
-        | Commands::Trace(_) => {
-            unreachable!("pure CLI commands return before browser configuration")
         }
     }
 
