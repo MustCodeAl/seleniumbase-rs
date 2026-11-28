@@ -208,6 +208,8 @@ pub(crate) struct Inner {
     pub(crate) options: LaunchOptions,
     /// Tab id to the protocol session attached to it.
     sessions: StdMutex<HashMap<String, Arc<str>>>,
+    /// Tab ids in opening / discovery order, kept stable when Chrome reorders `Target.getTargets`.
+    known_pages: StdMutex<Vec<String>>,
     /// Out-of-process frame id to the protocol session attached to it, for
     /// the frames a locator entered (a frame's id is its target's id).
     frame_sessions: StdMutex<HashMap<String, Arc<str>>>,
@@ -736,6 +738,7 @@ impl Browser {
                 ws_url,
                 options,
                 sessions: StdMutex::new(HashMap::new()),
+                known_pages: StdMutex::new(Vec::new()),
                 frame_sessions: StdMutex::new(HashMap::new()),
 
                 attached: AtomicBool::new(false),
@@ -862,7 +865,7 @@ impl Browser {
             return Ok(vec![self.channel_page_info().await?]);
         }
         let response = self.execute("Target.getTargets", json!({})).await?;
-        Ok(response["targetInfos"].as_array().map_or_default(|infos| {
+        let pages: Vec<PageInfo> = response["targetInfos"].as_array().map_or_default(|infos| {
             infos
                 .iter()
                 .filter(|info| info["type"] == "page")
@@ -872,7 +875,34 @@ impl Browser {
                     title: info["title"].as_str().unwrap_or_default().to_owned(),
                 })
                 .collect()
-        }))
+        });
+        Ok(self.order_pages(pages))
+    }
+
+    fn note_page(&self, id: &str) {
+        let mut known = locked(&self.inner.known_pages);
+        if !known.iter().any(|seen| seen == id) {
+            known.push(id.to_owned());
+        }
+    }
+
+    fn order_pages(&self, pages: Vec<PageInfo>) -> Vec<PageInfo> {
+        let mut known = locked(&self.inner.known_pages);
+        known.retain(|id| pages.iter().any(|page| &page.id == id));
+        for page in &pages {
+            if !known.iter().any(|id| id == &page.id) {
+                known.push(page.id.clone());
+            }
+        }
+        let mut remaining = pages;
+        let mut ordered = Vec::with_capacity(remaining.len());
+        for id in known.iter() {
+            if let Some(pos) = remaining.iter().position(|page| &page.id == id) {
+                ordered.push(remaining.swap_remove(pos));
+            }
+        }
+        ordered.extend(remaining);
+        ordered
     }
 
     /// Returns a handle to every open tab, attaching to and preparing each.
@@ -985,6 +1015,7 @@ impl Browser {
         let id = response["targetId"].as_str().ok_or_else(|| {
             SeleniumBaseError::cdp_driver("Target.createTarget returned no targetId")
         })?;
+        self.note_page(id);
         // Known before the plugins see the tab, so their handle names its context.
         #[cfg(feature = "plugins")]
         if let Some(context) = &context {
@@ -1153,6 +1184,7 @@ impl Browser {
                 .into()
         };
         self.prepare_session(id, &session).await?;
+        self.note_page(id);
         locked(&self.inner.sessions).insert(id.to_owned(), Arc::clone(&session));
         Ok(session)
     }
@@ -1243,6 +1275,7 @@ impl Browser {
     /// Forgets a closed tab's session.
     pub(crate) fn forget_page(&self, id: &str) {
         let removed = locked(&self.inner.sessions).remove(id);
+        locked(&self.inner.known_pages).retain(|seen| seen != id);
         #[cfg(feature = "plugins")]
         locked(&self.inner.tab_contexts).remove(id);
 
@@ -1940,5 +1973,36 @@ mod proxy_login_tests {
             }
         }
         assert!(!format!("{browser:?}").contains(PASSWORD));
+    }
+
+    #[tokio::test]
+    async fn list_pages_preserves_opening_order_when_targets_reorder() {
+        let (browser, mock) = Browser::new_mocked();
+        let reordered = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let flag = Arc::clone(&reordered);
+        mock.on("Target.getTargets", move |_| {
+            let infos = if flag.load(Ordering::SeqCst) {
+                json!([
+                    { "targetId": "tab-2", "type": "page", "url": "about:blank", "title": "Second" },
+                    { "targetId": "tab-1", "type": "page", "url": "about:blank", "title": "First" },
+                ])
+            } else {
+                json!([
+                    { "targetId": "tab-1", "type": "page", "url": "about:blank", "title": "First" },
+                    { "targetId": "tab-2", "type": "page", "url": "about:blank", "title": "Second" },
+                ])
+            };
+            Ok(json!({ "targetInfos": infos }))
+        });
+
+        let initial = browser.list_pages().await.unwrap();
+        assert_eq!(initial[0].id, "tab-1");
+        assert_eq!(initial[1].id, "tab-2");
+
+        reordered.store(true, Ordering::SeqCst);
+        let after = browser.list_pages().await.unwrap();
+        assert_eq!(after[0].id, "tab-1");
+        assert_eq!(after[1].id, "tab-2");
+        assert_eq!(browser.newest_page().await.unwrap().id(), "tab-2");
     }
 }

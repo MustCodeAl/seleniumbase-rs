@@ -30,7 +30,7 @@ use serde::Deserialize;
 use super::{Captcha, Page, Point, Rect, WindowBounds, WindowState};
 use crate::api::gui::Gui;
 use crate::error::SeleniumBaseError;
-use crate::evasion::behavior::{Behavior, Humanizer};
+use crate::sb_cdp::human::behavior::{Behavior, Humanizer};
 
 /// How wide the target of the pointer is, in pixels: about a checkbox.
 ///

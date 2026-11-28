@@ -7,7 +7,7 @@
 //!
 //! Interception is per page: other tabs are not affected. (For a header
 //! override across the whole browser, see
-//! [`CdpReactor`](crate::evasion::reactor::CdpReactor).)
+//! [`CdpReactor`](crate::undetected::reactor::CdpReactor).)
 //!
 //! # Examples
 //!

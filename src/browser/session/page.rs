@@ -129,7 +129,7 @@ impl BrowserSession {
     ///
     /// Returns the driver's error for any failure other than a missing cookie.
     pub async fn cookie(&self, name: &str) -> Result<Option<Cookie>, SeleniumBaseError> {
-        if self.external_page.is_some() {
+        if self.external_page.is_some() || self.cdp_client().is_ok() {
             let cookies = self.cookies().await?;
             return Ok(cookies.into_iter().find(|cookie| cookie.name == name));
         }
